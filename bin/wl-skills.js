@@ -4,7 +4,7 @@
  * wl-skills-kit CLI
  *
  * 功能：将 files/ 目录下的所有文件按原始路径拷贝到当前工作目录。
- * 用法：npx @jhlc/wl-skills-kit [--dry-run]
+ * 用法：npx @agile-team/wl-skills-kit [--dry-run]
  */
 
 const fs = require("fs");
@@ -21,8 +21,8 @@ if (showHelp) {
   wl-skills-kit — AI Skill 模板包
 
   用法:
-    npx @jhlc/wl-skills-kit           安装/更新模板文件到当前项目
-    npx @jhlc/wl-skills-kit --dry-run  预览将要写入的文件（不实际写入）
+    npx @agile-team/wl-skills-kit           安装/更新模板文件到当前项目
+    npx @agile-team/wl-skills-kit --dry-run  预览将要写入的文件（不实际写入）
 
   安装后写入:
     .github/    AI 指令 + Skills + 文档
