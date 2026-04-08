@@ -1,0 +1,280 @@
+/*
+ * @Author: ChenYu ycyplus@gmail.com
+ * @Date: 2026-01-01 13:30:00
+ * @LastEditors: ChenYu ycyplus@gmail.com
+ * @LastEditTime: 2026-01-01 16:30:00
+ * @FilePath: \cx-ui-sale\src\components\local\c_formSections\index.scss
+ * @Description: 表单区块组件 - 样式
+ * Copyright (c) 2026 by CHENY, All Rights Reserved 😎.
+ */
+
+// ===== 组件包裹容器 =====
+.c-form-sections-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+// ===== 顶部标题栏 =====
+.c-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+  flex-shrink: 0;
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+// 按钮样式优化
+  .el-button {
+    font-size: 13px;
+
+    .el-icon {
+      margin-right: 4px;
+    }
+  }
+  }
+}
+
+// ===== 布局切换器 =====
+.layout-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed #dcdfe6;
+  padding: 4px 8px;
+  border-radius: 2px;
+
+  .layout-icon {
+    font-size: 11px;
+    color: #c0c4cc;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-family: Arial, sans-serif;
+    letter-spacing: -1px;
+    user-select: none;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #409eff;
+    }
+
+    &.active {
+      color: #409eff;
+    }
+  }
+}
+
+// ===== 工具栏 =====
+.c-form-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid #e4e7ed;
+
+  .toolbar-left,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .required-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .label {
+      font-size: 13px;
+      color: #606266;
+      user-select: none;
+    }
+  }
+}
+
+// ===== 主体内容区域 =====
+.c-form-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+
+  // 左侧导航
+  .nav-tabs {
+    flex-shrink: 0;
+    width: 140px;
+    border-right: 1px solid #e4e7ed;
+
+    :deep(.el-tabs__header) {
+      margin: 0;
+    }
+
+    :deep(.el-tabs__nav-wrap) {
+      &::after {
+        display: none;
+      }
+    }
+
+    // 隐藏 Element Plus 默认的激活指示器竖线
+    :deep(.el-tabs__active-bar) {
+      display: none;
+    }
+
+    :deep(.el-tabs__item) {
+      padding: 0 16px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 13px;
+      color: #606266;
+      text-align: left;
+
+      &:hover {
+        background-color: #f5f7fa !important;
+      }
+
+      &.is-active {
+        color: #409eff !important;
+        background-color: rgba(64, 158, 255, 0.1) !important;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // 表单容器
+  .form-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+  }
+}
+
+// ===== 折叠面板标题样式 =====
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-right: 12px;
+  padding-left: 12px;
+  position: relative;
+
+  // 左侧短竖线装饰
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 14px;
+    background-color: #409eff;
+    border-radius: 2px;
+  }
+}
+
+// ===== 折叠面板内容样式 =====
+:deep(.el-collapse-item__content) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+// ===== 表单项样式优化 =====
+:deep(.el-form-item) {
+  margin-bottom: 14px;
+
+  // 标签样式
+  .el-form-item__label {
+    font-size: 13px;
+    color: #606266;
+
+    // 必填标记样式
+    &::before {
+      margin-right: 2px;
+    }
+  }
+
+  // 输入框样式
+  .el-input__inner,
+  .el-textarea__inner {
+    font-size: 13px;
+  }
+
+  // 选择框样式
+  .el-select {
+    width: 100%;
+  }
+}
+
+// ===== 分割线样式 =====
+:deep(.el-divider) {
+  margin: 0;
+  flex: 1;
+}
+
+// ===== 折叠面板标题容器 =====
+:deep(.el-collapse) {
+  border-top: 0;
+  border-bottom: 0;
+}
+:deep(.el-collapse-item__header) {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 48px;
+  font-weight: normal;
+  border-bottom: 0;
+  border-top: 0;
+  // hover 效果
+  &:hover {
+    background-color: #f5f7fa;
+  }
+
+  // 展开箭头
+  .el-collapse-item__arrow {
+    margin-right: 8px;
+  }
+}
+:deep(.el-collapse-item__wrap) {
+  border-bottom: 0;
+}
+
+// ===== 空状态样式 =====
+:deep(.el-empty) {
+  padding: 24px 0;
+
+  .el-empty__description {
+    font-size: 13px;
+    color: #909399;
+  }
+}
+
+// ===== 响应式适配 =====
+@media screen and (max-width: 1440px) {
+  :deep(.el-form-item) {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 13px;
+  }
+
+  .c-form-header .header-title {
+    font-size: 15px;
+  }
+
+  .nav-tabs {
+    width: 120px;
+  }
+}

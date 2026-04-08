@@ -1,0 +1,139 @@
+.temp-customer-detail {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.temp-customer-detail .title-bar {
+  padding: 10px 16px 8px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+    flex-shrink: 0;
+  }
+
+.temp-customer-detail .title-bar .customer-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.temp-customer-detail .title-bar .status-tag {
+  font-size: 12px;
+}
+
+.temp-customer-detail .page-toolbar {
+  padding: 8px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #fff;
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.temp-customer-detail .detail-form {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+
+.temp-customer-detail .header-info {
+  padding: 12px 0 4px;
+  border-bottom: 1px solid #f0f2f5;
+  margin-bottom: 8px;
+}
+
+.temp-customer-detail .form-section {
+  margin-top: 16px;
+}
+
+.temp-customer-detail .form-section .section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  padding: 0 0 8px 10px;
+  border-left: 3px solid var(--el-color-primary);
+  margin-bottom: 12px;
+}
+
+.temp-customer-detail .name-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.temp-customer-detail .name-field .el-input {
+  flex: 1;
+}
+
+.temp-customer-detail .name-field .name-badge {
+  background: #e8f4ff;
+  color: #409eff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.temp-customer-detail .upload-box {
+  width: 100%;
+  height: 88px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fafafa;
+}
+
+.temp-customer-detail .upload-box:hover {
+  border-color: var(--el-color-primary);
+}
+
+.temp-customer-detail .upload-box .upload-placeholder {
+  text-align: center;
+}
+
+.temp-customer-detail .upload-box .upload-icon {
+  font-size: 20px;
+  color: #c0c4cc;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.temp-customer-detail .upload-box .upload-text {
+  font-size: 12px;
+  color: #909399;
+}
+
+.temp-customer-detail .link-text {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.temp-customer-detail .link-text:hover {
+  text-decoration: underline;
+}
+
+.temp-customer-detail .add-row-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  color: #409eff;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.temp-customer-detail .add-row-btn:hover {
+  color: #66b1ff;
+}
+.temp-customer-detail .el-form-item {
+  margin-bottom: 10px;
+}

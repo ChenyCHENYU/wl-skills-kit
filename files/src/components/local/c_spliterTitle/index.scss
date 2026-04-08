@@ -1,0 +1,25 @@
+.spliter-title {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 8px 0;
+
+  .title-bar {
+    width: 4px;
+    height: 20px;
+    background: var(--el-color-primary);
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .title-text {
+    line-height: 20px;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+
+  .el-divider--horizontal {
+    margin: 18px 0;
+  }
+}

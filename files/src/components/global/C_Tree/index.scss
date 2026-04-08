@@ -1,0 +1,42 @@
+.c-tree-panel {
+  height: 100%;
+  background: #fff;
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .tree-tabs {
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  .tree-search {
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  .el-tree {
+    flex: 1;
+    overflow-y: auto;
+
+    // 滚动条样式
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+
+  .tree-node-label {
+    font-size: 14px;
+  }
+}

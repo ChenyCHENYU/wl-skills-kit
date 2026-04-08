@@ -1,0 +1,44 @@
+.app-page-container {
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+
+  .page-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-right: 12px;
+  }
+
+  .page-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    margin-right: 8px;
+
+    &--add {
+      background-color: var(--el-color-primary-light-9);
+      color: var(--el-color-primary);
+      border: 1px solid var(--el-color-primary-light-7);
+    }
+
+    &--status {
+      background-color: var(--el-color-warning-light-9);
+      color: var(--el-color-warning);
+      border: 1px solid var(--el-color-warning-light-7);
+    }
+  }
+
+  .only-required-check {
+    margin-left: 8px;
+  }
+}
+
+.page-toolbar {
+  margin-bottom: 12px;
+}

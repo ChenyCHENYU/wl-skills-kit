@@ -1,0 +1,155 @@
+.billet-flame-cut-plan {
+  padding: 8px;
+  background-color: #f5f5f5;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+
+  .main-tabs {
+    background: #fff;
+    padding: 10px 10px;
+  }
+
+  .search-form {
+    .search-row {
+      margin-bottom: 8px;
+
+      :deep(.el-col) {
+        width: 20%;
+        flex: unset;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      :deep(.el-form-item) {
+        margin-bottom: 0;
+        width: 100%;
+
+        .el-form-item__content {
+          flex: 1;
+          margin-left: 0 !important;
+        }
+      }
+    }
+  }
+
+  .el-divider--horizontal {
+    margin: 16px 0;
+  }
+
+    .cut-info-divider {
+      margin: 8px 0 16px 0 !important;
+    }
+  .action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .el-button + .el-button {
+      margin-left: 0;
+    }
+  }
+
+  .el-button--small {
+    font-size: 14px;
+  }
+
+  .page-container {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .table-section {
+    margin-top: 16px;
+  }
+}
+
+// 子标题线条样式调整
+:deep(.el-divider__text.is-left) {
+  left: 0px;
+}
+
+:deep(.el-divider__text.is-left:after) {
+  content: "";
+  width: 4px;
+  height: 16px;
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  background-color: rgba(85.8, 119.1, 255, 1);
+}
+
+// 覆盖tabs的样式
+.main-tab {
+  :deep(.el-tabs__header) {
+    margin-bottom: 0;
+  }
+
+  :deep(.el-tabs__nav) {
+    .el-tabs__active-bar {
+      background-color: transparent;
+    }
+
+    .el-tabs__item {
+      padding: 0 10px;
+      color: #666;
+      box-shadow: 0px -4px 5px 0px rgba(0, 0, 0, 0.05);
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+
+      &:last-child {
+        padding-right: 10px;
+      }
+
+      &:nth-child(2) {
+        padding-left: 10px;
+      }
+    }
+
+    .is-active {
+      background-color: #fff;
+      color: #000;
+    }
+  }
+}
+
+// 主内容区域 - 左右布局
+.main-content {
+  display: flex;
+  gap: 16px;
+  height: calc(100vh - 280px);
+  align-items: flex-start; // 确保顶部对齐
+
+  .left-panel,
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; // 防止内容溢出
+  }
+
+  .left-panel {
+    .pagination-wrapper {
+      margin-top: 16px;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+
+  // 确保两个表格的divider和表头对齐
+  :deep(.el-divider) {
+    margin: 16px 0 !important;
+  }
+
+  :deep(.el-table) {
+    flex: 1;
+    
+    .el-table__header-wrapper {
+      background-color: #fafafa;
+    }
+  }
+}

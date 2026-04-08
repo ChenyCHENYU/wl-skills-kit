@@ -1,0 +1,99 @@
+/**
+ * 内贸订单 - 样式层
+ */
+
+.app-container {
+  margin: 8px;
+  &.app-page-container {
+    padding: 16px;
+    background-color: #fff;
+  }
+}
+
+.base-toolbar-content {
+  flex-wrap: wrap;
+}
+
+// 查询区域下拉框宽度统一
+:deep(.base-query) {
+  .el-select {
+    width: 100%;
+  }
+}
+
+// 工具栏按钮样式
+:deep(.base-toolbar) {
+  .el-button.is-plain {
+    font-size: 12px;
+  }
+}
+
+// 玻璃风格按钮 - 淡蓝色高级玻璃质感
+:deep(.glass-button) {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(135, 206, 250, 0.25) 0%,
+    rgba(173, 216, 230, 0.15) 50%,
+    rgba(135, 206, 250, 0.2) 100%
+  ) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(135, 206, 250, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(135, 206, 250, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+  color: #2c5f8a !important;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+
+  // 添加光泽效果
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(135, 206, 250, 0.35) 0%,
+      rgba(173, 216, 230, 0.25) 50%,
+      rgba(135, 206, 250, 0.3) 100%
+    ) !important;
+    border-color: rgba(64, 158, 255, 0.6) !important;
+    box-shadow: 0 8px 24px rgba(135, 206, 250, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    color: #1a4a75 !important;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(135, 206, 250, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  }
+}
+// 表格区域
+:deep(.el-table) {
+  .el-table__header {
+    th {
+      background-color: #f5f7fa;
+    }
+  }
+}
+
+// 分页区域
+:deep(.jh-pagination) {
+  margin-top: 16px;
+  justify-content: flex-end;
+}

@@ -1,0 +1,264 @@
+/*
+ * @Author: ChenYu ycyplus@gmail.com
+ * @Date: 2025-12-31 15:25:40
+ * @LastEditors: ChenYu ycyplus@gmail.com
+ * @LastEditTime: 2026-01-03 23:47:09
+ * @FilePath: \cx-ui-sale\src\views\sale\demo\metallurgical-spec\index.scss
+ * @Description: 冶金规范模板 - 样式表
+ * Copyright (c) 2025 by CHENY, All Rights Reserved 😎.
+ */
+
+.metallurgical-spec-page {
+  // 变量定义
+  $spacing: 16px;
+  $small-spacing: 12px;
+  $tiny-spacing: 10px;
+  $border-radius: 4px;
+  $transition-fast: 0.2s;
+  $transition-normal: 0.3s;
+
+  // 性能优化
+  contain: layout style;
+  will-change: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: #fff;
+  margin: 8px;
+
+  // 顶部标签页
+  .main-tabs {
+    margin-bottom: $spacing;
+    background: #fff;
+    padding: 0 $spacing;
+    border-radius: $border-radius;
+  }
+
+  // 明细表格容器（替代Splitter）
+  .detail-tables-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing;
+    overflow: hidden;
+    contain: layout style;
+    transform: translateZ(0); // 强制硬件加速
+
+    // 未选择树节点时的提示
+    .no-tree-selection-tip {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border-radius: $border-radius;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+      :deep(.el-empty) {
+        .el-empty__description {
+          font-size: 16px;
+          color: #909399;
+          margin-top: $spacing;
+        }
+      }
+    }
+
+    // 表格内容容器
+    .tables-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing;
+      overflow: hidden;
+    }
+    .main-table-section,
+    .experiment-section {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      contain: layout style;
+      background: #fff;
+      border-radius: $border-radius;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .main-table-section {
+      padding: $spacing;
+    }
+
+    .experiment-section {
+      padding: $spacing;
+      max-height: 350px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      .experiment-header {
+        flex-shrink: 0;
+        margin-bottom: $small-spacing;
+      }
+      // 强制表格滚动
+      :deep(.base-table) {
+        overflow: auto !important;
+
+        .el-table {
+          .el-table__body-wrapper {
+            max-height: 250px !important;
+            overflow-y: scroll !important;
+            overflow-x: auto !important;
+          }
+        }
+
+        // 确保滚动条可见
+        .el-table__body-wrapper::-webkit-scrollbar {
+          width: 12px;
+          background: #f0f0f0;
+        }
+
+        .el-table__body-wrapper::-webkit-scrollbar-thumb {
+          background: #c0c0c0;
+          border-radius: 6px;
+
+          &:hover {
+            background: #a0a0a0;
+          }
+        }
+      }
+    }
+  }
+
+  // 拖动提示图标
+  .drag-hint-icon {
+    font-size: 18px;
+    color: #909399;
+    margin-right: 8px;
+    cursor: ns-resize;
+    user-select: none;
+    font-weight: bold;
+  }
+
+  // 列表页内容
+  .list-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: $border-radius;
+    padding: $spacing;
+    overflow: hidden;
+    // 分页器包装器
+    .pagination-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: $spacing;
+      padding-top: $small-spacing;
+    }
+
+    .list-table-container {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+  }
+
+  // 详情包装器
+  .detail-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    // 主内容区域包装器（左右拖动布局）
+    .detail-content-wrapper {
+      flex: 1;
+      overflow: hidden;
+    }
+  }
+
+  // 顶部搜索区域间距
+  :deep(.base-query) {
+    margin-bottom: $spacing;
+  }
+
+  // 详情区域（右侧内容）
+  .detail-area {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: $border-radius;
+    padding: $spacing;
+  }
+
+  // 详情标签页按钮组
+  .detail-tabs-buttons {
+    flex-shrink: 0;
+    margin-bottom: $spacing;
+  }
+
+  // 详情内容区域
+  .detail-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    // 工具栏下间距
+    .toolbar-spacing {
+      margin-bottom: $tiny-spacing;
+      flex-shrink: 0;
+    }
+
+    // 表格容器
+    .table-container {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    // 明细信息的表格容器（固定高度，给实验表格留空间）
+    &[data-tab="detail"] {
+      // 移除 table-container 固定高度，让 C_Splitter 控制
+      .detail-tables-splitter {
+        flex: 1;
+      }
+    }
+
+    // 实验项目信息区域头部
+    .experiment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $small-spacing;
+
+      .experiment-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .title-arrow {
+          font-size: 16px;
+          color: #606266;
+        }
+
+        .title-text {
+          font-size: 14px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+    }
+
+    // 明细信息占位
+    .detail-info-placeholder {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #909399;
+      font-size: 16px;
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@jhlc/wl-skills-kit",
+  "version": "1.0.0",
+  "description": "AI Skill 模板包 — 一键导入 AI 指令 + 组件文档 + 通用组件 + 领域样例",
+  "bin": {
+    "wl-skills-kit": "./bin/wl-skills.js"
+  },
+  "files": [
+    "bin/",
+    "files/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "ai",
+    "skills",
+    "copilot",
+    "vue3",
+    "template",
+    "codegen"
+  ],
+  "author": "JHLC Frontend Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitee.com/ycyplus163/wl-skills-kit.git"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
