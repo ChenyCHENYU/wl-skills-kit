@@ -219,13 +219,16 @@ onMounted(() => select());
 
 ```
 Step 1 → 读取 prototype-scan/SKILL.md → 执行原型扫描 → 输出 page-spec
-Step 2 → 读取 api-contract/SKILL.md   → 生成 api.md 接口约定
-Step 3 → 读取 page-codegen/SKILL.md   → 逐页生成代码（每页读取对应 TPL-*.md）
-Step 4 → 读取 menu-sync/SKILL.md      → 注册菜单到后端
+Step 2 → 读取 api-contract/SKILL.md   → 生成 api.md 接口约定（先于代码生成，确保 API_CONFIG 与接口一致）
+Step 3 → 读取 page-codegen/SKILL.md   → 逐页生成代码 + 追加/覆盖 SYS_MENU_INFO.md（询问用户选择写入模式）
+Step 4 → 读取 menu-sync/SKILL.md      → 读取 SYS_MENU_INFO.md → 注册菜单到后端
 ```
 
 每个 Step 开始前读取对应 SKILL.md，**前一个 Step 完成后再进入下一个**。
 上一步的输出（如 page-spec）直接作为下一步的输入，无需用户中间干预。
+
+> **数据闭环**：page-codegen 生成的 `SYS_MENU_INFO.md` 是 menu-sync 的唯一输入。
+> 菜单通过 `组件路径` 字段与 pages.ts 注册的文件路径关联，无论自动（menu-sync API）还是手动（系统管理后台）创建菜单，效果等价。
 
 ### 单独使用
 

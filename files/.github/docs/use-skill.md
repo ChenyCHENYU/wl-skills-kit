@@ -44,6 +44,7 @@ Step 2  AI 执行 prototype-scan → 输出 page-spec JSON
 Step 3  确认 page-spec（检查字段数量，注意 notes 中的歧义项）
 
 Step 4  AI 执行 api-contract → 输出每个页面的 api.md
+        （api.md 先于代码生成，确保 API_CONFIG 与接口一致）
 
 Step 5  确认接口（服务缩写、资源名是否正确）
 
@@ -51,15 +52,16 @@ Step 6  AI 执行 page-codegen → 输出：
         - index.vue + data.ts + index.scss + api.md（每页 4 文件）
         - pages.ts 注册片段（已写入）
         - mock/[页面名].ts（与 api.md URL/字段一致，vite-plugin-mock 自动加载）
-        - SYS_MENU_INFO.md 追加/更新（.github/docs/ 下）
+        - AI 询问用户：SYS_MENU_INFO.md 选择【覆盖】还是【追加】模式
+        - 写入 SYS_MENU_INFO.md（.github/docs/ 下）
 
 Step 7  AI 输出校验报告（✅/❌ 各轮 diff 结果）
 
-Step 8  菜单推送（menu-sync Skill）
-        对 AI 说「帮我创建菜单」
-        → AI 读取 SYS_MENU_INFO.md + env.local.json → 调 /system/menu/save 逐条创建
-        → 输出 created/skipped 结果表
-        （Phase 2 就绪后改用 pnpm run menu:push 脚本，详见 menu-sync/SKILL.md）
+Step 8  菜单注册（二选一，效果等价）
+        方式 A - 自动：对 AI 说「帮我创建菜单」
+          → AI 读取 SYS_MENU_INFO.md + env.local.json → 调 API 逐条创建
+        方式 B - 手动：按 SYS_MENU_INFO.md 表格在系统管理后台手动创建菜单
+        两种方式的菜单通过「组件路径」与 pages.ts 注册的文件路径关联
 
 Step 9  启动开发验证
         pnpm run dev → 打开页面，mock 数据自动生效，可立即调试

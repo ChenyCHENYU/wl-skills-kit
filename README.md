@@ -50,7 +50,7 @@ npx @agile-team/wl-skills-kit@latest
 │   └── docs/                            ← 设计文档
 │       ├── use-skill.md                 ←   Skill 使用 + 移植一站式指南
 │       ├── menu-sync-design.md          ←   菜单同步方案设计
-│       ├── SYS_MENU_INFO.md             ←   菜单注册记录模板
+│       ├── SYS_MENU_INFO.md             ←   菜单配置（page-codegen 自动生成，menu-sync 读取）
 │       └── wl-skills-kit.md             ←   本包详细设计文档
 │
 ├── docs/                                ← 12 个平台组件 API 文档
@@ -121,13 +121,15 @@ npx @agile-team/wl-skills-kit@latest
   ① prototype-scan ─── 扫描 → page-spec JSON（结构化页面描述）
          │
          ▼
-  ② api-contract ───── 生成 → api.md（前后端接口约定）
+  ② api-contract ───── 生成 → api.md（前后端接口约定，先于代码生成）
          │
          ▼
   ③ page-codegen ───── 生成 → index.vue + data.ts + index.scss + api.md + mock
          │                     （4 文件/页 + pages.ts 注册 + mock 数据）
+         │              写入 → SYS_MENU_INFO.md（询问用户选择覆盖/追加模式）
          ▼
-  ④ menu-sync ──────── 同步 → 后端菜单表（AI 自动调 API 创建菜单）
+  ④ menu-sync ──────── 读取 SYS_MENU_INFO.md → 同步到后端菜单表
+                       （自动调 API 或手动在后台创建，效果等价）
                        
   ⑤ convention-audit    按需：用规范审计代码 → 偏差报告 + 整改建议
 ```

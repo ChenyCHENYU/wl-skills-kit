@@ -42,7 +42,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 附加输出：
 
 - `pages.ts` 注册片段
-- `menu-config.md`（页面目录下，包含系统后台创建菜单所需的 12 个字段值，供手动复制或 `pnpm run menu:push` 推送）
+- **`SYS_MENU_INFO.md`** — 集中式菜单配置（见下方 §SYS_MENU_INFO 生成规则）
 - `mock/[页面kebab-name].ts`（项目根目录 `mock/` 下，`vite-plugin-mock` 自动加载，与 api.md 的 URL 和字段完全一致）
 
 ---
@@ -803,6 +803,109 @@ import { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-qu
 > **例外**：`BaseFormItemDesc`（弹窗表单字段类型）仍直接从 common-core 导入：
 > `import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";`
 > 因为 `src/types/page.ts` 当前未导出该类型。
+
+---
+
+## api.md 生成时序
+
+> **api.md 在页面代码之前生成**（Step 2: api-contract → Step 3: page-codegen）。
+> page-codegen 读取已生成的 api.md 中的 URL 和字段定义，确保 `API_CONFIG`、mock、data.ts 与接口约定一致。
+> 未来使用真实 API 设计文档时，api.md 由后端提供或 api-contract Skill 从设计文档提取，page-codegen 直接消费。
+
+---
+
+## SYS_MENU_INFO 生成规则（所有模板通用）
+
+page-codegen 生成页面代码后，**必须同步生成菜单配置信息到 `.github/docs/SYS_MENU_INFO.md`**。
+
+### 写入模式确认（必须询问用户）
+
+**在写入 SYS_MENU_INFO.md 之前，必须询问用户选择写入模式**：
+
+| 模式 | 说明 | 适用场景 |
+|------|------|---------|
+| **覆盖模式** | 清空已有内容，只写入本次生成的菜单 | 首个模块 / 上次生成失败需要重来 |
+| **追加模式** | 保留已有内容，在末尾追加本次生成的菜单 | 第二个、第三个模块接续生成 |
+
+> AI 提问示例：`本次生成了 N 个页面的菜单配置，是【覆盖】还是【追加】写入 SYS_MENU_INFO.md？`
+
+### 生成模板
+
+每个页面生成一个菜单条目，格式如下：
+
+```markdown
+## [序号]. [菜单名称]
+
+| 字段         | 填写值 |
+| ------------ | ------ |
+| 类型 Tab     | 选择 **菜单** |
+| 上级目录     | `[父目录名]` |
+| 应用选择     | `[应用名]` |
+| 使用缓存     | ◉ 使用 |
+| 显示排序     | `[序号]` |
+| 菜单路径     | `[camelCase目录名]` |
+| 菜单名称     | `[中文名]` |
+| 名称编码后缀 | `[菜单路径拼音小写]` |
+| 组件路径     | `[域]/[模块]/[子模块]/[kebab-目录名]/index.vue` |
+| 权限标识     | `[camelCase目录名]` |
+| 是否隐藏     | **否** / **是** |
+```
+
+### 字段生成规则
+
+| 字段 | 来源 | 规则 |
+|------|------|------|
+| 菜单路径 | page-spec.kebabName | kebab-case → camelCase（`mmwr-customer-archive` → `mmwrCustomerArchive`） |
+| 菜单名称 | page-spec.pageName | 直接使用中文名 |
+| 组件路径 | pages.ts 注册路径 | `[域]/[模块]/[子模块]/[kebab-目录名]/index.vue` |
+| 权限标识 | 同菜单路径 | camelCase |
+| 是否隐藏 | page-spec.features.hiddenMenu | `true` → 是，`false` → 否 |
+| 上级目录 | 用户指定 / page-spec 推断 | 如果用户在原型扫描阶段指定了上级目录，使用该值 |
+| 应用选择 | pages.ts 域名 | `produce` → 生产，`sale` → 销售 |
+| 显示排序 | 页面在模块内的序号 | 从 1 开始递增 |
+
+### 隐藏页面判断规则
+
+以下页面类型应设置 `是否隐藏: 是`：
+- 目录名含 `-form`（独立路由表单页）
+- 目录名含 `-detail`（详情页）
+- 目录名含 `-history`（历史查询页）
+- page-spec.features.hiddenMenu === true
+
+### SYS_MENU_INFO.md 文件结构
+
+```markdown
+# 系统菜单配置 — [模块名称]（[域] / [子模块路径]）
+
+> 对应系统管理 → 菜单管理 → 新增菜单，每栏直接复制粘贴。
+> **操作顺序：先建目录（第 0 步），再逐个添加菜单。**
+>
+> **pages.ts 注册位置**：`vite/plugins/shared/pages.ts` → `[模块变量名]` → `[子模块key]`
+
+## 第 0 步：新建目录（如需要）
+
+| 字段     | 值 |
+| -------- | -- |
+| 上级目录 | `[上级目录名]` |
+| 菜单名称 | `[目录名]` |
+| 显示排序 | `[序号]` |
+
+## 第 1 步：[页面名称]
+
+[菜单条目表格]
+
+> pages.ts 对应：`["[kebab-name]", "[中文名]"]`
+
+## 第 2 步：[页面名称]
+...
+```
+
+### 与 menu-sync 的衔接
+
+SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
+- **自动创建**：用户说"帮我创建菜单" → menu-sync 读取 SYS_MENU_INFO.md → 调 API 逐条创建
+- **手动创建**：用户也可直接按 SYS_MENU_INFO.md 的表格在系统管理后台手动创建菜单
+- 两种方式等价，菜单创建后通过 `组件路径` 字段与 pages.ts 注册的文件路径关联
 
 ---
 
