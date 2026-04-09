@@ -212,44 +212,29 @@ npx @agile-team/wl-skills-kit
 
 ### 各工具配置一览
 
-| AI 工具 | 配置文件路径 | 规范加载 | Skill 识别 | 备注 |
-|---------|-------------|---------|-----------|------|
-| **GitHub Copilot** (VS Code) | `.github/copilot-instructions.md` | ✅ 自动 | ✅ 自动识别 `.github/skills/*/SKILL.md` | **主力工具，体验最完整** |
-| **Cursor** | `.cursorrules` + `.cursor/rules/conventions.mdc` | ✅ 自动 | ⚠️ 需手动 `@file` 引用 SKILL.md | `.mdc` 带 `alwaysApply: true` 前缀 |
-| **Windsurf (Cascade)** | `.windsurfrules` | ✅ 自动 | ⚠️ 需手动 `@context` 引用 SKILL.md | Windsurf 不支持 skill 目录扫描 |
-| **Kiro** | `.kiro/steering/conventions.md` | ✅ 自动 | ⚠️ 需手动引用 | steering/ 下的 md 自动加载 |
-| **Trae** | `.trae/rules/conventions.md` | ✅ 自动 | ⚠️ 需手动引用 | rules/ 下的 md 自动加载 |
-| **Claude Code / CLI** | `CLAUDE.md` | ✅ 自动 | ⚠️ 需 `@import` 或手动引用 | 支持 `@import` 语法 |
-| **Roo Code / Cline** | `.clinerules` | ✅ 自动 | ⚠️ 需手动引用 | 支持 tool_use 读文件 |
-| **AGENTS.md 兼容** | `AGENTS.md` | ✅ 自动 | ⚠️ 需手动引用 | Linux Foundation 通用标准，兜底 |
+| AI 工具 | 配置文件路径 | 规范加载 | Skill 自动调度 | 备注 |
+|---------|-------------|---------|---------------|------|
+| **GitHub Copilot** (VS Code) | `.github/copilot-instructions.md` | ✅ 自动 | ✅ 原生 Skill 识别 + 注册表双保险 | **主力工具，体验最完整** |
+| **Cursor** | `.cursorrules` + `.cursor/rules/conventions.mdc` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | `.mdc` 带 `alwaysApply: true` 前缀 |
+| **Windsurf (Cascade)** | `.windsurfrules` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 规范内嵌调度指令 |
+| **Kiro** | `.kiro/steering/conventions.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | steering/ 下的 md 自动加载 |
+| **Trae** | `.trae/rules/conventions.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | rules/ 下的 md 自动加载 |
+| **Claude Code / CLI** | `CLAUDE.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 也支持 `@import` 语法 |
+| **Roo Code / Cline** | `.clinerules` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 支持 tool_use 读文件 |
+| **AGENTS.md 兼容** | `AGENTS.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | Linux Foundation 通用标准，兜底 |
 
-### 各工具使用姿势差异
+### Skill 自动调度机制（v1.1.2+）
 
-**GitHub Copilot**（VS Code）— 开箱即用，无需额外配置：
-- 规范 → 自动加载 `.github/copilot-instructions.md`
-- Skill → 自动识别 `.github/skills/*/SKILL.md`，对话中说"帮我生成页面"即触发
-- docs/demo → AI 可通过 `@workspace` 自动搜索
+所有编辑器配置文件均由 `copilot-instructions.md` 生成，其中内嵌了 **Skills 自动调度注册表**。
+该注册表以强制指令形式告知 AI：
 
-**Cursor** — 规范自动加载，Skill 需手动引用：
-- 规范 → `.cursorrules` 和 `.cursor/rules/*.mdc` 自动加载
-- Skill → 对话中用 `@file .github/skills/page-codegen/SKILL.md` 手动引入
-- 或在 `.cursor/rules/` 下新建 `.mdc` 文件 include SKILL 内容
+1. **触发关键词匹配** — 用户说"生成页面"/"扫描原型"/"接口约定"等关键词时，AI 必须先 `read_file` 对应的 `SKILL.md`
+2. **完整流水线** — 用户提供原型/详设并要求批量生成时，按 prototype-scan → api-contract → page-codegen → menu-sync 顺序依次执行
+3. **单独使用** — 用户只说"帮我生成客户档案页面"时，只读取 page-codegen 的 SKILL.md，不必跑完整流水线
 
-**Windsurf** — 规范自动加载，Skill 需 `@context`：
-- 规范 → `.windsurfrules` 自动加载
-- Skill → 对话中用 `@context` 添加 SKILL.md 文件
-- Windsurf Cascade 可读取项目文件，但不主动扫描 `.github/skills/`
+这意味着 **所有支持 `read_file` / tool_use 的 AI 工具都能自动调度 Skill**，无需手动引用。
 
-**Claude Code / CLI** — 规范自动加载，Skill 推荐 `@import`：
-- 规范 → `CLAUDE.md` 自动加载
-- Skill → 在 `CLAUDE.md` 末尾追加 `@import .github/skills/page-codegen/SKILL.md`
-- 或对话中 `/read .github/skills/page-codegen/SKILL.md`
-
-**Kiro / Trae / Roo(Cline)** — 规范自动加载，Skill 需对话中引用：
-- 规范 → 各自的 steering/rules/.clinerules 默认加载
-- Skill → 需要在对话中让 AI 读取对应 SKILL.md
-
-> **总结**：所有工具的**编码规范**均自动加载（零配置）。差异仅在 **Skill 触发方式**上 — 只有 GitHub Copilot 完全自动识别 Skill，其他工具需在对话中手动引用 SKILL.md 文件。
+> **总结**：v1.1.2 起，**编码规范 + Skill 调度** 均为全编辑器自动加载（零配置）。各工具唯一的区别仅在于原生 Skill 识别（Copilot 独有） vs 注册表驱动的 `read_file` 调度（通用）。
 
 ---
 

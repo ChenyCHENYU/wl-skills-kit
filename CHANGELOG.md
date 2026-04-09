@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.2] - 2026-04-09
+
+### 新增：Skills 自动调度注册表
+
+- `copilot-instructions.md` 末尾新增 **Skills 自动调度** 章节，包含：
+  - Skill 注册表（触发关键词 → 必须读取的 SKILL.md 文件映射）
+  - 完整流水线（prototype-scan → api-contract → page-codegen → menu-sync）
+  - 单独使用模式（只触发单个 Skill）
+  - 组件文档按需查阅表 + 领域样例参考表
+- 所有编辑器配置文件（8 个）均继承此注册表，实现 **全编辑器 Skill 自动调度**
+- README 更新：Skill 识别列从 "⚠️ 需手动引用" → "✅ 通过注册表自动 read_file"
+
 ## [1.1.1] - 2026-04-09
 
 ### 修复

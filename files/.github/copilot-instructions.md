@@ -198,14 +198,59 @@ onMounted(() => select());
 - ❌ 手写查询表单/工具栏/分页（用 BaseQuery/BaseToolbar/jh-pagination）
 - ❌ 每个页面重复写弹窗组件（优先用 `c_modal` 等局部公共组件）
 
-## Axure → Vue 生成流程
+## AI Skills 自动调度（强制执行 — 所有 AI 编辑器/模型通用）
 
-详见 `.github/skills/` 下的 5 个 Skill：
+本项目内置 5 个 Skill 文件，覆盖「原型/详设 → 可运行页面 → 菜单注册」完整流程。
+**执行以下任何任务前，必须先用工具读取（read_file）对应的 SKILL.md，读取完成前禁止生成任何代码或输出。**
 
-1. **prototype-scan** — 解析 Axure HTML → 页面清单
-2. **convention-extract** — 项目规范提炼（已固化，新项目时使用）
-3. **api-contract** — 页面清单 → api.md 接口约定
-4. **page-codegen** — 生成 index.vue + data.ts + index.scss + api.md
-5. **menu-sync** — 将 pages.ts 页面同步到后端菜单表（Phase 1：AI 调 `/system/menu/save`；Phase 2：`pnpm run menu:push`）
+### Skill 注册表
 
-> 完整使用步骤及精度技巧见 `.github/docs/use-skill.md`
+| 触发场景（用户意图关键词） | 必须读取的文件 | Skill 名称 |
+|---|---|---|
+| 扫描原型、解析原型、页面清单、原型分析、详设文档 | `.github/skills/prototype-scan/SKILL.md` | prototype-scan |
+| 接口约定、api.md、字段定义、前后端对齐、接口设计 | `.github/skills/api-contract/SKILL.md` | api-contract |
+| 生成页面、创建页面、代码生成、vue页面、按原型生成 | `.github/skills/page-codegen/SKILL.md`（主文件会指示继续读取对应的 `TPL-*.md` 模板） | page-codegen |
+| 创建菜单、注册菜单、同步菜单、补菜单 | `.github/skills/menu-sync/SKILL.md` | menu-sync |
+| 提炼规范、项目规范、编码规范扫描 | `.github/skills/convention-extract/SKILL.md` | convention-extract |
+
+### 完整流水线（原型/详设 → 页面 → 菜单）
+
+当用户提供原型文件或详设文档并要求批量生成页面时，按以下顺序依次执行：
+
+```
+Step 1 → 读取 prototype-scan/SKILL.md → 执行原型扫描 → 输出 page-spec
+Step 2 → 读取 api-contract/SKILL.md   → 生成 api.md 接口约定
+Step 3 → 读取 page-codegen/SKILL.md   → 逐页生成代码（每页读取对应 TPL-*.md）
+Step 4 → 读取 menu-sync/SKILL.md      → 注册菜单到后端
+```
+
+每个 Step 开始前读取对应 SKILL.md，**前一个 Step 完成后再进入下一个**。
+上一步的输出（如 page-spec）直接作为下一步的输入，无需用户中间干预。
+
+### 单独使用
+
+用户也可以只执行单个 Skill（如只说"帮我生成客户档案页面"），此时只需读取对应的 SKILL.md，不必执行完整流水线。
+
+### 组件文档按需查阅
+
+生成代码过程中如需了解组件用法，读取 `docs/` 下对应文档：
+
+| 组件 | 文档路径 |
+|------|---------|
+| BaseQuery / BaseTable / BaseToolbar | `src/components/remote/BaseQuery/README.md` 等 |
+| jh-select / jh-date / jh-pagination 等 | `docs/jh-select.md` / `docs/jh-date.md` 等 |
+| c_formModal / c_formSections / c_listModal | `src/components/local/c_formModal/README.md` 等 |
+| AbstractPageQueryHook 最佳实践 | `docs/page-query-hook-best-practices.md` |
+| HTTP 请求工具 | `docs/request.md` |
+
+### 领域样例参考
+
+首次生成某类页面时，可读取 `demo/` 下的对应样例学习实际写法：
+
+| 模板类型 | 样例路径 |
+|---------|---------|
+| LIST（标准列表） | `demo/produce/aiflow/mmwr-customer-archive/` |
+| FORM_ROUTE（复杂表单） | `demo/produce/aiflow/mmwr-customer-apply-add-form/` |
+| CHANGE_HISTORY（变更历史） | `demo/produce/aiflow/mmwr-customer-apply-change-history/` |
+| DETAIL_TABS（详情Tab） | `demo/produce/aiflow/mmwr-customer-detail/` |
+| MASTER_DETAIL（上下分栏） | `demo/sale/demo/metallurgical-spec/` |
