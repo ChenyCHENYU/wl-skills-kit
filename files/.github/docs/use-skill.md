@@ -25,9 +25,9 @@
 | api-contract       | page-spec JSON          | api.md                                            | ✅ 推荐  | 微调 URL 命名规范       |
 | page-codegen       | page-spec JSON + api.md | index.vue + data.ts + index.scss + menu-config.md | ✅ 必须  | **必须改**，代码模板绑项目（含 9 个 TPL-*.md 模板文件，按模式名命名） |
 | menu-sync          | SYS_MENU_INFO.md + env.local.json | 后端菜单表记录（AI 调 `/system/menu/save`） | ✅ 推荐  | 不用改，配置 env.local.json 即可（Phase 2 script 待接口就绪） |
-| convention-extract | 项目源码                | copilot-instructions.md                           | ❌ 一次性 | 不用改，每个项目执行一次 |
+| convention-audit   | 项目源码 + copilot-instructions.md | 偏差报告 + 整改建议                              | ❌ 按需   | 不用改，规范基线来自 copilot-instructions.md |
 
-**核心结论：prototype-scan 直接复制，page-codegen 必须适配新项目的代码模板，convention-extract 在新项目执行一次自动产出。**
+**核心结论：prototype-scan 直接复制，page-codegen 必须适配新项目的代码模板，convention-audit 用于审计项目代码是否符合规范。**
 
 ---
 
@@ -178,17 +178,18 @@ page-spec 有误 → 改一行 JSON → 重新生成代码（秒级）
 │       ├── prototype-scan/SKILL.md   ← 直接复制，不改
 │       ├── api-contract/SKILL.md     ← 直接复制，微调命名规范
 │       ├── page-codegen/SKILL.md     ← 需要重写代码模板
-│       └── convention-extract/SKILL.md  ← 直接复制，不改
+│       └── convention-extract/SKILL.md  ← 直接复制，用于审计代码合规性
 ```
 
-### 第 2 步：生成编码规范
+### 第 2 步：建立编码规范
 
-**情况 A：新项目已有页面代码** → 执行 convention-extract 自动扫描
-
-**情况 B：新项目空白** → 复制 `.github/copilot-instructions.md` 作为基础模板，修改：
+复制 `.github/copilot-instructions.md` 作为基础模板，按新项目实际情况修改：
 - 路由注册方式（`gSale`/`gProd` → 新项目的函数名）
 - 组件库（如果仍是 Element Plus + @jhlc/jh-ui 则不改）
 - 页面目录层级、服务缩写前缀
+
+> **copilot-instructions.md 是唯一编码规范源头**，团队统一维护此文件。
+> 项目引入后，执行 convention-audit Skill 审计已有代码，输出偏差报告和整改清单。
 
 **前置条件清单**：
 
@@ -369,11 +370,11 @@ export default defineConfig(({ command }) => ({
     │   ├── TPL-OPERATION-STATION.md ← OPERATION_STATION：工序操作站
     │   └── TPL-DRIVEN.md            ← TEMPLATE_DRIVEN：配置驱动识别参考
     ├── menu-sync/SKILL.md           ← pages.ts → 后端菜单表
-    └── convention-extract/SKILL.md  ← 项目源码 → 编码规范
+    └── convention-extract/SKILL.md  ← 规范审计（审计代码是否符合规范）
 docs/
 ├── page-query-hook-best-practices.md
 ├── request.md
 └── jh-*.md                          ← 平台组件使用文档
 ```
 
-> **一句话总结**：prototype-scan 通用可直接复制，page-codegen 需按目标项目改写代码模板，convention-extract 在每个新项目执行一次即可。三步完成 Skill 体系移植。
+> **一句话总结**：prototype-scan 通用可直接复制，page-codegen 需按目标项目改写代码模板，convention-audit 用于审计项目代码合规性。copilot-instructions.md 是唯一规范源头。

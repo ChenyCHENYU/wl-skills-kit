@@ -46,7 +46,7 @@ npx @agile-team/wl-skills-kit@latest
 │   │   │   ├── TPL-OPERATION-STATION.md←     工序操作站模板
 │   │   │   └── TPL-DRIVEN.md           ←     配置驱动模板识别参考
 │   │   ├── menu-sync/SKILL.md           ←   ④ 菜单同步（pages.ts → 后端菜单表）
-│   │   └── convention-extract/SKILL.md  ←   ⑤ 规范提炼（扫描源码 → 编码规范文档）
+│   │   └── convention-extract/SKILL.md  ←   ⑤ 规范审计（用规范审计代码，输出偏差报告）
 │   └── docs/                            ← 设计文档
 │       ├── use-skill.md                 ←   Skill 使用 + 移植一站式指南
 │       ├── menu-sync-design.md          ←   菜单同步方案设计
@@ -129,7 +129,7 @@ npx @agile-team/wl-skills-kit@latest
          ▼
   ④ menu-sync ──────── 同步 → 后端菜单表（AI 自动调 API 创建菜单）
                        
-  ⑤ convention-extract  一次性：扫描项目源码 → 生成编码规范文档
+  ⑤ convention-audit    按需：用规范审计代码 → 偏差报告 + 整改建议
 ```
 
 ### 支持 9 种页面模板
@@ -185,7 +185,7 @@ AI 自动执行 5 步：扫描 → 生成接口约定 → 生成页面代码 →
 | 给页面生成接口文档 | "生成 api.md" | api-contract |
 | 只生成单个页面代码 | "帮我生成客户档案页面" | page-codegen |
 | 把 pages.ts 同步到菜单表 | "帮我创建菜单" | menu-sync |
-| 扫描项目提炼编码规范 | "提炼项目规范" | convention-extract |
+| 审计项目代码是否合规 | "审计项目规范" / "规范检查" | convention-audit |
 | 查看组件怎么用 | "jh-select 怎么用" | AI 读取 docs/jh-select.md |
 | 参考样例写代码 | "参考 demo 里的客户档案" | AI 读取 demo/ 下的代码 |
 

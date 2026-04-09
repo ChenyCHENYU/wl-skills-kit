@@ -211,7 +211,7 @@ onMounted(() => select());
 | 接口约定、api.md、字段定义、前后端对齐、接口设计 | `.github/skills/api-contract/SKILL.md` | api-contract |
 | 生成页面、创建页面、代码生成、vue页面、按原型生成 | `.github/skills/page-codegen/SKILL.md`（主文件会指示继续读取对应的 `TPL-*.md` 模板） | page-codegen |
 | 创建菜单、注册菜单、同步菜单、补菜单 | `.github/skills/menu-sync/SKILL.md` | menu-sync |
-| 提炼规范、项目规范、编码规范扫描 | `.github/skills/convention-extract/SKILL.md` | convention-extract |
+| 规范审计、代码审计、规范检查、对齐规范、规范偏差 | `.github/skills/convention-extract/SKILL.md` | convention-audit |
 
 ### 完整流水线（原型/详设 → 页面 → 菜单）
 

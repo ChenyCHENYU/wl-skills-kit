@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.3] - 2026-04-09
+
+### 重构：convention-extract → convention-audit（规范审计）
+
+- **定位翻转**：从"扫描代码提炼规范"改为"用规范审计代码"
+  - 旧：项目代码 → 提炼 → 规范文档（代码乱则规范乱）
+  - 新：copilot-instructions.md（标准） → 审计 → 偏差报告 + 整改建议
+- SKILL.md 完全重写：10 项审计维度、偏差严重度定义、报告模板、执行步骤
+- copilot-instructions.md 注册表触发关键词更新：提炼规范 → 规范审计/代码审计/规范检查
+- use-skill.md、wl-skills-kit.md 相关描述同步更新
+
 ## [1.1.2] - 2026-04-09
 
 ### 新增：Skills 自动调度注册表
