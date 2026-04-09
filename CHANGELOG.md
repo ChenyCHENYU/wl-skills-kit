@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4] - 2026-04-09
+
+### 修复
+
+- 补充遗漏的 `env.local.json` 模板文件到 `files/.github/skills/menu-sync/env/`
+- 文件内容为占位符模板（非真实凭据），安装后用户按 `guide.md` 填写实际值
+
 ## [1.1.3] - 2026-04-09
 
 ### 重构：convention-extract → convention-audit（规范审计）
