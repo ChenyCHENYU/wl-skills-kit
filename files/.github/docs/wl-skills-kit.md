@@ -146,18 +146,18 @@ mock/                              ← Mock 数据
 
 v1.0 聚焦 **GitHub Copilot**（`.github/` 目录即完整配置）。
 
-v1.1 规划：将各编辑器配置**预生成**并包含在 `files/` 中（发布前由开发脚本从 `.github/` 源转换，安装时原样拷贝，**无运行时转换逻辑**）。
+v1.1 实现：CLI 安装时自动从 `.github/copilot-instructions.md` **动态生成**各编辑器配置文件。单一源头，更新 `copilot-instructions.md` 后重新运行即同步所有编辑器配置。
 
-| 编辑器             | 配置路径                                       | 状态    |
-| ------------------ | ---------------------------------------------- | ------- |
-| **GitHub Copilot** | `.github/copilot-instructions.md` + `skills/`  | ✅ v1.0 |
-| **Cursor**         | `.cursor/rules/*.mdc`                          | 🔜 v1.1 |
-| **Windsurf**       | `.windsurf/rules/*.md`                         | 🔜 v1.1 |
-| **Kiro**           | `.kiro/steering/*.md`                          | 🔜 v1.1 |
-| **Trae**           | `.trae/rules/*.md`                             | 🔜 v1.1 |
-| **Claude Code**    | `CLAUDE.md`                                    | 🔜 v1.1 |
-| **Roo / Cline**    | `.clinerules`                                  | 🔜 v1.1 |
-| **AGENTS.md**      | `AGENTS.md`（Linux Foundation 标准，通用兜底） | 🔜 v1.1 |
+| 编辑器             | 配置路径                                                       | 状态    |
+| ------------------ | -------------------------------------------------------------- | ------- |
+| **GitHub Copilot** | `.github/copilot-instructions.md` + `skills/`                  | ✅ v1.0 |
+| **Cursor**         | `.cursorrules` + `.cursor/rules/conventions.mdc` (alwaysApply) | ✅ v1.1 |
+| **Windsurf**       | `.windsurfrules`                                               | ✅ v1.1 |
+| **Kiro**           | `.kiro/steering/conventions.md`                                | ✅ v1.1 |
+| **Trae**           | `.trae/rules/conventions.md`                                   | ✅ v1.1 |
+| **Claude Code**    | `CLAUDE.md`                                                    | ✅ v1.1 |
+| **Roo / Cline**    | `.clinerules`                                                  | ✅ v1.1 |
+| **AGENTS.md**      | `AGENTS.md`（Linux Foundation 标准，通用兜底）                  | ✅ v1.1 |
 
 > **原则**：AGENTS.md 是跨工具兜底标准，新工具出来大概率支持它。
 
@@ -250,7 +250,7 @@ MAJOR.MINOR.PATCH
 | 阶段     | 内容                                                              | 优先级 |
 | -------- | ----------------------------------------------------------------- | ------ |
 | **v1.0** | Skills + 文档 + 组件 + demo 样例（Copilot）                       | 🔴 高  |
-| **v1.1** | 多编辑器配置预生成（Cursor / Windsurf / Kiro / Trae / AGENTS.md） | 🟡 中  |
+| **v1.1** | 多编辑器配置自动生成（Cursor / Windsurf / Kiro / Trae / Claude Code / AGENTS.md）| ✅ 已发布 |
 | **v1.2** | `--dry-run` 预览 + `--diff` 变更对比                              | 🟡 中  |
 | **v2.0** | 纳入 `components/template/`（成熟后）                             | 🟢 低  |
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0] - 2026-04-09
+
+### 新增：多编辑器支持（v1.1）
+
+- CLI 安装时自动生成 8 个编辑器配置文件（单源头：从 `copilot-instructions.md` 动态生成）
+  - `AGENTS.md` — Linux Foundation 通用标准，绝大多数 AI 工具均支持
+  - `CLAUDE.md` — Claude Code / Claude CLI
+  - `.clinerules` — Roo Code / Cline
+  - `.cursorrules` — Cursor（legacy 格式，兼容新版）
+  - `.cursor/rules/conventions.mdc` — Cursor（新格式，带 `alwaysApply: true`）
+  - `.windsurfrules` — Windsurf (Cascade)
+  - `.kiro/steering/conventions.md` — Kiro
+  - `.trae/rules/conventions.md` — Trae
+- `--dry-run` 分两阶段展示：静态文件 + 编辑器配置文件
+- `--help` 信息更新，列出所有新增写入路径
+
 ## [1.0.0] - 2026-04-08
 
 ### 初始发布
