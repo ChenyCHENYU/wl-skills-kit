@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1] - 2026-04-09
+
+### 修复
+
+- 修复 wl-skills-kit.md 中 10 处 `@jhlc/wl-skills-kit` 过时包名引用 → `@agile-team/wl-skills-kit`
+- README 新增「多编辑器 / AI 工具支持」章节，详细说明 8 个编辑器的使用姿势差异
+- License 从 MIT 改为 UNLICENSED（内部使用）
+
 ## [1.1.0] - 2026-04-09
 
 ### 新增：多编辑器支持（v1.1）

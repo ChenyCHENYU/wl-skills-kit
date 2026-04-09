@@ -206,6 +206,53 @@ npx @agile-team/wl-skills-kit
 
 ---
 
+## 多编辑器 / AI 工具支持
+
+安装后自动生成 **8 个编辑器配置文件**，内容统一来自 `copilot-instructions.md`（单一源头），确保所有 AI 工具读取到相同的项目规范。
+
+### 各工具配置一览
+
+| AI 工具 | 配置文件路径 | 规范加载 | Skill 识别 | 备注 |
+|---------|-------------|---------|-----------|------|
+| **GitHub Copilot** (VS Code) | `.github/copilot-instructions.md` | ✅ 自动 | ✅ 自动识别 `.github/skills/*/SKILL.md` | **主力工具，体验最完整** |
+| **Cursor** | `.cursorrules` + `.cursor/rules/conventions.mdc` | ✅ 自动 | ⚠️ 需手动 `@file` 引用 SKILL.md | `.mdc` 带 `alwaysApply: true` 前缀 |
+| **Windsurf (Cascade)** | `.windsurfrules` | ✅ 自动 | ⚠️ 需手动 `@context` 引用 SKILL.md | Windsurf 不支持 skill 目录扫描 |
+| **Kiro** | `.kiro/steering/conventions.md` | ✅ 自动 | ⚠️ 需手动引用 | steering/ 下的 md 自动加载 |
+| **Trae** | `.trae/rules/conventions.md` | ✅ 自动 | ⚠️ 需手动引用 | rules/ 下的 md 自动加载 |
+| **Claude Code / CLI** | `CLAUDE.md` | ✅ 自动 | ⚠️ 需 `@import` 或手动引用 | 支持 `@import` 语法 |
+| **Roo Code / Cline** | `.clinerules` | ✅ 自动 | ⚠️ 需手动引用 | 支持 tool_use 读文件 |
+| **AGENTS.md 兼容** | `AGENTS.md` | ✅ 自动 | ⚠️ 需手动引用 | Linux Foundation 通用标准，兜底 |
+
+### 各工具使用姿势差异
+
+**GitHub Copilot**（VS Code）— 开箱即用，无需额外配置：
+- 规范 → 自动加载 `.github/copilot-instructions.md`
+- Skill → 自动识别 `.github/skills/*/SKILL.md`，对话中说"帮我生成页面"即触发
+- docs/demo → AI 可通过 `@workspace` 自动搜索
+
+**Cursor** — 规范自动加载，Skill 需手动引用：
+- 规范 → `.cursorrules` 和 `.cursor/rules/*.mdc` 自动加载
+- Skill → 对话中用 `@file .github/skills/page-codegen/SKILL.md` 手动引入
+- 或在 `.cursor/rules/` 下新建 `.mdc` 文件 include SKILL 内容
+
+**Windsurf** — 规范自动加载，Skill 需 `@context`：
+- 规范 → `.windsurfrules` 自动加载
+- Skill → 对话中用 `@context` 添加 SKILL.md 文件
+- Windsurf Cascade 可读取项目文件，但不主动扫描 `.github/skills/`
+
+**Claude Code / CLI** — 规范自动加载，Skill 推荐 `@import`：
+- 规范 → `CLAUDE.md` 自动加载
+- Skill → 在 `CLAUDE.md` 末尾追加 `@import .github/skills/page-codegen/SKILL.md`
+- 或对话中 `/read .github/skills/page-codegen/SKILL.md`
+
+**Kiro / Trae / Roo(Cline)** — 规范自动加载，Skill 需对话中引用：
+- 规范 → 各自的 steering/rules/.clinerules 默认加载
+- Skill → 需要在对话中让 AI 读取对应 SKILL.md
+
+> **总结**：所有工具的**编码规范**均自动加载（零配置）。差异仅在 **Skill 触发方式**上 — 只有 GitHub Copilot 完全自动识别 Skill，其他工具需在对话中手动引用 SKILL.md 文件。
+
+---
+
 ## 安装行为说明
 
 | ✅ 会做                             | ❌ 不会做                    |
@@ -325,4 +372,4 @@ npx . --dry-run    # 本地预览
 
 ## License
 
-MIT
+UNLICENSED — 内部使用，未授权外部分发。
