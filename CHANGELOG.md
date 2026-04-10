@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.0] - 2026-04-10
+
+### 新增：CLI v2.0 — update 增量更新 + clean 构建清理
+
+- **`update` 命令**：基于 MD5 增量更新，仅覆盖有变化的文件
+  - 对比 `.wl-skills-manifest.json` 清单中的 MD5 哈希
+  - 输出新增/更新/未变文件数 + 版本变化提示
+  - 支持 `--dry-run` 预览
+- **`clean` 命令**：构建前清理 AI 开发辅助文件
+  - 删除 `.github/`、`docs/`、`demo/`、编辑器配置等非组件文件
+  - **保护路径**：`src/components/` + `src/types/` 永远不会被清理
+  - 删除空父目录（自动清理目录树）
+  - 清除 `.wl-skills-manifest.json` 自身
+  - 支持 `--dry-run` 预览
+- **Manifest 清单系统**（`.wl-skills-manifest.json`）：
+  - `init` / `update` 执行后自动生成，记录版本 + 文件路径 → MD5 映射
+  - 供 `update` 做增量比对、`clean` 做精准删除
+  - 已加入 `.gitignore`
+- CLI 重构为 3 个子命令：`init`（默认，向后兼容）、`update`、`clean`
+- README.md 新增「CLI 命令」章节，更新「快速开始」「更新策略」「安装行为说明」
+
 ## [1.1.7] - 2026-04-10
 
 ### 修复：menu-sync SKILL.md 漏同步

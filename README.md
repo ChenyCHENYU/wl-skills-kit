@@ -15,11 +15,14 @@ npx @agile-team/wl-skills-kit
 # 预览将写入哪些文件（不实际写入）
 npx @agile-team/wl-skills-kit --dry-run
 
-# 更新到最新版
-npx @agile-team/wl-skills-kit@latest
+# 增量更新（仅覆盖有变化的文件）
+npx @agile-team/wl-skills-kit@latest update
+
+# 构建前清理 AI 开发辅助文件（保留组件代码）
+npx @agile-team/wl-skills-kit clean
 ```
 
-就这样。108 个文件按原始路径导入到你的项目，**无其他副作用**。
+117 个文件按原始路径导入到你的项目，**无其他副作用**。
 
 ---
 
@@ -240,6 +243,61 @@ npx @agile-team/wl-skills-kit
 
 ---
 
+## CLI 命令
+
+### `init`（默认）
+
+首次安装或完整重装 — 全量写入所有文件。
+
+```bash
+npx @agile-team/wl-skills-kit              # 等同于 init
+npx @agile-team/wl-skills-kit init
+npx @agile-team/wl-skills-kit --dry-run    # 预览模式
+```
+
+### `update`
+
+增量更新 — 基于 MD5 比对，仅覆盖有变化的文件，跳过未变化的文件。
+
+```bash
+npx @agile-team/wl-skills-kit@latest update
+npx @agile-team/wl-skills-kit update --dry-run
+```
+
+输出示例：
+```
+✔ 完成!
+  新增: 3 个文件      ← 新版本新增的文件
+  更新: 5 个文件      ← 内容有变化，已覆盖
+  未变: 109 个文件    ← MD5 一致，未动
+```
+
+> 需要先执行过 `init` 才能使用 `update`（依赖 `.wl-skills-manifest.json` 清单文件）。
+
+### `clean`
+
+构建前清理 — 移除 AI 开发辅助文件（Skill、文档、样例、编辑器配置），**保留组件代码**。
+
+```bash
+npx @agile-team/wl-skills-kit clean
+npx @agile-team/wl-skills-kit clean --dry-run
+```
+
+**保护路径**（永远不会被清理）：
+- `src/components/` — 全局/局部/远程组件
+- `src/types/` — 类型桶文件
+
+**清理范围**：
+- `.github/` — Skill 文件 + 设计文档
+- `docs/` — 组件 API 文档
+- `demo/` — 领域样例
+- 编辑器配置 — `.cursorrules` / `AGENTS.md` / `CLAUDE.md` 等 8 个文件
+- `.wl-skills-manifest.json` — 清单文件自身
+
+> 适用于 CI/CD 构建流程：`npx @agile-team/wl-skills-kit clean && npm run build`
+
+---
+
 ## 安装行为说明
 
 | ✅ 会做                             | ❌ 不会做                    |
@@ -247,7 +305,7 @@ npx @agile-team/wl-skills-kit
 | 写入 `.github/` `docs/` `src/` `demo/` | 不修改 `package.json`      |
 | 已存在的同名文件会被覆盖           | 不修改 `node_modules/`       |
 | 自动创建不存在的目录               | 不执行 postinstall           |
-|                                     | 不删除任何文件               |
+| 生成 `.wl-skills-manifest.json` 清单 | 不删除任何文件（init/update） |
 
 ### 安全路径（不会被覆盖）
 
@@ -310,12 +368,24 @@ import { AbstractPageQueryHook, BaseQueryItemDesc, ActionButtonDesc, TableColumn
 ### 5. 更新策略
 
 ```bash
-# 拉取最新模板（会覆盖内置文件，不动安全路径）
+# 方式一：增量更新（推荐 — 仅覆盖变化的文件，速度快）
+npx @agile-team/wl-skills-kit@latest update
+
+# 方式二：全量重装（适合版本跨度大、或清单文件丢失的情况）
 npx @agile-team/wl-skills-kit@latest
 ```
 
 - **通用改进** → 提 PR 到 wl-skills-kit 仓库，合并后所有项目受益
 - **领域专有** → 放在安全路径下，永远不会被覆盖
+
+### 6. Manifest 清单文件
+
+`init` 和 `update` 执行后会在项目根目录生成 `.wl-skills-manifest.json`，记录所有写入的文件路径及 MD5 哈希。该文件用于：
+
+- `update` 命令的增量比对（跳过未变化的文件）
+- `clean` 命令的精准删除（只删除 Skill 体系写入的文件）
+
+> 建议将 `.wl-skills-manifest.json` 加入 `.gitignore`（每台开发机独立维护即可）。
 
 ---
 
