@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.6] - 2026-04-10
+
+### 修复：menu-config.md 残留引用 + env 模板字段缺失
+
+- **5 处 `menu-config.md` 残留 → 统一为 `SYS_MENU_INFO.md`**：
+  - `use-skill.md`：page-codegen 输出列 + changelog 条目
+  - `menu-sync-design.md`：当前工作流 + 过渡路径
+  - `TPL-DETAIL-TABS.md`：校验清单
+- **env.local.json 模板补齐 `sysAppNo` 字段**（v1.1.4 发版时遗漏）
+- **guide.md 补齐 `sysAppNo`**：文件结构示例、字段说明表、获取方式小节
+
 ## [1.1.5] - 2026-04-09
 
 ### 修复：page-codegen → menu-sync 数据闭环

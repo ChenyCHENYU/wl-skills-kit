@@ -243,8 +243,7 @@ menu-sync Skill 已实现 Phase 1：AI 读取 `SYS_MENU_INFO.md` + `env.local.js
 
 ```
 page-codegen 生成代码
-  → 自动生成 menu-config.md（含菜单字段）
-  → 追加更新 SYS_MENU_INFO.md
+  → 写入 SYS_MENU_INFO.md（覆盖/追加模式）
   → 对 AI 说"帮我创建菜单"
   → AI 读取 SYS_MENU_INFO.md + env.local.json → 调 /system/menu/save
   → 输出 created/skipped 结果表
@@ -258,7 +257,7 @@ page-codegen 生成代码
 
 **过渡路径**：
 
-1. ✅ page-codegen Skill 自动生成 `menu-config.md`（已实现）
+1. ✅ page-codegen Skill 自动生成 `SYS_MENU_INFO.md`（已实现）
 2. ✅ menu-sync Skill Phase 1：AI 调 `/system/menu/save`（已实现）
 3. ⏳ 后端实现 `POST /system/menu/batchPush` 接口
 4. ⏳ 前端 `scripts/menu-push.ts` 读 `pages.ts` → POST batchPush

@@ -23,7 +23,7 @@
 | ------------------ | ----------------------- | ------------------------------------------------- | -------- | ----------------------- |
 | prototype-scan     | Axure HTML / 详设文档   | page-spec JSON                                    | ✅ 必须  | 不用改，直接复制        |
 | api-contract       | page-spec JSON          | api.md                                            | ✅ 推荐  | 微调 URL 命名规范       |
-| page-codegen       | page-spec JSON + api.md | index.vue + data.ts + index.scss + menu-config.md | ✅ 必须  | **必须改**，代码模板绑项目（含 9 个 TPL-*.md 模板文件，按模式名命名） |
+| page-codegen       | page-spec JSON + api.md | index.vue + data.ts + index.scss + SYS_MENU_INFO.md | ✅ 必须  | **必须改**，代码模板绑项目（含 9 个 TPL-*.md 模板文件，按模式名命名） |
 | menu-sync          | SYS_MENU_INFO.md + env.local.json | 后端菜单表记录（AI 调 `/system/menu/save`） | ✅ 推荐  | 不用改，配置 env.local.json 即可（Phase 2 script 待接口就绪） |
 | convention-audit   | 项目源码 + copilot-instructions.md | 偏差报告 + 整改建议                              | ❌ 按需   | 不用改，规范基线来自 copilot-instructions.md |
 
@@ -317,7 +317,7 @@ export default defineConfig(({ command }) => ({
 | ---- | ------- | ----------------------------------------------------------- |
 | v1.0 | 2026-03 | 初版 4 个 Skill + copilot-instructions.md                   |
 | v1.1 | 2026-04 | prototype-scan 输出改为 JSON page-spec + notes              |
-| v1.1 | 2026-04 | page-codegen 增加五轮强制校验 + menu-config.md 生成         |
+| v1.1 | 2026-04 | page-codegen 增加五轮强制校验 + SYS_MENU_INFO.md 生成       |
 | v1.1 | 2026-04 | 修复子表交互遗漏（editable / inlineEdit 字段提取）          |
 | v1.2 | 2026-04 | page-codegen 补全 FORM_ROUTE 模板 + @/types/page 导入规范  |
 | v1.2 | 2026-04 | 模板 C（TREE_LIST）补全 data.ts + 模板 D（DETAIL_TABS）新增 |

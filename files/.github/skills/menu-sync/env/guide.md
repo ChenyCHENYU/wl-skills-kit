@@ -11,6 +11,7 @@
 {
   "gatewayPath": "http://192.168.10.50:9000",
   "parentMenuId": "1803456789012345678",
+  "sysAppNo": "QjQuXy1kbKxZyjhS5N2",
   "token": "eyJhbGci..."
 }
 ```
@@ -23,6 +24,7 @@
 |---|---|---|
 | `gatewayPath` | 后端网关地址，含协议和端口，**末尾不加斜杠** | `http://192.168.10.50:9000` |
 | `parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
+| `sysAppNo` | 应用编码（非明文，从已有菜单接口响应中获取） | `QjQuXy1kbKxZyjhS5N2` |
 | `token` | 当前登录用户的 Bearer Token，**不含 `bearer ` 前缀** | `eyJhbGci...` |
 
 ---
@@ -44,6 +46,14 @@ GET {gatewayPath}/system/menu/children?menuId=0
 ```
 
 从顶级节点向下逐层查找，直到找到目标父级目录。也可以告诉 AI「帮我查一下父级菜单 ID」，AI 会自动调接口查询。
+
+### sysAppNo
+
+系统用编码后的字符串标识应用（如 `QjQuXy1kbKxZyjhS5N2`），而非明文 `produce` / `sale`。
+
+**获取方式**：浏览器 F12 → Network → 找任意菜单相关接口的响应体 → 查看已有菜单条目的 `sysAppNo` 字段值，复制即可。
+
+> ℹ️ 同一领域下所有菜单的 `sysAppNo` 相同，复制任意一个即可。
 
 ### token
 

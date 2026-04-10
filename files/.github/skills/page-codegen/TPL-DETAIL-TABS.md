@@ -922,7 +922,7 @@ spec.features.viewSwitch === true：
   □ mock 数据包含所有视角字段的并集（切换视角后不出现空列）？
 
 spec.features.hiddenMenu === true：
-  □ menu-config 标注为隐藏？
+  □ SYS_MENU_INFO 标注为隐藏？
 ```
 
 ### 第五轮：文件完整性
