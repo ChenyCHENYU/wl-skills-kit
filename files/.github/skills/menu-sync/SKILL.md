@@ -21,9 +21,9 @@ description: "Use when: creating system menus for newly generated pages, batch r
 | ------------------------------------------------ | ------------------ | --------------------------------------- |
 | 菜单名称、路径、组件、权限、隐藏、排序、应用编码 | `SYS_MENU_INFO.md` | 原型/详设阶段自动生成，AI 直接读取      |
 | `parentMenuNameCode`                             | API 自动查询       | AI 调 children 接口获取，无需手填       |
-| **gatewayPath、parentMenuId、token**             | `env.local.json`   | 每套环境不同，唯一需要手动维护的 3 个值 |
+| **gatewayPath、parentMenuId、sysAppNo、token**    | `env.local.json`   | 每套环境不同，唯一需要手动维护的 4 个值 |
 
-### 配置文件（只需填 3 个字段）
+### 配置文件（只需填 4 个字段）
 
 `.github/skills/menu-sync/env/env.local.json`（已加入 `.gitignore`，本地维护，不提交）
 
@@ -31,6 +31,7 @@ description: "Use when: creating system menus for newly generated pages, batch r
 {
   "gatewayPath": "http://网关地址:端口",
   "parentMenuId": "父级菜单ID",
+  "sysAppNo": "应用编码（从已有菜单的sysAppNo字段获取，非明文）",
   "token": "Bearer Token（不含bearer前缀）"
 }
 ```
@@ -39,7 +40,7 @@ description: "Use when: creating system menus for newly generated pages, batch r
 
 ### 使用步骤
 
-1. **首次**：按 `env/guide.md` 填写 `env.local.json` 的 3 个字段
+1. **首次**：按 `env/guide.md` 填写 `env.local.json` 的 4 个字段
 2. **之后**：直接对 AI 说「帮我创建菜单」/「同步菜单」/「补菜单」
 3. AI 自动执行：读 `SYS_MENU_INFO.md` → 读 `env.local.json` → 查父级已有子节点 → 逐条对比去重 → 调 `/system/menu/save` → 输出 created/skipped 结果表
 4. **全程无需手动执行任何命令**
@@ -90,18 +91,20 @@ description: "Use when: creating system menus for newly generated pages, batch r
 GET {gatewayPath}/system/menu/children?current=1&size=100&menuId={parentMenuId}
 Headers:
   authorization: bearer {token}
-  Sysappno: {appNo}
+  Sysappno: {sysAppNo}
 ```
 
 #### Step 2: 逐条创建菜单
 
 对于每条待创建的菜单，先检查是否与已有菜单重名（`menuName` 或 `path` 相同），重复则跳过。
 
+> **响应码说明**：后端成功响应为 `code: 2000`（非标准 HTTP 200），判断成功应检查 `response.body.code === 2000` 或 `message` 包含"成功"。
+
 ```
 POST {gatewayPath}/system/menu/save
 Headers:
   authorization: bearer {token}
-  Sysappno: {appNo}
+  Sysappno: {sysAppNo}
   Content-Type: application/json
 
 Body:
@@ -112,12 +115,12 @@ Body:
   "hidden": false,
   "type": "C",
   "parentId": "{parentMenuId}",
-  "sysAppNo": "{appNo}",
+  "sysAppNo": "{sysAppNo}",
   "orderNum": {nextOrder},
   "menuName": "客户档案",
   "menuNameCode": "{parentMenuNameCode}:{pinyinName}",
   "path": "mmwrCustomerArchive",
-  "permission": "produce:mmwrCustomerArchive:list",
+  "permission": "mmwrCustomerArchive",
   "component": "produce/production-mmwr/aiflow/mmwr-customer-archive/index.vue"
 }
 ```

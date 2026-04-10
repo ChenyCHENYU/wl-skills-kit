@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.7] - 2026-04-10
+
+### 修复：menu-sync SKILL.md 漏同步
+
+- `files/.github/skills/menu-sync/SKILL.md` 未随 v1.1.6 同步源仓库版本
+- 修复内容：sysAppNo 字段补齐（配置模板/表格/示例）、`{appNo}` → `{sysAppNo}` 变量统一、响应码说明补充
+- 全量审计确认 19 个同步文件 + 9 个 TPL 模板零差异
+
 ## [1.1.6] - 2026-04-10
 
 ### 修复：menu-config.md 残留引用 + env 模板字段缺失
