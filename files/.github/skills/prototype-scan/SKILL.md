@@ -1,6 +1,6 @@
 ---
 name: prototype-scan
-description: "Use when: analyzing Axure exported HTML prototype files to extract page inventory, classify interaction patterns, identify reusable components, and produce a structured page checklist for Vue development. Also supports detailed design documents (MD/Word) as input. Triggers on: prototype analysis, axure scan, page inventory, 原型解析, 页面清单, axure转vue, 详设文档, design doc, 详细设计."
+description: "Use when: analyzing Axure exported HTML prototype files to extract page inventory, classify interaction patterns, identify reusable components, and produce a structured page checklist for Vue development. Also supports detailed design documents (MD/Word) or natural language descriptions as input. Triggers on: prototype analysis, axure scan, page inventory, 原型解析, 页面清单, axure转vue, 详设文档, design doc, 详细设计, 口述需求, 自然语言建页面, natural language page request, 建个页面, 写个页面, 口头描述页面."
 ---
 
 # Skill: 原型解析（prototype-scan）
@@ -11,8 +11,92 @@ description: "Use when: analyzing Axure exported HTML prototype files to extract
 
 ## 触发
 
-- **模式 A（Axure）**：提供 Axure HTML 文件包目录，AI 全量扫描 HTML
-- **模式 B（详设文档）**：提供 MD/Word/表格格式的详细设计文档，AI 解析结构化字段
+| 模式 | 输入 | 典型场景 |
+|------|------|----------|
+| **模式 0（自然语言）** | 用户口述需求，无文件 | 日常对话："帮我建一个客户管理页面，有XX字段" |
+| **模式 A（Axure）** | Axure HTML 文件包目录 | 已有原型设计，AI 全量扫描 HTML |
+| **模式 B（详设文档）** | MD/Word/表格格式的详细设计文档 | 已有详细设计文档，AI 解析结构化字段 |
+
+---
+
+## 模式 0 — 自然语言转 page-spec（内部步骤）
+
+> **核心原则**：模式 0 是 AI 的**内部推导流程**，不输出中间 JSON 给用户。
+> AI 从口述中提取信息 → 内部构建 page-spec JSON → 直接传递给 page-codegen 消费。
+> **不向用户索要文件**，用注释标注不确定项即可。
+
+### 1. 提取关键信息
+
+从用户口述中识别以下实体（缺省则用默认值）：
+
+| 实体 | 识别关键词示例 | 默认值 |
+|------|---------------|--------|
+| 页面中文名 | "XX页面" / "XX管理" / "XX档案" | 必须由用户提供 |
+| 交互模式 | 见下方映射表 | `LIST` |
+| 服务缩写 | "生产"→pm, "精整"→mmwr, "销售"→sale, "人力"→hrms, "基础"→base | 从目标路径推断 |
+| 资源名 | 从中文名推断 CamelCase | 自动推断 |
+| 目录名 | 从中文名推断 kebab-case | 自动推断 |
+
+### 2. 关键词 → 交互模式映射
+
+| 用户关键词 | 推断模式 |
+|-----------|----------|
+| "列表" / "查询" / "管理页" / 无特殊说明 | `LIST` |
+| "主从" / "明细" / "上下表" | `MASTER_DETAIL` |
+| "树形" / "左树右表" | `TREE_LIST` |
+| "表单" / "详情" / "多Tab表单" | `DETAIL_TABS` |
+| "独立表单" / "路由表单" / "复杂表单" | `FORM_ROUTE` |
+| "变更历史" / "变更记录" | `CHANGE_HISTORY` |
+| "记录表单" / "无分页" | `RECORD_FORM` |
+| "工位" / "操作站" | `OPERATION_STATION` |
+
+### 3. 内部构建 page-spec 骨架
+
+AI 根据提取的信息，内部构建 page-spec JSON（**不输出给用户**）：
+
+```jsonc
+{
+  "pageName": "[用户说的中文名]",
+  "kebabName": "[推断的kebab-case]",
+  "pattern": "[推断的交互模式，默认LIST]",
+  "path": "views/[域]/[模块]/[子模块]/[kebab-name]/",
+  "query": [
+    // 从用户描述中提取；未提及 → 基于资源名推断 1-2 个（如"名称"、"编码"）
+  ],
+  "toolbar": [
+    // 默认: 新增(primary) + 删除(danger)；用户提及"导出""导入"等则追加
+  ],
+  "columns": [
+    // 从用户描述中提取；未逐一列举 → 基于资源语义推断 5-8 个常见字段
+  ],
+  "operations": [
+    // 默认: 编辑 + 删除；用户提及"查看""审批"等则调整
+  ],
+  "features": {
+    "tabSwitch": false, "viewSwitch": false, "hiddenMenu": false
+  },
+  "notes": [
+    "[模式0] 字段英文名为AI推断值，请确认",
+    "[模式0] dictCode 为推断值，请后端确认"
+  ]
+}
+```
+
+### 4. 降级与默认值原则
+
+| 信息缺失项 | 默认策略 |
+|-----------|----------|
+| 交互模式 | `LIST`（最常见的列表查询页） |
+| 查询字段 | 基于业务资源名推断 1-2 个（"名称"、"编码"） |
+| 工具栏按钮 | `[新增(primary), 删除(danger)]` |
+| 表格列 | 基于资源语义推断 5-8 个常见字段（编码、名称、类型、状态、创建时间等） |
+| 操作列 | `[编辑, 删除]` |
+| 字段英文名 | AI 推断 camelCase，notes 标注"字段名为推断值" |
+| 字典 code | 状态类字段自动标注推断 dictCode，notes 标注"dictCode 为推断值" |
+| 子表 | 不生成（用户未提及则不推断） |
+| Tab/视角切换 | 关闭（`false`） |
+
+> 构建完成后，直接进入输出流程（同模式 A/B），为 page-codegen 提供标准 page-spec JSON。
 
 ---
 

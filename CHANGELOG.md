@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.1] - 2026-04-13
+
+### 新增：自然语言输入模式（模式 0）
+
+- **prototype-scan**：新增模式 0（自然语言），用户口述需求时 AI 内部自动构建 page-spec JSON，无需提供原型/文档
+  - 触发区块改为三模式表格（模式 0/A/B）
+  - 新增关键词→交互模式映射表、降级默认值策略、page-spec 骨架模板
+- **page-codegen**：支持模式 0 快捷路径，无 page-spec 时自动调用 prototype-scan 模式 0
+- **copilot-instructions.md**：Skill 注册表及流水线同步更新自然语言触发词
+
 ## [1.2.0] - 2026-04-10
 
 ### 新增：CLI v2.0 — update 增量更新 + clean 构建清理

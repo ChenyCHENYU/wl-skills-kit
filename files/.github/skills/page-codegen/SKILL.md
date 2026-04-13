@@ -1,6 +1,6 @@
 ---
 name: page-codegen
-description: "Use when: generating complete Vue 3 page code (index.vue + data.ts + modal components + api.md + pages.ts registration) from a prototype page inventory and API contract, strictly following the cx-ui-produce project conventions. Read SKILL.md first (rules+constraints), then read the matching TPL-*.md for the template code. Triggers on: generate page, create page, code generation, 生成页面, 页面代码, 代码生成, vue页面, 按原型生成."
+description: "Use when: generating complete Vue 3 page code (index.vue + data.ts + modal components + api.md + pages.ts registration) from a prototype page inventory and API contract, strictly following the cx-ui-produce project conventions. Read SKILL.md first (rules+constraints), then read the matching TPL-*.md for the template code. Triggers on: generate page, create page, code generation, 生成页面, 页面代码, 代码生成, vue页面, 按原型生成, 口述需求, 建个页面, 写个页面, 帮我生成, natural language page generation."
 ---
 
 # Skill: 页面代码生成（page-codegen）
@@ -21,6 +21,8 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 
 > **重要**：查询字段、表格列、按钮列表不再手动罗列，直接从 page-spec JSON 中读取。
 > 如果没有 page-spec JSON，必须先执行 prototype-scan Skill 生成。
+>
+> **模式 0 快捷路径**：当用户直接口述需求（如"帮我生成一个客户管理页面"）而未提供 page-spec JSON 时，AI 内部自动调用 prototype-scan 模式 0 构建 page-spec JSON，然后继续执行代码生成，无需用户提供任何文件。
 
 ---
 
