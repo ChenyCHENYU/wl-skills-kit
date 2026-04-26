@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.2] - 2026-04-26
+
+### 🔧 消除 npm 发布警告
+
+- `package.json` bin 路径去掉 `./` 前缀（`"./bin/wl-skills.js"` → `"bin/wl-skills.js"`），符合 npm 规范化要求，消除发布时的 `warn: script name was invalid` 提示
+
+---
+
 ## [2.1.1] - 2026-04-26
 
 ### 🔧 修复与迁移增强
