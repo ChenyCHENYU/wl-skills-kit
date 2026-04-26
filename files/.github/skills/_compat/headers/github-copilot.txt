@@ -1,0 +1,1 @@
+<!-- GitHub Copilot 自动加载 .github/copilot-instructions.md，无需特化 header。bin/wl-skills.js 对此编辑器实际是直接复制源文件，不附加任何头部。-->

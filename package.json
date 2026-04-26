@@ -1,6 +1,6 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "1.2.1",
+  "version": "2.1.0",
   "description": "AI Skill 模板包 — 一键导入 AI 指令 + 组件文档 + 通用组件 + 领域样例，覆盖 Copilot/Cursor/Windsurf/Kiro 等主流 AI 编辑器",
   "bin": {
     "wl-skills-kit": "./bin/wl-skills.js"
@@ -31,5 +31,8 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "xlsx": "^0.18.5"
   }
 }

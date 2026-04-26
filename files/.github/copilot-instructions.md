@@ -11,7 +11,7 @@
 - 样式：Windi CSS + SCSS
 - 状态：Pinia
 - 页面注册：`vite/plugins/shared/pages.ts` 通过 `gProd()` / `gSale()` 声明
-- 菜单路由配置：后端菜单表是唯一数据源。pages.ts 注册组件后，需在系统管理后台 → 菜单管理 → 新增菜单。批量新增页面时可用后端 batchImport 接口，详见 `.github/docs/menu-sync-design.md`
+- 菜单路由配置：后端菜单表是唯一数据源。pages.ts 注册组件后，需在系统管理后台 → 菜单管理 → 新增菜单。批量新增页面时可用后端 batchImport 接口，详见 `.github/skills/sync/menu-sync/SKILL.md`
 
 ## 页面标准结构（4 文件）
 
@@ -198,64 +198,125 @@ onMounted(() => select());
 - ❌ 手写查询表单/工具栏/分页（用 BaseQuery/BaseToolbar/jh-pagination）
 - ❌ 每个页面重复写弹窗组件（优先用 `c_modal` 等局部公共组件）
 
-## AI Skills 自动调度（强制执行 — 所有 AI 编辑器/模型通用）
 
-本项目内置 5 个 Skill 文件，覆盖「原型/详设 → 可运行页面 → 菜单注册」完整流程。
-**执行以下任何任务前，必须先用工具读取（read_file）对应的 SKILL.md，读取完成前禁止生成任何代码或输出。**
+---
 
-### Skill 注册表
+## 规范门控（standards/index.md 懒加载）
 
-| 触发场景（用户意图关键词） | 必须读取的文件 | Skill 名称 |
-|---|---|---|
-| 扫描原型、解析原型、页面清单、原型分析、详设文档、口述需求、建个页面、写个页面 | `.github/skills/prototype-scan/SKILL.md` | prototype-scan |
-| 接口约定、api.md、字段定义、前后端对齐、接口设计 | `.github/skills/api-contract/SKILL.md` | api-contract |
-| 生成页面、创建页面、代码生成、vue页面、按原型生成、口述生成页面、帮我生成 | `.github/skills/page-codegen/SKILL.md`（主文件会指示继续读取对应的 `TPL-*.md` 模板） | page-codegen |
-| 创建菜单、注册菜单、同步菜单、补菜单 | `.github/skills/menu-sync/SKILL.md` | menu-sync |
-| 规范审计、代码审计、规范检查、对齐规范、规范偏差 | `.github/skills/convention-extract/SKILL.md` | convention-audit |
+> ⚠️ 本节为**强制约定**，所有 AI 编辑器/模型都必须遵守。
 
-### 完整流水线（原型/详设 → 页面 → 菜单）
+完整 13 条编码规范拆分在 `.github/standards/01 ~ 13.md`，由 `standards/index.md` 提供任务类型 → 规范子集映射，**按需加载，不全量读取**。
 
-当用户提供原型文件或详设文档并要求批量生成页面时，按以下顺序依次执行：
+| 任务类型              | 必读规范                                          |
+| --------------------- | ------------------------------------------------- |
+| A. 生成新页面         | 01, 02, 03, 04, 05, 06, 07, 09, 10, 11, 12, 13   |
+| B. 修改/重构现有代码  | 02, 04, 05, 06, 09, 10, 12, 13                    |
+| C. 规范审计           | 全部 01 ~ 13                                       |
+| D. 模板提取           | 02, 03, 09, 12, 13                                |
+| E. 数据同步（菜单等） | 04, 05, 07                                        |
+| F. Git/分支/提交      | 08                                                |
+
+**执行任何代码生成或改动前**：
+1. 先 `read_file` 加载 `standards/index.md` 确认任务类型
+2. 按映射读取对应 `standards/0X-*.md`
+3. 在 Pre-flight 声明中列出已加载文件
+
+---
+
+## AI Skills 自动调度
+
+完整触发词与 Skill 路径见 `skills/_registry.md`（**单一数据源**，不在此处重复）。
+
+| Skill 名             | 状态     | 一句话说明                              |
+| -------------------- | -------- | --------------------------------------- |
+| prototype-scan       | ✅ 启用  | 原型/详设 → page-spec JSON              |
+| api-contract         | ✅ 启用  | 生成 api.md 接口约定                    |
+| page-codegen         | ✅ 启用  | 4 文件 + 模板调度 + 菜单追加            |
+| menu-sync            | ✅ 启用  | reports/SYS_MENU_INFO → 后端菜单接口    |
+| convention-audit     | ✅ 启用  | 13 条规范扫描 + 偏差报告 + 提取建议     |
+| template-extract     | ✅ 启用  | 现有页面 → 领域模板沉淀                 |
+| dict-sync            | ⏳ PLANNED | 字典数据同步                            |
+| permission-sync      | ⏳ PLANNED | 权限数据同步                            |
+| code-fix             | ⏳ PLANNED | 自动整改 🟢🟡 等级偏差                  |
+
+**执行规则**：
+
+1. 用户消息匹配 `_registry.md` 触发词 → 用 `read_file` 加载对应 SKILL.md
+2. SKILL.md 中标注的"必读 standards"按 standards/index.md 映射加载
+3. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制）
+
+---
+
+## Pre-flight 声明（强制约定式输出）
+
+每次 Skill 触发时，**必须先输出**以下结构的 Pre-flight 声明，再开始执行：
 
 ```
-Step 1 → 读取 prototype-scan/SKILL.md → 执行原型扫描 → 输出 page-spec
-Step 2 → 读取 api-contract/SKILL.md   → 生成 api.md 接口约定（先于代码生成，确保 API_CONFIG 与接口一致）
-Step 3 → 读取 page-codegen/SKILL.md   → 逐页生成代码 + 追加/覆盖 SYS_MENU_INFO.md（询问用户选择写入模式）
-Step 4 → 读取 menu-sync/SKILL.md      → 读取 SYS_MENU_INFO.md → 注册菜单到后端
+🚀 已触发技能 {skill-name}/SKILL.md  → {一句话用途}
+✅ 已读取 standards/index.md         → 规范门控
+✅ 已读取 standards/{相关条目}        → {一句话说明}
+✅ 已读取 {其他必要文档}              → {说明}
+✅ 工具链检测：{各项 ✓ / ✗}
+✅ {其他前置检查项，如 cid 生成等}
 ```
 
-> **模式 0 快捷路径**：当用户口述需求（如"帮我生成一个客户管理页面"）而未提供原型/文档时，AI 内部调用 prototype-scan 模式 0 自动构建 page-spec JSON，然后从 Step 2 继续执行，无需用户提供任何文件。
+**工具链检测失败必须暂停**：
 
-每个 Step 开始前读取对应 SKILL.md，**前一个 Step 完成后再进入下一个**。
-上一步的输出（如 page-spec）直接作为下一步的输入，无需用户中间干预。
+```
+❌ 工具链检测失败：未找到 {缺失文件}
+   → 请执行：npx @robot-admin/git-standards init
+   → 或联系 CHENY（工号 409322）解决
+   → ⛔ 任务已暂停，修复后重新触发
+```
 
-> **数据闭环**：page-codegen 生成的 `SYS_MENU_INFO.md` 是 menu-sync 的唯一输入。
-> 菜单通过 `组件路径` 字段与 pages.ts 注册的文件路径关联，无论自动（menu-sync API）还是手动（系统管理后台）创建菜单，效果等价。
+---
 
-### 单独使用
+## 报告类文件（reports/）
 
-用户也可以只执行单个 Skill（如只说"帮我生成客户档案页面"），此时只需读取对应的 SKILL.md，不必执行完整流水线。
+AI 生成的所有报告类文件统一写入 `.github/reports/`，**全部追加不覆盖**。
 
-### 组件文档按需查阅
+| 文件                              | 写入方             | 读取方                |
+| --------------------------------- | ------------------ | --------------------- |
+| `reports/SYS_MENU_INFO.md`        | page-codegen       | menu-sync             |
+| `reports/SYS_DICT_INFO.md` [PLANNED]   | dict-collect  | dict-sync             |
+| `reports/SYS_PERMISSION_INFO.md` [PLANNED] | permission-collect | permission-sync |
+| `reports/规范审查报告.md`          | convention-audit   | 人工 → code-fix       |
+| `reports/组件提取建议.md`          | convention-audit   | 人工 → template-extract |
 
-生成代码过程中如需了解组件用法，读取 `docs/` 下对应文档：
+详见 `reports/README.md`。
 
-| 组件 | 文档路径 |
-|------|---------|
-| BaseQuery / BaseTable / BaseToolbar | `src/components/remote/BaseQuery/README.md` 等 |
-| jh-select / jh-date / jh-pagination 等 | `docs/jh-select.md` / `docs/jh-date.md` 等 |
-| c_formModal / c_formSections / c_listModal | `src/components/local/c_formModal/README.md` 等 |
-| AbstractPageQueryHook 最佳实践 | `docs/page-query-hook-best-practices.md` |
-| HTTP 请求工具 | `docs/request.md` |
+---
 
-### 领域样例参考
+## 组件文档按需查阅
 
-首次生成某类页面时，可读取 `demo/` 下的对应样例学习实际写法：
+生成代码时如需了解组件用法，按需读取以下文档（不要全量加载）：
 
-| 模板类型 | 样例路径 |
-|---------|---------|
-| LIST（标准列表） | `demo/produce/aiflow/mmwr-customer-archive/` |
-| FORM_ROUTE（复杂表单） | `demo/produce/aiflow/mmwr-customer-apply-add-form/` |
-| CHANGE_HISTORY（变更历史） | `demo/produce/aiflow/mmwr-customer-apply-change-history/` |
-| DETAIL_TABS（详情Tab） | `demo/produce/aiflow/mmwr-customer-detail/` |
-| MASTER_DETAIL（上下分栏） | `demo/sale/demo/metallurgical-spec/` |
+| 主题                                | 文档路径                                              |
+| ----------------------------------- | ----------------------------------------------------- |
+| BaseQuery / BaseTable / BaseToolbar | `src/components/remote/{BaseXxx}/README.md`           |
+| jh-* 平台组件                       | `docs/jh-{name}.md`                                   |
+| c_formModal / c_listModal 等        | `src/components/local/{c_xxx}/README.md`              |
+| AbstractPageQueryHook 最佳实践      | `docs/page-query-hook-best-practices.md`              |
+| HTTP 请求工具                       | `docs/request.md`                                     |
+
+> 详细对照表与"何时必读哪个文档"见 `standards/13-platform-components.md`。
+
+---
+
+## 领域样例参考
+
+首次生成某类页面时，可读取 `demo/` 下对应样例：
+
+| 模板类型              | 样例路径                                                |
+| --------------------- | ------------------------------------------------------- |
+| LIST                  | `demo/produce/aiflow/mmwr-customer-archive/`            |
+| FORM_ROUTE            | `demo/produce/aiflow/mmwr-customer-apply-add-form/`     |
+| CHANGE_HISTORY        | `demo/produce/aiflow/mmwr-customer-apply-change-history/` |
+| DETAIL_TABS           | `demo/produce/aiflow/mmwr-customer-detail/`             |
+| MASTER_DETAIL         | `demo/sale/demo/metallurgical-spec/`                    |
+
+---
+
+> 📚 完整指南：`.github/guides/usage.md`
+> 🏗️ 架构设计：`.github/guides/architecture.md`
+> 🔧 维护者文档：`kit-internal/`（仓库内，不安装到业务项目）

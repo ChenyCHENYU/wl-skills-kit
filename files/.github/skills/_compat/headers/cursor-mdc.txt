@@ -1,0 +1,16 @@
+---
+description: "项目编码规范（13 条标准 + 6 个 Skill 自动调度，由 wl-skills-kit 自动生成）"
+globs:
+  - "**/*.vue"
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.js"
+  - "**/*.scss"
+alwaysApply: true
+---
+
+<!-- Cursor MDC 规则文件。由 @agile-team/wl-skills-kit 自动生成。 -->
+<!-- 源文件：.github/copilot-instructions.md，更新方式：npx @agile-team/wl-skills-kit@latest update -->
+
+---
+

@@ -1,5 +1,125 @@
 # Changelog
 
+## [2.1.0] - 2026-04-26
+
+### 🎯 多 AI 编辑器适配解耦 + 文档体系完善
+
+#### 解耦的多 AI 配置层
+- `files/.github/skills/_compat/` 由"说明文档"重构为**可执行配置层**：
+  - 新增 `editors.json`：编辑器注册表（bin 读此文件决定生成什么）
+  - 新增 `headers/`：每个编辑器特化 frontmatter 模板（cursor-mdc / kiro / trae 等）
+  - 新增 `README.md`：解耦机制说明
+- `bin/wl-skills.js` 重构 `getEditorConfigs()`：从 `editors.json` 动态加载，**任意编辑器 `enabled: false` 不影响其他**
+- 各编辑器特化 frontmatter：Cursor 含 `description+globs+alwaysApply`，Kiro 含 `inclusion`，Trae 含 `description+globs`，等
+
+#### Skill 分级目录
+- `skills/` 重组为 `core/`（5 个）+ `sync/`（3 个）+ `ops/`（1 个）+ `domain/`（占位）
+- 16 处旧路径引用已批量更新
+
+#### 完善 Skill 文档（人读 vs AI 读）
+- 每个启用 Skill 同目录新增 `USAGE.md`（团队成员阅读，含示例对话/踩坑/FAQ），与 `SKILL.md`（AI 触发用）并存
+- 维护文档 `*.MAINTAIN.md` 已在 `kit-internal/skills/`
+
+#### api-contract 基于真实响应重写
+- 响应外壳：`{ code: 2000, message, data }`（**非 result，非 200**）
+- 分页字段完整描述：`records / total / current / size / pages / countId / maxLimit / orders / searchCount`
+- 增加成功/失败/字典/单条/数组各形态示例
+- 业务代码 `.then(res => res)` 拿到的就是 `data`（拦截器已剥壳）
+
+#### PLANNED Skill 草稿补全
+- `dict-sync/SKILL.draft.md`：完整设计（数据流/三种模式/冲突策略/转正任务）
+- `permission-sync/SKILL.draft.md`：权限码命名规范 + 三种模式 + 安全约束
+- `code-fix/SKILL.draft.md`：受控修复工作流 + 偏差类型对照 + 防御对抗 prompt
+
+#### 仓库结构治理
+- `ARCHITECTURE-PLAN.md` 归档至 `kit-internal/history/`
+- 新增 `kit-internal/jenkins-pipeline.md`（Jenkins 参考模板，不强加业务项目）
+- README 重写：**严格区分** A. 本仓库结构（维护用）vs B. 业务项目安装结构（业务方用），杜绝混淆
+
+#### 验证
+- `npm pack --dry-run`：157 文件 / 247kB（kit-internal 已正确排除）
+- 端到端 `init`：149 个文件正确生成；禁用 kiro 后只少 1 个文件（解耦验证通过）
+
+---
+
+## [2.0.0] - 2026-04-26
+
+### 🚀 重大架构升级
+
+#### 模块化规范 + 懒加载门控
+
+- 将原 619 行单文件 `copilot-instructions.md` 中的 12 条规范抽出为独立 `standards/01 ~ 12.md`
+- **新增第 13 条 `13-platform-components.md`**——平台组件对照表 + docs 前置读取清单（核心 AI 质量门控）
+- 新增 `standards/index.md`，按任务类型（A 生成 / B 重构 / C 审计 / D 模板提取 / E 同步 / F Git）映射规范子集，按需加载
+- `copilot-instructions.md` 精简至 ~320 行（减少 48%）
+
+#### 模板分层（universal / domains）
+
+- 8 个通用模板移到 `templates/universal/`：TPL-LIST、TPL-FORM-ROUTE、TPL-MASTER-DETAIL、TPL-TREE-LIST、TPL-DETAIL-TABS、TPL-CHANGE-HISTORY、TPL-RECORD-FORM、TPL-DRIVEN
+- 领域专属模板移到 `templates/domains/`：produce 域 TPL-OPERATION-STATION 等
+- 新增 `templates/_index.md` 模板注册表
+- 新增 `templates/domains/_CONTRIBUTING.md` 领域模板贡献规范
+
+#### 报告分类（reports/）
+
+- 新增 `.github/reports/` 目录，三类文件分离：
+  - **系统数据**：`SYS_MENU_INFO.md` / `SYS_DICT_INFO.md`[PLANNED] / `SYS_PERMISSION_INFO.md`[PLANNED]
+  - **审计偏差**：`规范审查报告.md`
+  - **提取建议**：`组件提取建议.md`
+- 全部追加写入，不覆盖团队累积数据
+- `init` / `update` 自动保护已存在的 reports 文件
+- `clean --keep-reports` 标志可保留累积数据
+
+#### Pre-flight 约定式输出
+
+- 每个 Skill 触发后强制输出 Pre-flight 声明（已读文件、工具链状态、cid 等）
+- 工具链检测失败强制暂停，输出 ❌ 红叉提示 + CHENY 工号 409322
+
+#### 新增 Skill
+
+- ✅ **template-extract** — AI 辅助的领域模板提取流程（开发者指路 + AI 读代码 + AI 写模板）
+- ✅ **convention-audit**（重命名自 convention-extract 并升级）— 13 条规范全量扫描，输出双报告
+- ⏳ **dict-sync** [PLANNED] — 字典数据批量同步
+- ⏳ **permission-sync** [PLANNED] — 权限数据批量同步
+- ⏳ **code-fix** [PLANNED] — 自动整改 🟢🟡 等级偏差
+
+#### 多 AI 编辑器适配
+
+- 新增 `skills/_compat/ai-model-matrix.md` — 8 种 AI 编辑器能力矩阵
+- 新增 `skills/_compat/editor-setup.md` — 编辑器配置 + 5 步团队接入指南
+- `bin/wl-skills.js` 已支持 8 种主流 AI 编辑器配置自动生成
+
+#### 维护者文档目录
+
+- 新增仓库根目录 `kit-internal/`（与 files/ 同级）
+  - `README.md` / `CONTRIBUTING.md` / `architecture.md`
+  - `standards.MAINTAIN.md` / `templates.MAINTAIN.md`
+  - `skills/_planned-skills.md`
+- 不在 `package.json` files 字段，自然排除于 npm 包外
+
+#### 目录调整（破坏性变更）
+
+- `docs/` → `guides/`（英文统一，避免 Windows 中文路径问题）
+- `docs/SYS_MENU_INFO.md` → `reports/SYS_MENU_INFO.md`
+- 删除 `docs/menu-sync-design.md`（合并至 `guides/architecture.md`）
+- 删除 `docs/wl-skills-kit.md`（合并至 README.md）
+- 重写 `docs/use-skill.md` → `guides/usage.md`
+
+#### CLI 增强
+
+- `init` / `update`：`.github/reports/*.md` 已存在则跳过（保护团队累积）
+- `clean`：新增 `--keep-reports` 选项
+
+### 迁移指南（从 v1.x 升级）
+
+执行 `npx @agile-team/wl-skills-kit@latest update` 即可。注意：
+
+1. 老的 `docs/SYS_MENU_INFO.md` 需手动迁移到 `reports/SYS_MENU_INFO.md`
+2. 老的 `docs/menu-sync-design.md` / `docs/wl-skills-kit.md` 已删除，相关内容见 `guides/architecture.md`
+3. 老的 `convention-extract` Skill 重命名为 `convention-audit`，触发词扩展
+
+---
+
 ## [1.2.1] - 2026-04-13
 
 ### 新增：自然语言输入模式（模式 0）

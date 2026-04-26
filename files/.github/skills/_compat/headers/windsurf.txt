@@ -1,0 +1,7 @@
+# Windsurf 项目编码规范（.windsurfrules）
+
+> 由 @agile-team/wl-skills-kit 自动生成。请勿手动编辑。
+> 更新方式：npx @agile-team/wl-skills-kit@latest update
+
+---
+

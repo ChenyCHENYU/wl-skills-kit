@@ -1,0 +1,8 @@
+# AGENTS.md — 通用代理协议（项目编码规范）
+
+> 此文件遵循 [agents.md 跨编辑器协议](https://agents.md)，可被任意支持该协议的 AI 代理读取。
+> 由 @agile-team/wl-skills-kit 自动生成。源文件：`.github/copilot-instructions.md`
+> 更新方式：`npx @agile-team/wl-skills-kit@latest update`
+
+---
+

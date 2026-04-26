@@ -1,0 +1,61 @@
+{
+  "_comment": "AI 编辑器注册表 — bin/wl-skills.js 读取此文件决定生成哪些配置。要新增/移除编辑器，改这里。",
+  "version": "1.0.0",
+  "editors": [
+    {
+      "name": "github-copilot",
+      "headerFile": "github-copilot.txt",
+      "outputPath": ".github/copilot-instructions.md",
+      "enabled": true,
+      "_note": "Copilot 唯一识别 .github/ 的编辑器。该文件实际就是 files/.github/copilot-instructions.md 直接复制，不加 header。"
+    },
+    {
+      "name": "claude-code",
+      "headerFile": "claude-code.txt",
+      "outputPath": "CLAUDE.md",
+      "enabled": true
+    },
+    {
+      "name": "cursor-rules",
+      "headerFile": "cursor-rules.txt",
+      "outputPath": ".cursorrules",
+      "enabled": true
+    },
+    {
+      "name": "cursor-mdc",
+      "headerFile": "cursor-mdc.txt",
+      "outputPath": ".cursor/rules/conventions.mdc",
+      "enabled": true
+    },
+    {
+      "name": "windsurf",
+      "headerFile": "windsurf.txt",
+      "outputPath": ".windsurfrules",
+      "enabled": true
+    },
+    {
+      "name": "cline",
+      "headerFile": "cline.txt",
+      "outputPath": ".clinerules",
+      "enabled": true
+    },
+    {
+      "name": "kiro",
+      "headerFile": "kiro.txt",
+      "outputPath": ".kiro/steering/conventions.md",
+      "enabled": true
+    },
+    {
+      "name": "trae",
+      "headerFile": "trae.txt",
+      "outputPath": ".trae/rules/conventions.md",
+      "enabled": true
+    },
+    {
+      "name": "agents-generic",
+      "headerFile": "agents.txt",
+      "outputPath": "AGENTS.md",
+      "enabled": true
+    }
+  ]
+}

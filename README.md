@@ -1,432 +1,235 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包** — 一条命令，将 AI 编码指令、组件文档、通用组件、领域样例导入到你的 Vue 3 前端项目。
+**AI Skill 模板包 v2.1** — 一条命令将 13 条编码规范、6 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
 
-让 AI（Copilot / Cursor / Windsurf 等）**直接理解你的项目规范和组件体系**，从 Axure 原型 / 详细设计文档 → 生成可运行的完整页面代码。
+让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
 ---
 
-## 快速开始
+## TL;DR
 
 ```bash
-# 在你的项目根目录执行（无需安装，直接运行）
-npx @agile-team/wl-skills-kit
-
-# 预览将写入哪些文件（不实际写入）
-npx @agile-team/wl-skills-kit --dry-run
-
-# 增量更新（仅覆盖有变化的文件）
-npx @agile-team/wl-skills-kit@latest update
-
-# 构建前清理 AI 开发辅助文件（保留组件代码）
-npx @agile-team/wl-skills-kit clean
+npx @robot-admin/git-standards init      # 工程化前置（必须）
+npx @agile-team/wl-skills-kit            # 安装 AI 体系
+# 在 AI 对话中：
+"扫描 docs/prototypes/ 下的原型生成页面清单"
+"基于上一步生成所有 api.md，再 codegen 出页面"
 ```
-
-117 个文件按原始路径导入到你的项目，**无其他副作用**。
 
 ---
 
-## 导入了什么？
-
-执行后你的项目会新增以下内容：
+## 这个包到底干什么？
 
 ```
-你的项目/
-├── .github/
-│   ├── copilot-instructions.md          ← AI 自动加载的编码规范（项目总纲）
-│   ├── skills/                          ← 5 个 AI Skill
-│   │   ├── prototype-scan/SKILL.md      ←   ① 原型扫描（Axure HTML / 详设文档 → page-spec JSON）
-│   │   ├── api-contract/SKILL.md        ←   ② 接口约定（page-spec → api.md）
-│   │   ├── page-codegen/               ←   ③ 页面代码生成
-│   │   │   ├── SKILL.md                ←     主规则文件（约束 + 规范）
-│   │   │   ├── TPL-LIST.md             ←     标准列表页模板
-│   │   │   ├── TPL-FORM-ROUTE.md       ←     复杂表单独立路由模板
-│   │   │   ├── TPL-MASTER-DETAIL.md    ←     主从表模板
-│   │   │   ├── TPL-TREE-LIST.md        ←     左树右列表模板
-│   │   │   ├── TPL-DETAIL-TABS.md      ←     详情 Tab + 子表模板
-│   │   │   ├── TPL-CHANGE-HISTORY.md   ←     变更历史比对模板
-│   │   │   ├── TPL-RECORD-FORM.md      ←     录入型实绩页模板
-│   │   │   ├── TPL-OPERATION-STATION.md←     工序操作站模板
-│   │   │   └── TPL-DRIVEN.md           ←     配置驱动模板识别参考
-│   │   ├── menu-sync/SKILL.md           ←   ④ 菜单同步（pages.ts → 后端菜单表）
-│   │   └── convention-extract/SKILL.md  ←   ⑤ 规范审计（用规范审计代码，输出偏差报告）
-│   └── docs/                            ← 设计文档
-│       ├── use-skill.md                 ←   Skill 使用 + 移植一站式指南
-│       ├── menu-sync-design.md          ←   菜单同步方案设计
-│       ├── SYS_MENU_INFO.md             ←   菜单配置（page-codegen 自动生成，menu-sync 读取）
-│       └── wl-skills-kit.md             ←   本包详细设计文档
+原型/口述需求
+    │
+    ▼ [Skill: prototype-scan]
+《页面清单》(reports/PROTOTYPE_SCAN_*.md)
+    │
+    ▼ [Skill: api-contract]
+api.md（页面级前后端契约）
+    │
+    ▼ [Skill: page-codegen]
+data.ts + index.vue + index.scss（13 条 standards 自动满足）
+    │
+    ▼ [Skill: convention-audit]
+reports/AUDIT_AI_*.md + AUDIT_HUMAN_*.md
+    │
+    ▼ [Skill: menu-sync]
+线上菜单注册完毕，UI 可访问
+```
+
+---
+
+## ⚠️ 仓库结构 vs 业务项目安装结构（**必看**）
+
+`wl-skills-kit` 是一个 **npm 模板包**：仓库本身的结构 ≠ 你 `npx` 之后业务项目里看到的结构。两者**严格区分**：
+
+### A. 本仓库结构（开发/维护 wl-skills-kit 时）
+
+```
+wl-skills-kit/                            ← 你正看的这个仓库
+├── README.md                             本文档（业务方 + 维护者都看）
+├── CHANGELOG.md
+├── package.json                          name: @agile-team/wl-skills-kit
 │
-├── docs/                                ← 12 个平台组件 API 文档
-│   ├── request.md                       ←   getAction / postAction 等 HTTP 工具
-│   ├── page-query-hook-best-practices.md ←  AbstractPageQueryHook 最佳实践
-│   ├── jh-select.md                     ←   下拉选择组件
-│   ├── jh-date.md / jh-date-range.md    ←   日期 / 日期范围选择
-│   ├── jh-drag-row.md                   ←   上下分栏拖拽组件
-│   ├── jh-pagination.md                 ←   分页组件
-│   ├── jh-file-upload.md                ←   文件上传
-│   ├── jh-text.md                       ←   文本翻译
-│   ├── jh-picker.md                     ←   通用选择器
-│   ├── jh-user-picker.md                ←   用户选择器
-│   └── jh-dept-picker.md                ←   部门选择器
+├── bin/
+│   └── wl-skills.js                      CLI 实现（init / update / clean）
 │
-├── src/
-│   ├── components/
-│   │   ├── global/                      ← 6 个全局自动注册组件
-│   │   │   ├── C_Splitter/              ←   左右分割面板
-│   │   │   ├── C_Tree/                  ←   带搜索的树形面板
-│   │   │   ├── C_TagStatus/             ←   状态标签（彩色 Tag）
-│   │   │   ├── C_ParentView/            ←   父级视图容器
-│   │   │   ├── C_SvgIcon/               ←   SVG 图标
-│   │   │   └── C_RightToolbar/          ←   右侧工具栏
-│   │   ├── local/                       ← 4 个按需导入组件
-│   │   │   ├── c_formModal/             ←   通用表单弹窗（add/edit/view 三模式）
-│   │   │   ├── c_formSections/          ←   表单分区组件
-│   │   │   ├── c_listModal/             ←   列表选择弹窗
-│   │   │   └── c_spliterTitle/          ←   分栏标题
-│   │   └── remote/                      ← 5 个远程组件 README（API 文档）
-│   │       ├── BaseQuery/               ←   声明式查询区
-│   │       ├── BaseTable/               ←   声明式表格
-│   │       ├── BaseToolbar/             ←   声明式工具栏
-│   │       ├── BaseForm/                ←   声明式表单
-│   │       └── AGGrid/                  ←   高性能数据网格
-│   └── types/
-│       └── page.ts                      ← 类型桶文件（统一 re-export）
+├── files/                                ★★★ 真正会被打包并复制到业务项目的内容 ★★★
+│   └── .github/
+│       ├── copilot-instructions.md       源 AI 主入口（编辑这里，不要编辑业务项目里的副本）
+│       ├── standards/                    13 条规范
+│       ├── skills/                       Skill 目录（含 _compat/ 多编辑器适配源）
+│       ├── guides/                       人读指南
+│       └── reports/                      领域基线模板（菜单/字典/权限）
+│   ├── docs/                             组件 API 文档
+│   └── demo/                             领域样例
 │
-└── demo/                                ← 13 个领域样例页面（AI 学习 + 开发参考）
-    ├── README.md                        ←   样例索引 + 模板类型标注
-    ├── produce/aiflow/                  ←   生产域 8 个页面
-    │   ├── mmwr-customer-archive/       ←     LIST + Tabs + c_formModal
-    │   ├── mmwr-temp-customer-archive/  ←     LIST
-    │   ├── mmwr-customer-apply-add/     ←     LIST
-    │   ├── mmwr-customer-apply-add-form/←     FORM_ROUTE
-    │   ├── mmwr-customer-apply-change/  ←     LIST
-    │   ├── mmwr-customer-apply-change-form/ ← FORM_ROUTE
-    │   ├── mmwr-customer-apply-change-history/ ← CHANGE_HISTORY
-    │   └── mmwr-customer-detail/        ←     DETAIL_TABS
-    └── sale/demo/                       ←   销售域 5 个页面
-        ├── domestic-trade-order/        ←     LIST 标准列表
-        ├── metallurgical-spec/          ←     MASTER_DETAIL 上下分栏
-        ├── add-demo/                    ←     FORM_ROUTE 表单页
-        ├── billet-flame-cut-plan/       ←     LIST 变体
-        └── heat-batch-return/           ←     LIST + 自定义弹窗
+├── kit-internal/                         ★★ 仅仓库可见，不会安装到业务项目 ★★
+│   ├── README.md                         维护者首页
+│   ├── architecture.md                   架构总览
+│   ├── CONTRIBUTING.md                   贡献流程
+│   ├── standards.MAINTAIN.md             standards 维护要点
+│   ├── templates.MAINTAIN.md             templates 维护要点
+│   ├── jenkins-pipeline.md               Jenkins CI 参考模板（不强加业务项目）
+│   ├── skills/                           各 Skill 的 *.MAINTAIN.md
+│   └── history/                          归档：旧版 ARCHITECTURE-PLAN 等
+│
+└── .npmignore                            排除 kit-internal/ 等不发布的内容
 ```
 
----
+> **维护准则**：
+> - 业务规范要改 → 改 `files/.github/standards/*.md`
+> - Skill 流程要改 → 改 `files/.github/skills/<scope>/<name>/SKILL.md`
+> - 多 AI 编辑器适配要改 → 改 `files/.github/skills/_compat/`（**不是**改业务项目里的根配置文件）
+> - 维护文档要写 → 进 `kit-internal/`（不会污染业务项目）
 
-## 核心价值：5 个 AI Skill
-
-安装后，AI 编辑器自动识别这些 Skill，形成完整的**原型 → 代码**流水线：
-
-```
-  Axure 原型 / 详设文档
-         │
-         ▼
-  ① prototype-scan ─── 扫描 → page-spec JSON（结构化页面描述）
-         │
-         ▼
-  ② api-contract ───── 生成 → api.md（前后端接口约定，先于代码生成）
-         │
-         ▼
-  ③ page-codegen ───── 生成 → index.vue + data.ts + index.scss + api.md + mock
-         │                     （4 文件/页 + pages.ts 注册 + mock 数据）
-         │              写入 → SYS_MENU_INFO.md（询问用户选择覆盖/追加模式）
-         ▼
-  ④ menu-sync ──────── 读取 SYS_MENU_INFO.md → 同步到后端菜单表
-                       （自动调 API 或手动在后台创建，效果等价）
-                       
-  ⑤ convention-audit    按需：用规范审计代码 → 偏差报告 + 整改建议
-```
-
-### 支持 9 种页面模板
-
-| 模板 | 模式 | 说明 |
-|------|------|------|
-| TPL-LIST | LIST | 查询 + 工具栏 + 表格 + 分页 |
-| TPL-FORM-ROUTE | FORM_ROUTE | 复杂表单（多 Tab、多子表）独立路由 |
-| TPL-MASTER-DETAIL | MASTER_DETAIL | jh-drag-row 上下分栏主从表 |
-| TPL-TREE-LIST | TREE_LIST | C_Splitter 左树 + 右列表 |
-| TPL-DETAIL-TABS | DETAIL_TABS | 上方表单 + 下方 Tab 子表 |
-| TPL-CHANGE-HISTORY | CHANGE_HISTORY | 左变更时间线 + 右字段比对 |
-| TPL-RECORD-FORM | RECORD_FORM | 查询 + 表单录入（无分页） |
-| TPL-OPERATION-STATION | OPERATION_STATION | 待处理 + 已处理联动操作 |
-| TPL-DRIVEN | TEMPLATE_DRIVEN | 配置驱动模板页识别参考 |
-
----
-
-## 使用方式
-
-### 方式一：完整流程（Axure 原型 → 代码）
-
-> 最推荐。一个模块 5-8 个页面，约 5-10 分钟出完整代码。
-
-**对 AI 说**：
+### B. 业务项目结构（执行 `npx @agile-team/wl-skills-kit` 之后）
 
 ```
-帮我扫描 C:\Users\xxx\原型包\ 下的所有HTML
+你的业务项目/
+│
+├── .github/                              ← 来自本包 files/.github/
+│   ├── copilot-instructions.md           Copilot 主入口（精简 ~320 行）
+│   ├── standards/                        13 条模块化规范 + index.md 门控
+│   │   ├── 01-toolchain.md
+│   │   ├── 02-code-structure.md
+│   │   ├── ... (共 13 条)
+│   │   └── 13-platform-components.md
+│   ├── skills/                           6 个启用 Skill + 3 个 PLANNED 草稿
+│   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
+│   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
+│   │   ├── core/                         核心通用 Skill
+│   │   │   ├── prototype-scan/   { SKILL.md, USAGE.md }
+│   │   │   ├── api-contract/     { SKILL.md, USAGE.md }
+│   │   │   ├── page-codegen/     { SKILL.md, USAGE.md, templates/ }
+│   │   │   ├── convention-audit/ { SKILL.md, USAGE.md }
+│   │   │   └── template-extract/ { SKILL.md, USAGE.md }
+│   │   ├── sync/                         数据同步类
+│   │   │   ├── menu-sync/        { SKILL.md, USAGE.md, env/ }
+│   │   │   ├── dict-sync/        [PLANNED] SKILL.draft.md
+│   │   │   └── permission-sync/  [PLANNED] SKILL.draft.md
+│   │   ├── ops/                          运维类
+│   │   │   └── code-fix/         [PLANNED] SKILL.draft.md
+│   │   └── domain/                       领域专属（按需创建）
+│   ├── guides/                           人读指南（usage.md / architecture.md）
+│   └── reports/                          AI 生成报告（追加不覆盖）
+│       ├── SYS_MENU_INFO.md              线上菜单基线
+│       ├── SYS_DICT_INFO.md              线上字典基线
+│       ├── SYS_PERMISSION_INFO.md        线上权限基线
+│       └── AUDIT_*.md / PAGE_CODEGEN_*.md / ...   （随用随生成）
+│
+├── 多 AI 编辑器配置（解耦：可单独删除任意一个不影响其他）
+├── CLAUDE.md                             Claude Code
+├── AGENTS.md                             通用 Agents
+├── .cursorrules                          Cursor 旧版
+├── .cursor/rules/conventions.mdc         Cursor 新版（含 mdc frontmatter）
+├── .windsurfrules                        Windsurf
+├── .clinerules                           Cline
+├── .kiro/steering/conventions.md         Kiro（含 inclusion frontmatter）
+├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
+│
+├── docs/                                 12 个组件 API 文档
+├── demo/                                 13 个领域样例
+└── src/
+    ├── components/                       全局/局部/远程组件
+    └── types/                            类型桶文件
 ```
 
-AI 自动执行 5 步：扫描 → 生成接口约定 → 生成页面代码 → 注册路由 → 创建菜单。
-
-### 方式二：详设文档 → 代码（更高精度）
-
-**对 AI 说**：
-
-```
-按照这份详设文档帮我生成页面
-
-## 前置声明
-- 业务域/模块：生产 > 生产棒线材 > AI流程
-- 服务前缀：/mmwr/
-- 页面清单：客户档案、临时客户档案
-```
-
-详设文档中明确写出字段英文名和字典 code，精度可达 95-100%。
-
-### 方式三：碎片化使用（按需调用单个 Skill）
-
-| 你想做什么 | 对 AI 说 | 触发的 Skill |
-|-----------|---------|-------------|
-| 扫描原型，输出页面清单 | "扫描这些原型" | prototype-scan |
-| 给页面生成接口文档 | "生成 api.md" | api-contract |
-| 只生成单个页面代码 | "帮我生成客户档案页面" | page-codegen |
-| 把 pages.ts 同步到菜单表 | "帮我创建菜单" | menu-sync |
-| 审计项目代码是否合规 | "审计项目规范" / "规范检查" | convention-audit |
-| 查看组件怎么用 | "jh-select 怎么用" | AI 读取 docs/jh-select.md |
-| 参考样例写代码 | "参考 demo 里的客户档案" | AI 读取 demo/ 下的代码 |
-
-### 方式四：新项目初始化
-
-```bash
-# 1. 创建项目后，导入 Skill 体系
-npx @agile-team/wl-skills-kit
-
-# 2. 对 AI 说 "提炼项目规范"
-#    → 自动扫描你的代码生成 copilot-instructions.md
-
-# 3. 改写 page-codegen 模板（替换基类、组件、API 调用方式）
-#    → 详见 .github/docs/use-skill.md 第四章
-
-# 4. 开始使用：发 Axure 原型给 AI
-```
-
----
-
-## 多编辑器 / AI 工具支持
-
-安装后自动生成 **8 个编辑器配置文件**，内容统一来自 `copilot-instructions.md`（单一源头），确保所有 AI 工具读取到相同的项目规范。
-
-### 各工具配置一览
-
-| AI 工具 | 配置文件路径 | 规范加载 | Skill 自动调度 | 备注 |
-|---------|-------------|---------|---------------|------|
-| **GitHub Copilot** (VS Code) | `.github/copilot-instructions.md` | ✅ 自动 | ✅ 原生 Skill 识别 + 注册表双保险 | **主力工具，体验最完整** |
-| **Cursor** | `.cursorrules` + `.cursor/rules/conventions.mdc` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | `.mdc` 带 `alwaysApply: true` 前缀 |
-| **Windsurf (Cascade)** | `.windsurfrules` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 规范内嵌调度指令 |
-| **Kiro** | `.kiro/steering/conventions.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | steering/ 下的 md 自动加载 |
-| **Trae** | `.trae/rules/conventions.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | rules/ 下的 md 自动加载 |
-| **Claude Code / CLI** | `CLAUDE.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 也支持 `@import` 语法 |
-| **Roo Code / Cline** | `.clinerules` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | 支持 tool_use 读文件 |
-| **AGENTS.md 兼容** | `AGENTS.md` | ✅ 自动 | ✅ 通过注册表自动 `read_file` | Linux Foundation 通用标准，兜底 |
-
-### Skill 自动调度机制（v1.1.2+）
-
-所有编辑器配置文件均由 `copilot-instructions.md` 生成，其中内嵌了 **Skills 自动调度注册表**。
-该注册表以强制指令形式告知 AI：
-
-1. **触发关键词匹配** — 用户说"生成页面"/"扫描原型"/"接口约定"等关键词时，AI 必须先 `read_file` 对应的 `SKILL.md`
-2. **完整流水线** — 用户提供原型/详设并要求批量生成时，按 prototype-scan → api-contract → page-codegen → menu-sync 顺序依次执行
-3. **单独使用** — 用户只说"帮我生成客户档案页面"时，只读取 page-codegen 的 SKILL.md，不必跑完整流水线
-
-这意味着 **所有支持 `read_file` / tool_use 的 AI 工具都能自动调度 Skill**，无需手动引用。
-
-> **总结**：v1.1.2 起，**编码规范 + Skill 调度** 均为全编辑器自动加载（零配置）。各工具唯一的区别仅在于原生 Skill 识别（Copilot 独有） vs 注册表驱动的 `read_file` 调度（通用）。
+> **业务项目方准则**：
+> - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他 8 个根配置文件是它的拷贝 + 各自特化 frontmatter**
+> - 修改规范 → **不要**改业务项目里的副本，**升级 wl-skills-kit 包 + `update`** 才不会被覆盖
+> - reports/ 里的内容是团队累积数据，`update` 不会覆盖，可放心 commit
 
 ---
 
 ## CLI 命令
 
-### `init`（默认）
-
-首次安装或完整重装 — 全量写入所有文件。
-
 ```bash
-npx @agile-team/wl-skills-kit              # 等同于 init
-npx @agile-team/wl-skills-kit init
-npx @agile-team/wl-skills-kit --dry-run    # 预览模式
-```
+# 全量安装（默认）
+npx @agile-team/wl-skills-kit
 
-### `update`
+# 增量更新（仅覆盖有变化的文件，自动保护 reports/）
+npx @agile-team/wl-skills-kit update
 
-增量更新 — 基于 MD5 比对，仅覆盖有变化的文件，跳过未变化的文件。
+# 构建前清理（保留 src/components + src/types）
+npx @agile-team/wl-skills-kit clean
 
-```bash
-npx @agile-team/wl-skills-kit@latest update
+# 清理但保留 reports/（菜单/字典/权限累积数据）
+npx @agile-team/wl-skills-kit clean --keep-reports
+
+# 任何命令都可加 --dry-run 预览
 npx @agile-team/wl-skills-kit update --dry-run
 ```
 
-输出示例：
-```
-✔ 完成!
-  新增: 3 个文件      ← 新版本新增的文件
-  更新: 5 个文件      ← 内容有变化，已覆盖
-  未变: 109 个文件    ← MD5 一致，未动
-```
+---
 
-> 需要先执行过 `init` 才能使用 `update`（依赖 `.wl-skills-manifest.json` 清单文件）。
+## Skill 概览
 
-### `clean`
+| Skill              | 状态      | 路径                                     | 核心用途                      |
+| ------------------ | --------- | ---------------------------------------- | ----------------------------- |
+| `prototype-scan`   | ✅ 启用    | `skills/core/prototype-scan/`            | 原型/详设/口述 → 页面清单     |
+| `api-contract`     | ✅ 启用    | `skills/core/api-contract/`              | 生成 api.md 前后端契约        |
+| `page-codegen`     | ✅ 启用    | `skills/core/page-codegen/`              | 4 文件骨架生成 + 模板调度    |
+| `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
+| `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
+| `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
+| `dict-sync`        | ⏳ PLANNED | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
+| `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
+| `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
-构建前清理 — 移除 AI 开发辅助文件（Skill、文档、样例、编辑器配置），**保留组件代码**。
-
-```bash
-npx @agile-team/wl-skills-kit clean
-npx @agile-team/wl-skills-kit clean --dry-run
-```
-
-**保护路径**（永远不会被清理）：
-- `src/components/` — 全局/局部/远程组件
-- `src/types/` — 类型桶文件
-
-**清理范围**：
-- `.github/` — Skill 文件 + 设计文档
-- `docs/` — 组件 API 文档
-- `demo/` — 领域样例
-- 编辑器配置 — `.cursorrules` / `AGENTS.md` / `CLAUDE.md` 等 8 个文件
-- `.wl-skills-manifest.json` — 清单文件自身
-
-> 适用于 CI/CD 构建流程：`npx @agile-team/wl-skills-kit clean && npm run build`
+每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
 
 ---
 
-## 安装行为说明
+## 多 AI 编辑器适配（解耦设计）
 
-| ✅ 会做                             | ❌ 不会做                    |
-| ----------------------------------- | ---------------------------- |
-| 写入 `.github/` `docs/` `src/` `demo/` | 不修改 `package.json`      |
-| 已存在的同名文件会被覆盖           | 不修改 `node_modules/`       |
-| 自动创建不存在的目录               | 不执行 postinstall           |
-| 生成 `.wl-skills-manifest.json` 清单 | 不删除任何文件（init/update） |
+`init` / `update` 读取 `files/.github/skills/_compat/editors.json` 生成对应配置：
 
-### 安全路径（不会被覆盖）
+| 编辑器         | 输出路径                            | Frontmatter             |
+| -------------- | ----------------------------------- | ----------------------- |
+| GitHub Copilot | `.github/copilot-instructions.md`   | -                       |
+| Claude Code    | `CLAUDE.md`                         | -                       |
+| Cursor (rules) | `.cursorrules`                      | -                       |
+| Cursor (mdc)   | `.cursor/rules/conventions.mdc`     | description+globs+alwaysApply |
+| Windsurf       | `.windsurfrules`                    | -                       |
+| Cline          | `.clinerules`                       | -                       |
+| Kiro           | `.kiro/steering/conventions.md`     | inclusion: always       |
+| Trae           | `.trae/rules/conventions.md`        | description+globs+alwaysApply |
+| 通用 Agent     | `AGENTS.md`                         | -                       |
 
-以下路径不在分发范围，本地修改永远安全：
-
-```
-.github/skills/my-domain-skill/   ← 自定义 Skill
-.github/docs/my-domain-doc.md     ← 自定义文档
-src/components/local/my_custom/    ← 自定义组件
-src/views/                         ← 业务页面代码
-mock/                              ← Mock 数据
-```
+**解耦验证**：在 `editors.json` 中将任意编辑器 `enabled: false`，重新 `update` —— 该编辑器配置不再生成，其他编辑器**完全不受影响**。
 
 ---
 
-## 注意事项
+## 受保护路径
 
-### 1. Skill 生成代码的前置依赖
-
-AI 生成的代码依赖以下包，**首次使用前请确认已安装**：
-
-```bash
-# 核心依赖（项目大概率已有）
-vue / vue-router / element-plus / @jhlc/common-core
-
-# 易遗漏的依赖
-pnpm add -D mockjs vite-plugin-mock    # Mock 数据支持
-pnpm add lodash-es                      # RECORD_FORM 模板用到 debounce
-pnpm add xlsx                           # 仅导出/导入功能需要
-```
-
-> ⚠️ `lodash` ≠ `lodash-es`，模板代码 import 的是 ESM 版 `lodash-es`，必须单独安装。
-
-### 2. Vite 配置检查
-
-确保 `vite.config.ts` 已注册 mock 插件：
-
-```typescript
-import { viteMockServe } from "vite-plugin-mock";
-// plugins 中添加：
-viteMockServe({ mockPath: "./mock", enable: command === "serve" })
-```
-
-### 3. 类型桶文件
-
-`src/types/page.ts` 统一 re-export 以下类型，避免在 data.ts 中写长路径 import：
-
-```typescript
-import { AbstractPageQueryHook, BaseQueryItemDesc, ActionButtonDesc, TableColumnDesc, BusLogicDataType } from "@/types/page";
-```
-
-### 4. menu-sync 的 env.local.json
-
-菜单同步需要网关地址和 Token，首次使用时按 `.github/skills/menu-sync/env/guide.md` 填写：
-
-```
-.github/skills/menu-sync/env/env.local.json  ← 本地维护，已 gitignore
-```
-
-### 5. 更新策略
-
-```bash
-# 方式一：增量更新（推荐 — 仅覆盖变化的文件，速度快）
-npx @agile-team/wl-skills-kit@latest update
-
-# 方式二：全量重装（适合版本跨度大、或清单文件丢失的情况）
-npx @agile-team/wl-skills-kit@latest
-```
-
-- **通用改进** → 提 PR 到 wl-skills-kit 仓库，合并后所有项目受益
-- **领域专有** → 放在安全路径下，永远不会被覆盖
-
-### 6. Manifest 清单文件
-
-`init` 和 `update` 执行后会在项目根目录生成 `.wl-skills-manifest.json`，记录所有写入的文件路径及 MD5 哈希。该文件用于：
-
-- `update` 命令的增量比对（跳过未变化的文件）
-- `clean` 命令的精准删除（只删除 Skill 体系写入的文件）
-
-> 建议将 `.wl-skills-manifest.json` 加入 `.gitignore`（每台开发机独立维护即可）。
+| 命令                     | 保护路径                          | 说明                       |
+| ------------------------ | --------------------------------- | -------------------------- |
+| `init` / `update`        | `.github/reports/*.md`            | 已存在则跳过，不覆盖累积   |
+| `clean`（默认）          | `src/components/` + `src/types/`  | 业务代码必需，永不删除     |
+| `clean --keep-reports`   | + `.github/reports/`              | 保留菜单/字典/权限基线     |
 
 ---
 
-## 技术栈适配
+## 进一步阅读
 
-当前模板基于以下技术栈：
-
-| 层面 | 技术 |
-|------|------|
-| 框架 | Vue 3.2 + Vite + TypeScript |
-| UI | Element Plus + @jhlc/jh-ui + @jhlc/common-core |
-| 状态 | Pinia |
-| 样式 | Windi CSS + SCSS |
-| 架构 | Module Federation 子应用 |
-| 页面模式 | AbstractPageQueryHook 配置化驱动 |
-
-> 移植到其他技术栈项目需改写 page-codegen 模板，详见 `.github/docs/use-skill.md` 第四章。
+- 📚 业务方使用指南：`.github/guides/usage.md`（业务项目内）
+- 🏗️ 架构与决策：`.github/guides/architecture.md`（业务项目内）
+- 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
+- 🤖 多编辑器适配机制：[files/.github/skills/_compat/README.md](files/.github/skills/_compat/README.md)
+- 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)
 
 ---
 
-## 贡献
+## 反馈与贡献
 
-```bash
-git clone git@github.com:ChenyCHENYU/wl-skills-kit.git
-cd wl-skills-kit
-# 修改 files/ 下的内容
-npx . --dry-run    # 本地预览
-# 提 PR → Review → 合并 → npm publish
-```
-
-### 可贡献内容
-
-| 类型 | 路径 | 说明 |
-|------|------|------|
-| Skill 修复 | `files/.github/skills/` | 修正生成规则或模板 bug |
-| 组件文档 | `files/docs/` | 新增或更新 jh-* 文档 |
-| 领域样例 | `files/demo/{domain}/` | 各业务域贡献真实页面样例 |
-| 通用组件 | `files/src/components/` | 新增可复用组件 |
+- 使用问题 / Bug：联系 CHENY（工号 409322）
+- 仓库贡献：见 [kit-internal/CONTRIBUTING.md](kit-internal/CONTRIBUTING.md)
 
 ---
 
-## License
+## 许可证
 
-UNLICENSED — 内部使用，未授权外部分发。
+UNLICENSED — 内部使用
