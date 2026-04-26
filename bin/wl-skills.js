@@ -162,6 +162,36 @@ function isReportFile(relPath) {
   return relPath.startsWith(".github/reports/") && relPath.endsWith(".md");
 }
 
+// ─── 旧版遗留路径（v1.x/v2.0 → v2.1 迁移清理）───────────────────────────
+// update 时自动检测并移除，避免旧结构与新结构并存产生歧义。
+const LEGACY_PATHS = [
+  // Skill 目录重组：flat → core/sync/ops 分级（v2.1）
+  ".github/skills/prototype-scan/SKILL.md",
+  ".github/skills/api-contract/SKILL.md",
+  ".github/skills/page-codegen/SKILL.md",
+  ".github/skills/page-codegen/TPL-LIST.md",
+  ".github/skills/page-codegen/TPL-MASTER-DETAIL.md",
+  ".github/skills/page-codegen/TPL-TREE-LIST.md",
+  ".github/skills/page-codegen/TPL-DETAIL-TABS.md",
+  ".github/skills/page-codegen/TPL-FORM-ROUTE.md",
+  ".github/skills/page-codegen/TPL-CHANGE-HISTORY.md",
+  ".github/skills/page-codegen/TPL-RECORD-FORM.md",
+  ".github/skills/page-codegen/TPL-DRIVEN.md",
+  ".github/skills/page-codegen/TPL-OPERATION-STATION.md",
+  ".github/skills/menu-sync/SKILL.md",
+  ".github/skills/menu-sync/env/env.local.json",
+  ".github/skills/menu-sync/env/guide.md",
+  ".github/skills/convention-extract/SKILL.md", // 已更名为 convention-audit
+  // docs/ 废弃文件：内容已迁移至 guides/ 或 reports/（v2.0）
+  ".github/docs/menu-sync-design.md",
+  ".github/docs/use-skill.md",
+  ".github/docs/wl-skills-kit.md",
+  ".github/docs/SYS_MENU_INFO.md", // 已迁移至 reports/
+  // _compat/ 旧说明文件（v2.0 → v2.1 重构为可执行配置层）
+  ".github/skills/_compat/ai-model-matrix.md",
+  ".github/skills/_compat/editor-setup.md",
+];
+
 // ─── 编辑器配置生成（从 _compat/editors.json 读取，特化 frontmatter 注入）─────
 
 const AUTO_HEADER_NOTE =
@@ -311,7 +341,33 @@ function runInstall(incremental) {
     }
   }
 
-  // ── Step 3: 写 manifest ────────────────────────────────────────────
+  // ── Step 3: 迁移清理（仅 update，清理旧版遗留文件）──────────────────
+
+  if (incremental) {
+    let migrated = 0;
+    if (dryRun) console.log("\n  [Step 3] 旧版遗留文件检查（迁移清理）:\n");
+    for (const legacyRel of LEGACY_PATHS) {
+      const legacyFull = path.join(TARGET_DIR, legacyRel);
+      if (fs.existsSync(legacyFull)) {
+        if (dryRun) {
+          console.log("  迁移清理  " + legacyRel + "  (旧版遗留，将被移除)");
+        } else {
+          removeFileAndEmptyParents(legacyFull);
+        }
+        migrated++;
+      }
+    }
+    if (!dryRun && migrated > 0) {
+      console.log(
+        "    迁移: " + migrated + " 个旧版文件已移除（路径已变更，见 CHANGELOG.md）",
+      );
+    }
+    if (dryRun && migrated === 0) {
+      console.log("  （无旧版遗留文件）");
+    }
+  }
+
+  // ── Step 4: 写 manifest ────────────────────────────────────────────
 
   if (!dryRun) writeManifest(newManifest);
 

@@ -163,6 +163,26 @@ npx @agile-team/wl-skills-kit clean --keep-reports
 npx @agile-team/wl-skills-kit update --dry-run
 ```
 
+> 全局安装后也可直接用 `wl-skills` 命令（如 `wl-skills update`）。
+
+---
+
+## 从早期版本升级
+
+> **适用场景**：已安装 v1.x 或 v2.0 的业务项目，希望升级到当前版本。
+
+```bash
+# 执行增量更新即可
+npx @agile-team/wl-skills-kit update
+```
+
+`update` 命令会自动完成：
+1. **写入新文件** — 新结构下的所有文件覆盖写入
+2. **迁移清理** — 检测并移除旧版遗留文件（如 `skills/prototype-scan/`、`docs/menu-sync-design.md` 等），避免新旧路径并存产生歧义
+3. **保护累积数据** — `reports/*.md` 已存在则跳过，团队累积的菜单/字典数据不丢失
+
+> **注意**：如果项目在旧的 `.github/skills/menu-sync/env/env.local.json` 中有自定义配置，`update` 会将其迁移位置（删旧、新路径文件由 `init` 写入默认模板）。**请在 `update` 前备份** 或 `update` 后手动迁移到 `.github/skills/sync/menu-sync/env/env.local.json`。
+
 ---
 
 ## Skill 概览

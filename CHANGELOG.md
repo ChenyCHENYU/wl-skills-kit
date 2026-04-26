@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.1] - 2026-04-26
+
+### 🔧 修复与迁移增强
+
+#### bin 字段修复
+- `package.json` 新增 `"main": "./bin/wl-skills.js"` —— 修复 npm v9+ 发布时 bin 条目被剔除导致 `npx` 无法找到入口的问题
+- bin 命令从 `wl-skills-kit` 重命名为 `wl-skills`（避免与包名重复触发 npm 校验警告；全局安装后可直接用 `wl-skills update`）
+
+#### 旧版用户升级支持
+- `bin/wl-skills.js` 新增 `LEGACY_PATHS` 迁移清理机制：
+  - `update` 时自动检测并移除 v1.x/v2.0 遗留文件（旧 flat 结构 Skill 路径、废弃 `docs/` 文件等）
+  - 共 24 个旧版路径纳入清理名单，避免新旧结构并存产生 AI 调度歧义
+  - 输出 "迁移: N 个旧版文件已移除" 统计信息
+- README 新增"从早期版本升级"章节（含 `env.local.json` 迁移注意事项）
+
+---
+
 ## [2.1.0] - 2026-04-26
 
 ### 🎯 多 AI 编辑器适配解耦 + 文档体系完善
