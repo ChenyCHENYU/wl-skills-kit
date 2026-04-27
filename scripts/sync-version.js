@@ -26,7 +26,7 @@ const today = new Date().toISOString().slice(0, 10);
 const updates = [
   {
     file   : "README.md",
-    regex  : /AI Skill 模板包 v[\d.]+/,
+    regex  : /AI Skill 模板包 v[\d.]+/g,
     replace: `AI Skill 模板包 v${version}`,
   },
   {
