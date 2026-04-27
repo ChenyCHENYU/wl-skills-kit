@@ -43,7 +43,7 @@ skills/
 | prototype-scan   | ✅ 启用    | `skills/core/prototype-scan/SKILL.md`        | 扫描原型 / 解析原型 / 页面清单 / 详设文档 / 口述需求 / 建个页面 / 写个页面 |
 | api-contract     | ✅ 启用    | `skills/core/api-contract/SKILL.md`          | 接口约定 / api.md / 字段定义 / 前后端对齐 / 接口设计                       |
 | page-codegen     | ✅ 启用    | `skills/core/page-codegen/SKILL.md`          | 生成页面 / 创建页面 / 代码生成 / vue页面 / 按原型生成 / 帮我生成           |
-| convention-audit | ✅ 启用    | `skills/core/convention-audit/SKILL.md`      | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差                       |
+| convention-audit | ✅ 启用    | `skills/core/convention-audit/SKILL.md`      | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检 |
 | template-extract | ✅ 启用    | `skills/core/template-extract/SKILL.md`      | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                  |
 | menu-sync        | ✅ 启用    | `skills/sync/menu-sync/SKILL.md`             | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单                                    |
 | dict-sync        | ⏳ PLANNED | `skills/sync/dict-sync/SKILL.draft.md`       | （草稿，不参与调度）                                                       |

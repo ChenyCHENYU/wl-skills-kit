@@ -1,6 +1,6 @@
 ---
 name: convention-audit
-description: "Use when: auditing project source code against the 13 modular standards in .github/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, audit code, check conventions."
+description: "Use when: auditing project source code against the 13 modular standards in .github/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, 接手新项目, 存量代码分析, 项目体检, audit code, check conventions, onboard project."
 ---
 
 # Skill: 规范审计（convention-audit）

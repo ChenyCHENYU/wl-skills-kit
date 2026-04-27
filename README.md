@@ -203,6 +203,73 @@ npx @agile-team/wl-skills-kit update
 
 ---
 
+## 技能触发 & 验证
+
+> **所有编辑器使用相同的触发词**，无需区分编辑器类型。Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae 读取各自对应的配置文件，内容完全一致，仅 frontmatter 格式不同。
+
+**触发成功的标志 — Pre-flight 声明**（技能触发后 AI 必须先输出）：
+
+```
+🚀 已触发技能 page-codegen/SKILL.md → 页面代码生成：4文件 + 模板调度 + 前置检查
+✅ 已读取 templates/_index.md        → 模板注册表，匹配 → TPL-LIST.md
+✅ 已读取 standards/02-code-structure.md → 4文件原则 + 三段式 + script 9段顺序
+✅ cid 已生成：cXxxx（首字母缩写）
+```
+
+> 看到这段输出 = 技能路径已激活，AI 遵循 Skill 规则而非默认推断。  
+> 没有这段输出 = AI 走了默认推断，补充说：「请先读取 `.github/skills/core/xxx/SKILL.md`，再按其执行」。
+
+### 单技能触发
+
+| 技能 | 说任意一个即可触发 | 输出结果 | 验证方法 |
+| ---- | ------------------ | -------- | -------- |
+| `prototype-scan` | 扫描原型 / 页面清单 / 口述需求 / 建个页面 / 帮我建一个XX页面 | `reports/PROTOTYPE_SCAN_*.md` 结构化页面清单 | reports/ 下有新文件 |
+| `api-contract` | 接口约定 / api.md / 字段定义 / 前后端对齐 | 每个页面目录下生成 `api.md` | 对应目录有 api.md |
+| `page-codegen` | 生成页面 / 创建页面 / 代码生成 / 帮我生成 | `index.vue + data.ts + index.scss + api.md` 4 文件 | 4 文件完整 + Pre-flight ✅ |
+| `convention-audit` | 规范审计 / 规范检查 / 代码审计 / **接手新项目** / **项目体检** | `reports/规范审查报告.md` + `reports/组件提取建议.md` 追加新章节 | 报告文件有新内容追加 |
+| `template-extract` | 提取模板 / 沉淀模板 / 模板贡献 | `skills/core/page-codegen/templates/domains/{域}/TPL-*.md` | templates/ 下有新模板文件 |
+| `menu-sync` | 创建菜单 / 同步菜单 / 补菜单 | API 调用结果表 + `reports/SYS_MENU_INFO.md` 更新 | 系统管理后台出现新菜单 |
+
+### 流程组合触发
+
+**完整链路：原型 → 上线可访问（分步连续触发）**
+
+```
+① "扫描 docs/prototypes/ 下的原型，生成页面清单"      → prototype-scan
+② "基于清单，逐页生成 api.md"                         → api-contract
+③ "按 api.md 生成所有页面代码"                         → page-codegen
+④ "对刚生成的页面做规范审计"                            → convention-audit
+⑤ "补菜单"                                             → menu-sync
+```
+
+**快捷链路：口述直接生成（单句触发）**
+
+```
+"帮我建一个客户管理页面，有名称、编码、状态三个查询字段，支持新增编辑删除"
+  → prototype-scan（内部推断）→ page-codegen → 直接输出 4 文件
+```
+
+**接手存量项目（逐步推进）**
+
+```
+"扫描 src/views/ 下所有页面，做规范审计，输出偏差报告"  → convention-audit
+  → 人工确认整改优先级（报告中标 🔴 / 🟡 / 🟢）
+  → "对 {偏差文件} 做规范整改"                          → [PLANNED] code-fix
+```
+
+### 触发异常处理
+
+| 现象 | 原因 | 应对 |
+| ---- | ---- | ---- |
+| 输出以 `🚀 已触发技能 xxx/SKILL.md` 开头 | ✅ 技能路径正确激活 | 继续即可 |
+| 直接输出代码，无 Pre-flight 声明 | AI 走了默认推断，未加载 Skill | 补充说：「先读取 `.github/skills/core/xxx/SKILL.md`，再按其执行」 |
+| Pre-flight 含 `❌ 工具链检测失败` | 缺少 `.prettierrc.js` / `eslint.config.ts` / `.husky/` | 执行 `npx @robot-admin/git-standards init` |
+| reports/ 无新文件 | 输出写到了错误路径 | 明确告知 AI：「报告写入 `.github/reports/` 目录」 |
+
+> 详细使用示例和踩坑 FAQ 见安装后的 `.github/guides/usage.md`（每个 Skill 同目录的 `USAGE.md` 也有完整示例）。
+
+---
+
 ## 多 AI 编辑器适配（解耦设计）
 
 `init` / `update` 读取 `files/.github/skills/_compat/editors.json` 生成对应配置：
