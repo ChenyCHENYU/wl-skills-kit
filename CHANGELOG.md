@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.5] - 2026-04-27
+
+### 🔄 版本自动同步 + 发布流程优化
+
+#### 版本号自动同步机制
+- 新增 `scripts/sync-version.js`：npm `version` 钩子触发时自动将 `package.json` 版本号同步至 3 处文档：
+  - `README.md` 标题行（`AI Skill 模板包 vX.X.X`）
+  - `files/.github/guides/architecture.md` 头部「当前版本」行（含日期）
+  - `bin/wl-skills.js` 顶部注释行
+- `package.json` 新增 `scripts.version` 钩子：`npm version patch/minor/major` 自动同步 + git add，无需手动改四个文件
+- 今后发版流程统一为三步：`npm version <type>` → `git push --follow-tags` → `npm publish`
+
+#### 发布配置
+- `package.json` 新增 `publishConfig.access: "public"`，Scoped 包发布无需每次追加 `--access public`
+
+---
+
 ## [2.1.4] - 2026-04-27
 
 ### 📝 文档增强
