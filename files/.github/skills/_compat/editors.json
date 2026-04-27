@@ -56,6 +56,13 @@
       "headerFile": "agents.txt",
       "outputPath": "AGENTS.md",
       "enabled": true
+    },
+    {
+      "name": "qoder",
+      "headerFile": "qoder.txt",
+      "outputPath": ".qoder/rules/conventions.md",
+      "enabled": true,
+      "_note": "Qoder IDE 规则文件（Always Apply 类型）。Qoder 也原生兼容 AGENTS.md，两者均可被识别。"
     }
   ]
 }

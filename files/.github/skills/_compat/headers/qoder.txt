@@ -1,0 +1,8 @@
+# Qoder Rules — 项目编码规范
+
+> 此文件为 Qoder IDE 规则文件（Always Apply），由 @agile-team/wl-skills-kit 自动生成。
+> 源文件：`.github/copilot-instructions.md`
+> 更新方式：`npx @agile-team/wl-skills-kit@latest update`
+
+---
+

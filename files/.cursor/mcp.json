@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "wl-skills": {
+      "command": "node",
+      "args": ["node_modules/@agile-team/wl-skills-kit/mcp/server.js"]
+    }
+  }
+}

@@ -1,36 +1,28 @@
 # Changelog
 
-## [2.3.3] - 2026-04-28
-
-### 📝 README 大幅重写 + Skill 状态校正
-
-#### README 新增核心章节
-- **文档地图 & 架构导读**：按角色（设计师/业务分析师/后端/前端/维护者）列出各自入口；各目录职责一览；“读哪个 README”导航表
-- **设计理念**：三层分工结构（SKILL.md 语义层 / MCP tools 执行层 / HTTP API 数据层）
-- **当前能力全景**：完整的从输入到输出的流程图，包括 MCP 工具层在链路中的位置
-- **Roadmap**：按优先级列出 permission-sync 等待做事项
-- **未来设想**：完整自动化链路展望
-
-#### Skill 状态校正
-- `dict-sync`：已有完整 SKILL.md，从 ⏳ PLANNED 改为 ✅ 启用
-- `code-fix`：已有完整 SKILL.md，从 ⏳ PLANNED 改为 ✅ 启用
-- `permission-sync`：仍是 SKILL.draft.md，保持 ⏳ PLANNED
-- Skills 总数更新：6 → 8 个已启用，1 个 PLANNED（两处描述同步更新）
-
----
-
 ## [2.3.2] - 2026-04-28
 
-### 📝 输入规范文档体系 + README/目录结构优化
+### 🔌 全编辑器 MCP 支持 + Qoder 新增
 
-#### 新增 docs/ 输入规范文档（仅仓库可见，不随包分发）
-- **`docs/input-spec-prototype.md`**: 原型输入规范——面向设计师/产品，含合格原型自检清单、按鈕颜色规范、Tab/视角切换标注要求、精度对比表
-- **`docs/input-spec-detailed-design.md`**: 详设文档输入规范——面向业务分析师，含可直接复制的 Markdown 表格模板、字段英文名+字典 code 对精度的量化影响说明
-- **`docs/input-spec-api.md`**: API 契约确认规范——面向后端开发者，含接口 URL 命名规范、api.md 两步确认工作流、常见问题答疑
-- **`docs/input-spec-page-spec.md`**: page-spec JSON 参考手册——面向前端开发者，含每个字段详细注释、自检清单、手写 spec 场景指南
+#### MCP 配置自动生成（补全实现）
+- `wl-skills init` 现在自动生成 4 个项目级 MCP 配置文件：
+  - `.cursor/mcp.json` — Cursor
+  - `.mcp.json` — Claude Code（project scope，随 VCS 共享）
+  - `.vscode/mcp.json` — VS Code / GitHub Copilot（使用 `"servers"` 键，符合 VS Code MCP 规范）
+  - `.kiro/settings/mcp.json` — Kiro（AWS）
+- 修复 `usage.md` 中错误的配置路径描述（原来写的 `.claude/settings.json` 实际不存在）
 
-#### 结构和文档优化
-- `README.md`: 版本读数更新为 v2.3，仓库结构图补充 `docs/` 目录说明，“进一步阅读”章节补充输入规范入口
+#### 手动配置指南
+- 新增 `.github/guides/mcp-setup.md`：Windsurf / Cline / Trae / Qoder 的手动 MCP 配置步骤
+
+#### Qoder 编辑器支持（新增第 10 个编辑器）
+- `editors.json` 新增 `qoder` 条目，自动生成 `.qoder/rules/conventions.md`
+- Qoder 同时通过现有 `AGENTS.md` 天然兼容（无需额外操作）
+- 新增 `_compat/headers/qoder.txt` 规则头部
+
+#### 文档更新
+- `usage.md` 推荐编辑器列表补全（Cline / Kiro / Trae / Qoder）
+- `usage.md` 编辑器数量 8 → 9
 
 ---
 

@@ -1,8 +1,8 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.3** — 一条命令将 13 条编码规范、8 个 AI Skill、MCP 工具层、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.3** — 一条命令将 13 条编码规范、8 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
 
-让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
+让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
 ---
 
@@ -41,135 +41,6 @@ reports/AUDIT_AI_*.md + AUDIT_HUMAN_*.md
 
 ---
 
-## 文档地图 — 谁该读什么
-
-> 这个项目覆盖了多个角色和多层目录，先花 30 秒定位自己，再按需深入。
-
-### 按角色找入口
-
-| 你的身份 | 你要做的事 | 从这里开始 |
-|---|---|---|
-| **业务团队（首次接入）** | 安装、跑通 AI 代码生成流程 | 本文档 → CLI 命令 → 业务项目内 `.github/guides/usage.md` |
-| **设计师 / 产品经理** | 了解如何制作让 AI 精确识别的原型 | [docs/input-spec-prototype.md](docs/input-spec-prototype.md) |
-| **业务分析师** | 了解详设文档需要提供哪些结构化内容 | [docs/input-spec-detailed-design.md](docs/input-spec-detailed-design.md) |
-| **后端开发者** | 了解接口命名/响应格式规范，如何确认 api.md | [docs/input-spec-api.md](docs/input-spec-api.md) |
-| **前端开发者** | 理解 page-spec JSON 结构，手写或校验 | [docs/input-spec-page-spec.md](docs/input-spec-page-spec.md) |
-| **wl-skills-kit 维护者** | 修改规范、Skill、模板、CLI | [kit-internal/README.md](kit-internal/README.md) |
-
-### 各目录职责一览
-
-```
-wl-skills-kit/
-│
-├── files/            ← ★ 打包分发给业务项目的全部内容
-│   ├── .github/         AI 指令体系（规范+Skill+适配层+报告模板）
-│   ├── docs/            随包分发的组件 API 文档（12 个组件）
-│   └── demo/            领域样例代码（供 AI 参考学习）
-│
-├── mcp/              ← ★ MCP Server（随包分发，Cursor 自动注册）
-│                        4 个工具：菜单查询/写入 + 字典查询/写入
-│
-├── bin/              ← CLI 实现（init / update / clean）
-│
-├── docs/             ← 仅本仓库可见（不分发）
-│                        输入规范文档系列（面向团队各角色）
-│
-└── kit-internal/     ← 仅本仓库可见（不分发）
-                         维护者文档（架构 ADR、贡献流程、踩坑记录）
-```
-
-### 读哪个 README
-
-| README 文件 | 内容 | 读者 |
-|---|---|---|
-| 本文件（根 README.md） | 包概述、安装使用、Skill 全景 | 所有人 |
-| `kit-internal/README.md` | 维护者工作空间总览 | 维护者 |
-| `files/.github/guides/usage.md` | 业务项目安装后的完整使用流程 | 业务团队 |
-| `files/.github/guides/architecture.md` | AI 体系架构与设计决策 | 想深入了解的技术同学 |
-| `files/.github/skills/*/USAGE.md` | 每个 Skill 的触发方式和效果说明 | 业务团队按需查阅 |
-| `docs/input-spec-*.md` | 各角色的输入规范最佳实践 | 设计/分析/后端/前端 |
-
----
-
-## 设计理念 & 演进路线
-
-### 核心设计理念
-
-**"一次写好 Skill，人人获益"** — wl-skills-kit 不是项目脚手架，而是一套 **AI 行为规范体系**。
-
-通过将团队的编码规范、业务模式、设计决策编码到 SKILL.md 中，让每一个 AI 编辑器在每一次对话里都能遵守相同的规范——无论是 Copilot、Cursor 还是 Claude Code，无论是老成员还是新同学，AI 的行为都是可预期的、一致的。
-
-**三层分工**：
-
-```
-SKILL.md（语义层）     AI 编辑器理解"该怎么做"
-      │
-      ▼
-MCP tools / CLI（执行层）  跨越 AI 上下文边界，调用真实系统
-      │
-      ▼
-mcp/api/ / 后端 HTTP API  实际的数据读写
-```
-
-- **SKILL.md** — 静态知识，放在 AI 编辑器的上下文里，零运行时开销
-- **MCP 工具** — 当 Skill 需要读写真实系统（菜单树/字典表）时，通过 MCP 调用，跨越 AI 上下文边界
-- **纯查询/生成类 Skill**（如 page-codegen / convention-audit）不需要 MCP，SKILL.md 直接驱动
-
-### 当前能力全景（v2.3）
-
-```
-输入层                  AI 推理层                   输出层
-─────────              ─────────────────────       ─────────────────
-Axure HTML 原型    →   prototype-scan          →   page-spec JSON
-详设 Markdown 表   →   prototype-scan          →   page-spec JSON
-口述需求           →   prototype-scan (推断)   →   page-spec JSON
-                        │
-                        ▼
-                   api-contract            →   api.md（逐页面）
-                        │
-                        ▼
-                   page-codegen            →   data.ts + index.vue
-                   （8 种内置模板）              + index.scss + pages.ts
-                        │
-                        ▼
-                   convention-audit        →   AUDIT_AI.md（AI 自查）
-                                               AUDIT_HUMAN.md（人工检查）
-                        │
-                        ▼
-                   code-fix                →   受控自动整改偏差
-                        │
-                        ▼
-                   menu-sync (MCP)         →   线上菜单注册完毕
-                   dict-sync (MCP)         →   线上字典同步完毕
-                        │
-                        ▼
-                   template-extract        →   领域模板沉淀复用
-```
-
-### 下一步计划（Roadmap）
-
-| 优先级 | 功能 | 状态 |
-|---|---|---|
-| 🔴 高 | `permission-sync` — 页面级/按钮级权限批量注册 | ⏳ SKILL.draft.md 已有设计 |
-| 🟡 中 | `domain/` 领域模板扩展 — 补充 sale / hrms 等领域样例 | ⏳ 规划中 |
-| 🟡 中 | `page-codegen` 支持更多 Template 组件（cx-ui-produce 的配置驱动页面）| ⏳ 持续补充 |
-| 🟢 低 | MCP 增加 permission 工具（`wls_permission_query/upsert`）| ⏳ 依赖 permission-sync Skill |
-| 🟢 低 | `code-fix` 完善 — 覆盖更多自动修复场景 | ⏳ 持续完善 |
-
-### 未来设想
-
-当 permission-sync 完成后，一个新页面从 0 到线上可访问的完整链路将全自动化：
-
-```
-原型 → AI 生成代码 → convention-audit 验收 → menu-sync 注册菜单
-                                             → dict-sync 同步字典
-                                             → permission-sync 注册权限
-                                                     ↓
-                                              UI 可访问，权限可分配
-```
-
----
-
 ## ⚠️ 仓库结构 vs 业务项目安装结构（**必看**）
 
 `wl-skills-kit` 是一个 **npm 模板包**：仓库本身的结构 ≠ 你 `npx` 之后业务项目里看到的结构。两者**严格区分**：
@@ -194,13 +65,6 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │       └── reports/                      领域基线模板（菜单/字典/权限）
 │   ├── docs/                             组件 API 文档
 │   └── demo/                             领域样例
-│
-├── docs/                                 ★★ 仅仓库可见，不会安装到业务项目 ★★
-│   ├── mcp建议.md                        MCP 进化路线与三层架构建议
-│   ├── input-spec-prototype.md           原型输入规范（面向设计师/产品）
-│   ├── input-spec-detailed-design.md     详设文档输入规范（面向业务分析师）
-│   ├── input-spec-api.md                 API 契约确认规范（面向后端开发者）
-│   └── input-spec-page-spec.md           page-spec JSON 参考手册（面向前端开发者）
 │
 ├── kit-internal/                         ★★ 仅仓库可见，不会安装到业务项目 ★★
 │   ├── README.md                         维护者首页
@@ -330,10 +194,10 @@ npx @agile-team/wl-skills-kit update
 | `page-codegen`     | ✅ 启用    | `skills/core/page-codegen/`              | 4 文件骨架生成 + 模板调度    |
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
-| `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口（MCP）  |
-| `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口（MCP）  |
-| `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
-| `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口（设计中） |
+| `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
+| `dict-sync`        | ⏳ PLANNED | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
+| `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
+| `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
 
@@ -376,7 +240,6 @@ npx @agile-team/wl-skills-kit update
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
 - 🤖 多编辑器适配机制：[files/.github/skills/_compat/README.md](files/.github/skills/_compat/README.md)
 - 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)
-- 📝 输入规范（如何提供高精度输入）：[docs/](docs/)
 
 ---
 
