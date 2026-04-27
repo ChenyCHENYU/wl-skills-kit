@@ -26,28 +26,34 @@
 
 ## cid 命名规则（核心）
 
-AGGrid 通过 `cid` 持久化列配置（列宽、顺序、显示），**cid 必须全局唯一**。
+AGGrid 通过 `cid` 持久化列配置（列宽、顺序、显示），**cid 必须跨全部系统全局唯一**。
+
+> ⚠️ 本项目包含 21 个 Module Federation 子应用，共享同一浏览器 origin（localStorage 共用）。
+> 采用简短十进制后缀存在两个致命问题：①后 6 位每 ~11.5 天循环一次；②不同页面的首字母缩写高概率碰撞（如 `mca`、`dto`）。
+> 因此后缀必须使用 **完整 base-36 时间戳**，保证毫秒级全局唯一且永不重复。
 
 ### 表格级 cid
 
 ```
-格式：{页面目录首字母缩写}-{Unix秒后6位}
+格式：{页面目录首字母缩写}-{Date.now().toString(36)}
 ```
 
 **生成规则（AI 执行）**：
 
 1. 取页面 kebab-case 目录名，每个单词取首字母拼接为缩写
-2. 取 `Math.floor(Date.now() / 1000).toString().slice(-6)` 作为 6 位时间戳后缀
+2. 执行 `Date.now().toString(36)`，将结果完整追加（当前约 9 位 base-36，只增不减）
 3. 用 `-` 连接
 
 **示例**：
 
-| 页面目录                 | 缩写 | cid               |
-| ------------------------ | ---- | ----------------- |
-| `mmwr-customer-archive`  | mca  | `mca-745831`      |
-| `domestic-trade-order`   | dto  | `dto-745832`      |
-| 同页面第二个表格（子表） | mca  | `mca-745831-sub1` |
-| 同页面第三个表格         | mca  | `mca-745831-sub2` |
+| 页面目录                 | 缩写 | cid（base-36后缀）      |
+| ------------------------ | ---- | ----------------------- |
+| `mmwr-customer-archive`  | mca  | `mca-lhfge5hc`          |
+| `domestic-trade-order`   | dto  | `dto-lhfge5hi`          |
+| 同页面第二个表格（子表） | mca  | `mca-lhfge5hc-sub1`     |
+| 同页面第三个表格         | mca  | `mca-lhfge5hc-sub2`     |
+
+> **为什么不截断**：截断后缀（如后 6 位）会引入循环碰撞。完整 base-36 值为单调递增，毫秒级唯一，9 位 base-36 ≈ 2199 亿组合，同一毫秒只生成一次。
 
 ### 列级 cid
 
@@ -81,7 +87,7 @@ columnsDef(): TableColumnDesc<any>[] {
 ## Pre-flight 声明示例
 
 ```
-✅ cid 已生成：mca-745831（mmwr-customer-archive）
+✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）
 ✅ 列级 cid 前缀：mca-
 ```
 
@@ -95,7 +101,7 @@ columnsDef(): TableColumnDesc<any>[] {
   <BaseTable
     ref="tableRef"
     render-type="agGrid"
-    cid="mca-745831"
+    cid="mca-lhfge5hc"
     :data="list"
     :columns="columns"
     showToolbar
