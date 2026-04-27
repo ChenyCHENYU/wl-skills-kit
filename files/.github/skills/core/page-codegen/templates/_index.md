@@ -15,7 +15,7 @@
 | DETAIL_TABS     | `templates/universal/TPL-DETAIL-TABS.md`    | 详情 Tab 页（上方表单 + 下方 Tab 子表） |
 | CHANGE_HISTORY  | `templates/universal/TPL-CHANGE-HISTORY.md` | 变更历史比对页（时间线 + 字段差异）     |
 | RECORD_FORM     | `templates/universal/TPL-RECORD-FORM.md`    | 录入型实绩页（无分页，查询 + 内联表单） |
-| TEMPLATE_DRIVEN | `templates/universal/TPL-DRIVEN.md`         | 配置驱动识别参考（非代码生成模板）      |
+| TEMPLATE_DRIVEN | `templates/universal/TPL-DRIVEN.md`         | 配置驱动页面（项目已有 Template 组件，data.ts 只需 config 对象，index.vue 3~5 行） |
 
 ---
 
