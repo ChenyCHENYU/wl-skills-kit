@@ -225,11 +225,12 @@ npx @agile-team/wl-skills-kit update
 
 ## 受保护路径
 
-| 命令                     | 保护路径                          | 说明                       |
-| ------------------------ | --------------------------------- | -------------------------- |
-| `init` / `update`        | `.github/reports/*.md`            | 已存在则跳过，不覆盖累积   |
-| `clean`（默认）          | `src/components/` + `src/types/`  | 业务代码必需，永不删除     |
-| `clean --keep-reports`   | + `.github/reports/`              | 保留菜单/字典/权限基线     |
+| 命令                     | 保护路径                                               | 说明                       |
+| ------------------------ | --------------------------------------------------- | -------------------------- |
+| `init` / `update`        | `.github/reports/*.md`                              | 已存则跳过，不覆盖累积   |
+| `init` / `update`        | `.github/skills/sync/menu-sync/env/env.local.json`  | 已存则跳过，保护用户配置 |
+| `clean`（默认）          | `src/components/` + `src/types/`                    | 业务代码必需，永不删除     |
+| `clean --keep-reports`   | + `.github/reports/`                                | 保留菜单/字典/权限基线     |
 
 ---
 

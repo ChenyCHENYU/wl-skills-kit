@@ -51,7 +51,8 @@ if (showHelp) {
     npx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
 
   保护路径（init / update 不覆盖已存在的）:
-    .github/reports/   AI 生成报告（团队累积数据，存在则跳过）
+    .github/reports/                               AI 生成报告（团队累积数据，存在则跳过）
+    .github/skills/sync/menu-sync/env/env.local.json  用户本地配置（token 等，已存在则跳过）
 
   清理保护路径（clean 不删除）:
     src/components/    通用组件（被业务页面 import，构建必需）
@@ -160,6 +161,14 @@ function isProtected(relPath) {
 // reports/ 中的 AI 生成报告：init/update 遇到已存在不覆盖（团队累积数据）
 function isReportFile(relPath) {
   return relPath.startsWith(".github/reports/") && relPath.endsWith(".md");
+}
+
+// 用户本地配置：init/update 遇到已存在不覆盖（含 token / gatewayPath 等敏感信息）
+const USER_LOCAL_CONFIGS = [
+  ".github/skills/sync/menu-sync/env/env.local.json",
+];
+function isUserLocalConfig(relPath) {
+  return USER_LOCAL_CONFIGS.includes(relPath);
 }
 
 // ─── 旧版遗留路径（v1.x/v2.0 → v2.1 迁移清理）───────────────────────────
@@ -283,6 +292,13 @@ function runInstall(incremental) {
       continue;
     }
 
+    // 用户本地配置：已存在则跳过（含 token / gatewayPath 等敏感信息，不覆盖）
+    if (isUserLocalConfig(relPath) && fs.existsSync(dest)) {
+      preserved++;
+      if (dryRun) console.log("  保留  " + relPath + "  (用户本地配置，不覆盖)");
+      continue;
+    }
+
     // update 模式: 跳过内容相同的文件
     if (incremental && fs.existsSync(dest)) {
       if (srcHash === fileMd5(dest)) {
@@ -297,6 +313,24 @@ function runInstall(incremental) {
       exists ? updated++ : created++;
     } else {
       copyFileSafe(src, dest) === "created" ? created++ : updated++;
+    }
+  }
+
+  // ── Step 1.5: .gitignore 安全修补（防止 env.local.json 意外入 git）────────
+
+  const ENV_LOCAL_GITIGNORE_ENTRY =
+    ".github/skills/sync/menu-sync/env/env.local.json";
+  const gitignorePath = path.join(TARGET_DIR, ".gitignore");
+  if (!dryRun && fs.existsSync(gitignorePath)) {
+    const giContent = fs.readFileSync(gitignorePath, "utf8");
+    if (!giContent.includes(ENV_LOCAL_GITIGNORE_ENTRY)) {
+      fs.appendFileSync(
+        gitignorePath,
+        "\n# wl-skills-kit: 本地敏感配置（token / gatewayPath，不入 git）\n" +
+          ENV_LOCAL_GITIGNORE_ENTRY +
+          "\n",
+      );
+      console.log("  ✔ .gitignore 已追加 env.local.json 保护条目");
     }
   }
 

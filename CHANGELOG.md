@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.1.3] - 2026-04-27
+
+### 🔒 安全修复 + 依赖清理
+
+#### env.local.json 双重保护
+- `init` / `update` 遇到已存在的 `env.local.json` 不再覆盖（用户填写的 token / gatewayPath 等敏感数据不丢失）
+- `init` / `update` 完成后自动向业务项目 `.gitignore` 追加 `env.local.json` 保护条目（若尚未包含），防止 token 意外提交到远端仓库
+- `--help` 保护路径说明新增 `env.local.json` 条目
+
+#### 依赖清理
+- 移除 `devDependencies` 中的 `xlsx`（CLI 本身不使用；`xlsx` 是业务项目的依赖，已在 SKILL.md 中说明安装方式）
+
+---
+
 ## [2.1.2] - 2026-04-26
 
 ### 🔧 消除 npm 发布警告
