@@ -57,7 +57,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | 09   | TypeScript                   | 滥用 any（>3 处/页） → 🟡                                            |
 | 10   | Pinia                        | data.ts 内 import Store → 🔴                                         |
 | 11   | 表单校验                     | FORM_ROUTE 缺 validate / resetFields → 🔴                            |
-| 12   | BaseTable + cid              | 用 el-table / 缺 render-type / cid 缺失或重复 → 🔴；cid 后缀使用旧格式（十进制截断后6位）→ 🟡 提示改为 base-36 完整值 |
+| 12   | BaseTable + cid              | 用 el-table / 缺 render-type / cid 缺失或重复 → 🔴；cid 后缀使用旧格式（十进制截断后6位）→ 🟡；列级 cid 只用缩写作前缀（同页面两张表同名列碰撞）→ 🔴 |
 | 13   | 平台组件合规                 | 用 el-form/el-table/el-date-picker 替代封装 → 🔴；3+ 复用 → 提取建议 |
 
 ---

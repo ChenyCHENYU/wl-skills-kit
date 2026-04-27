@@ -12,7 +12,7 @@
 <BaseTable
   ref="tableRef"
   render-type="agGrid"
-  cid="mca-745831"
+  cid="mca-lhfge5hc"
   :data="list"
   :columns="columns"
   showToolbar
@@ -58,27 +58,42 @@ AGGrid 通过 `cid` 持久化列配置（列宽、顺序、显示），**cid 必
 ### 列级 cid
 
 ```
-格式：{表格cid的缩写部分}-{fieldName}
+格式：{完整表格 cid}-{fieldName}
 ```
 
+> ✅ 用完整表格 cid（而非仅缩写部分）作前缀，是防碌撞的关键。
+> 同一页面两张表都有 `steelCode` 列时：
+> - 主表（cid=`mca-lhfge5hc`）：`mca-lhfge5hc-steelCode` ✅
+> - 子表（cid=`mca-lhfge5hc-sub1`）：`mca-lhfge5hc-sub1-steelCode` ✅
+> - 如果用缩写作前缀：两张表同名列都会得到 `mca-steelCode` → 碰撞 ❌
+
 ```typescript
-// 表格缩写为 mca
+// 主表 cid="mca-lhfge5hc"
 columnsDef(): TableColumnDesc<any>[] {
   return [
     { type: 'selection' },
     { type: 'index' },
-    { label: '取样',     name: 'sampling',           cid: 'mca-sampling',           width: 70 },
-    { label: '线上公告', name: 'onlineAnnouncement', cid: 'mca-onlineAnnouncement', width: 70 },
+    { label: '取样',     name: 'sampling',           cid: 'mca-lhfge5hc-sampling',           width: 70 },
+    { label: '线上公告', name: 'onlineAnnouncement', cid: 'mca-lhfge5hc-onlineAnnouncement', width: 70 },
   ]
 }
-```
+
+// 子表 cid="mca-lhfge5hc-sub1"
+subColumnsDef(): TableColumnDesc<any>[] {
+  return [
+    { type: 'index' },
+    { label: '钢种编码', name: 'steelCode', cid: 'mca-lhfge5hc-sub1-steelCode', width: 100 },
+    { label: '规格',     name: 'spec',      cid: 'mca-lhfge5hc-sub1-spec',      width: 80 },
+  ]
+}
 
 ---
 
 ## 禁止事项
 
 - ❌ 随机短字符串 `cid="ipiCfsb"`（AI 重新生成时极易碰撞）
-- ❌ 纯字段名 `cid: "sampling"`（不同页面同名字段冲突）
+- ❌ 纴字段名 `cid: "sampling"`（不同页面/不同表格同名字段必碰撞）
+- ❌ 列级 cid 只用缩写 `cid: 'mca-steelCode'`（同页面两张表都有 steelCode 时碰撞）
 - ❌ 省略 cid（列配置持久化完全失效）
 - ❌ 跨页面复用同一 cid
 
@@ -88,7 +103,7 @@ columnsDef(): TableColumnDesc<any>[] {
 
 ```
 ✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）
-✅ 列级 cid 前缀：mca-
+✅ 列级 cid 前缀：mca-lhfge5hc-（完整表格 cid 加连接符）
 ```
 
 ---
@@ -115,8 +130,8 @@ columnsDef(): TableColumnDesc<any>[] {
   return [
     { type: 'selection' },
     { type: 'index' },
-    { label: '客户名称', name: 'customerName', cid: 'mca-customerName', minWidth: 120 },
-    { label: '状态',     name: 'status',       cid: 'mca-status',       minWidth: 80 },
+    { label: '客户名称', name: 'customerName', cid: 'mca-lhfge5hc-customerName', minWidth: 120 },
+    { label: '状态',     name: 'status',       cid: 'mca-lhfge5hc-status',       minWidth: 80 },
   ]
 }
 ```

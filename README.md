@@ -211,11 +211,14 @@ npx @agile-team/wl-skills-kit update
 
 ```typescript
 // ✅ 正确：Date.now().toString(36) — 毫秒级唯一，永不重复，约 9 位 base-36
-cid="mca-lhfge5hc"                    // 表格级：{页面首字母缩写}-{base36时间戳}
-cid: 'mca-customerName'               // 列级：{表格缩写}-{fieldName}
+cid="mca-lhfge5hc"                           // 表格级：{页面首字母缩写}-{base36时间戳}
+cid: 'mca-lhfge5hc-customerName'             // 列级：{完整表格cid}-{fieldName}
+cid: 'mca-lhfge5hc-sub1-customerName'        // 子表列级：{完整子表cid}-{fieldName}
 
-// ❌ 错误：截断十进制后6位（每11.5天循环一次，且不同页面缩写易碰撞）
+// ❌ 错误：截断十进制后6位（每11.5天循环一次）
 cid="mca-745831"
+// ❌ 错误：列级只用缩写（同页面两张表都有steelCode → mca-steelCode 碰撞）
+cid: 'mca-customerName'
 ```
 
 **Pre-flight 中 AI 自动输出**：`✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）`  

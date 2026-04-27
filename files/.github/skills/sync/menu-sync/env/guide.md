@@ -1,18 +1,33 @@
 # env.local.json 配置说明
 
-> 该目录下的 `env.local.json` 已加入 `.gitignore`，**不会提交到远端仓库**。
-> 每位成员在本地维护自己的副本，首次使用时按本文档填写即可。
+> 每位成员在本地维护自己的副本，已加入 `.gitignore`，**不会提交到远端仓库**。
 
 ---
 
-## 文件结构
+## 配置文件位置（优先使用新统一路径）
+
+**新路径（v2.1.5+ 推荐）**：`.github/skills/sync/env.local.json`  
+**兼容路径（老版）**：`.github/skills/sync/menu-sync/env/env.local.json`
+
+AI 优先读新路径，如不存在自动回落到兼容路径。
+
+---
+
+## 配置格式（菜单/字典/权限三合一）
 
 ```json
 {
   "gatewayPath": "http://192.168.10.50:9000",
-  "parentMenuId": "1803456789012345678",
   "sysAppNo": "QjQuXy1kbKxZyjhS5N2",
-  "token": "eyJhbGci..."
+  "token": "eyJhbGci...",
+
+  "menu": {
+    "parentMenuId": "1803456789012345678"
+  },
+
+  "dict": {
+    "moduleId": "7C909G0U2F8HI7E305LV0135LSJ3UBIO"
+  }
 }
 ```
 
@@ -23,9 +38,10 @@
 | 字段 | 说明 | 示例 |
 |---|---|---|
 | `gatewayPath` | 后端网关地址，含协议和端口，**末尾不加斜杠** | `http://192.168.10.50:9000` |
-| `parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
 | `sysAppNo` | 应用编码（非明文，从已有菜单接口响应中获取） | `QjQuXy1kbKxZyjhS5N2` |
 | `token` | 当前登录用户的 Bearer Token，**不含 `bearer ` 前缀** | `eyJhbGci...` |
+| `menu.parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
+| `dict.moduleId` | 字典所属模块 ID（字典管理后台获取） | `7C909G0U2F8HI7E305LV0135LSJ3UBIO` |
 
 ---
 
@@ -35,7 +51,7 @@
 
 询问后端同事，或查看浏览器 Network 面板中任意接口请求的 URL，取协议 + 域名/IP + 端口部分。
 
-### parentMenuId
+### menu.parentMenuId
 
 **方法 A（推荐）**：系统管理后台 → 菜单管理 → 找到目标父级目录 → 点编辑/查看 → 复制菜单 ID
 
