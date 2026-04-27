@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.3.3] - 2026-04-28
+
+### 📝 README 大幅重写 + Skill 状态校正
+
+#### README 新增核心章节
+- **文档地图 & 架构导读**：按角色（设计师/业务分析师/后端/前端/维护者）列出各自入口；各目录职责一览；“读哪个 README”导航表
+- **设计理念**：三层分工结构（SKILL.md 语义层 / MCP tools 执行层 / HTTP API 数据层）
+- **当前能力全景**：完整的从输入到输出的流程图，包括 MCP 工具层在链路中的位置
+- **Roadmap**：按优先级列出 permission-sync 等待做事项
+- **未来设想**：完整自动化链路展望
+
+#### Skill 状态校正
+- `dict-sync`：已有完整 SKILL.md，从 ⏳ PLANNED 改为 ✅ 启用
+- `code-fix`：已有完整 SKILL.md，从 ⏳ PLANNED 改为 ✅ 启用
+- `permission-sync`：仍是 SKILL.draft.md，保持 ⏳ PLANNED
+- Skills 总数更新：6 → 8 个已启用，1 个 PLANNED（两处描述同步更新）
+
+---
+
 ## [2.3.2] - 2026-04-28
 
 ### 📝 输入规范文档体系 + README/目录结构优化
