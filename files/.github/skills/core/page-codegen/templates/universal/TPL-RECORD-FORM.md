@@ -279,8 +279,8 @@ const mockApi: MockMethod[] = [
     url: "/dev-api/[服务缩写]/[资源名]/getBy[Key]",
     method: "get",
     response: ({ query }: any) => ({
-      code: 200,
-      msg: "操作成功",
+      code: 2000,
+      message: "操作成功",
       data: {
         ...mockData,
         [主数据字段]: {
@@ -293,7 +293,7 @@ const mockApi: MockMethod[] = [
   {
     url: "/dev-api/[服务缩写]/[资源名]/saveOrUpdate",
     method: "post",
-    response: () => ({ code: 200, msg: "保存成功", data: null })
+    response: () => ({ code: 2000, message: "保存成功", data: null })
   }
 ];
 

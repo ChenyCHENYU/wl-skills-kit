@@ -127,69 +127,7 @@ const onMouseUp = () => {
   window.removeEventListener("mouseup", onMouseUp);
 };
 
-onUnmounted(() => onMouseUp());
+onUnmounted(() => onMouseUp())
 </script>
 
-<style scoped>
-.my-splitter-container {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.is-horizontal {
-  flex-direction: row;
-}
-.is-vertical {
-  flex-direction: column;
-}
-
-.splitter-item {
-  overflow: auto;
-}
-
-.splitter-trigger {
-  background-color: #f0f2f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  z-index: 10;
-}
-
-.splitter-trigger:hover {
-  background-color: #409eff;
-}
-
-/* 水平线 */
-.is-horizontal > .splitter-trigger {
-  width: 4px;
-  cursor: col-resize;
-}
-.is-horizontal .trigger-line {
-  width: 1px;
-  height: 20px;
-  background: #dcdfe6;
-}
-
-/* 垂直线 */
-.is-vertical > .splitter-trigger {
-  height: 8px;
-  cursor: row-resize;
-  background-color: #f5f5f5;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.is-vertical .trigger-line {
-  width: 30px;
-  height: 3px;
-  background: #d9d9d9;
-  border-radius: 2px;
-}
-.is-vertical > .splitter-trigger:hover .trigger-line {
-  background: #409eff;
-}
-</style>
+<style scoped src="./index.scss"></style>

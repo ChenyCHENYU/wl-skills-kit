@@ -1,0 +1,44 @@
+:deep(.rightToolBarDialog .el-dialog-body) {
+  display: flex !important;
+  justify-content: center !important;
+}
+:deep(.el-transfer__button) {
+  display: block;
+}
+
+:deep(.el-transfer__button:first-child) {
+  margin-bottom: 10px;
+}
+:deep(.el-transfer__button:nth-child(2)) {
+  margin-left: 0px !important;
+}
+
+.my-el-transfer {
+  text-align: center;
+}
+
+:deep(
+  .el-transfer-panel
+    .el-transfer-panel__header
+    .el-checkbox
+    .el-checkbox__label
+    span
+) {
+  position: static;
+}
+
+:deep(.el-transfer-panel__footer button) {
+  position: absolute;
+  right: 5px;
+  top: 12px;
+}
+
+:deep(.el-transfer-panel:first-child .el-checkbox__label) {
+  cursor: move !important;
+}
+:deep(.el-transfer-panel) {
+  width: 40%;
+}
+:deep(.el-transfer__buttons) {
+  width: 20%;
+}

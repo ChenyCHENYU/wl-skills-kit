@@ -639,7 +639,7 @@ const { tableRef, page, queryParam, list, queryItems, toolbars, select,
 
 **1. 所有端点必须修改 dataPool**
 
-mock 端点不能只返回 `{ code: 200 }` — 必须实际修改内存中的 `dataPool` 数据，否则 `this.select()` 刷新后数据不变。
+mock 端点不能只返回 `{ code: 2000 }` — 必须实际修改内存中的 `dataPool` 数据，否则 `this.select()` 刷新后数据不变。
 
 ```typescript
 // ✅ 正确：启用端点修改 dataPool 中的 enableStatus
@@ -652,7 +652,7 @@ mock 端点不能只返回 `{ code: 200 }` — 必须实际修改内存中的 `d
       const item = dataPool.find((d) => d.id === id);
       if (item) item.enableStatus = "已启用";
     });
-    return { code: 200, msg: "启用成功", data: null };
+    return { code: 2000, message: "启用成功", data: null };
   }
 }
 
@@ -660,7 +660,7 @@ mock 端点不能只返回 `{ code: 200 }` — 必须实际修改内存中的 `d
 {
   url: "/dev-api/sale/xxx/enable",
   method: "post",
-  response: () => ({ code: 200, msg: "启用成功", data: null })
+  response: () => ({ code: 2000, message: "启用成功", data: null })
 }
 ```
 

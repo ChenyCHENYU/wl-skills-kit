@@ -1,84 +1,36 @@
 # Changelog
 
-## [2.3.0] - 2026-04-27
-
-### 🤖 MCP Server 内置（菜单 & 字典自动同步）
-
-#### MCP Server
-- 新增 `mcp/` 目录（随包发布），内置 MCP stdio server（纯 Node.js，无三方依赖，兼容 Node 16+）
-- 暴露 4 个 Tools：`wls_menu_query` / `wls_menu_upsert` / `wls_dict_query` / `wls_dict_upsert`
-- `wls_dict_upsert` 内部自动处理 dict module `data=null` 问题（创建后自动 re-query 拿 id，再创建字典项）
-- `mcp/config.js` 从 `.github/skills/sync/env.local.json` 读取配置，占位值校验友好提示
-
-#### CLI 更新
-- `wl-skills init` / `update` 新增 Step 2.5：自动生成 `.cursor/mcp.json` 和 `.claude/settings.json`（已存在则跳过）
-- `package.json` 的 `files` 字段加入 `mcp/`，确保随包发布
-- `--help` 保护路径说明补充 MCP 配置文件条目
-
-#### 配置扩展
-- `files/.github/skills/sync/env.local.json` 模板新增 `menu.domainId` 字段（MCP wls_menu_query 使用）
-
-#### 文档同步
-- `files/.github/guides/architecture.md`：第 8 节新增 MCP 模式说明；第 4.2 节 dict-sync 状态改为 ✅；bin 工作流补 Step 5；版本表更新至 v2.3.0
-- `files/.github/guides/usage.md`：Skill 速览表 menu-sync / dict-sync 行补充"MCP 自动模式"说明；FAQ 新增 MCP 配置问题
-- `README.md`：新增"MCP Server"章节（工具清单 + 配置说明 + 效率对比表）
-- `docs/mcp建议.md`：新增第七节（已确认接口清单），更新阶段一目录结构为实际 .js 文件
-
----
-
-## [2.2.0] - 2026-04-27
-
-### 🔄 sync-version.js 扩展 + 文档修复
-
-#### sync-version.js 扩展
-- 新增 `SKILL_COUNT` 常量（值 8），改一处自动同步到所有编辑器适配文件中的 Skill 数量描述
-- 新增同步目标：`package.json description`、`files/.github/skills/_compat/headers/cursor-mdc.txt`、`kiro.txt`、`trae.txt`
-
-#### 流程文档更新
-- `files/.github/guides/usage.md`：完整流水线补充 step 5（dict-sync）和 step 7（code-fix）
-- `files/.github/standards/12-base-table.md`：新增批量 cid 碰撞预防代码块
-- `files/.github/skills/core/convention-audit/SKILL.md`：Rule 12 旧格式 cid 降级为 🟡 偏差（迁移豁免）
-
----
-
-## [2.1.5] - 2026-04-27
-
-### 🔄 版本自动同步 + 发布流程优化
-
-#### 版本号自动同步机制
-- 新增 `scripts/sync-version.js`：npm `version` 钩子触发时自动将 `package.json` 版本号同步至 3 处文档：
-  - `README.md` 标题行（`AI Skill 模板包 vX.X.X`）
-  - `files/.github/guides/architecture.md` 头部「当前版本」行（含日期）
-  - `bin/wl-skills.js` 顶部注释行
-- `package.json` 新增 `scripts.version` 钩子：`npm version patch/minor/major` 自动同步 + git add，无需手动改四个文件
-- 今后发版流程统一为三步：`npm version <type>` → `git push --follow-tags` → `npm publish`
-
-#### 发布配置
-- `package.json` 新增 `publishConfig.access: "public"`，Scoped 包发布无需每次追加 `--access public`
-
----
-
 ## [2.1.4] - 2026-04-27
 
-### 📝 文档增强
+### 🔧 Mock 响应格式统一
 
-- README 新增「技能触发 & 验证」章节：6 个 Skill 的触发词、输出结果、Pre-flight 说明、完整链路触发示例、异常处理表一见全貌
-- `convention-audit` SKILL.md frontmatter 补充触发词：`接手新项目` / `存量代码分析` / `项目体检` / `onboard project`
-- `_registry.md` convention-audit 行同步更新
+- `page-codegen/SKILL.md`：mock 响应码 `code: 200` → `code: 2000`，`msg` → `message`，与真实后端格式完全一致
+- `TPL-DETAIL-TABS.md`：全部 mock 端点（list/getById/remove/save/update）响应格式同步修正
+- `TPL-RECORD-FORM.md`：getBy*/saveOrUpdate mock 端点响应格式同步修正
+- 修复后 AI 生成的 mock 文件与真实后端响应结构一致，避免前端 `res.code === 2000` 判断在 mock 模式下永远失败的问题
 
 ---
 
 ## [2.1.3] - 2026-04-27
 
-### 🔒 安全修复 + 依赖清理
+### 🔧 组件规范补全 + API 文档修正 + MCP 发布修复
 
-#### env.local.json 双重保护
-- `init` / `update` 遇到已存在的 `env.local.json` 不再覆盖（用户填写的 token / gatewayPath 等敏感数据不丢失）
-- `init` / `update` 完成后自动向业务项目 `.gitignore` 追加 `env.local.json` 保护条目（若尚未包含），防止 token 意外提交到远端仓库
-- `--help` 保护路径说明新增 `env.local.json` 条目
+#### global 组件三文件分离规范补全
+- **C_SvgIcon**: Options API → `<script setup lang="ts">` 重构；修复 `<style scope>` typo（改为 `scoped`）；提取内联样式到新增 `index.scss`
+- **C_Splitter**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
+- **C_TagStatus**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
+- **C_Tree**: 将 `<script setup>` 中所有响应式逻辑提取到新增 `data.ts`（`createTree()` 函数），vue 文件精简为模板 + 调用层
+- **C_RightToolbar**: 将全部业务逻辑（列显隐、拖拽排序、保存接口调用）提取到新增 `data.ts`（`createRightToolbar()` 函数）；将 `<style scoped>` 内嵌样式提取到新增 `index.scss`
 
-#### 依赖清理
-- 移除 `devDependencies` 中的 `xlsx`（CLI 本身不使用；`xlsx` 是业务项目的依赖，已在 SKILL.md 中说明安装方式）
+#### local 组件规范补全
+- **c_listModal**: 补充 `index.scss`（空 style 块改为外链引用）
+
+#### API 文档修正 (code:200 → code:2000)
+- `demo/produce/aiflow/mmwr-customer-apply-add/api.md`: 响应示例 `code:200, result:{}` → `code:2000, data:{}`
+- `docs/request.md`: 响应示例 `code: 200` → `code: 2000`，保持与架构规范一致
+
+#### MCP Server npm 发布修复
+- `package.json` `files` 字段补充 `"mcp/"` 目录，修复之前 MCP Server 代码未被打包到 npm 的严重缺失（导致 `wl-skills init` 后 `.cursor/mcp.json` 指向的 `node_modules/.../mcp/server.js` 实际不存在）
 
 ---
 

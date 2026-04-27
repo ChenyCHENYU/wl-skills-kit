@@ -103,25 +103,4 @@ const handleClose = (event: MouseEvent) => {
 };
 </script>
 
-<style scoped lang="scss">
-.status-fallback {
-  display: inline-block;
-  padding: 0 8px;
-  font-size: 12px;
-  color: #909399;
-  line-height: 22px;
-  white-space: nowrap;
-}
-
-// 增强 el-tag 的视觉效果
-:deep(.el-tag) {
-  font-weight: 500;
-  border: none;
-
-  // 为淡色效果添加边框
-  &.el-tag--light {
-    border: 1px solid currentColor;
-    border-color: var(--el-tag-border-color);
-  }
-}
-</style>
+<style scoped lang="scss" src="./index.scss"></style>

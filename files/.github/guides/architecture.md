@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员  
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）  
-> **当前版本**：v2.3.0（2026-04-27）
+> **当前版本**：v2.1（2026-04-26）
 
 ---
 
@@ -102,10 +102,7 @@ wl-skills.js init/update
     │      - reports/*.md 已存在则跳过（保护团队累积数据）
     │      - 其他文件：覆盖写入
     │
-    ├─ 5. 生成 MCP 配置文件（.cursor/mcp.json + .claude/settings.json）
-    │      - 已存在则跳过（不覆盖用户已有配置）
-    │
-    └─ 6. 写入/更新 .wl-skills-manifest.json（文件哈希快照）
+    └─ 5. 写入/更新 .wl-skills-manifest.json（文件哈希快照）
 ```
 
 ---
@@ -216,7 +213,7 @@ skills/
 │
 ├── sync/                数据同步类（与后端系统联动）
 │   ├── menu-sync/           ✅ 启用：菜单基线 ↔ 后端菜单接口
-│   ├── dict-sync/           ✅ 启用：字典基线 ↔ 后端字典接口
+│   ├── dict-sync/           ⏳ PLANNED
 │   └── permission-sync/     ⏳ PLANNED
 │
 ├── ops/                 运维/质量类
@@ -427,24 +424,7 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 
 ## 8. 菜单/字典/权限同步机制
 
-三类 sync Skill 共用同一基线模式。**v2.3.0 起，menu-sync 和 dict-sync 同时提供 SKILL.md prompt 模式（手动中转）和 MCP Server 自动模式（零手动）**：
-
-### MCP 自动模式（推荐，v2.3.0+）
-
-```
-开发者说："扩展菜单" / "加字典"
-    ↓
-AI 自动 call MCP Tools（无需手动粘贴接口响应）：
-    wls_menu_query  → 拉取现有菜单树
-    wls_menu_upsert → 批量新增/更新
-    wls_dict_query  → 拉取现有字典模块
-    wls_dict_upsert → 创建模块 + 字典项（内部自动 re-query 拿 id）
-```
-
-`init` 时自动生成 `.cursor/mcp.json` + `.claude/settings.json`（已存在则跳过）。
-MCP server 从 `.github/skills/sync/env.local.json` 读取 `gatewayPath / token / menu.domainId`。
-
-### SKILL.md Prompt 模式（兼容，无 MCP 环境可用）
+三类 sync Skill 共用同一模式，以 `menu-sync` 为基准（已启用）：
 
 ```
 本地基线文件（reports/SYS_MENU_INFO.md）
@@ -457,7 +437,7 @@ MCP server 从 `.github/skills/sync/env.local.json` 读取 `gatewayPath / token 
            ③ 对比：基线 vs 线上 → 找出缺失条目
            ④ Pre-flight 输出操作预览（必须用户确认）
            ⑤ 调用后端接口写入
-           ⑥ 输出操作日志到 reports/MENU_SYNC_*.md
+           ⑥ 输出操作日志（含回滚 SQL）到 reports/MENU_SYNC_*.md
 ```
 
 **关键设计约束**：
@@ -495,10 +475,9 @@ MCP server 从 `.github/skills/sync/env.local.json` 读取 `gatewayPath / token 
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | v1.x | 5 个 Skill 平铺 + 9 个 TPL 平铺 + 单一超长 copilot-instructions                                                                           | ✅ 已发布 |
 | v2.0 | 规范模块化（13 条）+ 模板分层（universal/domains）+ 报告分类 + Pre-flight + 工具链门控                                                    | ✅ 已发布 |
-| v2.1 | Skill 分级目录（core/sync/ops/domain）+ 多 AI 适配解耦（editors.json）+ 各 Skill USAGE.md + api-contract 真实响应 + 3 个 PLANNED 草稿补全 | ✅ 已发布 |
-| v2.2 | sync-version.js（版本号自动同步）+ dict-sync / code-fix 正式激活 + 8 个 Skill 全部就绪                                                    | ✅ 已发布 |
-| v2.3 | MCP Server 内置（wls_menu_query/upsert + wls_dict_query/upsert）+ init 自动写 MCP 配置 + env.local.json 新增 menu.domainId                | ✅ 当前   |
-| v2.4 | permission-sync MCP 化（待后端接口确认）                                                                                                   | ⏳ 规划中 |
+| v2.1 | Skill 分级目录（core/sync/ops/domain）+ 多 AI 适配解耦（editors.json）+ 各 Skill USAGE.md + api-contract 真实响应 + 3 个 PLANNED 草稿补全 | ✅ 当前   |
+| v2.2 | dict-sync / permission-sync / code-fix 从 PLANNED → 转正（视后端接口稳定情况）                                                            | ⏳ 规划中 |
+| v2.3 | CI 流水线接入（convention-audit 报告注入 PR 评论）+ Skill 版本感知                                                                        | ⏳ 规划中 |
 
 ---
 

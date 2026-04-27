@@ -7,7 +7,7 @@
 - **方法**：POST  
 - **URL**：`/sale/customerApply/addList`  
 - **请求体**：`{ customerCode, approvalProduct, applyOrg, customerName, applyType, applyDept, applicant, approvalStatus, applyDateStart, applyDateEnd, verifyStatus, current, size }`  
-- **响应**：`{ code:200, result:{ records:[], total, current, size } }`
+- **响应**：`{ code:2000, data:{ records:[], total, current, size } }`
 
 ### 2. 删除
 

@@ -4,58 +4,28 @@
   </svg>
 </template>
 
-<script>
+<script setup lang="ts">
+import { computed, onMounted, onUpdated } from 'vue'
 import { addSymbolDelay } from '@jhlc/common-resource/src/svg/register-static-svg'
 
-export default {
-  props: {
-    iconClass: {
-      type: String,
-      required: true
-    },
-    className: {
-      type: String,
-      default: ''
-    },
-    color: {
-      type: String,
-      default: ''
-    },
-  },
-  beforeCreate() {
-    addSymbolDelay(this.iconClass)
-  },
-  updated() {
-    addSymbolDelay(this.iconClass)
-  },
-  setup(props) {
-    return {
-      iconName: computed(() => `#icon-${props.iconClass}`),
-      svgClass: computed(() => {
-        if (props.className) {
-          return `svg-icon ${props.className}`
-        }
-        return 'svg-icon'
-      })
-    }
-  }
+interface Props {
+  iconClass: string
+  className?: string
+  color?: string
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  className: '',
+  color: ''
+})
+
+const iconName = computed(() => `#icon-${props.iconClass}`)
+const svgClass = computed(() =>
+  props.className ? `svg-icon ${props.className}` : 'svg-icon'
+)
+
+onMounted(() => addSymbolDelay(props.iconClass))
+onUpdated(() => addSymbolDelay(props.iconClass))
 </script>
 
-<style scope lang="scss">
-.sub-el-icon,
-.nav-icon {
-  display: inline-block;
-  font-size: 15px;
-  margin-right: 12px;
-  position: relative;
-}
-
-.svg-icon {
-  width: 1em;
-  height: 1em;
-  position: relative;
-  fill: currentColor;
-  vertical-align: -2px;
-}
-</style>
+<style scoped lang="scss" src="./index.scss"></style>

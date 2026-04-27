@@ -1,10 +1,8 @@
 # @agile-team/wl-skills-kit
 
-[![npm version](https://img.shields.io/npm/v/@agile-team/wl-skills-kit?label=wl-skills-kit&color=brightgreen)](https://www.npmjs.com/package/@agile-team/wl-skills-kit)
+**AI Skill 模板包 v2.1** — 一条命令将 13 条编码规范、6 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
 
-**AI Skill 模板包 v2.3.0** — 一条命令导入 13 条编码规范、8 个 AI Skill、组件文档、领域样例到 Vue 3 项目。
-
-让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。内置 MCP Server 实现菜单和字典自动同步（对话轮数 ≤ 2）。
+让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
 ---
 
@@ -12,11 +10,10 @@
 
 ```bash
 npx @robot-admin/git-standards init      # 工程化前置（必须）
-npx @agile-team/wl-skills-kit            # 安装 AI 体系（自动生成 MCP 配置）
-# 填写 .github/skills/sync/env.local.json（token / domainId）
+npx @agile-team/wl-skills-kit            # 安装 AI 体系
 # 在 AI 对话中：
-"扩展菜单"
-"加字典"
+"扫描 docs/prototypes/ 下的原型生成页面清单"
+"基于上一步生成所有 api.md，再 codegen 出页面"
 ```
 
 ---
@@ -100,7 +97,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 13 条)
 │   │   └── 13-platform-components.md
-│   ├── skills/                           8 个启用 Skill + 1 个 PLANNED 草稿
+│   ├── skills/                           6 个启用 Skill + 3 个 PLANNED 草稿
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -111,10 +108,10 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   │   └── template-extract/ { SKILL.md, USAGE.md }
 │   │   ├── sync/                         数据同步类
 │   │   │   ├── menu-sync/        { SKILL.md, USAGE.md, env/ }
-│   │   │   ├── dict-sync/        { SKILL.md, env/ }
+│   │   │   ├── dict-sync/        [PLANNED] SKILL.draft.md
 │   │   │   └── permission-sync/  [PLANNED] SKILL.draft.md
 │   │   ├── ops/                          运维类
-│   │   │   └── code-fix/         { SKILL.md }
+│   │   │   └── code-fix/         [PLANNED] SKILL.draft.md
 │   │   └── domain/                       领域专属（按需创建）
 │   ├── guides/                           人读指南（usage.md / architecture.md）
 │   └── reports/                          AI 生成报告（追加不覆盖）
@@ -188,46 +185,6 @@ npx @agile-team/wl-skills-kit update
 
 ---
 
-## MCP Server（菜单 & 字典自动同步）
-
-`init` 安装时会自动生成 `.cursor/mcp.json` 和 `.claude/settings.json`，将 wl-skills MCP server 注册到 AI 编辑器。**无需手动配置**，启动 Cursor / Claude Code 后自动启用。
-
-### 提供的工具
-
-| 工具 | 用途 |
-|---|---|
-| `wls_menu_query` | 查询当前应用完整菜单树（用于决策新增/更新） |
-| `wls_menu_upsert` | 批量新增或更新菜单（有 id=更新，无 id=新增，自动返回服务端 id） |
-| `wls_dict_query` | 查询所有字典模块及字典项 |
-| `wls_dict_upsert` | 新增/更新字典模块+字典项（内部自动 re-query 获取 id） |
-
-### 配置（安装后填写一次）
-
-在 `.github/skills/sync/env.local.json` 中填写：
-
-```json
-{
-  "gatewayPath": "http://你的网关地址:端口",
-  "token": "Bearer Token（不含 Bearer 前缀）",
-  "sysAppNo": "应用编码",
-  "menu": {
-    "domainId": "从 Network 面板 getMenuTreeByDomainId?domainId=xxx 中获取",
-    "parentMenuId": "新建菜单的父节点 ID"
-  }
-}
-```
-
-> `env.local.json` 已自动加入 `.gitignore`，不会入库。
-
-### 效率对比
-
-| 方式 | 同步 10 条菜单 | 手动操作 | 耗时 |
-|---|---|---|---|
-| SKILL.md（prompt-based） | ~4000 token | 10 次 | ~20 分钟 |
-| **MCP tools** | ~500 token | **0 次** | **~1 分钟** |
-
----
-
 ## Skill 概览
 
 | Skill              | 状态      | 路径                                     | 核心用途                      |
@@ -238,99 +195,11 @@ npx @agile-team/wl-skills-kit update
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
-| `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口                           |
+| `dict-sync`        | ⏳ PLANNED | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
 | `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
-| `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差                  |
+| `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
-
----
-
-## AGGrid cid 唯一性规则
-
-> 21 个系统共享同一浏览器 origin（localStorage 共用），cid 碰撞会导致列配置互相覆盖。
-
-```typescript
-// ✅ 正确：Date.now().toString(36) — 毫秒级唯一，永不重复，约 9 位 base-36
-cid="mca-lhfge5hc"                           // 表格级：{页面首字母缩写}-{base36时间戳}
-cid: 'mca-lhfge5hc-customerName'             // 列级：{完整表格cid}-{fieldName}
-cid: 'mca-lhfge5hc-sub1-customerName'        // 子表列级：{完整子表cid}-{fieldName}
-
-// ❌ 错误：截断十进制后6位（每11.5天循环一次）
-cid="mca-745831"
-// ❌ 错误：列级只用缩写（同页面两张表都有steelCode → mca-steelCode 碰撞）
-cid: 'mca-customerName'
-```
-
-**Pre-flight 中 AI 自动输出**：`✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）`  
-`convention-audit` 遇到旧格式 cid 会标记为 🟡 偏差提示。
-
----
-
-## 技能触发 & 验证
-
-> **所有编辑器使用相同的触发词**，无需区分编辑器类型。Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae 读取各自对应的配置文件，内容完全一致，仅 frontmatter 格式不同。
-
-**触发成功的标志 — Pre-flight 声明**（技能触发后 AI 必须先输出）：
-
-```
-🚀 已触发技能 page-codegen/SKILL.md → 页面代码生成：4文件 + 模板调度 + 前置检查
-✅ 已读取 templates/_index.md        → 模板注册表，匹配 → TPL-LIST.md
-✅ 已读取 standards/02-code-structure.md → 4文件原则 + 三段式 + script 9段顺序
-✅ cid 已生成：cXxxx（首字母缩写）
-```
-
-> 看到这段输出 = 技能路径已激活，AI 遵循 Skill 规则而非默认推断。  
-> 没有这段输出 = AI 走了默认推断，补充说：「请先读取 `.github/skills/core/xxx/SKILL.md`，再按其执行」。
-
-### 单技能触发
-
-| 技能 | 说任意一个即可触发 | 输出结果 | 验证方法 |
-| ---- | ------------------ | -------- | -------- |
-| `prototype-scan` | 扫描原型 / 页面清单 / 口述需求 / 建个页面 / 帮我建一个XX页面 | `reports/PROTOTYPE_SCAN_*.md` 结构化页面清单 | reports/ 下有新文件 |
-| `api-contract` | 接口约定 / api.md / 字段定义 / 前后端对齐 | 每个页面目录下生成 `api.md` | 对应目录有 api.md |
-| `page-codegen` | 生成页面 / 创建页面 / 代码生成 / 帮我生成 | `index.vue + data.ts + index.scss + api.md` 4 文件 | 4 文件完整 + Pre-flight ✅ |
-| `convention-audit` | 规范审计 / 规范检查 / 代码审计 / **接手新项目** / **项目体检** | `reports/规范审查报告.md` + `reports/组件提取建议.md` 追加新章节 | 报告文件有新内容追加 |
-| `template-extract` | 提取模板 / 沉淀模板 / 模板贡献 | `skills/core/page-codegen/templates/domains/{域}/TPL-*.md` | templates/ 下有新模板文件 |
-| `menu-sync` | 创建菜单 / 同步菜单 / 补菜单 | API 调用结果表 + `reports/SYS_MENU_INFO.md` 更新 | 系统管理后台出现新菜单 |
-
-### 流程组合触发
-
-**完整链路：原型 → 上线可访问（分步连续触发）**
-
-```
-① "扫描 docs/prototypes/ 下的原型，生成页面清单"      → prototype-scan
-② "基于清单，逐页生成 api.md"                         → api-contract
-③ "按 api.md 生成所有页面代码"                         → page-codegen
-④ "对刚生成的页面做规范审计"                            → convention-audit
-⑤ "补菜单"                                             → menu-sync
-```
-
-**快捷链路：口述直接生成（单句触发）**
-
-```
-"帮我建一个客户管理页面，有名称、编码、状态三个查询字段，支持新增编辑删除"
-  → prototype-scan（内部推断）→ page-codegen → 直接输出 4 文件
-```
-
-**接手存量项目（逐步推进）**
-
-```
-"扫描 src/views/ 下所有页面，做规范审计，输出偏差报告"  → convention-audit
-  → 人工确认整改优先级（报告中标 🔴 / 🟡 / 🟢）
-  → "对 {偏差文件} 做规范整改"                          → code-fix
-```
-
-### 触发异常处理
-
-| 现象 | 原因 | 应对 |
-| ---- | ---- | ---- |
-| 输出以 `🚀 已触发技能 xxx/SKILL.md` 开头 | ✅ 技能路径正确激活 | 继续即可 |
-| 直接输出代码，无 Pre-flight 声明 | AI 走了默认推断，未加载 Skill | 补充说：「先读取 `.github/skills/core/xxx/SKILL.md`，再按其执行」 |
-| Pre-flight 含 `❌ 工具链检测失败` | 缺少 `.prettierrc.js` / `eslint.config.ts` / `.husky/` | 执行 `npx @robot-admin/git-standards init` |
-| reports/ 无新文件 | 输出写到了错误路径 | 明确告知 AI：「报告写入 `.github/reports/` 目录」 |
-
-> 详细使用示例和踩坑 FAQ 见安装后的 `.github/guides/usage.md`（每个 Skill 同目录的 `USAGE.md` 也有完整示例）。
 
 ---
 
@@ -356,13 +225,11 @@ cid: 'mca-customerName'
 
 ## 受保护路径
 
-| 命令                     | 保护路径                                               | 说明                       |
-| ------------------------ | --------------------------------------------------- | -------------------------- |
-| `init` / `update`        | `.github/reports/*.md`                              | 已存则跳过，不覆盖累积   |
-| `init` / `update`        | `.github/skills/sync/env.local.json`                | 已存则跳过，保护同步配置（菜单+字典+权限统一） |
-| `init` / `update`        | `.github/skills/sync/menu-sync/env/env.local.json`  | 旧版兼容，已存则跳过     |
-| `clean`（默认）          | `src/components/` + `src/types/`                    | 业务代码必需，永不删除     |
-| `clean --keep-reports`   | + `.github/reports/`                                | 保留菜单/字典/权限基线     |
+| 命令                     | 保护路径                          | 说明                       |
+| ------------------------ | --------------------------------- | -------------------------- |
+| `init` / `update`        | `.github/reports/*.md`            | 已存在则跳过，不覆盖累积   |
+| `clean`（默认）          | `src/components/` + `src/types/`  | 业务代码必需，永不删除     |
+| `clean --keep-reports`   | + `.github/reports/`              | 保留菜单/字典/权限基线     |
 
 ---
 

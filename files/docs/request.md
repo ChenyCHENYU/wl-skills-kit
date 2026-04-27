@@ -78,22 +78,31 @@ const result = await request({
 
 ## 响应数据结构
 
-request 会自动解包响应数据，直接返回 `{ code, message, data }` 格式：
+`request()` 的 response interceptor 执行 `return cloneDeep(res.data)`，直接返回 HTTP 响应体，即 `ApiResult<T>` 结构：
 
 ```typescript
-// 后端返回格式
+// ApiResult<T> 类型定义（来自 @jhlc/types）
+interface ApiResult<T = any> {
+  code: number;     // 2000 = 成功，200 也被接受（mock 常用）
+  message: string;  // 提示信息
+  data: T;          // 实际业务数据
+}
+
+// 后端返回的 HTTP 响应体（request() 直接返回这层，不再多一层 .data）
 {
-  code: 200,
+  code: 2000,
   message: "操作成功",
   data: { id: 1, name: "张三" }
 }
 
-// 使用 request 后直接拿到解包数据
+// 使用 request 后直接拿到
 const result = await request({ url: "/api/xxx", method: "get" });
-console.log(result.code);     // 200
+console.log(result.code);     // 2000
 console.log(result.message);  // "操作成功"
-console.log(result.data);     // { id: 1, name: "张三" }
+console.log(result.data);     // { id: 1, name: "张三" }（业务数据）
 ```
+
+> **与 `getAction`/`postAction` 的关系**：这些 action 函数内部调用 `request()`，返回值结构**完全相同**，类型签名为 `Promise<ApiResult<T>>`。`ApiResult<T>` 就是上面的 `{ code, message, data: T }`，两者等价。
 
 ## 常见场景
 
@@ -254,8 +263,8 @@ await request({ url: "/api/user/detail", method: "get", params: { id: 1 } });
 1. **自动解包**：返回 `{ code, message, data }` 格式，无需 `res.data.data`
 2. **Token 注入**：自动从 localStorage 读取 token 并添加到请求头
 3. **错误拦截**：统一处理 401/403/500 等错误，自动弹出提示
-4. **Loading 状态**：可选的全局 loading 动画
-5. **重复请求取消**：防止短时间内重复请求
+4. **双码成功**：`code: 2000`（真实后端业务码）和 `code: 200`（mock 常用值）均视为成功
+5. **i18n 支持**：自动在请求头注入当前语言（`Lang` header）
 
 ## 在组件中使用
 
@@ -326,8 +335,9 @@ try {
 2. **params vs data**：
    - `params`：URL 查询参数，适用于 GET/DELETE
    - `data`：请求体数据，适用于 POST/PUT
-3. **返回值**：直接返回解包后的数据，不是 axios 的 response 对象
+3. **返回值**：直接返回 `ApiResult<T>` = `{ code, message, data }`，不是 axios 的 response 对象（已自动解包一层）
 4. **错误处理**：request 会自动处理错误并提示，通常不需要手动 catch
+5. **mock 的 code 值**：response interceptor 同时接受 `code: 200` 和 `code: 2000` 作为成功。项目 mock 文件通常写 `code: 200`（HTTP 标准），真实后端使用业务码 `code: 2000`，两者均正常工作
 
 ## 实际案例
 
@@ -424,6 +434,11 @@ export function createFormModal(props, mode, emit) {
 ## 📌 AbstractPageQueryHook 基类内置方法
 
 > 在继承 `AbstractPageQueryHook` 的页面中，可以直接使用以下内置方法，**无需单独创建 API 层文件**。
+> 这些方法（`getAction`/`postAction`/`putAction`/`deleteAction`）也可以单独导入使用：
+> ```typescript
+> import { getAction, postAction, putAction, deleteAction } from "@jhlc/common-core/src/api/action";
+> ```
+> 返回值均为 `Promise<ApiResult<T>>`，即 `{ code: number, message: string, data: T }`，与直接调用 `request()` 完全相同。
 
 ### 可用方法一览
 

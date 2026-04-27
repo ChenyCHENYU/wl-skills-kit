@@ -1080,8 +1080,8 @@ const mockApi: MockMethod[] = [
       const size = Number(query?.size) || 20;
       const start = (current - 1) * size;
       return {
-        code: 200,
-        msg: "操作成功",
+        code: 2000,
+        message: "操作成功",
         data: {
           records: dataPool.slice(start, start + size),
           total: dataPool.length,
@@ -1095,8 +1095,8 @@ const mockApi: MockMethod[] = [
     url: "/dev-api/[服务缩写]/[资源名]/getById",
     method: "get",
     response: ({ query }: any) => ({
-      code: 200,
-      msg: "操作成功",
+      code: 2000,
+      message: "操作成功",
       data: dataPool.find((d) => d.id === query.id) || dataPool[0],
     }),
   },
@@ -1110,7 +1110,7 @@ const mockApi: MockMethod[] = [
         const idx = dataPool.findIndex((d) => d.id === rid);
         if (idx > -1) dataPool.splice(idx, 1);
       });
-      return { code: 200, msg: "删除成功", data: null };
+      return { code: 2000, message: "删除成功", data: null };
     },
   },
   {
@@ -1119,7 +1119,7 @@ const mockApi: MockMethod[] = [
     response: ({ body }: any) => {
       const newRecord = { ...genRecord(), ...body, id: Random.id() };
       dataPool.unshift(newRecord);
-      return { code: 200, msg: "保存成功", data: { id: newRecord.id } };
+      return { code: 2000, message: "保存成功", data: { id: newRecord.id } };
     },
   },
   {
@@ -1128,7 +1128,7 @@ const mockApi: MockMethod[] = [
     response: ({ body }: any) => {
       const idx = dataPool.findIndex((d) => d.id === body?.id);
       if (idx > -1) Object.assign(dataPool[idx], body);
-      return { code: 200, msg: "更新成功", data: null };
+      return { code: 2000, message: "更新成功", data: null };
     },
   },
 ];
