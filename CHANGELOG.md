@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.3.1] - 2026-04-27
+
+### 🔧 组件三文件分离规范补全 + 文档精准化
+
+#### global/local 组件
+- **C_SvgIcon**: Options API → `<script setup lang="ts">`，修复 `scope` typo，提取内联样式到 `index.scss`
+- **C_Splitter / C_TagStatus**: 内嵌样式提取到 `index.scss`，改为外链引用
+- **C_Tree**: 所有逻辑提取到 `data.ts`（`createTree()`），vue 文件精简为纯模板层
+- **C_RightToolbar**: 业务逻辑（列显隐、拖拽、API 调用）提取到 `data.ts`，样式提取到 `index.scss`
+- **c_listModal**: 新增 `index.scss`，消除空 style 块
+
+#### 文档与规范
+- `docs/request.md`: 补充 `ApiResult<T>` 显式类型定义，说明 mock `code:200` 与真实后端 `code:2000` 均被 interceptor 接受
+- `page-codegen/SKILL.md` + `TPL-*.md`: mock 响应格式统一为 `code:2000 + message`
+- `package.json`: `files` 补加 `mcp/`，修复 MCP server 从未被 npm 打包的 bug
+
+---
+
 ## [2.1.4] - 2026-04-27
 
 ### 🔧 Mock 响应格式统一
