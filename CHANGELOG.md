@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.3.0] - 2026-04-27
+
+### 🤖 MCP Server 内置（菜单 & 字典自动同步）
+
+#### MCP Server
+- 新增 `mcp/` 目录（随包发布），内置 MCP stdio server（纯 Node.js，无三方依赖，兼容 Node 16+）
+- 暴露 4 个 Tools：`wls_menu_query` / `wls_menu_upsert` / `wls_dict_query` / `wls_dict_upsert`
+- `wls_dict_upsert` 内部自动处理 dict module `data=null` 问题（创建后自动 re-query 拿 id，再创建字典项）
+- `mcp/config.js` 从 `.github/skills/sync/env.local.json` 读取配置，占位值校验友好提示
+
+#### CLI 更新
+- `wl-skills init` / `update` 新增 Step 2.5：自动生成 `.cursor/mcp.json` 和 `.claude/settings.json`（已存在则跳过）
+- `package.json` 的 `files` 字段加入 `mcp/`，确保随包发布
+- `--help` 保护路径说明补充 MCP 配置文件条目
+
+#### 配置扩展
+- `files/.github/skills/sync/env.local.json` 模板新增 `menu.domainId` 字段（MCP wls_menu_query 使用）
+
+#### 文档同步
+- `files/.github/guides/architecture.md`：第 8 节新增 MCP 模式说明；第 4.2 节 dict-sync 状态改为 ✅；bin 工作流补 Step 5；版本表更新至 v2.3.0
+- `files/.github/guides/usage.md`：Skill 速览表 menu-sync / dict-sync 行补充"MCP 自动模式"说明；FAQ 新增 MCP 配置问题
+- `README.md`：新增"MCP Server"章节（工具清单 + 配置说明 + 效率对比表）
+- `docs/mcp建议.md`：新增第七节（已确认接口清单），更新阶段一目录结构为实际 .js 文件
+
+---
+
+## [2.2.0] - 2026-04-27
+
+### 🔄 sync-version.js 扩展 + 文档修复
+
+#### sync-version.js 扩展
+- 新增 `SKILL_COUNT` 常量（值 8），改一处自动同步到所有编辑器适配文件中的 Skill 数量描述
+- 新增同步目标：`package.json description`、`files/.github/skills/_compat/headers/cursor-mdc.txt`、`kiro.txt`、`trae.txt`
+
+#### 流程文档更新
+- `files/.github/guides/usage.md`：完整流水线补充 step 5（dict-sync）和 step 7（code-fix）
+- `files/.github/standards/12-base-table.md`：新增批量 cid 碰撞预防代码块
+- `files/.github/skills/core/convention-audit/SKILL.md`：Rule 12 旧格式 cid 降级为 🟡 偏差（迁移豁免）
+
+---
+
 ## [2.1.5] - 2026-04-27
 
 ### 🔄 版本自动同步 + 发布流程优化

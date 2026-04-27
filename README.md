@@ -2,9 +2,9 @@
 
 [![npm version](https://img.shields.io/npm/v/@agile-team/wl-skills-kit?label=wl-skills-kit&color=brightgreen)](https://www.npmjs.com/package/@agile-team/wl-skills-kit)
 
-**AI Skill 模板包 v2.3.0** — 一条命令尗13 条编码规范、8 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.3.0** — 一条命令导入 13 条编码规范、8 个 AI Skill、组件文档、领域样例到 Vue 3 项目。
 
-让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
+让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。内置 MCP Server 实现菜单和字典自动同步（对话轮数 ≤ 2）。
 
 ---
 
@@ -12,10 +12,11 @@
 
 ```bash
 npx @robot-admin/git-standards init      # 工程化前置（必须）
-npx @agile-team/wl-skills-kit            # 安装 AI 体系
+npx @agile-team/wl-skills-kit            # 安装 AI 体系（自动生成 MCP 配置）
+# 填写 .github/skills/sync/env.local.json（token / domainId）
 # 在 AI 对话中：
-"扫描 docs/prototypes/ 下的原型生成页面清单"
-"基于上一步生成所有 api.md，再 codegen 出页面"
+"扩展菜单"
+"加字典"
 ```
 
 ---
@@ -184,6 +185,46 @@ npx @agile-team/wl-skills-kit update
 3. **保护累积数据** — `reports/*.md` 已存在则跳过，团队累积的菜单/字典数据不丢失
 
 > **注意**：如果项目在旧的 `.github/skills/menu-sync/env/env.local.json` 中有自定义配置，`update` 会将其迁移位置（删旧、新路径文件由 `init` 写入默认模板）。**请在 `update` 前备份** 或 `update` 后手动迁移到 `.github/skills/sync/menu-sync/env/env.local.json`。
+
+---
+
+## MCP Server（菜单 & 字典自动同步）
+
+`init` 安装时会自动生成 `.cursor/mcp.json` 和 `.claude/settings.json`，将 wl-skills MCP server 注册到 AI 编辑器。**无需手动配置**，启动 Cursor / Claude Code 后自动启用。
+
+### 提供的工具
+
+| 工具 | 用途 |
+|---|---|
+| `wls_menu_query` | 查询当前应用完整菜单树（用于决策新增/更新） |
+| `wls_menu_upsert` | 批量新增或更新菜单（有 id=更新，无 id=新增，自动返回服务端 id） |
+| `wls_dict_query` | 查询所有字典模块及字典项 |
+| `wls_dict_upsert` | 新增/更新字典模块+字典项（内部自动 re-query 获取 id） |
+
+### 配置（安装后填写一次）
+
+在 `.github/skills/sync/env.local.json` 中填写：
+
+```json
+{
+  "gatewayPath": "http://你的网关地址:端口",
+  "token": "Bearer Token（不含 Bearer 前缀）",
+  "sysAppNo": "应用编码",
+  "menu": {
+    "domainId": "从 Network 面板 getMenuTreeByDomainId?domainId=xxx 中获取",
+    "parentMenuId": "新建菜单的父节点 ID"
+  }
+}
+```
+
+> `env.local.json` 已自动加入 `.gitignore`，不会入库。
+
+### 效率对比
+
+| 方式 | 同步 10 条菜单 | 手动操作 | 耗时 |
+|---|---|---|---|
+| SKILL.md（prompt-based） | ~4000 token | 10 次 | ~20 分钟 |
+| **MCP tools** | ~500 token | **0 次** | **~1 分钟** |
 
 ---
 

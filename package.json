@@ -9,6 +9,7 @@
   "files": [
     "bin/",
     "files/",
+    "mcp/",
     "README.md",
     "CHANGELOG.md"
   ],

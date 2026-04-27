@@ -52,7 +52,9 @@ if (showHelp) {
 
   保护路径（init / update 不覆盖已存在的）:
     .github/reports/                               AI 生成报告（团队累积数据，存在则跳过）
-    .github/skills/sync/menu-sync/env/env.local.json  用户本地配置（token 等，已存在则跳过）
+    .github/skills/sync/env.local.json             用户本地配置（token 等，已存在则跳过）
+    .cursor/mcp.json                               MCP 配置（已存在则跳过，避免覆盖其他 server）
+    .claude/settings.json                          MCP 配置（已存在则跳过）
 
   清理保护路径（clean 不删除）:
     src/components/    通用组件（被业务页面 import，构建必需）
@@ -377,6 +379,62 @@ function runInstall(incremental) {
         ecExists ? updated++ : created++;
       } else {
         writeFile(ecDest, ecContent) === "created" ? created++ : updated++;
+      }
+    }
+  }
+
+  // ── Step 2.5: MCP 配置文件（.cursor/mcp.json + .claude/settings.json）──────
+
+  const MCP_SERVER_ARGS = ["node_modules/@agile-team/wl-skills-kit/mcp/server.js"];
+  const MCP_CONFIGS = [
+    {
+      relPath: ".cursor/mcp.json",
+      content: JSON.stringify(
+        {
+          mcpServers: {
+            "wl-skills": {
+              command: "node",
+              args: MCP_SERVER_ARGS,
+              env: { WL_PROJECT_ROOT: "${workspaceFolder}" },
+            },
+          },
+        },
+        null,
+        2
+      ),
+    },
+    {
+      relPath: ".claude/settings.json",
+      content: JSON.stringify(
+        {
+          mcpServers: {
+            "wl-skills": {
+              command: "node",
+              args: MCP_SERVER_ARGS,
+              env: { WL_PROJECT_ROOT: "." },
+            },
+          },
+        },
+        null,
+        2
+      ),
+    },
+  ];
+
+  if (dryRun) console.log("\n  [Step 2.5] MCP 配置文件:\n");
+
+  for (const mc of MCP_CONFIGS) {
+    const mcDest = path.join(TARGET_DIR, mc.relPath);
+    if (fs.existsSync(mcDest)) {
+      preserved++;
+      if (dryRun) console.log("  保留  " + mc.relPath + "  (已存在，不覆盖)");
+    } else {
+      if (dryRun) {
+        console.log("  新增  " + mc.relPath);
+        created++;
+      } else {
+        writeFile(mcDest, mc.content);
+        created++;
       }
     }
   }
