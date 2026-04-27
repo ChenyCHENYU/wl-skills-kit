@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@agile-team/wl-skills-kit?label=wl-skills-kit&color=brightgreen)](https://www.npmjs.com/package/@agile-team/wl-skills-kit)
 
-**AI Skill 模板包 v2.1.9** — 一条命令尗13 条编码规范、8 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.2.0** — 一条命令尗13 条编码规范、8 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
