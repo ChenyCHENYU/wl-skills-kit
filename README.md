@@ -99,7 +99,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 13 条)
 │   │   └── 13-platform-components.md
-│   ├── skills/                           6 个启用 Skill + 3 个 PLANNED 草稿
+│   ├── skills/                           8 个启用 Skill + 1 个 PLANNED 草稿
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -110,10 +110,10 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   │   └── template-extract/ { SKILL.md, USAGE.md }
 │   │   ├── sync/                         数据同步类
 │   │   │   ├── menu-sync/        { SKILL.md, USAGE.md, env/ }
-│   │   │   ├── dict-sync/        [PLANNED] SKILL.draft.md
+│   │   │   ├── dict-sync/        { SKILL.md, env/ }
 │   │   │   └── permission-sync/  [PLANNED] SKILL.draft.md
 │   │   ├── ops/                          运维类
-│   │   │   └── code-fix/         [PLANNED] SKILL.draft.md
+│   │   │   └── code-fix/         { SKILL.md }
 │   │   └── domain/                       领域专属（按需创建）
 │   ├── guides/                           人读指南（usage.md / architecture.md）
 │   └── reports/                          AI 生成报告（追加不覆盖）
@@ -197,9 +197,9 @@ npx @agile-team/wl-skills-kit update
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
-| `dict-sync`        | 🔧 待激活 | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口（API 端点已验证，配置后即用）|
+| `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口                           |
 | `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
-| `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
+| `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差                  |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
 
@@ -277,7 +277,7 @@ cid: 'mca-customerName'
 ```
 "扫描 src/views/ 下所有页面，做规范审计，输出偏差报告"  → convention-audit
   → 人工确认整改优先级（报告中标 🔴 / 🟡 / 🟢）
-  → "对 {偏差文件} 做规范整改"                          → [PLANNED] code-fix
+  → "对 {偏差文件} 做规范整改"                          → code-fix
 ```
 
 ### 触发异常处理

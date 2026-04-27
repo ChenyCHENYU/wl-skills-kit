@@ -20,11 +20,11 @@ skills/
 │
 ├── sync/                数据同步类（与后端联动）
 │   ├── menu-sync/
-│   ├── dict-sync/        [PLANNED]
+│   ├── dict-sync/
 │   └── permission-sync/  [PLANNED]
 │
 ├── ops/                 运维/构建类
-│   └── code-fix/         [PLANNED]
+│   └── code-fix/
 │
 └── domain/              领域专属 Skill（按域扩展，初始为空）
 ```
@@ -46,9 +46,9 @@ skills/
 | convention-audit | ✅ 启用    | `skills/core/convention-audit/SKILL.md`      | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检 |
 | template-extract | ✅ 启用    | `skills/core/template-extract/SKILL.md`      | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                  |
 | menu-sync        | ✅ 启用    | `skills/sync/menu-sync/SKILL.md`             | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单                                    |
-| dict-sync        | 🔧 待激活 | `skills/sync/dict-sync/SKILL.md`             | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计（**API 端点确认后自动生效**）|
+| dict-sync        | ✅ 启用    | `skills/sync/dict-sync/SKILL.md`             | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                           |
 | permission-sync  | ⏳ PLANNED | `skills/sync/permission-sync/SKILL.draft.md` | （草稿，不参与调度）                                                       |
-| code-fix         | ⏳ PLANNED | `skills/ops/code-fix/SKILL.draft.md`         | （草稿，不参与调度）                                                       |
+| code-fix         | ✅ 启用    | `skills/ops/code-fix/SKILL.md`               | 自动修复 / 整改偏差 / 修复报告 / 规范整改 / 修复偏差 / code fix               |
 
 ---
 

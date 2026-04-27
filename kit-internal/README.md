@@ -37,4 +37,4 @@
 | `standards.MAINTAIN.md`           | 13 条规范的维护要点                                    |
 | `templates.MAINTAIN.md`           | 模板分层与贡献流程要点                                 |
 | `skills/{skill-name}.MAINTAIN.md` | 各 Skill 的维护要点（避坑、扩展、版本演进）            |
-| `skills/_planned-skills.md`       | PLANNED 列表（dict-sync / permission-sync / code-fix） |
+| `skills/_planned-skills.md`       | PLANNED 列表（permission-sync / 不再包含已激活的 dict-sync / code-fix） |
