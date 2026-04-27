@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.4] - 2026-04-27
+
+### 📝 文档增强
+
+- README 新增「技能触发 & 验证」章节：6 个 Skill 的触发词、输出结果、Pre-flight 说明、完整链路触发示例、异常处理表一见全貌
+- `convention-audit` SKILL.md frontmatter 补充触发词：`接手新项目` / `存量代码分析` / `项目体检` / `onboard project`
+- `_registry.md` convention-audit 行同步更新
+
+---
+
 ## [2.1.3] - 2026-04-27
 
 ### 🔒 安全修复 + 依赖清理
