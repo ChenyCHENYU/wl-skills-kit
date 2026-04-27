@@ -57,7 +57,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | 09   | TypeScript                   | 滥用 any（>3 处/页） → 🟡                                            |
 | 10   | Pinia                        | data.ts 内 import Store → 🔴                                         |
 | 11   | 表单校验                     | FORM_ROUTE 缺 validate / resetFields → 🔴                            |
-| 12   | BaseTable + cid              | 用 el-table / 缺 render-type / cid 缺失或重复 → 🔴；cid 后缀使用旧格式（十进制截断后6位）→ 🟡；列级 cid 只用缩写作前缀（同页面两张表同名列碰撞）→ 🔴 |
+| 12   | BaseTable + cid              | 用 el-table / 缺 render-type / cid 缺失或重复 → 🔴；cid 后缀使用旧格式（十进制截断后6位）→ 🟡；列级 cid 只用缩写作前缀（同页面两张表同名列碰撞）→ 🔴；**存量代码迁移期**：已存在旧格式 cid（缩写作前缀的列级 cid）→ 降级为 🟡，由 code-fix 逐步整改，不必一刀切全报红 |
 | 13   | 平台组件合规                 | 用 el-form/el-table/el-date-picker 替代封装 → 🔴；3+ 复用 → 提取建议 |
 
 ---
@@ -153,7 +153,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 📌 后续步骤：
    1. 人工 review 报告，标记需要修复的条目
    2. 严重偏差优先修复（用 page-codegen 重新生成）
-   3. [PLANNED] 触发 code-fix 自动整改 🟢/🟡 等级偏差
+   3. 触发 code-fix 自动整改 🟢/🟡 等级偏差
    4. 提取建议人工评审 → template-extract 或手动封装
 ─────────────────────────────────────────────────────
 ```
@@ -176,7 +176,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | ---------------------- | ------------------------------------------------------- |
 | **page-codegen**       | 审计发现偏差后，可调用 page-codegen 重新生成合规代码    |
 | **template-extract**   | 审计输出的"组件提取建议"，确认后可触发 template-extract |
-| **code-fix** [PLANNED] | 审计报告作为修复输入，自动整改 🟢🟡 等级偏差            |
+| **code-fix**           | 审计报告作为修复输入，自动整改 🟢🟡 等级偏差            |
 | **CI/CD**              | 审计可作为 PR 检查项，不合规 PR 阻断合并                |
 
 ---

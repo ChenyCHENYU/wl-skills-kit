@@ -55,6 +55,22 @@ AGGrid 通过 `cid` 持久化列配置（列宽、顺序、显示），**cid 必
 
 > **为什么不截断**：截断后缀（如后 6 位）会引入循环碰撞。完整 base-36 值为单调递增，毫秒级唯一，9 位 base-36 ≈ 2199 亿组合，同一毫秒只生成一次。
 
+> ⚠️ **AI 批量生成多个 cid 时的碰撞风险**：AI 在同一上下文中连续生成多个 `Date.now().toString(36)` 时，
+> 返回值可能相同（AI 不会真实调用系统时钟，而是推断一个"合理值"）。
+> **正确做法**：AI 批量生成时，在基准时间戳上依次 +1ms 递增，确保每个 cid 的数字部分唯一：
+>
+> ```typescript
+> // 批量生成模板（AI 执行 code-fix / page-codegen 时使用）
+> const base = Date.now()
+> const cids = {
+>   table:  `mca-${base.toString(36)}`,           // mca-lhfge5hc
+>   sub1:   `mca-${(base+1).toString(36)}-sub1`,  // mca-lhfge5hd-sub1
+>   sub2:   `mca-${(base+2).toString(36)}-sub2`,  // mca-lhfge5he-sub2
+> }
+> ```
+>
+> 人工在编辑器里每次手写一个 cid 时，直接用 `Date.now().toString(36)` 即可（不同时刻天然不同）。
+
 ### 列级 cid
 
 ```

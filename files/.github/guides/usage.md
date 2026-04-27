@@ -93,10 +93,15 @@ AI 会自动识别意图，触发对应的 Skill。
 2. page-spec → api-contract            → api.md
 3. api.md    → page-codegen            → 4 文件 + reports/SYS_MENU_INFO.md
 4. SYS_MENU_INFO → menu-sync           → 后端菜单表
-5. 完成     → convention-audit          → 报告 + 提取建议（人工评审）
+5. 代码完成  → dict-sync               → 字典基线同步到后端字典表
+6. 完成      → convention-audit        → 偏差报告（reports/规范审查报告.md）
+7. 报告      → code-fix                → 受控自动修复 🟡/🟢 偏差，逐条 diff 确认
+8. 沉淀      → template-extract        → 从标杆页面提取领域专属模板
 ```
 
-每一步都可以单独触发，也可以按用户意图自动接续。
+> **说明**：每一步都可以单独触发，也可以按用户意图自动接续。
+> - `dict-sync`：首次使用先跑 **pull 模式**（「刷新字典基线」）建立本地基线，再跑 push 模式同步差异。
+> - `code-fix`：只修复 🟡/🟢 偏差；🔴 严重偏差必须人工或 page-codegen 处理。每条修复前强制 diff 预览确认。
 
 ---
 
