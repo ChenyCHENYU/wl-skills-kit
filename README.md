@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.1** — 一条命令将 13 条编码规范、6 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.3** — 一条命令将 13 条编码规范、6 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -65,6 +65,13 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │       └── reports/                      领域基线模板（菜单/字典/权限）
 │   ├── docs/                             组件 API 文档
 │   └── demo/                             领域样例
+│
+├── docs/                                 ★★ 仅仓库可见，不会安装到业务项目 ★★
+│   ├── mcp建议.md                        MCP 进化路线与三层架构建议
+│   ├── input-spec-prototype.md           原型输入规范（面向设计师/产品）
+│   ├── input-spec-detailed-design.md     详设文档输入规范（面向业务分析师）
+│   ├── input-spec-api.md                 API 契约确认规范（面向后端开发者）
+│   └── input-spec-page-spec.md           page-spec JSON 参考手册（面向前端开发者）
 │
 ├── kit-internal/                         ★★ 仅仓库可见，不会安装到业务项目 ★★
 │   ├── README.md                         维护者首页
@@ -240,6 +247,7 @@ npx @agile-team/wl-skills-kit update
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
 - 🤖 多编辑器适配机制：[files/.github/skills/_compat/README.md](files/.github/skills/_compat/README.md)
 - 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)
+- 📝 输入规范（如何提供高精度输入）：[docs/](docs/)
 
 ---
 
