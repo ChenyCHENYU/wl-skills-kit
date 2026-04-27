@@ -23,24 +23,29 @@ description: "Use when: creating system menus for newly generated pages, batch r
 | `parentMenuNameCode`                             | API 自动查询               | AI 调 children 接口获取，无需手填       |
 | **gatewayPath、parentMenuId、sysAppNo、token**   | `env.local.json`           | 每套环境不同，唯一需要手动维护的 4 个值 |
 
-### 配置文件（只需填 4 个字段）
+### 配置文件（统一维护，菜单/字典/权限共用）
 
-`.github/skills/sync/menu-sync/env/env.local.json`（已加入 `.gitignore`，本地维护，不提交）
+优先读取 `.github/skills/sync/env.local.json`（v2.1.5+ 统一配置）：
 
 ```json
 {
   "gatewayPath": "http://网关地址:端口",
-  "parentMenuId": "父级菜单ID",
   "sysAppNo": "应用编码（从已有菜单的sysAppNo字段获取，非明文）",
-  "token": "Bearer Token（不含bearer前缀）"
+  "token": "Bearer Token（不含bearer前缀）",
+  "menu": {
+    "parentMenuId": "父级菜单ID"
+  }
 }
 ```
 
+> 向下兼容：如上述文件不存在，回落读取 `menu-sync/env/env.local.json`（旧版路径）。  
 > 字段说明及获取方式见 `env/guide.md`
+
+menu-sync 读取规则：`parentMenuId` 优先从 `menu.parentMenuId` 读取，回落到根级 `parentMenuId`。
 
 ### 使用步骤
 
-1. **首次**：按 `env/guide.md` 填写 `env.local.json` 的 4 个字段
+1. **首次**：按 `env/guide.md` 填写 `skills/sync/env.local.json` 的字段
 2. **之后**：直接对 AI 说「帮我创建菜单」/「同步菜单」/「补菜单」
 3. AI 自动执行：读 `reports/SYS_MENU_INFO.md` → 读 `env.local.json` → 查父级已有子节点 → 逐条对比去重 → 调 `/system/menu/save` → 输出 created/skipped 结果表
 4. **全程无需手动执行任何命令**

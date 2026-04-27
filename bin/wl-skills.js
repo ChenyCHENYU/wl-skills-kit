@@ -165,7 +165,8 @@ function isReportFile(relPath) {
 
 // 用户本地配置：init/update 遇到已存在不覆盖（含 token / gatewayPath 等敏感信息）
 const USER_LOCAL_CONFIGS = [
-  ".github/skills/sync/menu-sync/env/env.local.json",
+  ".github/skills/sync/env.local.json",               // 统一配置（v2.1.5+，菜单+字典+权限共用）
+  ".github/skills/sync/menu-sync/env/env.local.json",  // 老版兼容
 ];
 function isUserLocalConfig(relPath) {
   return USER_LOCAL_CONFIGS.includes(relPath);
@@ -318,16 +319,21 @@ function runInstall(incremental) {
 
   // ── Step 1.5: .gitignore 安全修补（防止 env.local.json 意外入 git）────────
 
-  const ENV_LOCAL_GITIGNORE_ENTRY =
-    ".github/skills/sync/menu-sync/env/env.local.json";
+  const ENV_LOCAL_GITIGNORE_ENTRIES = [
+    ".github/skills/sync/env.local.json",               // 统一配置（v2.1.5+）
+    ".github/skills/sync/menu-sync/env/env.local.json", // 老版兼容
+  ];
   const gitignorePath = path.join(TARGET_DIR, ".gitignore");
   if (!dryRun && fs.existsSync(gitignorePath)) {
     const giContent = fs.readFileSync(gitignorePath, "utf8");
-    if (!giContent.includes(ENV_LOCAL_GITIGNORE_ENTRY)) {
+    const missing = ENV_LOCAL_GITIGNORE_ENTRIES.filter(
+      (e) => !giContent.includes(e)
+    );
+    if (missing.length > 0) {
       fs.appendFileSync(
         gitignorePath,
         "\n# wl-skills-kit: 本地敏感配置（token / gatewayPath，不入 git）\n" +
-          ENV_LOCAL_GITIGNORE_ENTRY +
+          missing.join("\n") +
           "\n",
       );
       console.log("  ✔ .gitignore 已追加 env.local.json 保护条目");

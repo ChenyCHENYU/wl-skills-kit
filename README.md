@@ -197,11 +197,29 @@ npx @agile-team/wl-skills-kit update
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
-| `dict-sync`        | ⏳ PLANNED | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
+| `dict-sync`        | 🔧 待激活 | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口（API 端点已验证，配置后即用）|
 | `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
 | `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
+
+---
+
+## AGGrid cid 唯一性规则
+
+> 21 个系统共享同一浏览器 origin（localStorage 共用），cid 碰撞会导致列配置互相覆盖。
+
+```typescript
+// ✅ 正确：Date.now().toString(36) — 毫秒级唯一，永不重复，约 9 位 base-36
+cid="mca-lhfge5hc"                    // 表格级：{页面首字母缩写}-{base36时间戳}
+cid: 'mca-customerName'               // 列级：{表格缩写}-{fieldName}
+
+// ❌ 错误：截断十进制后6位（每11.5天循环一次，且不同页面缩写易碰撞）
+cid="mca-745831"
+```
+
+**Pre-flight 中 AI 自动输出**：`✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）`  
+`convention-audit` 遇到旧格式 cid 会标记为 🟡 偏差提示。
 
 ---
 
@@ -297,7 +315,8 @@ npx @agile-team/wl-skills-kit update
 | 命令                     | 保护路径                                               | 说明                       |
 | ------------------------ | --------------------------------------------------- | -------------------------- |
 | `init` / `update`        | `.github/reports/*.md`                              | 已存则跳过，不覆盖累积   |
-| `init` / `update`        | `.github/skills/sync/menu-sync/env/env.local.json`  | 已存则跳过，保护用户配置 |
+| `init` / `update`        | `.github/skills/sync/env.local.json`                | 已存则跳过，保护同步配置（菜单+字典+权限统一） |
+| `init` / `update`        | `.github/skills/sync/menu-sync/env/env.local.json`  | 旧版兼容，已存则跳过     |
 | `clean`（默认）          | `src/components/` + `src/types/`                    | 业务代码必需，永不删除     |
 | `clean --keep-reports`   | + `.github/reports/`                                | 保留菜单/字典/权限基线     |
 
