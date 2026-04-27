@@ -1,6 +1,6 @@
 ---
 inclusion: always
-description: 项目编码规范（13 条标准 + 6 个 Skill 自动调度）
+description: 项目编码规范（13 条标准 + 8 个 Skill 自动调度）
 ---
 
 <!-- Kiro Steering 规则。由 @agile-team/wl-skills-kit 自动生成。-->

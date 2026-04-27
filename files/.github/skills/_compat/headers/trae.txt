@@ -1,5 +1,5 @@
 ---
-description: "项目编码规范（13 条标准 + 6 个 Skill 自动调度，由 wl-skills-kit 自动生成）"
+description: "项目编码规范（13 条标准 + 8 个 Skill 自动调度，由 wl-skills-kit 自动生成）"
 globs: ["**/*.vue", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.scss"]
 alwaysApply: true
 ---

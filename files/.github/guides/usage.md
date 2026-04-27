@@ -48,7 +48,7 @@ AI 会自动识别意图，触发对应的 Skill。
 
 ---
 
-## 6 个 Skill 速览
+## 8 个 Skill 速览
 
 | Skill              | 触发关键词                     | 用途                         |
 | ------------------ | ------------------------------ | ---------------------------- |
@@ -56,8 +56,10 @@ AI 会自动识别意图，触发对应的 Skill。
 | `api-contract`     | 接口约定 / api.md / 字段定义   | 生成接口约定文档             |
 | `page-codegen`     | 生成页面 / 帮我生成            | 生成 4 文件 + 菜单注册       |
 | `menu-sync`        | 创建菜单 / 同步菜单            | 菜单数据同步到后端           |
+| `dict-sync`        | 同步字典 / 创建字典 / 字典审计   | 字典基线同步到后端           |
 | `convention-audit` | 规范审计 / 代码审计            | 13 条规范扫描 + 偏差报告     |
-| `template-extract` | 提取模板 / 抽取模板            | 从现有页面沉淀领域专属模板   |
+| `template-extract` | 提取模板 / 抄取模板            | 从现有页面沉淠领域专属模板   |
+| `code-fix`         | 自动修复 / 整改偏差 / 规范整改   | 受控自动修复审计报告中的偏差 |
 
 完整调度规则见 `.github/skills/_registry.md`。
 
@@ -72,7 +74,7 @@ AI 会自动识别意图，触发对应的 Skill。
 ├── .github/
 │   ├── copilot-instructions.md      AI 主入口
 │   ├── standards/                   13 条模块化规范
-│   ├── skills/                      6 个 Skill + 3 个 PLANNED 草稿
+│   ├── skills/                      8 个 Skill + 1 个 PLANNED 草稿
 │   ├── guides/                      使用指南 + 架构设计
 │   └── reports/                     AI 生成报告（SYS_MENU_INFO 等）
 ├── docs/                            12 个组件 API 文档（jh-* / request 等）
