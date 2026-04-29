@@ -55,7 +55,7 @@ templates/
 
 ### 7. Skill 占位机制
 
-`dict-sync` 和 `code-fix` 已于 v2.1.8 正式激活（✅ 启用）。`permission-sync` 仍为 PLANNED，设计草稿见 `kit-internal/skills/_planned-skills.md`。
+`dict-sync` 和 `code-fix` 已于 v2.1.8 正式激活（✅ 启用）。`permission-sync` 已于 v2.3.6 激活（角色管理 + 角色授权 + 挂动作 + v-permission 闭环），新增 6 个 MCP 工具。当前所有 Skill 均为 ✅ 启用状态。
 
 ---
 

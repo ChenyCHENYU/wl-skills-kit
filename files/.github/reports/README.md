@@ -13,8 +13,8 @@
 | 文件                               | 写入方             | 读取方          | 说明                   |
 | ---------------------------------- | ------------------ | --------------- | ---------------------- |
 | `SYS_MENU_INFO.md`                 | page-codegen       | menu-sync       | 页面生成时追加菜单条目 |
-| `SYS_DICT_INFO.md` [PLANNED]       | dict-collect       | dict-sync       | 字典数据汇总           |
-| `SYS_PERMISSION_INFO.md` [PLANNED] | permission-collect | permission-sync | 权限数据汇总           |
+| `SYS_DICT_INFO.md`                 | dict-collect       | dict-sync       | 字典数据汇总           |
+| `SYS_PERMISSION_INFO.md` [PLANNED] | permission-collect | permission-sync | 权限数据汇总（可选基线，当前 permission-sync 不强依赖） |
 
 **写入规则**：每条数据带生成时间戳；新条目追加到末尾；不删除历史。
 

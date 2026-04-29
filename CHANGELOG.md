@@ -1,5 +1,40 @@
 # Changelog
 
+## [2.3.6] - 2026-04-29
+
+### 🔐 permission-sync Skill 正式激活
+
+新增完整的"角色 → 菜单授权 → 动作按钮 → v-permission"闭环能力。
+
+#### 新增 6 个 MCP 工具
+- `wls_role_query` — 查询角色列表（支持分页）
+- `wls_role_upsert` — 批量新增角色（按 `code` 字段去重）
+- `wls_assignable_menus_query` — 查询全量可授权菜单
+- `wls_role_assign_menus` — 给角色批量分配菜单（**全量覆盖式**，使用前需确认）
+- `wls_action_query` — 查询页面菜单下的动作（type=A）
+- `wls_action_upsert` — 批量新增动作（按 `permission` 字段去重）
+
+#### Skill 工作模式
+- `role-manage` — 角色查询/创建
+- `role-assign` — 角色授权菜单
+- `action-attach` — 挂动作 + 自动改造代码加 `v-permission` 指令
+
+#### 安全约束（强制）
+- 生产环境拒绝直接 push（gatewayPath 含 `prod` / `.com` 时切换导出模式）
+- 角色分配二次确认（Pre-flight 必须列出完整菜单清单）
+- 仅新增不删除（防误删导致大面积失权）
+
+#### 文档
+- `files/.github/skills/sync/permission-sync/SKILL.md` — AI 触发协议
+- `files/.github/skills/sync/permission-sync/USAGE.md` — 团队成员使用示例
+
+#### 配套更新
+- `_registry.md` permission-sync 状态 ⏳ → ✅
+- `kit-internal/skills/_planned-skills.md` 已清空（无草稿状态 Skill）
+- `kit-internal/architecture.md` 决策 7 更新
+- `docs/ai全景分析.md` MCP Tools 表新增 6 个工具，路线图描述更新
+- `README.md` skill 目录与概览表更新
+
 ## [2.3.5] - 2026-04-29
 
 ### 📄 文档与内容修正

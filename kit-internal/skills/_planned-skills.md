@@ -1,26 +1,21 @@
 # PLANNED Skills 设计草稿
 
-> dict-sync 和 code-fix 已于 v2.1.8 正式激活（✅ 启用），本文档已移除其条目。
+> ✅ 截至 v2.3.6，所有原 PLANNED Skill 均已激活：
+>
+> - `dict-sync` — v2.1.8 激活
+> - `code-fix` — v2.1.8 激活
+> - `permission-sync` — v2.3.6 激活（角色管理 + 角色授权 + 挂动作 + v-permission 闭环）
+>
+> 当前无草稿状态的 Skill。新增 PLANNED Skill 时，请参考下方流程。
 
 ---
 
-## permission-sync（权限同步）
+## 新增 PLANNED Skill 的流程
 
-**目标**：将菜单按钮权限码汇总，批量同步到后端权限表。
+参考 `kit-internal/CONTRIBUTING.md` 第三节"添加新 Skill"。简要步骤：
 
-**输入**：`reports/SYS_PERMISSION_INFO.md`
-**输出**：调用后端 `/system/permission/batchImport`
-
-**关键点**：
-
-- 权限码生成规则：`{服务缩写}:{资源名}:{动作}`
-- 与 menu-sync 联动（菜单存在才能挂权限）
-- 数据来源：page-codegen 生成时同步收集
-
-**设计草稿**：`files/.github/skills/sync/permission-sync/SKILL.draft.md`
-
----
-
-## 新增 PLANNED 的流程
-
-参考 `kit-internal/CONTRIBUTING.md` 第三节"添加新 Skill"。
+1. 在 `files/.github/skills/<分类>/<skill-name>/` 创建 `SKILL.draft.md`
+2. frontmatter 中 `status: planned`
+3. 在 `files/.github/skills/_registry.md` 追加一行 `⏳ PLANNED` 路由记录
+4. 在本文件追加该 Skill 的设计要点（数据流 / API / 转正前任务清单）
+5. 设计完成后转正：将 `SKILL.draft.md` 改名为 `SKILL.md`，更新 frontmatter `status: active`，registry 改为 ✅

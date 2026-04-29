@@ -102,7 +102,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 13 条)
 │   │   └── 13-platform-components.md
-│   ├── skills/                           8 个启用 Skill + 1 个 PLANNED 草稿
+│   ├── skills/                           9 个启用 Skill（全部激活）
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -114,7 +114,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── sync/                         数据同步类
 │   │   │   ├── menu-sync/        { SKILL.md, USAGE.md, env/ }
 │   │   │   ├── dict-sync/        { SKILL.md }  已启用
-│   │   │   └── permission-sync/  [PLANNED] SKILL.draft.md  设计中
+│   │   │   └── permission-sync/  { SKILL.md, USAGE.md }  已启用（角色+授权+动作+v-permission）
 │   │   ├── ops/                          运维类
 │   │   │   └── code-fix/         { SKILL.md }  已启用
 │   │   └── domain/                       领域专属（按需创建）
@@ -201,7 +201,7 @@ npx @agile-team/wl-skills-kit update
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
 | `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
-| `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
+| `permission-sync`  | ✅ 启用    | `skills/sync/permission-sync/`           | 角色管理 + 角色授权 + 挂动作 + v-permission |
 | `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。

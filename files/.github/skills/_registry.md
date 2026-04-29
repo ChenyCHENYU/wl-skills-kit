@@ -21,7 +21,7 @@ skills/
 ├── sync/                数据同步类（与后端联动）
 │   ├── menu-sync/
 │   ├── dict-sync/
-│   └── permission-sync/  [PLANNED]
+│   └── permission-sync/  ✅ v2.3.6 激活
 │
 ├── ops/                 运维/构建类
 │   └── code-fix/
@@ -47,7 +47,7 @@ skills/
 | template-extract | ✅ 启用    | `skills/core/template-extract/SKILL.md`      | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                  |
 | menu-sync        | ✅ 启用    | `skills/sync/menu-sync/SKILL.md`             | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单                                    |
 | dict-sync        | ✅ 启用    | `skills/sync/dict-sync/SKILL.md`             | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                           |
-| permission-sync  | ⏳ PLANNED | `skills/sync/permission-sync/SKILL.draft.md` | （草稿，不参与调度）                                                       |
+| permission-sync  | ✅ 启用    | `skills/sync/permission-sync/SKILL.md`       | 创建角色 / 角色管理 / 角色授权 / 给角色分配菜单 / 挂动作 / 添加动作按钮 / 同步权限 / 权限码注册 |
 | code-fix         | ✅ 启用    | `skills/ops/code-fix/SKILL.md`               | 自动修复 / 整改偏差 / 修复报告 / 规范整改 / 修复偏差 / code fix               |
 
 ---
