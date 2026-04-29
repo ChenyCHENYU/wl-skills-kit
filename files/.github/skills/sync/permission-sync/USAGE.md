@@ -38,17 +38,23 @@ AI ： 调用 wls_role_assign_menus
      ✅ 角色授权成功
 ```
 
-### 3. 给页面挂动作 + 加 v-permission
+### 3. 给页面挂动作 + 加权限字段（数据驱动，无需改模板）
 
 ```
 用户：给『客户档案』页面加上 新增/编辑/删除 三个按钮
 AI ： [触发 permission-sync]
      [Pre-flight] 模式 = action-attach
      1. wls_action_query 查询已有动作 → 无
-     2. wls_action_upsert 创建 customer_add / customer_edit / customer_remove
-     3. 改造 src/views/customer/list/index.vue toolbar，加 v-permission
+     2. wls_action_upsert 注册到后端：customer_add / customer_edit / customer_remove
+     3. 在 src/views/customer/list/data.ts 找到工具栏按钮配置，
+        给每个对应按钮的 ActionButtonDesc 添加 permission 字段：
+        { name: 'add', label: '新增', permission: ['customer_add'], ... }
      ✅ 完成（已写报告 reports/PERMISSION_SYNC_20260429.md）
 ```
+
+> **为什么不用 v-permission 指令？**  
+> 本项目 `BaseToolbar` 内部读取 `ActionButtonDesc.permission` 字段做权限控制，  
+> 只需在 `data.ts` 的按钮配置对象里加字段，不需要改 `.vue` 模板，也不依赖全局指令注册。
 
 ---
 
@@ -60,13 +66,21 @@ AI ： [触发 permission-sync]
 
 **正确做法**：先查角色现有菜单 → 合并新菜单 → 一起传。
 
-### Q2：v-permission 指令在哪里实现？
+### Q2：权限码写在 `data.ts` 哪里？不需要改模板吗？
 
-通常由项目基座（`@jhlc/common-core` 或登录 store）注册全局指令。检查方式：
-```bash
-grep -r "v-permission\|app.directive('permission'" src/
+对，**不需要改模板（`.vue` 文件）**。`BaseToolbar` 从 `ActionButtonDesc` 的 `permission` 字段读取权限码，在渲染时内部做拦截，标准结构如下：
+
+```ts
+// data.ts
+{
+  name: 'edit',
+  label: '编辑',
+  permission: ['qmmcProcessCodeMain_update'],  // ← 就加这一行
+  onClick: (row: any) => modalRef.value?.edit(row.id)
+}
 ```
-如未找到，请联系架构组确认。
+
+`permission` 是数组，支持多权限码 OR 逻辑（有其中任意一个权限码即显示按钮）。
 
 ### Q3：权限码用短形式还是长形式？
 

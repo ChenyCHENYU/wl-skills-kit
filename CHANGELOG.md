@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.3.7] - 2026-04-29
+
+### 🔐 permission-sync 闭环完善（数据驱动权限）
+
+- **修正权限落地方式**：`action-attach` 模式改为在 `data.ts` 的 `ActionButtonDesc` 上加 `permission: []` 字段，而非错误的 `v-permission` 指令（`BaseToolbar` 内部已做权限拦截）
+- **简化角色授权备份说明**：平台侧已防重复分配；AI 内部做"查旧 menuIds + 合并"，不再建议额外备份
+- **联动说明更新**：`page-codegen` 预留 `permission: []` 占位；`convention-audit` 改为审计 `data.ts` 按钮是否有非空 `permission` 字段
+- `USAGE.md` 补充"为什么不用 v-permission 指令"说明 + Q2 权限码写法示例
+
 ## [2.3.6] - 2026-04-29
 
 ### 🔐 permission-sync Skill 正式激活
