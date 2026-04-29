@@ -23,7 +23,7 @@ npx @agile-team/wl-skills-kit            # 安装 AI 体系
 ```
 原型/口述需求
     │
-    ▼ [Skill: prototype-scan]
+    ▼ [Skill: prototype-scan]          ← 可跳过（直接口述需求时）
 《页面清单》(reports/PROTOTYPE_SCAN_*.md)
     │
     ▼ [Skill: api-contract]
@@ -32,12 +32,17 @@ api.md（页面级前后端契约）
     ▼ [Skill: page-codegen]
 data.ts + index.vue + index.scss（13 条 standards 自动满足）
     │
-    ▼ [Skill: convention-audit]
+    ▼ [Skill: convention-audit]        ← 也可对存量代码单独触发
 reports/AUDIT_AI_*.md + AUDIT_HUMAN_*.md
     │
-    ▼ [Skill: menu-sync]
-线上菜单注册完毕，UI 可访问
+    ├─▶ [Skill: menu-sync]             ← 可单独运行
+    │   线上菜单注册完毕，UI 可访问
+    │
+    └─▶ [Skill: dict-sync]             ← 可单独运行，与 menu-sync 互不依赖
+        线上字典同步完毕
 ```
+
+> **灵活组合原则**：每个 Skill 都可以单独触发，也可以串联使用。哪一步结果不满意，重跑哪步即可，不需要从头来过。
 
 ---
 
@@ -138,7 +143,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ```
 
 > **业务项目方准则**：
-> - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他 8 个根配置文件是它的拷贝 + 各自特化 frontmatter**
+> - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他 9 个根配置文件是它的拷贝 + 各自特化 frontmatter**
 > - 修改规范 → **不要**改业务项目里的副本，**升级 wl-skills-kit 包 + `update`** 才不会被覆盖
 > - reports/ 里的内容是团队累积数据，`update` 不会覆盖，可放心 commit
 
@@ -195,9 +200,9 @@ npx @agile-team/wl-skills-kit update
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
-| `dict-sync`        | ⏳ PLANNED | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
+| `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
 | `permission-sync`  | ⏳ PLANNED | `skills/sync/permission-sync/`           | 权限基线 ↔ 后端接口          |
-| `code-fix`         | ⏳ PLANNED | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
+| `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
 
@@ -218,6 +223,7 @@ npx @agile-team/wl-skills-kit update
 | Kiro           | `.kiro/steering/conventions.md`     | inclusion: always       |
 | Trae           | `.trae/rules/conventions.md`        | description+globs+alwaysApply |
 | 通用 Agent     | `AGENTS.md`                         | -                       |
+| Qoder          | `.qoder/rules/conventions.md`       | description             |
 
 **解耦验证**：在 `editors.json` 中将任意编辑器 `enabled: false`，重新 `update` —— 该编辑器配置不再生成，其他编辑器**完全不受影响**。
 

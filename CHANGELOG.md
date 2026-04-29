@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.3.5] - 2026-04-29
+
+### 📄 文档与内容修正
+
+- 新增 `docs/ai全景分析.md`：完整梳理 L0-L7 AI 辅助开发能力谱系，含各层深度解析、架构优势、升级路线图
+- L7 自演化体系：添加飞轮模型、落地所需条件、技术路径（终极愿景，条件成熟后规划）
+- `kit-internal/architecture.md` 修正两处过期描述：编辑器数量 8→10，dict-sync/code-fix 状态更新为已激活
+- `docs/mcp建议.md` 归档至 `kit-internal/history/mcp建议-archived.md`
+
 ## [2.3.4] - 2026-04-28
 
 ### 🔌 全编辑器 MCP 支持 + Qoder 新增
