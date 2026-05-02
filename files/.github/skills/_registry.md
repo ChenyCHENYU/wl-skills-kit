@@ -56,7 +56,8 @@ skills/
 
 1. AI 收到用户消息 → 匹配上表 `触发关键词` → `read_file` 加载 `路径` 列对应的 SKILL.md
 2. SKILL.md 中标注的 `必读 standards` 按 `standards/index.md` 任务类型映射加载
-3. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制约定式输出）
+3. 如用户表达连续交付/智能体/全流程意图，同时读取 `_pipeline.md` 获取 Skill I/O 与 `next_suggest`
+4. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制约定式输出）
 
 ---
 
@@ -64,7 +65,7 @@ skills/
 
 当用户消息同时匹配多个 Skill 时（如"扫描原型并生成页面"）：
 
-1. 优先识别**完整流水线意图**：触发 `prototype-scan` → 串接 `api-contract` → 串接 `page-codegen` → 串接 `menu-sync`
+1. 优先识别**完整流水线意图**：读取 `_pipeline.md`，按 `prototype-scan` → `api-contract` → `page-codegen` → `convention-audit` → sync/ops 的顺序建议下一步
 2. 否则按**最具体的触发词**匹配单个 Skill
 3. 用户明确指定时（如"只扫描，不生成"），按用户指示
 
@@ -78,4 +79,5 @@ skills/
 | --------------- | -------------- | ------------------------------------------ |
 | `SKILL.md`      | AI 编辑器/模型 | 触发规则、流程步骤、Pre-flight 声明        |
 | `USAGE.md`      | 团队成员       | 示例对话、踩坑、FAQ、快速上手              |
+| `_pipeline.md`  | AI 编辑器/模型 + 团队成员 | Skill 间 I/O 契约、next_suggest、Agent Pipeline 调度协议 |
 | `*.MAINTAIN.md` | kit 维护者     | 维护要点（在 `kit-internal/skills/` 目录） |

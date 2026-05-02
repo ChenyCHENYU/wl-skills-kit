@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.3.8** — 一条命令将 13 条编码规范、8 个 AI Skill、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.4.0** — 一条命令将 13 条编码规范、9 个 AI Skill、14 个 MCP Tool、组件文档、领域样例导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -59,7 +59,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── package.json                          name: @agile-team/wl-skills-kit
 │
 ├── bin/
-│   └── wl-skills.js                      CLI 实现（init / update / clean）
+│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / export）
 │
 ├── files/                                ★★★ 真正会被打包并复制到业务项目的内容 ★★★
 │   └── .github/
@@ -158,6 +158,18 @@ npx @agile-team/wl-skills-kit
 # 增量更新（仅覆盖有变化的文件，自动保护 reports/）
 npx @agile-team/wl-skills-kit update
 
+# 环境预检（Node / 工具链 / MCP 配置 / manifest）
+npx @agile-team/wl-skills-kit check
+
+# 对比已安装文件与当前 kit 版本差异
+npx @agile-team/wl-skills-kit diff
+
+# 静态检查 src/views 页面文件完整性
+npx @agile-team/wl-skills-kit validate
+
+# 导出菜单/字典/权限基线为 xlsx
+npx @agile-team/wl-skills-kit export
+
 # 构建前清理（保留 src/components + src/types）
 npx @agile-team/wl-skills-kit clean
 
@@ -169,6 +181,19 @@ npx @agile-team/wl-skills-kit update --dry-run
 ```
 
 > 全局安装后也可直接用 `wl-skills` 命令（如 `wl-skills update`）。
+
+---
+
+## MCP Tools 概览
+
+| 类别 | Tools |
+| --- | --- |
+| 菜单 | `wls_menu_query` / `wls_menu_upsert` |
+| 字典 | `wls_dict_query` / `wls_dict_upsert` |
+| 权限 | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` |
+| 项目感知 | `wls_code_scan` / `wls_route_check` / `wls_git_log_extract` / `wls_audit_report_push` |
+
+`wls_code_scan`、`wls_route_check`、`wls_git_log_extract` 不依赖后端 token，可用于 Agent Pipeline 前置感知项目结构。
 
 ---
 

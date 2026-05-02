@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.3.8
+ * wl-skills-kit CLI v2.4.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
  *   update    增量更新（仅覆盖有变化的文件，展示 diff 摘要）
  *   clean     构建清理（移除 AI 指令/文档/样例，保留组件和类型）
+ *   check     环境预检（工具链 / MCP 配置 / manifest）
+ *   diff      对比已安装文件与当前 kit 版本
+ *   validate  静态检查 src/views 页面文件完整性
+ *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
  */
@@ -38,6 +42,10 @@ if (showHelp) {
     init       全量安装模板文件到当前项目（默认）
     update     增量更新（仅覆盖有变化的文件，展示变更摘要）
     clean      构建清理（移除开发期 AI 文件，保留 src/components + src/types）
+    check      环境预检（Node / 工具链 / MCP 配置 / manifest）
+    diff       对比已安装文件与当前 kit 版本的差异
+    validate   静态检查 src/views 页面文件完整性
+    export     导出 reports/SYS_* 数据为 xlsx
 
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
@@ -49,6 +57,10 @@ if (showHelp) {
     npx @agile-team/wl-skills-kit                       安装全量文件
     npx @agile-team/wl-skills-kit update                仅更新有变化的文件
     npx @agile-team/wl-skills-kit update --force        强制更新（忽略同版本检测）
+    npx @agile-team/wl-skills-kit check                 检查本地环境
+    npx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
+    npx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
+    npx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
     npx @agile-team/wl-skills-kit clean                 清理开发期文件
     npx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
     npx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
@@ -519,12 +531,265 @@ function runClean() {
   console.log("");
 }
 
+function expectedManifestFiles() {
+  const expected = {};
+  const files = walkDir(FILES_DIR, FILES_DIR);
+  for (const relPath of files) {
+    expected[relPath] = fileMd5(path.join(FILES_DIR, relPath));
+  }
+  const instructionsSrc = path.join(FILES_DIR, ".github", "copilot-instructions.md");
+  if (fs.existsSync(instructionsSrc)) {
+    const raw = fs.readFileSync(instructionsSrc, "utf8");
+    for (const [ecPath, ecContent] of getEditorConfigs(raw)) {
+      expected[ecPath] = contentMd5(ecContent);
+    }
+  }
+  return expected;
+}
+
+function statusIcon(ok) {
+  return ok ? "✔" : "✖";
+}
+
+function runCheck() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [check]");
+  console.log("  目标目录: " + TARGET_DIR);
+  console.log("");
+
+  const checks = [];
+  function add(name, ok, detail) {
+    checks.push({ name, ok, detail });
+  }
+
+  const nodeMajor = Number(process.versions.node.split(".")[0]);
+  add("Node 版本", nodeMajor >= 16, process.versions.node + "（要求 >=16）");
+
+  const toolFiles = [".prettierrc.js", "eslint.config.ts", ".husky"];
+  for (const rel of toolFiles) {
+    add(rel, fs.existsSync(path.join(TARGET_DIR, rel)), fs.existsSync(path.join(TARGET_DIR, rel)) ? "存在" : "缺失");
+  }
+
+  const manifest = readManifest();
+  add(MANIFEST_NAME, Boolean(manifest), manifest ? "已安装 v" + manifest.version : "未安装");
+
+  const envPath = path.join(TARGET_DIR, ".github", "skills", "sync", "env.local.json");
+  let envOk = false;
+  let envDetail = "缺失";
+  if (fs.existsSync(envPath)) {
+    try {
+      const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
+      const gatewayOk = env.gatewayPath && !String(env.gatewayPath).includes("你的网关");
+      const tokenOk = env.token && !String(env.token).includes("Bearer Token");
+      envOk = Boolean(gatewayOk && tokenOk);
+      envDetail = envOk ? "已填写 gatewayPath/token" : "存在但仍含占位值";
+    } catch (e) {
+      envDetail = "JSON 解析失败：" + e.message;
+    }
+  }
+  add("MCP env.local.json", envOk, envDetail);
+
+  const mcpServer = path.join(TARGET_DIR, "node_modules", "@agile-team", "wl-skills-kit", "mcp", "server.js");
+  add("MCP server", fs.existsSync(mcpServer) || fs.existsSync(path.join(__dirname, "..", "mcp", "server.js")), "server.js 可发现");
+
+  for (const item of checks) {
+    console.log("  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail);
+  }
+  const failed = checks.filter((item) => !item.ok).length;
+  console.log("");
+  console.log(failed === 0 ? "  ✔ 环境预检通过" : "  ⚠ 环境预检完成，发现 " + failed + " 项需处理");
+  console.log("");
+  if (failed > 0) process.exitCode = 1;
+}
+
+function runDiff() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [diff]");
+  console.log("  目标目录: " + TARGET_DIR);
+  console.log("");
+
+  const manifest = readManifest();
+  const expected = expectedManifestFiles();
+  const current = manifest && manifest.files ? manifest.files : {};
+  const added = [];
+  const changed = [];
+  const removed = [];
+  const same = [];
+
+  for (const relPath of Object.keys(expected).sort()) {
+    const target = path.join(TARGET_DIR, relPath);
+    if (!fs.existsSync(target)) {
+      added.push(relPath);
+    } else if (fileMd5(target) !== expected[relPath]) {
+      changed.push(relPath);
+    } else {
+      same.push(relPath);
+    }
+  }
+
+  for (const relPath of Object.keys(current).sort()) {
+    if (!expected[relPath] && fs.existsSync(path.join(TARGET_DIR, relPath))) {
+      removed.push(relPath);
+    }
+  }
+
+  console.log("  当前 manifest: " + (manifest ? "v" + manifest.version : "未找到"));
+  console.log("  最新 kit: v" + PKG.version);
+  console.log("  新增/缺失: " + added.length);
+  console.log("  内容不同: " + changed.length);
+  console.log("  旧版残留: " + removed.length);
+  console.log("  相同: " + same.length);
+  console.log("");
+
+  function printGroup(title, list) {
+    if (list.length === 0) return;
+    console.log("  " + title + "：");
+    for (const relPath of list.slice(0, 80)) console.log("    - " + relPath);
+    if (list.length > 80) console.log("    ... 还有 " + (list.length - 80) + " 项");
+    console.log("");
+  }
+
+  printGroup("新增/缺失（update 会写入）", added);
+  printGroup("内容不同（update 会覆盖，reports 除外）", changed);
+  printGroup("旧版残留（update 会迁移清理）", removed);
+}
+
+function scanPageDirs(scanRel) {
+  const scanDir = path.join(TARGET_DIR, scanRel || "src/views");
+  if (!fs.existsSync(scanDir)) return [];
+  const files = walkDir(scanDir, TARGET_DIR);
+  const dirs = new Map();
+  for (const rel of files) {
+    const dir = path.dirname(rel).replace(/\\/g, "/");
+    const name = path.basename(rel);
+    if (!dirs.has(dir)) dirs.set(dir, new Set());
+    dirs.get(dir).add(name);
+  }
+  const pages = [];
+  for (const [dir, names] of dirs.entries()) {
+    if (!names.has("index.vue")) continue;
+    let apiConfigCount = 0;
+    const dataPath = path.join(TARGET_DIR, dir, "data.ts");
+    if (fs.existsSync(dataPath)) {
+      apiConfigCount = (fs.readFileSync(dataPath, "utf8").match(/API_CONFIG/g) || []).length;
+    }
+    pages.push({
+      dir,
+      hasDataTs: names.has("data.ts"),
+      hasIndexScss: names.has("index.scss"),
+      hasApiMd: names.has("api.md"),
+      apiConfigCount,
+    });
+  }
+  return pages.sort((a, b) => a.dir.localeCompare(b.dir));
+}
+
+function runValidate() {
+  const scanPath = args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
+  const pages = scanPageDirs(scanPath);
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [validate]");
+  console.log("  扫描目录: " + scanPath);
+  console.log("");
+
+  if (pages.length === 0) {
+    console.log("  ⚠ 未发现包含 index.vue 的页面目录");
+    console.log("");
+    process.exitCode = 1;
+    return;
+  }
+
+  const issues = [];
+  for (const page of pages) {
+    if (!page.hasDataTs) issues.push({ level: "warn", dir: page.dir, text: "缺 data.ts（需结合页面复杂度判断）" });
+    if (!page.hasIndexScss) issues.push({ level: "warn", dir: page.dir, text: "缺 index.scss" });
+    if (page.apiConfigCount > 0 && !page.hasApiMd) issues.push({ level: "warn", dir: page.dir, text: "检测到 API_CONFIG 但缺 api.md" });
+  }
+
+  console.log("  页面目录: " + pages.length);
+  console.log("  提示项: " + issues.length);
+  console.log("");
+  for (const issue of issues) {
+    console.log("  ⚠ " + issue.dir + " — " + issue.text);
+  }
+  if (issues.length === 0) console.log("  ✔ 页面文件完整性检查通过");
+  console.log("");
+  if (issues.length > 0) process.exitCode = 1;
+}
+
+function parseMarkdownTable(content) {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => /^\|.*\|$/.test(line) && !/^\|\s*-+/.test(line))
+    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+}
+
+function runExport() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [export]");
+  console.log("  目标目录: " + TARGET_DIR);
+  console.log("");
+
+  const reportDir = path.join(TARGET_DIR, ".github", "reports");
+  const files = [
+    ["菜单", "SYS_MENU_INFO.md"],
+    ["字典", "SYS_DICT_INFO.md"],
+    ["权限", "SYS_PERMISSION_INFO.md"],
+  ];
+  const sheets = [];
+  let addedSheets = 0;
+  for (const [sheetName, fileName] of files) {
+    const full = path.join(reportDir, fileName);
+    if (!fs.existsSync(full)) continue;
+    const content = fs.readFileSync(full, "utf8");
+    let rows = parseMarkdownTable(content);
+    if (rows.length === 0) rows = content.split(/\r?\n/).filter(Boolean).map((line) => [line]);
+    sheets.push([sheetName, rows]);
+    addedSheets++;
+  }
+
+  if (addedSheets === 0) {
+    console.log("  ⚠ 未找到可导出的 SYS_* 报告");
+    console.log("");
+    process.exitCode = 1;
+    return;
+  }
+
+  const outDir = path.join(reportDir, "exports");
+  const outFile = path.join(outDir, "wl-skills-sys-export.xlsx");
+  if (dryRun) {
+    console.log("  将导出: " + outFile);
+    console.log("  sheet 数: " + addedSheets);
+  } else {
+    let XLSX;
+    try {
+      XLSX = require("xlsx");
+    } catch (e) {
+      console.error("  ✖ 未找到 xlsx 依赖，请重新安装最新 @agile-team/wl-skills-kit");
+      process.exit(1);
+    }
+    const wb = XLSX.utils.book_new();
+    for (const [sheetName, rows] of sheets) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+    }
+    fs.mkdirSync(outDir, { recursive: true });
+    XLSX.writeFile(wb, outFile);
+    console.log("  ✔ 已导出: " + outFile);
+    console.log("  sheet 数: " + addedSheets);
+  }
+  console.log("");
+}
+
 // ─── 主路由 ─────────────────────────────────────────────────────────────
 
 switch (command) {
-  case "init":   runInstall(false); break;
-  case "update": runInstall(true);  break;
-  case "clean":  runClean();        break;
+  case "init":     runInstall(false); break;
+  case "update":   runInstall(true);  break;
+  case "clean":    runClean();        break;
+  case "check":    runCheck();        break;
+  case "diff":     runDiff();         break;
+  case "validate": runValidate();     break;
+  case "export":   runExport();       break;
   default:
     console.error('  ✖ 未知命令: "' + command + '"，请使用 --help 查看可用命令');
     process.exit(1);

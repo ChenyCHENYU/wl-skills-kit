@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.4.0] - 2026-05-02
+
+### 🚀 Agent Pipeline + MCP 项目感知 + CLI 质量工具
+
+#### Agent Pipeline
+
+- 新增 `.github/skills/_pipeline.md`
+  - 定义 Skill 间 `input_from` / `output_file` / `next_suggest`
+  - 明确 Agent 完成摘要和下一步建议格式
+  - 保持建议式串联，涉及写文件/调接口/修复代码/推送通知仍需人工确认
+
+#### MCP Tools 扩展
+
+- 新增 `wls_code_scan`
+  - 扫描 `src/views` 页面目录
+  - 输出 `index.vue` / `data.ts` / `index.scss` / `api.md` 完整性和 `API_CONFIG` 概览
+- 新增 `wls_route_check`
+  - 检查页面目录是否在路由文件中可发现
+  - 支持默认探测 `vite/plugins/shared/pages.ts` 等常见路由文件
+- 新增 `wls_git_log_extract`
+  - 提取最近 N 条提交摘要
+  - 支持 convention-audit Git 规范检查和后续 changelog-gen
+- 新增 `wls_audit_report_push`
+  - 支持将最新审计报告推送到飞书 webhook
+  - 未配置 `feishu_webhook` 时静默跳过，不阻断流程
+
+#### CLI 扩展
+
+- 新增 `wl-skills check`
+  - 检查 Node 版本、工具链文件、manifest、MCP env 配置、MCP server 可发现性
+- 新增 `wl-skills diff`
+  - 对比业务项目已安装文件与当前 kit 版本差异
+  - 输出新增/缺失、内容不同、旧版残留统计
+- 新增 `wl-skills validate`
+  - 静态扫描 `src/views` 页面文件完整性
+  - 检测缺 `data.ts` / `index.scss` / 有 `API_CONFIG` 但缺 `api.md` 等提示项
+- 新增 `wl-skills export`
+  - 将 `SYS_MENU_INFO.md` / `SYS_DICT_INFO.md` / `SYS_PERMISSION_INFO.md` 导出为 xlsx
+  - `xlsx` 调整为运行依赖，保证 npx 安装后可直接使用
+
+#### 文档更新
+
+- 新增 `docs/全盘分析与智能体搭建指南.md`
+  - 重写当前能力盘点
+  - 补充 L5 Agent Pipeline 搭建步骤
+  - 明确 sale/produce 领域 Skill 暂不进入本轮扩展
+- README 更新 9 个 Skill、14 个 MCP Tool、CLI 新命令说明
+
 ## [2.3.8] - 2026-05-02
 
 ### 📋 convention-audit v2 + 规范场景化 + 安装去重

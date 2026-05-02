@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.3.8",
-  "description": "AI Skill 模板包 v2.3.8 — 13 条编码规范 + 8 个 AI Skill，一条命令导入 Vue 3 项目",
+  "version": "2.4.0",
+  "description": "AI Skill 模板包 v2.4.0 — 13 条编码规范 + 9 个 AI Skill + 14 个 MCP Tool，一条命令导入 Vue 3 项目",
   "main": "./bin/wl-skills.js",
   "bin": {
     "wl-skills": "bin/wl-skills.js"
@@ -10,6 +10,7 @@
     "bin/",
     "files/",
     "mcp/",
+    "docs/",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -34,7 +35,7 @@
   "engines": {
     "node": ">=16.0.0"
   },
-  "devDependencies": {
+  "dependencies": {
     "xlsx": "^0.18.5"
   }
 }

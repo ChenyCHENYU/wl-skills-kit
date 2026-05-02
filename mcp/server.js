@@ -16,6 +16,10 @@
  *   wls_role_assign_menus         给角色批量分配菜单权限
  *   wls_action_query              查询页面菜单下的动作（type=A）
  *   wls_action_upsert             批量新增动作（按 permission 去重）
+ *   wls_code_scan                 扫描页面目录与文件完整性
+ *   wls_route_check               检查页面目录在路由文件中的可发现性
+ *   wls_git_log_extract           提取最近提交摘要
+ *   wls_audit_report_push         推送最新审计报告（可选飞书 webhook）
  *
  * 启动方式（由 .cursor/mcp.json 自动注入）：
  *   node node_modules/@agile-team/wl-skills-kit/mcp/server.js
@@ -33,6 +37,12 @@ const {
   handleActionQuery,
   handleActionUpsert,
 } = require('./tools/permissionSync')
+const {
+  handleCodeScan,
+  handleRouteCheck,
+  handleGitLogExtract,
+  handleAuditReportPush,
+} = require('./tools/projectTools')
 
 const PKG = require('../package.json')
 
@@ -204,6 +214,57 @@ const TOOLS = [
       required: ['parentId', 'items'],
     },
   },
+  {
+    name: 'wls_code_scan',
+    description:
+      '扫描项目页面目录，返回 index.vue/data.ts/index.scss/api.md 完整性与 API_CONFIG 概览。' +
+      '默认扫描 src/views，可传 path 指定目录。适用于 convention-audit / Agent Pipeline 前置感知项目结构。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '相对项目根目录的扫描路径，默认 src/views' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'wls_route_check',
+    description:
+      '检查 src/views 页面目录是否能在路由文件中被发现。默认查找 vite/plugins/shared/pages.ts 等常见路由文件，' +
+      '可传 path 和 routeFile 定制。用于 page-codegen/menu-sync 后闭环验证。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: '页面扫描路径，默认 src/views' },
+        routeFile: { type: 'string', description: '路由文件路径，默认自动探测' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'wls_git_log_extract',
+    description:
+      '提取最近 N 次 git commit 摘要，用于 convention-audit 的 Git 规范检查或 changelog-gen 的数据源。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        n: { type: 'number', description: '提取数量，默认 20，最大 100' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'wls_audit_report_push',
+    description:
+      '将最新审计报告推送到飞书机器人 webhook。未配置 env.local.json 的 feishu_webhook 时静默跳过，不影响其他流程。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        reportPath: { type: 'string', description: '审计报告路径，不传则自动选择 .github/reports 下最新 AUDIT_*.md 或规范审查报告.md' },
+      },
+      required: [],
+    },
+  },
 ]
 
 // ─── JSON-RPC 协议层 ────────────────────────────────────────────────────
@@ -224,12 +285,20 @@ function sendError(id, code, message) {
 
 async function dispatchTool(id, toolName, toolArgs) {
   let config
-  try {
-    config = loadConfig()
-  } catch (e) {
-    // 配置加载失败：以文本形式返回给 AI（不是 JSON-RPC error，AI 能读）
-    sendResult(id, { content: [{ type: 'text', text: `❌ 配置加载失败: ${e.message}` }], isError: true })
-    return
+  const needsBackendConfig = ![
+    'wls_code_scan',
+    'wls_route_check',
+    'wls_git_log_extract',
+    'wls_audit_report_push',
+  ].includes(toolName)
+  if (needsBackendConfig) {
+    try {
+      config = loadConfig()
+    } catch (e) {
+      // 配置加载失败：以文本形式返回给 AI（不是 JSON-RPC error，AI 能读）
+      sendResult(id, { content: [{ type: 'text', text: `❌ 配置加载失败: ${e.message}` }], isError: true })
+      return
+    }
   }
 
   try {
@@ -264,6 +333,18 @@ async function dispatchTool(id, toolName, toolArgs) {
         break
       case 'wls_action_upsert':
         text = await handleActionUpsert(toolArgs, config)
+        break
+      case 'wls_code_scan':
+        text = await handleCodeScan(toolArgs)
+        break
+      case 'wls_route_check':
+        text = await handleRouteCheck(toolArgs)
+        break
+      case 'wls_git_log_extract':
+        text = await handleGitLogExtract(toolArgs)
+        break
+      case 'wls_audit_report_push':
+        text = await handleAuditReportPush(toolArgs)
         break
       default:
         sendError(id, -32601, `未知工具: ${toolName}`)

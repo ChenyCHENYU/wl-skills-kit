@@ -29,7 +29,8 @@ const ROOT  = path.resolve(__dirname, "..");
 const today = new Date().toISOString().slice(0, 10);
 
 // ── Skill 数量（✅ 启用的技能总数，激活新 Skill 时同步更新这里）─────────────
-const SKILL_COUNT = 8;
+const SKILL_COUNT = 9;
+const MCP_TOOL_COUNT = 14;
 // ──────────────────────────────────────────────────────────────────────────────
 
 const SKILL_DESC_PATTERN = /13 条标准 \+ \d+ 个 Skill 自动调度/g;
@@ -37,43 +38,43 @@ const SKILL_DESC_REPLACE = `13 条标准 + ${SKILL_COUNT} 个 Skill 自动调度
 
 const updates = [
   {
-    file   : "README.md",
-    regex  : /AI Skill 模板包 v[\d.]+/g,
+    file: "README.md",
+    regex: /AI Skill 模板包 v[\d.]+/g,
     replace: `AI Skill 模板包 v${version}`,
   },
   {
-    file   : "README.md",
-    regex  : /一条命令将 13 条编码规范、\d+ 个 AI Skill/g,
+    file: "README.md",
+    regex: /一条命令将 13 条编码规范、\d+ 个 AI Skill/g,
     replace: `一条命令将 13 条编码规范、${SKILL_COUNT} 个 AI Skill`,
   },
   {
-    file   : "files/.github/guides/architecture.md",
-    regex  : /\*\*当前版本\*\*：v[\d.]+（[^）]+）/,
+    file: "files/.github/guides/architecture.md",
+    regex: /\*\*当前版本\*\*：v[\d.]+（[^）]+）/,
     replace: `**当前版本**：v${version}（${today}）`,
   },
   {
-    file   : "bin/wl-skills.js",
-    regex  : /wl-skills-kit CLI v[\d.]+/,
+    file: "bin/wl-skills.js",
+    regex: /wl-skills-kit CLI v[\d.]+/,
     replace: `wl-skills-kit CLI v${version}`,
   },
   {
-    file   : "package.json",
-    regex  : /"description": ".*?"/,
-    replace: `"description": "AI Skill 模板包 v${version} — 13 条编码规范 + ${SKILL_COUNT} 个 AI Skill，一条命令导入 Vue 3 项目"`,
+    file: "package.json",
+    regex: /"description": ".*?"/,
+    replace: `"description": "AI Skill 模板包 v${version} — 13 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目"`,
   },
   {
-    file   : "files/.github/skills/_compat/headers/cursor-mdc.txt",
-    regex  : SKILL_DESC_PATTERN,
+    file: "files/.github/skills/_compat/headers/cursor-mdc.txt",
+    regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },
   {
-    file   : "files/.github/skills/_compat/headers/trae.txt",
-    regex  : SKILL_DESC_PATTERN,
+    file: "files/.github/skills/_compat/headers/trae.txt",
+    regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },
   {
-    file   : "files/.github/skills/_compat/headers/kiro.txt",
-    regex  : SKILL_DESC_PATTERN,
+    file: "files/.github/skills/_compat/headers/kiro.txt",
+    regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },
 ];
