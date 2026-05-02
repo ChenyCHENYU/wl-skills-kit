@@ -39,7 +39,7 @@ description: "Use when: extracting domain-specific page templates from existing 
 "提取模板，目标页：src/views/produce/sjgl/mmwr-rolling-management/"
 ```
 
-### 步骤 2：AI 读取目标页 4 文件
+### 步骤 2：AI 读取目标页文件
 
 ```
 ✅ 读取 {target}/index.vue

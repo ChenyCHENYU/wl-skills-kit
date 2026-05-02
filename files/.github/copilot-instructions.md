@@ -13,7 +13,7 @@
 - 页面注册：`vite/plugins/shared/pages.ts` 通过 `gProd()` / `gSale()` 声明
 - 菜单路由配置：后端菜单表是唯一数据源。pages.ts 注册组件后，需在系统管理后台 → 菜单管理 → 新增菜单。批量新增页面时可用后端 batchImport 接口，详见 `.github/skills/sync/menu-sync/SKILL.md`
 
-## 页面标准结构（4 文件）
+## 页面标准结构（三文件分离 + 接口契约）
 
 ```
 src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
@@ -231,12 +231,12 @@ onMounted(() => select());
 | -------------------- | -------- | --------------------------------------- |
 | prototype-scan       | ✅ 启用  | 原型/详设 → page-spec JSON              |
 | api-contract         | ✅ 启用  | 生成 api.md 接口约定                    |
-| page-codegen         | ✅ 启用  | 4 文件 + 模板调度 + 菜单追加            |
+| page-codegen         | ✅ 启用  | 页面骨架 + 模板调度 + 菜单追加            |
 | menu-sync            | ✅ 启用  | reports/SYS_MENU_INFO → 后端菜单接口    |
 | convention-audit     | ✅ 启用  | 13 条规范扫描 + 偏差报告 + 提取建议     |
 | template-extract     | ✅ 启用  | 现有页面 → 领域模板沉淀                 |
 | dict-sync            | ✅ 启用   | 字典数据同步                            |
-| permission-sync      | ⏳ PLANNED | 权限数据同步                            |
+| permission-sync      | ✅ 启用   | 角色+授权+动作权限同步（MCP）           |
 | code-fix             | ✅ 启用   | 自动整改 🟢🟡 等级偏差                  |
 
 **执行规则**：

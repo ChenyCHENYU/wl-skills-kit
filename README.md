@@ -196,7 +196,7 @@ npx @agile-team/wl-skills-kit update
 | ------------------ | --------- | ---------------------------------------- | ----------------------------- |
 | `prototype-scan`   | ✅ 启用    | `skills/core/prototype-scan/`            | 原型/详设/口述 → 页面清单     |
 | `api-contract`     | ✅ 启用    | `skills/core/api-contract/`              | 生成 api.md 前后端契约        |
-| `page-codegen`     | ✅ 启用    | `skills/core/page-codegen/`              | 4 文件骨架生成 + 模板调度    |
+| `page-codegen`     | ✅ 启用    | `skills/core/page-codegen/`              | 页面骨架生成 + 模板调度      |
 | `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
 | `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
 | `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |

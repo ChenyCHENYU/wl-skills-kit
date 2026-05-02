@@ -27,7 +27,7 @@
 ```
 开发者：触发模板提取，目标页：src/views/produce/.../mmwr-rolling-management/
 
-AI: 1. 读取目标页 4 文件（index.vue + data.ts + index.scss + api.md）
+AI: 1. 读取目标页文件（index.vue + data.ts + index.scss + api.md）
     2. 自动识别交互模式，对比已有 TPL，输出识别结论
     3. 反问 3 个问题：领域归属 / 模板命名 / 脱敏需求
     4. 生成标准 TPL 文件

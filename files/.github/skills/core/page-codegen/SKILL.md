@@ -12,11 +12,11 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ## Pre-flight 规范声明（执行前必须输出）
 
 ```
-🚀 已触发技能 page-codegen/SKILL.md          → 页面代码生成：4文件 + 模板调度 + 前置检查
+🚀 已触发技能 page-codegen/SKILL.md          → 页面代码生成：骨架文件 + 模板调度 + 前置检查
 ✅ 已读取 templates/_index.md                → 模板注册表，匹配 → {TPL路径}
 ✅ 已读取 templates/{universal|domains/xxx}/TPL-XXX.md → {当前模板说明}
 ✅ 已读取 standards/index.md                 → 规范门控（任务类型 A：生成新页面）
-✅ 已读取 standards/02-code-structure.md     → 4文件原则 + 三段式 + script 9段顺序
+✅ 已读取 standards/02-code-structure.md     → 三文件分离+接口契约 + 三段式 + script 9段顺序
 ✅ 已读取 standards/12-base-table.md         → AGGrid必用 + cid命名规范
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
 ✅ 已读取 docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
@@ -72,7 +72,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 
 ---
 
-## 生成产物（默认 4 文件）
+## 生成产物（标准页面文件）
 
 ```
 src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/

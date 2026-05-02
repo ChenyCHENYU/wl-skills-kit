@@ -1,7 +1,7 @@
 # AI 辅助开发全景分析 & 架构演进蓝图
 
-> **基于 wl-skills-kit v2.3 架构**
-> **日期**：2026-04-28
+> **基于 wl-skills-kit v2.3.8 架构**
+> **日期**：2026-05-02
 > **目标**：企业级通用 · 质量精度高 · 速度快 · 节省 token · 还原度高 · 开箱即用
 
 ---
@@ -156,6 +156,9 @@ Prompts 是在 MCP server 里注册"预制 slash command 模板"。用户输入 
 | `clean` | 移除 AI 文件（保留 components + types） |
 | `--dry-run` | 预览模式（全命令通用） |
 | `--keep-reports` | clean 时保留 reports/ |
+| `--force` | 强制执行，跳过同版本检测（v2.3.8+） |
+| 同版本去重 | 已安装相同版本自动跳过（v2.3.8+） |
+| 跨版本升级 | 检测旧版本自动切换增量更新模式（v2.3.8+） |
 
 #### 值得做的扩展
 
@@ -164,7 +167,7 @@ Prompts 是在 MCP server 里注册"预制 slash command 模板"。用户输入 
 | `wl-skills check` | 一键环境预检：Node 版本 / 工具链 / env.local.json 填写状态 / MCP server 能否连通。新成员接手项目第一步就跑这个，比手动排查省 30 分钟 | P0 |
 | `wl-skills diff` | 比对业务项目已安装文件与最新 kit 版本的差异，输出"哪些 Skill/规范有更新"清单，让 `update` 决策有据可依 | P0 |
 | `wl-skills export` | 把 `reports/SYS_MENU_INFO.md` + `SYS_DICT_INFO.md` 导出为 Excel（`xlsx` 包已在 devDependencies）。产品/后端需要菜单字典清单时直接给文件，不再截图或手抄 | P1 |
-| `wl-skills validate` | 无 AI、纯静态扫描 `src/views/`：检查每个模块是否有完整 4 文件（data.ts / index.vue / index.scss / api.md），缺失直接列出。适合 CI 阶段快速卡门 | P1 |
+| `wl-skills validate` | 无 AI、纯静态扫描 `src/views/`：按场景化规则检查页面文件完整性（index.vue / data.ts / index.scss + api.md 按需），缺失直接列出。适合 CI 阶段快速卡门 | P1 |
 
 ---
 
@@ -198,7 +201,7 @@ Prompts 是在 MCP server 里注册"预制 slash command 模板"。用户输入 
 
   page-codegen
     input_from: api-contract output
-    output_files: 4文件 + SYS_MENU_INFO.md 追加
+    output_files: 页面骨架文件 + SYS_MENU_INFO.md 追加
     next_suggest: convention-audit → [menu-sync, dict-sync]（并行可选）
 
   convention-audit
@@ -336,7 +339,7 @@ convention-audit 报告积累                │
 
 ```
 ✅  L1 提示词工程   — copilot-instructions + standards 懒加载
-✅  L2 Skills        — 9 个 Skill 全部启用，pre-flight，registry，模板分层
+✅  L2 Skills        — 9 个 Skill 全部启用，pre-flight，registry，模板分层，审计报告 v2
 ✅  L3 MCP           — 10 个 Tool（菜单+字典+角色+授权+动作），4 编辑器自动配置
 ✅  L4 CLI           — init / update / clean
 ▶   L5 Agent Pipeline — 下一个突破点
@@ -374,7 +377,7 @@ L4 CLI：
     — 导出菜单/字典 Excel，用 devDependencies 中已有的 xlsx 包
 
   ✦ wl-skills validate（P1）
-    — 静态扫描 src/views/ 的 4 文件完整性，CI 阶段可用
+    — 静态扫描 src/views/ 页面文件完整性，CI 阶段可用
 
 L2 Skills（精度提升）：
   ✦ page-codegen + convention-audit 补充"❌ 错误示范"反例段落

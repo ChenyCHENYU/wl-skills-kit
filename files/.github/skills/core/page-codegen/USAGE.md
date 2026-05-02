@@ -7,7 +7,7 @@
 
 ## 这个 Skill 解决什么问题
 
-基于《页面清单》+ `api.md`，**自动生成符合项目规范的 Vue 页面**（4 文件骨架：data.ts / index.vue / index.scss / api.md），并跑一遍内部规范自检（Pre-flight + 完成摘要）。
+基于《页面清单》+ `api.md`，**自动生成符合项目规范的 Vue 页面**（标准页面骨架：index.vue / data.ts / index.scss + api.md 按需），并跑一遍内部规范自检（Pre-flight + 完成摘要）。
 
 生成出来的代码**满足 13 条 standards**，无需手工改语法/命名。
 

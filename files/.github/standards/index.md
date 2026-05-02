@@ -73,7 +73,7 @@
 
 ```
 ✅ 已读取 standards/index.md            → 规范门控，匹配任务类型 A（生成新页面）
-✅ 已读取 standards/02-code-structure.md → 4 文件原则 + 三段式 + script 9 段顺序
+✅ 已读取 standards/02-code-structure.md → 三文件分离+接口契约 + 三段式 + script 9 段顺序
 ✅ 已读取 standards/12-base-table.md     → AGGrid 必用 + cid 命名规范
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表
 ```
