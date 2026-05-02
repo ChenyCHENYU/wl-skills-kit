@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.1
+ * wl-skills-kit CLI v2.3.8
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -24,6 +24,7 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const showHelp = args.includes("--help") || args.includes("-h");
 const keepReports = args.includes("--keep-reports");
+const force = args.includes("--force");
 const command = args.find((a) => !a.startsWith("-")) || "init";
 
 if (showHelp) {
@@ -41,11 +42,13 @@ if (showHelp) {
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
     --keep-reports   clean 命令保留 .github/reports/（默认一起删除）
+    --force          强制执行，跳过同版本检测（忽略已安装状态）
     --help           显示帮助
 
   示例:
     npx @agile-team/wl-skills-kit                       安装全量文件
     npx @agile-team/wl-skills-kit update                仅更新有变化的文件
+    npx @agile-team/wl-skills-kit update --force        强制更新（忽略同版本检测）
     npx @agile-team/wl-skills-kit clean                 清理开发期文件
     npx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
     npx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
@@ -251,6 +254,7 @@ function runInstall(incremental) {
   console.log("  wl-skills-kit v" + PKG.version + "  [" + label + "]");
   console.log("  目标目录: " + TARGET_DIR);
   if (dryRun) console.log("  模式: --dry-run（预览）");
+  if (force) console.log("  模式: --force（强制执行）");
   console.log("");
 
   if (!fs.existsSync(FILES_DIR)) {
@@ -259,6 +263,28 @@ function runInstall(incremental) {
   }
 
   const oldManifest = readManifest();
+
+  // ── 版本去重：同版本跳过，不同版本自动增量更新 ──────────────────────
+  if (oldManifest && !force) {
+    if (oldManifest.version === PKG.version) {
+      console.log("  ✔ 当前项目已安装 v" + PKG.version + "，无需重复操作");
+      console.log(
+        "    如需强制重装：npx @agile-team/wl-skills-kit@latest " +
+          label +
+          " --force",
+      );
+      console.log("");
+      return;
+    }
+    if (!incremental) {
+      // init 命令但已有旧版本 → 自动切换为增量更新，避免全量覆盖
+      console.log(
+        "  ℹ 检测到已安装 v" + oldManifest.version + "，自动切换为增量更新模式",
+      );
+      console.log("");
+      incremental = true;
+    }
+  }
   const newManifest = { version: PKG.version, files: {} };
   let created = 0,
     updated = 0,
@@ -359,7 +385,9 @@ function runInstall(incremental) {
     }
     if (!dryRun && migrated > 0) {
       console.log(
-        "    迁移: " + migrated + " 个旧版文件已移除（路径已变更，见 CHANGELOG.md）",
+        "    迁移: " +
+          migrated +
+          " 个旧版文件已移除（路径已变更，见 CHANGELOG.md）",
       );
     }
     if (dryRun && migrated === 0) {
