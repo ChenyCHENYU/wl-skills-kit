@@ -235,7 +235,16 @@ description: "Use when: auditing project source code against the 13 modular stan
 |---|---:|---:|---:|---:|---|
 | {模块路径}/ | {N} | {N} | {N} | {N} | {建议} |
 
-### 11. 修复闭环与复扫
+### 11. 推荐整改路线
+
+| 优先级 | 整改项 | 建议方式 |
+|---|---|---|
+| P0 | {工具链缺失项} | 先备份配置，再初始化 |
+| P1 | {严重偏差项} | code-fix / 立即修复 |
+| P2 | {警告偏差项} | 分批修 |
+| P3 | {存量治理项} | 渐进迁移 |
+
+### 12. 修复闭环与复扫
 
 | 指标 | 本次值 | 上次值 | 变化 |
 |---|---:|---:|---|
@@ -245,6 +254,10 @@ description: "Use when: auditing project source code against the 13 modular stan
 | console 文件数 | {N} | {N/-} | {±N} |
 
 > 📌 后续提交必须使用 `git cz`，不符合规范的提交视为闭环失败。
+
+> 报告生成时间：{YYYY-MM-DD} | @agile-team/wl-skills-kit@{version} | {项目名}@{branch} branch
+> 扫描工具：@agile-team/wl-skills-kit scanner + AI 代码全量扫描
+> 执行人：{姓名} | {工号}
 
 ---
 
