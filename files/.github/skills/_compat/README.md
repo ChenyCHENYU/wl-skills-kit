@@ -29,7 +29,8 @@ _compat/
     ├── cline.txt
     ├── kiro.txt                （.kiro/steering/conventions.md，含 frontmatter）
     ├── trae.txt                （.trae/rules/conventions.md，含 frontmatter）
-    └── agents.txt              （AGENTS.md 通用代理）
+    ├── agents.txt              （AGENTS.md 通用代理）
+    └── qoder.txt               （.qoder/rules/conventions.md）
 ```
 
 ---
@@ -57,7 +58,7 @@ bin/wl-skills.js (init/update)
 | ------------------------------------- | ----------------------------- | --------------------------- |
 | 团队不用 Cursor，从 editors.json 删除 | `.cursorrules`、`.cursor/`    | `.github/`、CLAUDE.md、其他 |
 | 团队新增某 AI 编辑器（如 Augment）    | 加 headers/augment.txt + 注册 | 其他文件不动                |
-| `copilot-instructions.md` 内容更新    | 全部 8 个根配置同步更新       | headers/ 不变（只是模板）   |
+| `copilot-instructions.md` 内容更新    | 全部编辑器根配置同步更新       | headers/ 不变（只是模板）   |
 
 ---
 
@@ -104,5 +105,6 @@ bin/wl-skills.js (init/update)
 | Kiro           | `.kiro/steering/*.md`                  | ✅                   | 需 inclusion 字段                |
 | Trae           | `.trae/rules/*.md`                     | ✅                   | 需 description 字段              |
 | 通用 Agent     | `AGENTS.md` (root)                     | ❌                   | 新兴跨平台规范                   |
+| Qoder          | `.qoder/rules/conventions.md`          | ✅                   | 项目规则文件                     |
 
 > 所有这些编辑器在加载完根配置后，**都支持按指令读取项目内任意文件**（含 `.github/standards/`、`.github/skills/`、`.github/guides/`），所以本架构的"懒加载门控 + 子目录规范"对所有编辑器**有效**。

@@ -1,7 +1,7 @@
 # wl-skills-kit 使用指南
 
 > **目标读者**：使用 `@agile-team/wl-skills-kit` 的 Vue 3 业务项目团队成员。
-> **适用版本**：v2.0+
+> **适用版本**：v2.4.x
 > **维护者**：CHENY（工号 409322）
 
 ---
@@ -34,7 +34,7 @@ npx @agile-team/wl-skills-kit
 - Trae
 - Qoder
 
-打开项目后，AI 会自动加载 `.github/copilot-instructions.md`，你不用做任何配置。
+打开项目后，AI 会按编辑器自动加载对应规则文件：Copilot 读 `.github/copilot-instructions.md`，Claude Code 读 `CLAUDE.md`，Cline 读 `.clinerules`，通用 Agent 读 `AGENTS.md`，Qoder 读 `.qoder/rules/conventions.md`。
 
 ### 第 3 步：开始使用
 
@@ -79,7 +79,7 @@ AI 会自动识别意图，触发对应的 Skill。
 ├── .github/
 │   ├── copilot-instructions.md      AI 主入口
 │   ├── standards/                   13 条模块化规范
-│   ├── skills/                      8 个 Skill + 1 个 PLANNED 草稿
+│   ├── skills/                      9 个启用 Skill + 多编辑器适配
 │   ├── guides/                      使用指南 + 架构设计
 │   └── reports/                     AI 生成报告（SYS_MENU_INFO 等）
 ├── docs/                            12 个组件 API 文档（jh-* / request 等）
@@ -131,12 +131,25 @@ Windsurf、Cline、Trae、Qoder 仅支持全局配置，需手动操作一次，
 
 配置完成后在 `.github/skills/sync/env.local.json` 中填好 `token`、`gatewayPath`、`menu.domainId`，重启编辑器，对 AI 说「扩展菜单」或「加字典」，AI 会自动调用 MCP 工具完成同步，无需手动粘贴接口响应。
 
+**Q: 如何和 wk-skills-ui 一起用？**
+A: 两个包不互相依赖。先用 `wl-skills-kit` 做页面生成、规范审计、菜单字典权限同步；如需统一 UI 风格或老系统化妆层，再单独安装 `@agile-team/wk-skills-ui` 并执行 `wk-ui init/update`。
+
 **Q: 部署到生产环境前如何清理 AI 文件？**
 A: 执行 `npx @agile-team/wl-skills-kit clean`。会移除所有 AI 辅助文件，保留 `src/components/` 和 `src/types/`。
 
 ---
 
 ## 升级与维护
+
+### 生命周期命令
+
+```bash
+npx @agile-team/wl-skills-kit check        # 环境/MCP/manifest 体检
+npx @agile-team/wl-skills-kit diff         # 查看与当前包版本差异
+npx @agile-team/wl-skills-kit update       # 增量更新
+npx @agile-team/wl-skills-kit clean        # 清理 AI 文件，保留 src/components + src/types
+npx @agile-team/wl-skills-kit export       # 导出菜单/字典/权限基线 xlsx
+```
 
 ### 增量更新
 

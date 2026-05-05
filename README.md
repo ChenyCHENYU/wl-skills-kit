@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.4.0** — 一条命令将 13 条编码规范、9 个 AI Skill、14 个 MCP Tool、组件文档、领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.4.2** — 一条命令将 13 条编码规范、9 个 AI Skill、14 个 MCP Tool、多编辑器规则、MCP 配置、组件文档和领域样例导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -18,6 +18,19 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 ```
 
 > 可选桥接：如业务项目也需要统一 UI 风格、老系统化妆层和 UI 扫描修复，可单独安装 `@agile-team/wk-skills-ui`。两包职责独立，不互相强依赖：`wl-skills-kit` 负责编码规范/页面生成/菜单字典权限，`wk-skills-ui` 负责视觉一致性/设计令牌/化妆层/Runtime 渲染。
+
+---
+
+## 版本亮点
+
+当前 2.4.x 版本重点完善生命周期、规范插件和跨包协作体验：
+
+- `init/update/diff/clean/check/validate/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查和基线导出
+- manifest 记录安装文件哈希，`reports/`、`src/components/`、`src/types/` 等关键资产受到保护
+- 自动生成 Copilot、Claude Code、Cursor、Windsurf、Cline、Kiro、Trae、Qoder、通用 Agents 规则文件
+- 内置 MCP Server，支持菜单、字典、权限和项目感知类工具
+- 接入 `@robot-admin/git-standards`，仓库维护和业务项目可共用 lint、commitlint、husky、commitizen
+- 可选桥接 `@agile-team/wk-skills-ui`：kit 负责页面/规范/菜单字典权限，wk-skills-ui 负责 UI 风格/化妆层/Runtime
 
 ---
 
@@ -137,6 +150,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── .clinerules                           Cline
 ├── .kiro/steering/conventions.md         Kiro（含 inclusion frontmatter）
 ├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
+├── .qoder/rules/conventions.md           Qoder
 │
 ├── docs/                                 12 个组件 API 文档
 ├── demo/                                 13 个领域样例
@@ -146,13 +160,16 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ```
 
 > **业务项目方准则**：
-> - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他 9 个根配置文件是它的拷贝 + 各自特化 frontmatter**
+> - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他根配置文件是它的拷贝 + 各自特化 frontmatter**
 > - 修改规范 → **不要**改业务项目里的副本，**升级 wl-skills-kit 包 + `update`** 才不会被覆盖
 > - reports/ 里的内容是团队累积数据，`update` 不会覆盖，可放心 commit
 
 ---
 
 ## CLI 命令
+
+所有命令默认作用于当前工作目录；如需先预览，请加 `--dry-run`。
+
 
 ```bash
 # 全量安装（默认）
@@ -184,6 +201,17 @@ npx @agile-team/wl-skills-kit update --dry-run
 ```
 
 > 全局安装后也可直接用 `wl-skills` 命令（如 `wl-skills update`）。
+
+---
+
+## 生命周期文件
+
+安装后会生成 `.wl-skills-manifest.json`，记录本次安装版本和文件哈希：
+
+- `update`：对比 manifest 与包内文件，仅更新有变化的内容
+- `diff`：查看当前项目与最新 kit 内容差异
+- `clean`：按 manifest 清理 AI 辅助文件，默认保留 `src/components/` 和 `src/types/`
+- `check`：检查 Node、MCP、manifest 和工程化配置
 
 ---
 
@@ -264,6 +292,19 @@ npx @agile-team/wl-skills-kit update
 | `init` / `update`        | `.github/reports/*.md`            | 已存在则跳过，不覆盖累积   |
 | `clean`（默认）          | `src/components/` + `src/types/`  | 业务代码必需，永不删除     |
 | `clean --keep-reports`   | + `.github/reports/`              | 保留菜单/字典/权限基线     |
+
+---
+
+## 与 wk-skills-ui 的边界
+
+`wl-skills-kit` 和 `wk-skills-ui` 是可组合但不强耦合的两个包：
+
+| 包 | 主要职责 | 典型触发 |
+|---|---|---|
+| `wl-skills-kit` | 编码规范、页面生成、菜单/字典/权限同步、Agent Pipeline | “生成页面”“同步菜单”“规范审计” |
+| `wk-skills-ui` | UI 风格一致性、老项目化妆层、设计令牌、Runtime 渲染、UI 扫描修复 | “统一 UI 风格”“老项目化妆”“UI 扫描修复” |
+
+如果业务项目同时安装两者，AI 可先用 kit 生成/审计页面，再用 wk-skills-ui 做视觉一致性扫描；任意一包都不自动安装另一包。
 
 ---
 

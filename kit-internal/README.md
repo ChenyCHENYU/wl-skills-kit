@@ -38,3 +38,12 @@
 | `templates.MAINTAIN.md`           | 模板分层与贡献流程要点                                 |
 | `skills/{skill-name}.MAINTAIN.md` | 各 Skill 的维护要点（避坑、扩展、版本演进）            |
 | `skills/_planned-skills.md`       | PLANNED 列表（当前为空，记录历史 PLANNED Skill 的激活时间表） |
+
+---
+
+## 当前维护重点
+
+- 发布前必须同步 `package.json`、`package-lock.json`、`CHANGELOG.md`、README 和业务项目内指南版本信息
+- 修改 CLI 生命周期能力时，同步更新 `files/.github/guides/usage.md`、`architecture.md`、`skills/_pipeline.md` 和 `_compat/README.md`
+- `@agile-team/wk-skills-ui` 仅作为可选桥接提醒，不在 kit 内自动安装或强绑定
+- 新增/修改规范插件配置后，至少运行 `npm run lint`、`node --check bin/wl-skills.js`、`npm pack --dry-run`
