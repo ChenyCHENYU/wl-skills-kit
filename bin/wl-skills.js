@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.4.0
+ * wl-skills-kit CLI v2.4.1
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -143,7 +143,7 @@ function removeFileAndEmptyParents(filePath) {
       } else {
         break;
       }
-    } catch (e) {
+    } catch {
       break;
     }
   }
@@ -154,7 +154,7 @@ function readManifest() {
   if (fs.existsSync(MANIFEST_PATH)) {
     try {
       return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -332,9 +332,11 @@ function runInstall(incremental) {
     if (dryRun) {
       const exists = fs.existsSync(dest);
       console.log("  " + (exists ? "覆盖" : "新增") + "  " + relPath);
-      exists ? updated++ : created++;
+      if (exists) updated++;
+      else created++;
     } else {
-      copyFileSafe(src, dest) === "created" ? created++ : updated++;
+      if (copyFileSafe(src, dest) === "created") created++;
+      else updated++;
     }
   }
 
@@ -372,9 +374,11 @@ function runInstall(incremental) {
         console.log(
           "  " + (ecExists ? "覆盖" : "新增") + "  [编辑器] " + ecPath,
         );
-        ecExists ? updated++ : created++;
+        if (ecExists) updated++;
+        else created++;
       } else {
-        writeFile(ecDest, ecContent) === "created" ? created++ : updated++;
+        if (writeFile(ecDest, ecContent) === "created") created++;
+        else updated++;
       }
     }
   }
@@ -410,6 +414,20 @@ function runInstall(incremental) {
   // ── Step 4: 写 manifest ────────────────────────────────────────────
 
   if (!dryRun) writeManifest(newManifest);
+
+  // ── Step 5: 非耦合桥接提醒（不自动安装 wk-skills-ui）───────────────────────
+
+  const targetPkgPath = path.join(TARGET_DIR, "package.json");
+  let hasUiPackage = false;
+  if (fs.existsSync(targetPkgPath)) {
+    try {
+      const targetPkg = JSON.parse(fs.readFileSync(targetPkgPath, "utf8"));
+      const deps = { ...targetPkg.dependencies, ...targetPkg.devDependencies };
+      hasUiPackage = Boolean(deps["@agile-team/wk-skills-ui"]);
+    } catch {
+      hasUiPackage = false;
+    }
+  }
 
   // ── 输出统计 ──────────────────────────────────────────────────────
 
@@ -454,6 +472,19 @@ function runInstall(incremental) {
       console.log("    总计: " + (created + updated) + " 个文件");
     }
   }
+  console.log("");
+  if (hasUiPackage) {
+    console.log(
+      "  ℹ 检测到 @agile-team/wk-skills-ui：两包独立分工，可组合触发 UI 风格对齐流程。",
+    );
+  } else {
+    console.log(
+      "  ℹ 可选桥接：如需统一 UI 风格/老项目化妆层，可安装 @agile-team/wk-skills-ui。",
+    );
+  }
+  console.log(
+    "  ℹ 规范插件：建议执行 npx @robot-admin/git-standards init 接入代码质量与提交规范。",
+  );
   console.log("");
 }
 
@@ -537,7 +568,11 @@ function expectedManifestFiles() {
   for (const relPath of files) {
     expected[relPath] = fileMd5(path.join(FILES_DIR, relPath));
   }
-  const instructionsSrc = path.join(FILES_DIR, ".github", "copilot-instructions.md");
+  const instructionsSrc = path.join(
+    FILES_DIR,
+    ".github",
+    "copilot-instructions.md",
+  );
   if (fs.existsSync(instructionsSrc)) {
     const raw = fs.readFileSync(instructionsSrc, "utf8");
     for (const [ecPath, ecContent] of getEditorConfigs(raw)) {
@@ -567,19 +602,34 @@ function runCheck() {
 
   const toolFiles = [".prettierrc.js", "eslint.config.ts", ".husky"];
   for (const rel of toolFiles) {
-    add(rel, fs.existsSync(path.join(TARGET_DIR, rel)), fs.existsSync(path.join(TARGET_DIR, rel)) ? "存在" : "缺失");
+    add(
+      rel,
+      fs.existsSync(path.join(TARGET_DIR, rel)),
+      fs.existsSync(path.join(TARGET_DIR, rel)) ? "存在" : "缺失",
+    );
   }
 
   const manifest = readManifest();
-  add(MANIFEST_NAME, Boolean(manifest), manifest ? "已安装 v" + manifest.version : "未安装");
+  add(
+    MANIFEST_NAME,
+    Boolean(manifest),
+    manifest ? "已安装 v" + manifest.version : "未安装",
+  );
 
-  const envPath = path.join(TARGET_DIR, ".github", "skills", "sync", "env.local.json");
+  const envPath = path.join(
+    TARGET_DIR,
+    ".github",
+    "skills",
+    "sync",
+    "env.local.json",
+  );
   let envOk = false;
   let envDetail = "缺失";
   if (fs.existsSync(envPath)) {
     try {
       const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
-      const gatewayOk = env.gatewayPath && !String(env.gatewayPath).includes("你的网关");
+      const gatewayOk =
+        env.gatewayPath && !String(env.gatewayPath).includes("你的网关");
       const tokenOk = env.token && !String(env.token).includes("Bearer Token");
       envOk = Boolean(gatewayOk && tokenOk);
       envDetail = envOk ? "已填写 gatewayPath/token" : "存在但仍含占位值";
@@ -589,15 +639,33 @@ function runCheck() {
   }
   add("MCP env.local.json", envOk, envDetail);
 
-  const mcpServer = path.join(TARGET_DIR, "node_modules", "@agile-team", "wl-skills-kit", "mcp", "server.js");
-  add("MCP server", fs.existsSync(mcpServer) || fs.existsSync(path.join(__dirname, "..", "mcp", "server.js")), "server.js 可发现");
+  const mcpServer = path.join(
+    TARGET_DIR,
+    "node_modules",
+    "@agile-team",
+    "wl-skills-kit",
+    "mcp",
+    "server.js",
+  );
+  add(
+    "MCP server",
+    fs.existsSync(mcpServer) ||
+      fs.existsSync(path.join(__dirname, "..", "mcp", "server.js")),
+    "server.js 可发现",
+  );
 
   for (const item of checks) {
-    console.log("  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail);
+    console.log(
+      "  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail,
+    );
   }
   const failed = checks.filter((item) => !item.ok).length;
   console.log("");
-  console.log(failed === 0 ? "  ✔ 环境预检通过" : "  ⚠ 环境预检完成，发现 " + failed + " 项需处理");
+  console.log(
+    failed === 0
+      ? "  ✔ 环境预检通过"
+      : "  ⚠ 环境预检完成，发现 " + failed + " 项需处理",
+  );
   console.log("");
   if (failed > 0) process.exitCode = 1;
 }
@@ -633,7 +701,9 @@ function runDiff() {
     }
   }
 
-  console.log("  当前 manifest: " + (manifest ? "v" + manifest.version : "未找到"));
+  console.log(
+    "  当前 manifest: " + (manifest ? "v" + manifest.version : "未找到"),
+  );
   console.log("  最新 kit: v" + PKG.version);
   console.log("  新增/缺失: " + added.length);
   console.log("  内容不同: " + changed.length);
@@ -645,7 +715,8 @@ function runDiff() {
     if (list.length === 0) return;
     console.log("  " + title + "：");
     for (const relPath of list.slice(0, 80)) console.log("    - " + relPath);
-    if (list.length > 80) console.log("    ... 还有 " + (list.length - 80) + " 项");
+    if (list.length > 80)
+      console.log("    ... 还有 " + (list.length - 80) + " 项");
     console.log("");
   }
 
@@ -671,7 +742,9 @@ function scanPageDirs(scanRel) {
     let apiConfigCount = 0;
     const dataPath = path.join(TARGET_DIR, dir, "data.ts");
     if (fs.existsSync(dataPath)) {
-      apiConfigCount = (fs.readFileSync(dataPath, "utf8").match(/API_CONFIG/g) || []).length;
+      apiConfigCount = (
+        fs.readFileSync(dataPath, "utf8").match(/API_CONFIG/g) || []
+      ).length;
     }
     pages.push({
       dir,
@@ -685,7 +758,8 @@ function scanPageDirs(scanRel) {
 }
 
 function runValidate() {
-  const scanPath = args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
+  const scanPath =
+    args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
   const pages = scanPageDirs(scanPath);
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [validate]");
@@ -701,9 +775,20 @@ function runValidate() {
 
   const issues = [];
   for (const page of pages) {
-    if (!page.hasDataTs) issues.push({ level: "warn", dir: page.dir, text: "缺 data.ts（需结合页面复杂度判断）" });
-    if (!page.hasIndexScss) issues.push({ level: "warn", dir: page.dir, text: "缺 index.scss" });
-    if (page.apiConfigCount > 0 && !page.hasApiMd) issues.push({ level: "warn", dir: page.dir, text: "检测到 API_CONFIG 但缺 api.md" });
+    if (!page.hasDataTs)
+      issues.push({
+        level: "warn",
+        dir: page.dir,
+        text: "缺 data.ts（需结合页面复杂度判断）",
+      });
+    if (!page.hasIndexScss)
+      issues.push({ level: "warn", dir: page.dir, text: "缺 index.scss" });
+    if (page.apiConfigCount > 0 && !page.hasApiMd)
+      issues.push({
+        level: "warn",
+        dir: page.dir,
+        text: "检测到 API_CONFIG 但缺 api.md",
+      });
   }
 
   console.log("  页面目录: " + pages.length);
@@ -721,7 +806,12 @@ function parseMarkdownTable(content) {
   return content
     .split(/\r?\n/)
     .filter((line) => /^\|.*\|$/.test(line) && !/^\|\s*-+/.test(line))
-    .map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+    .map((line) =>
+      line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim()),
+    );
 }
 
 function runExport() {
@@ -743,7 +833,11 @@ function runExport() {
     if (!fs.existsSync(full)) continue;
     const content = fs.readFileSync(full, "utf8");
     let rows = parseMarkdownTable(content);
-    if (rows.length === 0) rows = content.split(/\r?\n/).filter(Boolean).map((line) => [line]);
+    if (rows.length === 0)
+      rows = content
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => [line]);
     sheets.push([sheetName, rows]);
     addedSheets++;
   }
@@ -764,13 +858,19 @@ function runExport() {
     let XLSX;
     try {
       XLSX = require("xlsx");
-    } catch (e) {
-      console.error("  ✖ 未找到 xlsx 依赖，请重新安装最新 @agile-team/wl-skills-kit");
+    } catch {
+      console.error(
+        "  ✖ 未找到 xlsx 依赖，请重新安装最新 @agile-team/wl-skills-kit",
+      );
       process.exit(1);
     }
     const wb = XLSX.utils.book_new();
     for (const [sheetName, rows] of sheets) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet(rows),
+        sheetName,
+      );
     }
     fs.mkdirSync(outDir, { recursive: true });
     XLSX.writeFile(wb, outFile);
@@ -783,14 +883,30 @@ function runExport() {
 // ─── 主路由 ─────────────────────────────────────────────────────────────
 
 switch (command) {
-  case "init":     runInstall(false); break;
-  case "update":   runInstall(true);  break;
-  case "clean":    runClean();        break;
-  case "check":    runCheck();        break;
-  case "diff":     runDiff();         break;
-  case "validate": runValidate();     break;
-  case "export":   runExport();       break;
+  case "init":
+    runInstall(false);
+    break;
+  case "update":
+    runInstall(true);
+    break;
+  case "clean":
+    runClean();
+    break;
+  case "check":
+    runCheck();
+    break;
+  case "diff":
+    runDiff();
+    break;
+  case "validate":
+    runValidate();
+    break;
+  case "export":
+    runExport();
+    break;
   default:
-    console.error('  ✖ 未知命令: "' + command + '"，请使用 --help 查看可用命令');
+    console.error(
+      '  ✖ 未知命令: "' + command + '"，请使用 --help 查看可用命令',
+    );
     process.exit(1);
 }

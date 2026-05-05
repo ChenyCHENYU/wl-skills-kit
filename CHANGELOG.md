@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.1] - 2026-05-04
+
+### Added
+
+- CLI 安装完成后新增 `@agile-team/wk-skills-ui` 可选桥接提醒，保持两包独立分工、不强耦合
+- 新增 `standards:init` 脚本，统一指向 `npx @robot-admin/git-standards init`
+- README 补充 wk-skills-ui 可选桥接说明与规范插件入口
+
 ## [2.4.0] - 2026-05-02
 
 ### 🚀 Agent Pipeline + MCP 项目感知 + CLI 质量工具

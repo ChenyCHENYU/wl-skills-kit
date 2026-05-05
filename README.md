@@ -11,10 +11,13 @@
 ```bash
 npx @robot-admin/git-standards init      # 工程化前置（必须）
 npx @agile-team/wl-skills-kit            # 安装 AI 体系
+npm run standards:init                   # 本包维护/业务项目均可复用的规范插件入口
 # 在 AI 对话中：
 "扫描 docs/prototypes/ 下的原型生成页面清单"
 "基于上一步生成所有 api.md，再 codegen 出页面"
 ```
+
+> 可选桥接：如业务项目也需要统一 UI 风格、老系统化妆层和 UI 扫描修复，可单独安装 `@agile-team/wk-skills-ui`。两包职责独立，不互相强依赖：`wl-skills-kit` 负责编码规范/页面生成/菜单字典权限，`wk-skills-ui` 负责视觉一致性/设计令牌/化妆层/Runtime 渲染。
 
 ---
 
