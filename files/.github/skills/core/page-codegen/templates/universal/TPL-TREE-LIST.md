@@ -2,7 +2,6 @@
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
-
 #### index.vue
 
 ```vue
@@ -24,7 +23,14 @@
           @reset="select"
         />
         <BaseToolbar :items="toolbars" />
-        <BaseTable ref="tableRef" :data="list" :columns="columns" showToolbar />
+        <BaseTable
+          ref="tableRef"
+          render-type="agGrid"
+          :cid="TABLE_CID"
+          :data="list"
+          :columns="columns"
+          showToolbar
+        />
         <jh-pagination
           v-show="page.total && page.total > 0"
           :total="page.total || 0"
@@ -39,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { createPage, loadTree } from "./data";
+import { createPage, loadTree, TABLE_CID } from "./data";
 
 const Page = createPage();
 const {
@@ -52,7 +58,7 @@ const {
   columns,
   toolbars,
   select,
-  handleNodeClick
+  handleNodeClick,
 } = Page;
 
 onMounted(() => {
@@ -74,9 +80,13 @@ import {
   BaseQueryItemDesc,
   ActionButtonDesc,
   TableColumnDesc,
-  BusLogicDataType
+  BusLogicDataType,
 } from "@/types/page";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
+import { ElMessage } from "element-plus";
+import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+
+export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
 export const API_CONFIG = {
   tree: "/[服务缩写]/[树资源]/tree",
@@ -84,7 +94,7 @@ export const API_CONFIG = {
   remove: "/[服务缩写]/[主资源]/remove",
   getById: "/[服务缩写]/[主资源]/getById",
   save: "/[服务缩写]/[主资源]/save",
-  update: "/[服务缩写]/[主资源]/update"
+  update: "/[服务缩写]/[主资源]/update",
 } as const;
 
 // ===== 树形数据 =====
@@ -106,7 +116,7 @@ export function createPage(editModalRef?: any) {
 
     queryDef(): BaseQueryItemDesc<any>[] {
       return [
-        { name: "[fieldName]", label: "[中文名]", placeholder: "请输入" }
+        { name: "[fieldName]", label: "[中文名]", placeholder: "请输入" },
       ];
     }
 
@@ -115,7 +125,7 @@ export function createPage(editModalRef?: any) {
         {
           name: "primary",
           label: "新增",
-          onClick: () => _editModalRef?.value?.open()
+          onClick: () => _editModalRef?.value?.open(),
         },
         {
           name: "danger",
@@ -124,34 +134,44 @@ export function createPage(editModalRef?: any) {
             const rows = this.tableRef.value?.getSelectionRows();
             if (!rows?.length) return ElMessage.warning("请先选择数据");
             this.removeBatch();
-          }
-        }
+          },
+        },
       ];
     }
 
     columnsDef(): TableColumnDesc<any>[] {
-      return [
-        { type: "selection" },
-        { type: "index" },
-        { label: "[字段名]", name: "[fieldName]", minWidth: 120 },
+      return defineColumns([
+        {
+          type: "selection",
+          width: 55,
+          fixed: "left",
+          align: "center",
+          headerAlign: "center",
+        },
+        { type: "index", label: "序号", width: 60, align: "center" },
+        {
+          label: "[字段名]",
+          name: "[fieldName]",
+          cid: `${TABLE_CID}-[fieldName]`,
+          minWidth: 120,
+        },
         {
           label: "操作",
+          name: "_action",
+          cid: `${TABLE_CID}-action`,
           width: 140,
           fixed: "right",
-          operations: [
-            {
-              name: "edit",
-              label: "编辑",
-              onClick: (row: any) => _editModalRef?.value?.edit(row.id)
-            },
-            {
-              name: "remove",
-              label: "删除",
-              onClick: (row: any) => this.remove(row.id)
-            }
-          ]
-        }
-      ];
+          align: "center",
+          defaultSlot: ({ row }: any) =>
+            renderOps([
+              {
+                type: "edit",
+                onClick: () => _editModalRef?.value?.edit(row.id),
+              },
+              { type: "del", onClick: () => this.remove(row.id) },
+            ]),
+        },
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
 
@@ -168,7 +188,7 @@ export function createPage(editModalRef?: any) {
   return {
     ...created,
     treeData,
-    handleNodeClick
+    handleNodeClick,
   };
 }
 ```

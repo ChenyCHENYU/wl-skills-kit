@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0] - 2026-05-07
+
+### Added
+
+- 强化 page-codegen 模板，统一 `BaseTable render-type="agGrid"`、唯一 `cid`、`defineColumns()` 和 `renderOps()` 标准写法。
+- 增强菜单同步、项目工具和 MCP 工作流能力，补齐 17 个 MCP Tool 的 README 描述。
+
+### Changed
+
+- 同步 README、Copilot 指南、Skill registry、page-codegen 文档和菜单同步文档。
+- 明确 `wl-skills-kit` 与 `wk-skills-ui` 的协作边界：kit 负责规范化生成，ui 负责样式绝对管控。
+
 ## [2.4.2] - 2026-05-05
 
 ### Changed
@@ -123,6 +135,7 @@
 新增完整的"角色 → 菜单授权 → 动作按钮 → v-permission"闭环能力。
 
 #### 新增 6 个 MCP 工具
+
 - `wls_role_query` — 查询角色列表（支持分页）
 - `wls_role_upsert` — 批量新增角色（按 `code` 字段去重）
 - `wls_assignable_menus_query` — 查询全量可授权菜单
@@ -131,20 +144,24 @@
 - `wls_action_upsert` — 批量新增动作（按 `permission` 字段去重）
 
 #### Skill 工作模式
+
 - `role-manage` — 角色查询/创建
 - `role-assign` — 角色授权菜单
 - `action-attach` — 挂动作 + 自动改造代码加 `v-permission` 指令
 
 #### 安全约束（强制）
+
 - 生产环境拒绝直接 push（gatewayPath 含 `prod` / `.com` 时切换导出模式）
 - 角色分配二次确认（Pre-flight 必须列出完整菜单清单）
 - 仅新增不删除（防误删导致大面积失权）
 
 #### 文档
+
 - `files/.github/skills/sync/permission-sync/SKILL.md` — AI 触发协议
 - `files/.github/skills/sync/permission-sync/USAGE.md` — 团队成员使用示例
 
 #### 配套更新
+
 - `_registry.md` permission-sync 状态 ⏳ → ✅
 - `kit-internal/skills/_planned-skills.md` 已清空（无草稿状态 Skill）
 - `kit-internal/architecture.md` 决策 7 更新
@@ -165,6 +182,7 @@
 ### 🔌 全编辑器 MCP 支持 + Qoder 新增
 
 #### MCP 配置自动生成（补全实现）
+
 - `wl-skills init` 现在自动生成 4 个项目级 MCP 配置文件：
   - `.cursor/mcp.json` — Cursor
   - `.mcp.json` — Claude Code（project scope，随 VCS 共享）
@@ -173,14 +191,17 @@
 - 修复 `usage.md` 中错误的配置路径描述（原来写的 `.claude/settings.json` 实际不存在）
 
 #### 手动配置指南
+
 - 新增 `.github/guides/mcp-setup.md`：Windsurf / Cline / Trae / Qoder 的手动 MCP 配置步骤
 
 #### Qoder 编辑器支持（新增第 10 个编辑器）
+
 - `editors.json` 新增 `qoder` 条目，自动生成 `.qoder/rules/conventions.md`
 - Qoder 同时通过现有 `AGENTS.md` 天然兼容（无需额外操作）
 - 新增 `_compat/headers/qoder.txt` 规则头部
 
 #### 文档更新
+
 - `usage.md` 推荐编辑器列表补全（Cline / Kiro / Trae / Qoder）
 - `usage.md` 编辑器数量 8 → 9
 
@@ -191,6 +212,7 @@
 ### 🔧 组件三文件分离规范补全 + 文档精准化
 
 #### global/local 组件
+
 - **C_SvgIcon**: Options API → `<script setup lang="ts">`，修复 `scope` typo，提取内联样式到 `index.scss`
 - **C_Splitter / C_TagStatus**: 内嵌样式提取到 `index.scss`，改为外链引用
 - **C_Tree**: 所有逻辑提取到 `data.ts`（`createTree()`），vue 文件精简为纯模板层
@@ -198,6 +220,7 @@
 - **c_listModal**: 新增 `index.scss`，消除空 style 块
 
 #### 文档与规范
+
 - `docs/request.md`: 补充 `ApiResult<T>` 显式类型定义，说明 mock `code:200` 与真实后端 `code:2000` 均被 interceptor 接受
 - `page-codegen/SKILL.md` + `TPL-*.md`: mock 响应格式统一为 `code:2000 + message`
 - `package.json`: `files` 补加 `mcp/`，修复 MCP server 从未被 npm 打包的 bug
@@ -210,7 +233,7 @@
 
 - `page-codegen/SKILL.md`：mock 响应码 `code: 200` → `code: 2000`，`msg` → `message`，与真实后端格式完全一致
 - `TPL-DETAIL-TABS.md`：全部 mock 端点（list/getById/remove/save/update）响应格式同步修正
-- `TPL-RECORD-FORM.md`：getBy*/saveOrUpdate mock 端点响应格式同步修正
+- `TPL-RECORD-FORM.md`：getBy\*/saveOrUpdate mock 端点响应格式同步修正
 - 修复后 AI 生成的 mock 文件与真实后端响应结构一致，避免前端 `res.code === 2000` 判断在 mock 模式下永远失败的问题
 
 ---
@@ -220,6 +243,7 @@
 ### 🔧 组件规范补全 + API 文档修正 + MCP 发布修复
 
 #### global 组件三文件分离规范补全
+
 - **C_SvgIcon**: Options API → `<script setup lang="ts">` 重构；修复 `<style scope>` typo（改为 `scoped`）；提取内联样式到新增 `index.scss`
 - **C_Splitter**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
 - **C_TagStatus**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
@@ -227,13 +251,16 @@
 - **C_RightToolbar**: 将全部业务逻辑（列显隐、拖拽排序、保存接口调用）提取到新增 `data.ts`（`createRightToolbar()` 函数）；将 `<style scoped>` 内嵌样式提取到新增 `index.scss`
 
 #### local 组件规范补全
+
 - **c_listModal**: 补充 `index.scss`（空 style 块改为外链引用）
 
 #### API 文档修正 (code:200 → code:2000)
+
 - `demo/produce/aiflow/mmwr-customer-apply-add/api.md`: 响应示例 `code:200, result:{}` → `code:2000, data:{}`
 - `docs/request.md`: 响应示例 `code: 200` → `code: 2000`，保持与架构规范一致
 
 #### MCP Server npm 发布修复
+
 - `package.json` `files` 字段补充 `"mcp/"` 目录，修复之前 MCP Server 代码未被打包到 npm 的严重缺失（导致 `wl-skills init` 后 `.cursor/mcp.json` 指向的 `node_modules/.../mcp/server.js` 实际不存在）
 
 ---
@@ -251,10 +278,12 @@
 ### 🔧 修复与迁移增强
 
 #### bin 字段修复
+
 - `package.json` 新增 `"main": "./bin/wl-skills.js"` —— 修复 npm v9+ 发布时 bin 条目被剔除导致 `npx` 无法找到入口的问题
 - bin 命令从 `wl-skills-kit` 重命名为 `wl-skills`（避免与包名重复触发 npm 校验警告；全局安装后可直接用 `wl-skills update`）
 
 #### 旧版用户升级支持
+
 - `bin/wl-skills.js` 新增 `LEGACY_PATHS` 迁移清理机制：
   - `update` 时自动检测并移除 v1.x/v2.0 遗留文件（旧 flat 结构 Skill 路径、废弃 `docs/` 文件等）
   - 共 24 个旧版路径纳入清理名单，避免新旧结构并存产生 AI 调度歧义
@@ -268,6 +297,7 @@
 ### 🎯 多 AI 编辑器适配解耦 + 文档体系完善
 
 #### 解耦的多 AI 配置层
+
 - `files/.github/skills/_compat/` 由"说明文档"重构为**可执行配置层**：
   - 新增 `editors.json`：编辑器注册表（bin 读此文件决定生成什么）
   - 新增 `headers/`：每个编辑器特化 frontmatter 模板（cursor-mdc / kiro / trae 等）
@@ -276,30 +306,36 @@
 - 各编辑器特化 frontmatter：Cursor 含 `description+globs+alwaysApply`，Kiro 含 `inclusion`，Trae 含 `description+globs`，等
 
 #### Skill 分级目录
+
 - `skills/` 重组为 `core/`（5 个）+ `sync/`（3 个）+ `ops/`（1 个）+ `domain/`（占位）
 - 16 处旧路径引用已批量更新
 
 #### 完善 Skill 文档（人读 vs AI 读）
+
 - 每个启用 Skill 同目录新增 `USAGE.md`（团队成员阅读，含示例对话/踩坑/FAQ），与 `SKILL.md`（AI 触发用）并存
 - 维护文档 `*.MAINTAIN.md` 已在 `kit-internal/skills/`
 
 #### api-contract 基于真实响应重写
+
 - 响应外壳：`{ code: 2000, message, data }`（**非 result，非 200**）
 - 分页字段完整描述：`records / total / current / size / pages / countId / maxLimit / orders / searchCount`
 - 增加成功/失败/字典/单条/数组各形态示例
 - 业务代码 `.then(res => res)` 拿到的就是 `data`（拦截器已剥壳）
 
 #### PLANNED Skill 草稿补全
+
 - `dict-sync/SKILL.draft.md`：完整设计（数据流/三种模式/冲突策略/转正任务）
 - `permission-sync/SKILL.draft.md`：权限码命名规范 + 三种模式 + 安全约束
 - `code-fix/SKILL.draft.md`：受控修复工作流 + 偏差类型对照 + 防御对抗 prompt
 
 #### 仓库结构治理
+
 - `ARCHITECTURE-PLAN.md` 归档至 `kit-internal/history/`
 - 新增 `kit-internal/jenkins-pipeline.md`（Jenkins 参考模板，不强加业务项目）
 - README 重写：**严格区分** A. 本仓库结构（维护用）vs B. 业务项目安装结构（业务方用），杜绝混淆
 
 #### 验证
+
 - `npm pack --dry-run`：157 文件 / 247kB（kit-internal 已正确排除）
 - 端到端 `init`：149 个文件正确生成；禁用 kiro 后只少 1 个文件（解耦验证通过）
 

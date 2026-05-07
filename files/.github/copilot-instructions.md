@@ -115,7 +115,14 @@ export function createPage(addModalRef?: any) {
       @reset="select"
     />
     <BaseToolbar :items="toolbars" />
-    <BaseTable ref="tableRef" :data="list" :columns="columns" showToolbar />
+    <BaseTable
+      ref="tableRef"
+      render-type="agGrid"
+      :cid="TABLE_CID"
+      :data="list"
+      :columns="columns"
+      showToolbar
+    />
     <jh-pagination
       v-show="page.total && page.total > 0"
       :total="page.total || 0"
@@ -128,7 +135,7 @@ export function createPage(addModalRef?: any) {
 </template>
 
 <script setup lang="ts">
-import { createPage } from "./data";
+import { createPage, TABLE_CID } from "./data";
 
 const Page = createPage();
 const {
@@ -226,6 +233,38 @@ onMounted(() => select());
 ## AI Skills 自动调度
 
 完整触发词与 Skill 路径见 `skills/_registry.md`（**单一数据源**，不在此处重复）。
+
+### Intent Router（自然语言智能识别）
+
+用户不需要记住 Skill 名。只要消息包含以下任一语义，AI 必须自动路由到对应 Skill：
+
+| 用户自然表达 | 自动触发 |
+| ------------ | -------- |
+| 生成页面 / 做个页面 / 列表页 / 管理页 / 台账 / 根据原型 / 根据截图 / 补页面 | `page-codegen`，必要时先 `prototype-scan` + `api-contract` |
+| mock / 假数据 / 后端没好 / 先能跑 / 联调前 | `page-codegen` 的 mock-first 规则 |
+| 菜单 / 注册页面 / 点击进不来 / 同步菜单 / 补菜单 | `menu-sync` + `route-check` |
+| 风格 / 样式不生效 / skills-ui / 操作列 / 状态标签 / AGGrid | `page-codegen` + `wk-skills-ui runtime` + `doctor-ui` |
+| 规范检查 / 体检 / 接手项目 / 偏差 | `convention-audit` 或 CLI `validate` |
+
+页面生成类任务命中后，必须读取：
+
+1. `.github/skills/core/page-codegen/SKILL.md`
+2. `.github/skills/core/page-codegen/templates/_index.md`
+3. 匹配的 `TPL-*.md`
+4. `.github/standards/12-base-table.md`
+5. 如涉及菜单，读取 `.github/skills/sync/menu-sync/SKILL.md`
+
+### 页面模板硬约束
+
+生成业务表格时，必须同时满足：
+
+- 使用 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination`
+- `BaseTable` 显式 `render-type="agGrid"`
+- `BaseTable` 绑定全局唯一 `cid` / `:cid`
+- 列定义使用 `@agile-team/wk-skills-ui/runtime` 的 `defineColumns()`
+- 操作列使用 `renderOps()`，禁止 `operations: []`
+- 保留 `common-core` 平台骨架，不得生搬硬套 `wk-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`
+- 生成后建议运行 `wl-skills validate-page <页面目录>` 和 `wl-skills doctor-ui`
 
 | Skill 名             | 状态     | 一句话说明                              |
 | -------------------- | -------- | --------------------------------------- |

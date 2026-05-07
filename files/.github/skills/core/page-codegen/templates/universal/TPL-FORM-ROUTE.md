@@ -2,7 +2,6 @@
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
-
 > 复杂表单（多 Tab、多子表、独立布局）使用独立路由而非弹窗。
 > 表单页 `data.ts` **不继承 `AbstractPageQueryHook`**，改为导出 `useXxx` Composable。
 > 需在 `pages.ts` 单独注册路由，路径规则见"FORM_ROUTE 表单页"章节。
@@ -74,7 +73,9 @@ export function use[PageName]Form(tabsRef: any) {
     <div class="page-header">
       <span class="page-title">[页面标题]</span>
       <span class="page-tag page-tag--add">新增</span>
-      <el-checkbox v-model="onlyRequired" class="only-required-check">只看必填项</el-checkbox>
+      <el-checkbox v-model="onlyRequired" class="only-required-check"
+        >只看必填项</el-checkbox
+      >
     </div>
     <div class="page-toolbar">
       <el-button type="primary" @click="handleSave">保存</el-button>
@@ -118,6 +119,10 @@ onMounted(() => {
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
+import type { TableColumnDesc } from "@/types/page";
+import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+
+export const DETAIL_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 
 export const API_CONFIG = {
   getById: "/sale/[业务名]/getById",
@@ -129,6 +134,25 @@ export const OPTS = {
   // 下拉选项集合
   // [字段名]: [{ label: "显示文本", value: "值" }]
 };
+
+export function createDetailColumns(removeRecord: (row: any) => void): TableColumnDesc<any>[] {
+  return defineColumns([
+    { type: "index", label: "序号", width: 60, align: "center" },
+    { label: "[明细字段]", name: "[detailField]", cid: `${DETAIL_TABLE_CID}-[detailField]`, minWidth: 120 },
+    {
+      label: "操作",
+      name: "_action",
+      cid: `${DETAIL_TABLE_CID}-action`,
+      width: 100,
+      fixed: "right",
+      align: "center",
+      defaultSlot: ({ row }: any) =>
+        renderOps([
+          { type: "del", onClick: () => removeRecord(row) }
+        ])
+    }
+  ] as any) as TableColumnDesc<any>[];
+}
 
 export interface [PageName]Form {
   id: string;
@@ -147,6 +171,16 @@ export function use[PageName]Detail() {
   const router = useRouter();
   const loading = ref(false);
   const form = reactive<[PageName]Form>(createMockData());
+
+  function addRecord() {
+    form.[列表字段].push({ id: `temp_${Date.now()}` });
+  }
+
+  function removeRecord(row: any) {
+    form.[列表字段] = form.[列表字段].filter((item: any) => item.id !== row.id);
+  }
+
+  const detailColumns = createDetailColumns(removeRecord);
 
   async function loadDetail(id: string) {
     loading.value = true;
@@ -170,7 +204,7 @@ export function use[PageName]Detail() {
 
   function handleCancel() { router.back(); }
 
-  return { loading, form, loadDetail, handleSave, handleCancel };
+  return { loading, form, detailColumns, addRecord, loadDetail, handleSave, handleCancel };
 }
 ```
 
@@ -182,7 +216,12 @@ export function use[PageName]Detail() {
     <!-- 标题栏 -->
     <div class="title-bar">
       <span class="customer-name">{{ form.[标题字段] }}</span>
-      <el-tag type="warning" effect="plain" size="small">{{ form.[状态字段] }}</el-tag>
+      <el-tag
+        type="warning"
+        effect="plain"
+        size="small"
+        >{{ form.[状态字段] }}</el-tag
+      >
     </div>
 
     <!-- 工具栏 -->
@@ -221,16 +260,13 @@ export function use[PageName]Detail() {
       <!-- 子表格 Section（如跟进记录） -->
       <div class="form-section">
         <div class="section-title">[表格标题]</div>
-        <el-table :data="form.[列表字段]" border size="small">
-          <el-table-column type="index" label="序号" width="55" align="center" />
-          <!-- ...更多列 -->
-          <el-table-column label="操作" width="100" fixed="right">
-            <template #default="{ $index }">
-              <el-button type="primary" link size="small">编辑</el-button>
-              <el-button type="danger" link size="small" @click="removeRecord($index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <BaseTable
+          render-type="agGrid"
+          :cid="DETAIL_TABLE_CID"
+          :data="form.[列表字段]"
+          :columns="detailColumns"
+          :height="300"
+        />
         <div class="add-row-btn" @click="addRecord">+ 新增行</div>
       </div>
     </el-form>
@@ -239,10 +275,18 @@ export function use[PageName]Detail() {
 
 <script setup lang="ts">
 import { useRoute } from "vue-router";
-import { use[PageName]Detail, OPTS } from "./data";
+import { use[PageName]Detail, OPTS, DETAIL_TABLE_CID } from "./data";
 
 const route = useRoute();
-const { loading, form, loadDetail, handleSave, handleCancel } = use[PageName]Detail();
+const {
+  loading,
+  form,
+  detailColumns,
+  addRecord,
+  loadDetail,
+  handleSave,
+  handleCancel
+} = use[PageName]Detail();
 
 onMounted(() => {
   const id = route.query.id as string;
@@ -264,15 +308,37 @@ onMounted(() => {
   flex-direction: column;
   overflow: hidden;
 
-  .title-bar   { /* 标题 + 状态 Tag，灰色背景 */ }
-  .page-toolbar { /* 按钮行，白底，底部边框 */ }
-  .detail-form  { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
-  .header-info  { padding: 12px 0 4px; border-bottom: 1px solid #f0f2f5; }
-  .form-section { margin-top: 16px;
-    .section-title { border-left: 3px solid var(--el-color-primary); padding-left: 10px; font-weight: 600; }
+  .title-bar {
+    /* 标题 + 状态 Tag，灰色背景 */
   }
-  .add-row-btn  { color: #409eff; cursor: pointer; margin-top: 8px; }
-  .el-form-item { margin-bottom: 10px; }
+  .page-toolbar {
+    /* 按钮行，白底，底部边框 */
+  }
+  .detail-form {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+  }
+  .header-info {
+    padding: 12px 0 4px;
+    border-bottom: 1px solid #f0f2f5;
+  }
+  .form-section {
+    margin-top: 16px;
+    .section-title {
+      border-left: 3px solid var(--el-color-primary);
+      padding-left: 10px;
+      font-weight: 600;
+    }
+  }
+  .add-row-btn {
+    color: #409eff;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .el-form-item {
+    margin-bottom: 10px;
+  }
 }
 ```
 
@@ -284,26 +350,27 @@ onMounted(() => {
 > 典型页面：精整实绩（抛丸/倒棱/矫直/酸洗/剥皮/检验/包装）、加热管理（装炉/出炉）、剔钢操作。
 >
 > 项目中已有两种落地方式：
+>
 > - **配置驱动模板组件**：`FinishingAchievementTemplate`（7 个精整页面共用）
 > - **独立页面编排**：`mmwr-heating-management`、`mmwr-steel-stripping-operations`
 
 ### D-0 核心特征
 
-| 特征 | 说明 |
-|---|---|
-| **多 AbstractPageQueryHook 实例** | 每个表格区域一个实例，各自管理 `list/page/queryParam/columns` |
-| **主从联动** | 选中上表行 → 调用下表实例的 `selectByPlan(row)` 驱动查询 |
-| **可拖拽分隔** | `<jh-drag-row :top-height="N">` 上下分隔，可嵌套 |
-| **Tab 切换** | `<el-tabs type="border-card">` 或 `<jh-tabs>` 切换录入/查询视角 |
-| **操作区** | 在上下表之间放置 `BaseForm` + 按钮，或 `BaseToolbar` |
-| **懒加载** | Tab 切换时才加载对应数据，避免首次全量查询 |
+| 特征                              | 说明                                                            |
+| --------------------------------- | --------------------------------------------------------------- |
+| **多 AbstractPageQueryHook 实例** | 每个表格区域一个实例，各自管理 `list/page/queryParam/columns`   |
+| **主从联动**                      | 选中上表行 → 调用下表实例的 `selectByPlan(row)` 驱动查询        |
+| **可拖拽分隔**                    | `<jh-drag-row :top-height="N">` 上下分隔，可嵌套                |
+| **Tab 切换**                      | `<el-tabs type="border-card">` 或 `<jh-tabs>` 切换录入/查询视角 |
+| **操作区**                        | 在上下表之间放置 `BaseForm` + 按钮，或 `BaseToolbar`            |
+| **懒加载**                        | Tab 切换时才加载对应数据，避免首次全量查询                      |
 
 ### D-1 判断何时使用配置驱动 vs 独立编排
 
-| 条件 | 方式 |
-|---|---|
-| 3+ 页面布局完全相同，仅 API/工序代码/列不同 | 提取 `src/components/template/XxxTemplate/`，页面仅传 config |
-| 页面布局有显著差异（不同 Tab 结构、不同表数量） | 独立页面，在 data.ts 中定义多个 `createXxxPage()` |
+| 条件                                            | 方式                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| 3+ 页面布局完全相同，仅 API/工序代码/列不同     | 提取 `src/components/template/XxxTemplate/`，页面仅传 config |
+| 页面布局有显著差异（不同 Tab 结构、不同表数量） | 独立页面，在 data.ts 中定义多个 `createXxxPage()`            |
 
 ### D-2 配置驱动模板组件结构（参考 FinishingAchievementTemplate）
 
@@ -321,17 +388,27 @@ src/views/.../[page-name]/
 ```
 
 **types.ts 要点**：
+
 ```typescript
 export interface XxxTemplateConfig {
-  api: Record<string, string>;     // 各表格 API 端点
-  processCode: string;             // 工序标识，用于查询参数
-  query?: { plan?: { items: BaseQueryItemDesc<any>[]; defaultParams?: Record<string, any> } };
-  columns?: { planColumns: TableColumnDesc<any>[]; detailColumns: TableColumnDesc<any>[] };
-  ui?: Partial<UiConfig>;          // 可选 UI 覆盖（Tab 标题、区域标题等）
+  api: Record<string, string>; // 各表格 API 端点
+  processCode: string; // 工序标识，用于查询参数
+  query?: {
+    plan?: {
+      items: BaseQueryItemDesc<any>[];
+      defaultParams?: Record<string, any>;
+    };
+  };
+  columns?: {
+    planColumns: TableColumnDesc<any>[];
+    detailColumns: TableColumnDesc<any>[];
+  };
+  ui?: Partial<UiConfig>; // 可选 UI 覆盖（Tab 标题、区域标题等）
 }
 ```
 
 **页面 data.ts 要点**（仅配置，不写逻辑）：
+
 ```typescript
 import type { XxxTemplateConfig } from "@/components/template/XxxTemplate/types";
 
@@ -345,6 +422,7 @@ export const xxxConfig: XxxTemplateConfig = {
 ### D-3 独立编排页面结构（参考 mmwr-steel-stripping-operations）
 
 **data.ts 要点**（多个 createPage 工厂函数）：
+
 ```typescript
 // 上表
 export function createEntryPage() {
@@ -375,6 +453,7 @@ export function createEntryBottomPage(rejectForm: any) {
 ```
 
 **index.vue 要点**：
+
 ```vue
 <template>
   <div class="app-container app-page-container [page-class]">
@@ -383,12 +462,21 @@ export function createEntryBottomPage(rejectForm: any) {
         <jh-drag-row :top-height="420">
           <template #top>
             <BaseQuery :form="..." :items="..." @select="..." @reset="..." />
-            <BaseTable ref="..." :data="..." :columns="..." highlight-current-row @current-change="handleRowClick" />
+            <BaseTable
+              ref="..."
+              :data="..."
+              :columns="..."
+              highlight-current-row
+              @current-change="handleRowClick"
+            />
             <jh-pagination ... />
           </template>
           <template #bottom>
             <BaseToolbar v-if="selectedRow" :items="..." />
-            <el-empty v-if="!selectedRow" description="请先在上方列表中选择一行数据" />
+            <el-empty
+              v-if="!selectedRow"
+              description="请先在上方列表中选择一行数据"
+            />
             <BaseTable v-else ref="..." :data="..." :columns="..." />
             <jh-pagination ... />
           </template>
@@ -402,16 +490,26 @@ export function createEntryBottomPage(rejectForm: any) {
 </template>
 
 <script setup lang="ts">
-import { createEntryPage, createEntryBottomPage, createQueryPage } from "./data";
+import {
+  createEntryPage,
+  createEntryBottomPage,
+  createQueryPage,
+} from "./data";
 
 const activeTab = ref("entry");
 const selectedRow = ref(null);
 
 const EntryPage = createEntryPage();
-const { tableRef, page, queryParam, list, queryItems, columns, select } = EntryPage;
+const { tableRef, page, queryParam, list, queryItems, columns, select } =
+  EntryPage;
 
 const BottomPage = createEntryBottomPage();
-const { list: bottomList, columns: bottomColumns, select: bottomSelect, selectByPlan } = BottomPage;
+const {
+  list: bottomList,
+  columns: bottomColumns,
+  select: bottomSelect,
+  selectByPlan,
+} = BottomPage;
 
 const handleRowClick = (row: any) => {
   selectedRow.value = row;
@@ -419,7 +517,9 @@ const handleRowClick = (row: any) => {
 };
 
 onMounted(() => select());
-watch(activeTab, (tab) => { if (tab === "query") QueryPage.select(); });
+watch(activeTab, (tab) => {
+  if (tab === "query") QueryPage.select();
+});
 </script>
 ```
 
@@ -427,14 +527,42 @@ watch(activeTab, (tab) => { if (tab === "query") QueryPage.select(); });
 
 ```scss
 .[page-class] {
-  .section-header { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
-  .section-header .title-bar { width: 3px; height: 14px; background: var(--el-color-primary); border-radius: 1px; }
-  .section-header .section-title { font-size: 14px; font-weight: 600; margin: 0; }
-  .empty-tip { padding: 40px 0; }
-  .operation-area { padding: 8px 0; }
-  .operation-buttons { display: flex; gap: 8px; margin: 8px 0; }
-  .results-container { display: flex; gap: 16px; /* 左右分栏时 */ }
-  .results-container .section { flex: 1; min-width: 0; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .section-header .title-bar {
+    width: 3px;
+    height: 14px;
+    background: var(--el-color-primary);
+    border-radius: 1px;
+  }
+  .section-header .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .empty-tip {
+    padding: 40px 0;
+  }
+  .operation-area {
+    padding: 8px 0;
+  }
+  .operation-buttons {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .results-container {
+    display: flex;
+    gap: 16px; /* 左右分栏时 */
+  }
+  .results-container .section {
+    flex: 1;
+    min-width: 0;
+  }
 }
 ```
 

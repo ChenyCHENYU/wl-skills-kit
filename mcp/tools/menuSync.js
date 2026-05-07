@@ -1,6 +1,184 @@
-'use strict'
+"use strict";
 
-const { queryMenuTree, saveMenu } = require('../api/menuApi')
+const fs = require("fs");
+const path = require("path");
+const { queryMenuTree, saveMenu } = require("../api/menuApi");
+
+function getProjectRoot() {
+  return process.env.WL_PROJECT_ROOT
+    ? path.resolve(process.env.WL_PROJECT_ROOT)
+    : process.cwd();
+}
+
+function cleanCell(value) {
+  return String(value || "")
+    .replace(/^`|`$/g, "")
+    .replace(/\*\*/g, "")
+    .trim();
+}
+
+function splitMarkdownRow(line) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map(cleanCell);
+}
+
+function isDividerRow(line) {
+  return /^\|\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(line.trim());
+}
+
+function parseBoolean(value) {
+  const text = cleanCell(value).toLowerCase();
+  return ["true", "yes", "y", "1", "是", "隐藏", "hidden"].includes(text);
+}
+
+function normalizeTree(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data && data.records)) return data.records;
+  if (Array.isArray(data && data.list)) return data.list;
+  if (Array.isArray(data && data.children)) return data.children;
+  return [];
+}
+
+function flattenMenus(tree, parentId, result) {
+  for (const node of normalizeTree(tree)) {
+    result.push({ ...node, parentId: node.parentId || parentId });
+    flattenMenus(
+      node.children || node.childList || node.childrenList || [],
+      node.id,
+      result,
+    );
+  }
+  return result;
+}
+
+function findExisting(flatMenus, item) {
+  return flatMenus.find((menu) => {
+    const sameParent =
+      !item.parentId || String(menu.parentId || "") === String(item.parentId);
+    const samePath =
+      item.path && menu.path && String(menu.path) === String(item.path);
+    const sameName =
+      item.menuName &&
+      menu.menuName &&
+      String(menu.menuName) === String(item.menuName);
+    return sameParent && (samePath || sameName);
+  });
+}
+
+function findLatestReport(root) {
+  const reportsDir = path.join(root, ".github", "reports");
+  if (!fs.existsSync(reportsDir)) return null;
+  return fs
+    .readdirSync(reportsDir)
+    .filter((name) => /^SYS_MENU_INFO.*\.md$/.test(name))
+    .map((name) => path.join(reportsDir, name))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+}
+
+function resolveReportPath(inputPath) {
+  const root = getProjectRoot();
+  if (inputPath) {
+    const full = path.isAbsolute(inputPath)
+      ? inputPath
+      : path.join(root, inputPath);
+    return fs.existsSync(full) ? full : null;
+  }
+  return findLatestReport(root);
+}
+
+function parseReport(content) {
+  const lines = content.split(/\r?\n/);
+  const dirs = [];
+  const pages = [];
+  let section = "";
+  let currentDirName = "";
+  let header = null;
+
+  for (const line of lines) {
+    if (/^##\s+.*一级目录/.test(line)) {
+      section = "dir";
+      header = null;
+      continue;
+    }
+    if (/^##\s+.*二级菜单/.test(line)) {
+      section = "page";
+      header = null;
+      continue;
+    }
+    const subMenu = line.match(/^###\s+\d+\.\s+(.+?)\s*子菜单/);
+    if (subMenu) currentDirName = cleanCell(subMenu[1]);
+    if (!line.trim().startsWith("|") || isDividerRow(line)) continue;
+    const cells = splitMarkdownRow(line);
+    if (!header) {
+      header = cells;
+      continue;
+    }
+    const row = {};
+    header.forEach((key, index) => {
+      row[key] = cells[index] || "";
+    });
+    if (section === "dir") {
+      const menuName = row["菜单名"] || row.menuName;
+      const menuPath = row.path || row["菜单路径"];
+      if (
+        menuName &&
+        menuPath &&
+        !menuName.includes("目录名") &&
+        !menuPath.includes("目录path")
+      ) {
+        dirs.push({
+          type: "M",
+          menuName,
+          path: menuPath,
+          orderNum: Number(row.orderNum || row["显示排序"] || dirs.length + 1),
+        });
+      }
+    }
+    if (section === "page") {
+      const menuName = row["菜单名"] || row.menuName;
+      const menuPath = row.path || row["菜单路径"];
+      const component = row.component || row["组件路径"];
+      const permission = row.permission || row["权限标识"];
+      if (menuName && menuPath && component && !menuName.includes("页面名称")) {
+        pages.push({
+          type: "C",
+          menuName,
+          path: menuPath,
+          component,
+          permission: permission || "",
+          hidden: parseBoolean(row.hidden || row["是否隐藏"]),
+          parentMenuName: currentDirName,
+        });
+      }
+    }
+  }
+
+  return { dirs, pages };
+}
+
+function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
+  const codePrefix = parentMenuNameCode ? `${parentMenuNameCode}:` : "";
+  return {
+    useCache: 1,
+    icon: item.icon || "list",
+    common: 2,
+    hidden: Boolean(item.hidden),
+    editMode: false,
+    type: item.type,
+    parentId,
+    sysAppNo: config.sysAppNo,
+    orderNum,
+    menuName: item.menuName,
+    menuNameCode: item.menuNameCode || `${codePrefix}${item.path}`,
+    path: item.path,
+    component: item.type === "C" ? item.component : undefined,
+    permission: item.type === "C" ? item.permission : undefined,
+  };
+}
 
 /**
  * wls_menu_query 工具处理器
@@ -10,32 +188,32 @@ const { queryMenuTree, saveMenu } = require('../api/menuApi')
  * @returns {Promise<string>} 返回给 AI 的文本内容
  */
 async function handleMenuQuery(config) {
-  const domainId = config.menu && config.menu.domainId
+  const domainId = config.menu && config.menu.domainId;
 
-  if (!domainId || domainId.toString().includes('domainId')) {
+  if (!domainId || domainId.toString().includes("domainId")) {
     return [
-      '❌ 请在 env.local.json 的 menu.domainId 字段填写真实的应用域 ID',
-      '',
-      '获取方式：打开菜单管理后台，在 Network 面板找到类似',
-      '  getMenuTreeByDomainId?domainId=1777597797627056130',
-      '中的数字即为 domainId，填入 env.local.json：',
+      "❌ 请在 env.local.json 的 menu.domainId 字段填写真实的应用域 ID",
+      "",
+      "获取方式：打开菜单管理后台，在 Network 面板找到类似",
+      "  getMenuTreeByDomainId?domainId=1777597797627056130",
+      "中的数字即为 domainId，填入 env.local.json：",
       '  "menu": { "domainId": "1777597797627056130", ... }',
-    ].join('\n')
+    ].join("\n");
   }
 
-  const result = await queryMenuTree(domainId, config)
+  const result = await queryMenuTree(domainId, config);
 
   if (!result.ok) {
-    return `❌ 查询菜单树失败: ${result.error} (code: ${result.code})`
+    return `❌ 查询菜单树失败: ${result.error} (code: ${result.code})`;
   }
 
-  const tree = result.data
-  const isEmpty = !tree || (Array.isArray(tree) && tree.length === 0)
+  const tree = result.data;
+  const isEmpty = !tree || (Array.isArray(tree) && tree.length === 0);
   if (isEmpty) {
-    return `✅ 菜单树查询成功，当前应用域（domainId=${domainId}）暂无菜单数据`
+    return `✅ 菜单树查询成功，当前应用域（domainId=${domainId}）暂无菜单数据`;
   }
 
-  return `✅ 菜单树查询成功（domainId=${domainId}）\n\n${JSON.stringify(tree, null, 2)}`
+  return `✅ 菜单树查询成功（domainId=${domainId}）\n\n${JSON.stringify(tree, null, 2)}`;
 }
 
 /**
@@ -48,49 +226,191 @@ async function handleMenuQuery(config) {
  * @returns {Promise<string>}
  */
 async function handleMenuUpsert(args, config) {
-  const { items } = args
+  const { items } = args;
 
   if (!Array.isArray(items) || items.length === 0) {
-    return '❌ 参数错误：items 必须是非空数组'
+    return "❌ 参数错误：items 必须是非空数组";
   }
 
-  const results = []
+  const results = [];
 
   for (const item of items) {
-    const isUpdate = Boolean(item.id)
-    const action = isUpdate ? '更新' : '新增'
+    const isUpdate = Boolean(item.id);
+    const action = isUpdate ? "更新" : "新增";
 
-    const result = await saveMenu(item, config)
+    const result = await saveMenu(item, config);
 
     if (result.ok) {
-      const saved = result.data
+      const saved = result.data;
       results.push({
         action,
-        menuName: item.menuName || '(未命名)',
+        menuName: item.menuName || "(未命名)",
         id: saved ? saved.id : item.id,
-        status: '✅ 成功',
-      })
+        status: "✅ 成功",
+      });
     } else {
       results.push({
         action,
-        menuName: item.menuName || '(未命名)',
-        id: item.id || '(新增)',
+        menuName: item.menuName || "(未命名)",
+        id: item.id || "(新增)",
         status: `❌ 失败: ${result.error}`,
-      })
+      });
     }
   }
 
-  const successCount = results.filter((r) => r.status.startsWith('✅')).length
-  const failCount = results.length - successCount
+  const successCount = results.filter((r) => r.status.startsWith("✅")).length;
+  const failCount = results.length - successCount;
 
-  let output = `菜单操作完成：成功 ${successCount} 条，失败 ${failCount} 条\n\n`
-  output += '| 操作 | 菜单名 | ID | 状态 |\n'
-  output += '|---|---|---|---|\n'
+  let output = `菜单操作完成：成功 ${successCount} 条，失败 ${failCount} 条\n\n`;
+  output += "| 操作 | 菜单名 | ID | 状态 |\n";
+  output += "|---|---|---|---|\n";
   for (const r of results) {
-    output += `| ${r.action} | ${r.menuName} | ${r.id} | ${r.status} |\n`
+    output += `| ${r.action} | ${r.menuName} | ${r.id} | ${r.status} |\n`;
   }
 
-  return output
+  return output;
 }
 
-module.exports = { handleMenuQuery, handleMenuUpsert }
+async function handleMenuSyncFromReport(args, config) {
+  const domainId = config.menu && config.menu.domainId;
+  const rootParentId =
+    (config.menu && config.menu.parentMenuId) || config.parentMenuId;
+  if (!domainId || domainId.toString().includes("domainId")) {
+    return "❌ 请先在 .github/skills/sync/env.local.json 填写 menu.domainId";
+  }
+  if (!rootParentId || rootParentId.toString().includes("parentMenuId")) {
+    return "❌ 请先在 .github/skills/sync/env.local.json 填写 menu.parentMenuId";
+  }
+  if (!config.sysAppNo)
+    return "❌ 请先在 .github/skills/sync/env.local.json 填写 sysAppNo";
+
+  const reportPath = resolveReportPath(args && args.reportPath);
+  if (!reportPath)
+    return "❌ 未找到 SYS_MENU_INFO*.md，请传 reportPath 或先生成 .github/reports/SYS_MENU_INFO.md";
+
+  const parsed = parseReport(fs.readFileSync(reportPath, "utf8"));
+  if (parsed.dirs.length === 0 && parsed.pages.length === 0) {
+    return `❌ 未从报告解析到菜单数据：${path.relative(getProjectRoot(), reportPath)}`;
+  }
+
+  const query = await queryMenuTree(domainId, config);
+  if (!query.ok)
+    return `❌ 查询菜单树失败: ${query.error} (code: ${query.code})`;
+
+  const flatMenus = flattenMenus(query.data, null, []);
+  const parentNode =
+    flatMenus.find((item) => String(item.id) === String(rootParentId)) || {};
+  const parentMenuNameCode =
+    parentNode.menuNameCode || parentNode.nameCode || "";
+  const resultRows = [];
+  const dirIdMap = new Map();
+  const dryRun = Boolean(args && args.dryRun);
+
+  for (let index = 0; index < parsed.dirs.length; index += 1) {
+    const dir = parsed.dirs[index];
+    const existing = findExisting(flatMenus, {
+      ...dir,
+      parentId: rootParentId,
+    });
+    const body = buildMenuBody(
+      dir,
+      config,
+      rootParentId,
+      parentMenuNameCode,
+      dir.orderNum || index + 1,
+    );
+    if (existing) body.id = existing.id;
+    if (dryRun) {
+      dirIdMap.set(
+        dir.menuName,
+        existing ? existing.id : `[dry-run:${dir.path}]`,
+      );
+      resultRows.push({
+        action: existing ? "update(dry-run)" : "create(dry-run)",
+        item: body,
+        status: "预览",
+      });
+      continue;
+    }
+    const saved = await saveMenu(body, config);
+    if (saved.ok) {
+      const savedData = saved.data || body;
+      dirIdMap.set(dir.menuName, savedData.id || body.id);
+      flatMenus.push({ ...body, ...savedData });
+      resultRows.push({
+        action: existing ? "update" : "create",
+        item: body,
+        status: "✅ 成功",
+      });
+    } else {
+      resultRows.push({
+        action: existing ? "update" : "create",
+        item: body,
+        status: `❌ ${saved.error}`,
+      });
+    }
+  }
+
+  for (let index = 0; index < parsed.pages.length; index += 1) {
+    const page = parsed.pages[index];
+    const parentId = dirIdMap.get(page.parentMenuName) || rootParentId;
+    const parent =
+      flatMenus.find((item) => String(item.id) === String(parentId)) || {};
+    const existing = findExisting(flatMenus, { ...page, parentId });
+    const body = buildMenuBody(
+      page,
+      config,
+      parentId,
+      parent.menuNameCode || parentMenuNameCode,
+      index + 1,
+    );
+    if (existing) body.id = existing.id;
+    if (dryRun) {
+      resultRows.push({
+        action: existing ? "update(dry-run)" : "create(dry-run)",
+        item: body,
+        status: "预览",
+      });
+      continue;
+    }
+    const saved = await saveMenu(body, config);
+    if (saved.ok) {
+      flatMenus.push({ ...body, ...(saved.data || {}) });
+      resultRows.push({
+        action: existing ? "update" : "create",
+        item: body,
+        status: "✅ 成功",
+      });
+    } else {
+      resultRows.push({
+        action: existing ? "update" : "create",
+        item: body,
+        status: `❌ ${saved.error}`,
+      });
+    }
+  }
+
+  const rel = path.relative(getProjectRoot(), reportPath).replace(/\\/g, "/");
+  const lines = [
+    `✅ SYS_MENU_INFO 同步完成：${rel}`,
+    "",
+    `- 一级目录：${parsed.dirs.length}`,
+    `- 二级菜单：${parsed.pages.length}`,
+    `- dryRun：${dryRun ? "是" : "否"}`,
+    "",
+    "| 操作 | 类型 | 菜单名 | path | parentId | 状态 |",
+    "|---|---|---|---|---|---|",
+  ];
+  for (const row of resultRows) {
+    lines.push(
+      `| ${row.action} | ${row.item.type} | ${row.item.menuName} | ${row.item.path} | ${row.item.parentId} | ${row.status} |`,
+    );
+  }
+  return lines.join("\n");
+}
+
+module.exports = {
+  handleMenuQuery,
+  handleMenuUpsert,
+  handleMenuSyncFromReport,
+};

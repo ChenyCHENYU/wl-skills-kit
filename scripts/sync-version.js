@@ -16,21 +16,23 @@
  *   npm version patch   ← 自动触发此脚本
  */
 
-const fs   = require("fs");
+const fs = require("fs");
 const path = require("path");
 
 const version = process.env.npm_package_version;
 if (!version) {
-  console.error("[sync-version] 错误：npm_package_version 未设置，请通过 npm version 命令触发。");
+  console.error(
+    "[sync-version] 错误：npm_package_version 未设置，请通过 npm version 命令触发。",
+  );
   process.exit(1);
 }
 
-const ROOT  = path.resolve(__dirname, "..");
+const ROOT = path.resolve(__dirname, "..");
 const today = new Date().toISOString().slice(0, 10);
 
 // ── Skill 数量（✅ 启用的技能总数，激活新 Skill 时同步更新这里）─────────────
 const SKILL_COUNT = 9;
-const MCP_TOOL_COUNT = 14;
+const MCP_TOOL_COUNT = 17;
 // ──────────────────────────────────────────────────────────────────────────────
 
 const SKILL_DESC_PATTERN = /13 条标准 \+ \d+ 个 Skill 自动调度/g;
@@ -101,5 +103,6 @@ for (const { file, regex, replace } of updates) {
 }
 
 if (!ok) process.exit(1);
-console.log(`\n[sync-version] 完成：v${version}（${today}）  Skill 数：${SKILL_COUNT} 个`);
-
+console.log(
+  `\n[sync-version] 完成：v${version}（${today}）  Skill 数：${SKILL_COUNT} 个`,
+);

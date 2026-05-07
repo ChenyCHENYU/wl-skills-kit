@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.4.2** — 一条命令将 13 条编码规范、9 个 AI Skill、14 个 MCP Tool、多编辑器规则、MCP 配置、组件文档和领域样例导入 Vue 3 项目。
+**AI Skill 模板包 v2.5.0** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -26,6 +26,9 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 当前 2.4.x 版本重点完善生命周期、规范插件和跨包协作体验：
 
 - `init/update/diff/clean/check/validate/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查和基线导出
+- 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wk-skills-ui` runtime，但保留 `common-core` 平台骨架
+- 新增 `doctor-ui` / `validate-page`：检查 `wk-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
+- 增强 Intent Router：用户只需说“做个页面 / 先 mock / 菜单同步 / 风格不生效”，AI 自动识别触发 Skill/MCP
 - manifest 记录安装文件哈希，`reports/`、`src/components/`、`src/types/` 等关键资产受到保护
 - 自动生成 Copilot、Claude Code、Cursor、Windsurf、Cline、Kiro、Trae、Qoder、通用 Agents 规则文件
 - 内置 MCP Server，支持菜单、字典、权限和项目感知类工具
@@ -101,6 +104,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ```
 
 > **维护准则**：
+>
 > - 业务规范要改 → 改 `files/.github/standards/*.md`
 > - Skill 流程要改 → 改 `files/.github/skills/<scope>/<name>/SKILL.md`
 > - 多 AI 编辑器适配要改 → 改 `files/.github/skills/_compat/`（**不是**改业务项目里的根配置文件）
@@ -160,6 +164,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ```
 
 > **业务项目方准则**：
+>
 > - 主入口是 `.github/copilot-instructions.md`（Copilot 用），**其他根配置文件是它的拷贝 + 各自特化 frontmatter**
 > - 修改规范 → **不要**改业务项目里的副本，**升级 wl-skills-kit 包 + `update`** 才不会被覆盖
 > - reports/ 里的内容是团队累积数据，`update` 不会覆盖，可放心 commit
@@ -169,7 +174,6 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ## CLI 命令
 
 所有命令默认作用于当前工作目录；如需先预览，请加 `--dry-run`。
-
 
 ```bash
 # 全量安装（默认）
@@ -184,8 +188,14 @@ npx @agile-team/wl-skills-kit check
 # 对比已安装文件与当前 kit 版本差异
 npx @agile-team/wl-skills-kit diff
 
-# 静态检查 src/views 页面文件完整性
+# 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui/mock
 npx @agile-team/wl-skills-kit validate
+
+# 单页/指定目录校验
+npx @agile-team/wl-skills-kit validate-page src/views/mdata/model/mdata-model-config
+
+# 检查 wk-skills-ui 是否真正接入
+npx @agile-team/wl-skills-kit doctor-ui
 
 # 导出菜单/字典/权限基线为 xlsx
 npx @agile-team/wl-skills-kit export
@@ -217,14 +227,14 @@ npx @agile-team/wl-skills-kit update --dry-run
 
 ## MCP Tools 概览
 
-| 类别 | Tools |
-| --- | --- |
-| 菜单 | `wls_menu_query` / `wls_menu_upsert` |
-| 字典 | `wls_dict_query` / `wls_dict_upsert` |
-| 权限 | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` |
-| 项目感知 | `wls_code_scan` / `wls_route_check` / `wls_git_log_extract` / `wls_audit_report_push` |
+| 类别     | Tools                                                                                                                                    |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 菜单     | `wls_menu_query` / `wls_menu_upsert` / `wls_menu_sync_from_report`                                                                       |
+| 字典     | `wls_dict_query` / `wls_dict_upsert`                                                                                                     |
+| 权限     | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` |
+| 项目感知 | `wls_code_scan` / `wls_route_check` / `wls_validate_page` / `wls_doctor_ui` / `wls_git_log_extract` / `wls_audit_report_push`            |
 
-`wls_code_scan`、`wls_route_check`、`wls_git_log_extract` 不依赖后端 token，可用于 Agent Pipeline 前置感知项目结构。
+`wls_code_scan`、`wls_route_check`、`wls_validate_page`、`wls_doctor_ui`、`wls_git_log_extract` 不依赖后端 token，可用于 Agent Pipeline 前置感知项目结构。
 
 ---
 
@@ -238,6 +248,7 @@ npx @agile-team/wl-skills-kit update
 ```
 
 `update` 命令会自动完成：
+
 1. **写入新文件** — 新结构下的所有文件覆盖写入
 2. **迁移清理** — 检测并移除旧版遗留文件（如 `skills/prototype-scan/`、`docs/menu-sync-design.md` 等），避免新旧路径并存产生歧义
 3. **保护累积数据** — `reports/*.md` 已存在则跳过，团队累积的菜单/字典数据不丢失
@@ -248,17 +259,17 @@ npx @agile-team/wl-skills-kit update
 
 ## Skill 概览
 
-| Skill              | 状态      | 路径                                     | 核心用途                      |
-| ------------------ | --------- | ---------------------------------------- | ----------------------------- |
-| `prototype-scan`   | ✅ 启用    | `skills/core/prototype-scan/`            | 原型/详设/口述 → 页面清单     |
-| `api-contract`     | ✅ 启用    | `skills/core/api-contract/`              | 生成 api.md 前后端契约        |
-| `page-codegen`     | ✅ 启用    | `skills/core/page-codegen/`              | 页面骨架生成 + 模板调度      |
-| `convention-audit` | ✅ 启用    | `skills/core/convention-audit/`          | 13 条规范扫描 + 双报告        |
-| `template-extract` | ✅ 启用    | `skills/core/template-extract/`          | 现有页面 → 领域模板           |
-| `menu-sync`        | ✅ 启用    | `skills/sync/menu-sync/`                 | 菜单基线 ↔ 后端接口          |
-| `dict-sync`        | ✅ 启用    | `skills/sync/dict-sync/`                 | 字典基线 ↔ 后端接口          |
-| `permission-sync`  | ✅ 启用    | `skills/sync/permission-sync/`           | 角色管理 + 角色授权 + 挂动作 + v-permission |
-| `code-fix`         | ✅ 启用    | `skills/ops/code-fix/`                   | 受控自动修复偏差              |
+| Skill              | 状态    | 路径                            | 核心用途                                    |
+| ------------------ | ------- | ------------------------------- | ------------------------------------------- |
+| `prototype-scan`   | ✅ 启用 | `skills/core/prototype-scan/`   | 原型/详设/口述 → 页面清单                   |
+| `api-contract`     | ✅ 启用 | `skills/core/api-contract/`     | 生成 api.md 前后端契约                      |
+| `page-codegen`     | ✅ 启用 | `skills/core/page-codegen/`     | 页面骨架生成 + 模板调度                     |
+| `convention-audit` | ✅ 启用 | `skills/core/convention-audit/` | 13 条规范扫描 + 双报告                      |
+| `template-extract` | ✅ 启用 | `skills/core/template-extract/` | 现有页面 → 领域模板                         |
+| `menu-sync`        | ✅ 启用 | `skills/sync/menu-sync/`        | 菜单基线 ↔ 后端接口                         |
+| `dict-sync`        | ✅ 启用 | `skills/sync/dict-sync/`        | 字典基线 ↔ 后端接口                         |
+| `permission-sync`  | ✅ 启用 | `skills/sync/permission-sync/`  | 角色管理 + 角色授权 + 挂动作 + v-permission |
+| `code-fix`         | ✅ 启用 | `skills/ops/code-fix/`          | 受控自动修复偏差                            |
 
 每个启用 Skill 同目录都有 **`SKILL.md`（AI 触发用）+ `USAGE.md`（团队成员阅读）**。
 
@@ -268,18 +279,18 @@ npx @agile-team/wl-skills-kit update
 
 `init` / `update` 读取 `files/.github/skills/_compat/editors.json` 生成对应配置：
 
-| 编辑器         | 输出路径                            | Frontmatter             |
-| -------------- | ----------------------------------- | ----------------------- |
-| GitHub Copilot | `.github/copilot-instructions.md`   | -                       |
-| Claude Code    | `CLAUDE.md`                         | -                       |
-| Cursor (rules) | `.cursorrules`                      | -                       |
-| Cursor (mdc)   | `.cursor/rules/conventions.mdc`     | description+globs+alwaysApply |
-| Windsurf       | `.windsurfrules`                    | -                       |
-| Cline          | `.clinerules`                       | -                       |
-| Kiro           | `.kiro/steering/conventions.md`     | inclusion: always       |
-| Trae           | `.trae/rules/conventions.md`        | description+globs+alwaysApply |
-| 通用 Agent     | `AGENTS.md`                         | -                       |
-| Qoder          | `.qoder/rules/conventions.md`       | description             |
+| 编辑器         | 输出路径                          | Frontmatter                   |
+| -------------- | --------------------------------- | ----------------------------- |
+| GitHub Copilot | `.github/copilot-instructions.md` | -                             |
+| Claude Code    | `CLAUDE.md`                       | -                             |
+| Cursor (rules) | `.cursorrules`                    | -                             |
+| Cursor (mdc)   | `.cursor/rules/conventions.mdc`   | description+globs+alwaysApply |
+| Windsurf       | `.windsurfrules`                  | -                             |
+| Cline          | `.clinerules`                     | -                             |
+| Kiro           | `.kiro/steering/conventions.md`   | inclusion: always             |
+| Trae           | `.trae/rules/conventions.md`      | description+globs+alwaysApply |
+| 通用 Agent     | `AGENTS.md`                       | -                             |
+| Qoder          | `.qoder/rules/conventions.md`     | description                   |
 
 **解耦验证**：在 `editors.json` 中将任意编辑器 `enabled: false`，重新 `update` —— 该编辑器配置不再生成，其他编辑器**完全不受影响**。
 
@@ -287,11 +298,11 @@ npx @agile-team/wl-skills-kit update
 
 ## 受保护路径
 
-| 命令                     | 保护路径                          | 说明                       |
-| ------------------------ | --------------------------------- | -------------------------- |
-| `init` / `update`        | `.github/reports/*.md`            | 已存在则跳过，不覆盖累积   |
-| `clean`（默认）          | `src/components/` + `src/types/`  | 业务代码必需，永不删除     |
-| `clean --keep-reports`   | + `.github/reports/`              | 保留菜单/字典/权限基线     |
+| 命令                   | 保护路径                         | 说明                     |
+| ---------------------- | -------------------------------- | ------------------------ |
+| `init` / `update`      | `.github/reports/*.md`           | 已存在则跳过，不覆盖累积 |
+| `clean`（默认）        | `src/components/` + `src/types/` | 业务代码必需，永不删除   |
+| `clean --keep-reports` | + `.github/reports/`             | 保留菜单/字典/权限基线   |
 
 ---
 
@@ -299,12 +310,22 @@ npx @agile-team/wl-skills-kit update
 
 `wl-skills-kit` 和 `wk-skills-ui` 是可组合但不强耦合的两个包：
 
-| 包 | 主要职责 | 典型触发 |
-|---|---|---|
-| `wl-skills-kit` | 编码规范、页面生成、菜单/字典/权限同步、Agent Pipeline | “生成页面”“同步菜单”“规范审计” |
-| `wk-skills-ui` | UI 风格一致性、老项目化妆层、设计令牌、Runtime 渲染、UI 扫描修复 | “统一 UI 风格”“老项目化妆”“UI 扫描修复” |
+| 包              | 主要职责                                                         | 典型触发                                |
+| --------------- | ---------------------------------------------------------------- | --------------------------------------- |
+| `wl-skills-kit` | 编码规范、页面生成、菜单/字典/权限同步、Agent Pipeline           | “生成页面”“同步菜单”“规范审计”          |
+| `wk-skills-ui`  | UI 风格一致性、老项目化妆层、设计令牌、Runtime 渲染、UI 扫描修复 | “统一 UI 风格”“老项目化妆”“UI 扫描修复” |
 
-如果业务项目同时安装两者，AI 可先用 kit 生成/审计页面，再用 wk-skills-ui 做视觉一致性扫描；任意一包都不自动安装另一包。
+如果业务项目同时安装两者，`wl-skills-kit` 的页面模板会直接融合 `wk-skills-ui/runtime`：
+
+- `defineColumns()`：列定义自动套用字段映射、宽度、状态渲染建议
+- `renderOps()`：操作列统一为图标按钮系统
+- `doctor-ui`：检查 tokens、styles、`installCommonPreset()` 是否真实接入
+
+注意：不会生搬硬套 `wk-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`。本包的最终页面标准仍是：
+
+```text
+AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable(render-type="agGrid") + jh-pagination
+```
 
 ---
 
@@ -313,7 +334,7 @@ npx @agile-team/wl-skills-kit update
 - 📚 业务方使用指南：`.github/guides/usage.md`（业务项目内）
 - 🏗️ 架构与决策：`.github/guides/architecture.md`（业务项目内）
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
-- 🤖 多编辑器适配机制：[files/.github/skills/_compat/README.md](files/.github/skills/_compat/README.md)
+- 🤖 多编辑器适配机制：[files/.github/skills/\_compat/README.md](files/.github/skills/_compat/README.md)
 - 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)
 
 ---

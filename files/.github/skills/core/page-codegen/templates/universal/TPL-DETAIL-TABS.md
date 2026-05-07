@@ -81,6 +81,8 @@
           </div>
           <BaseTable
             ref="itemTableRef"
+            render-type="agGrid"
+            :cid="ITEM_TABLE_CID"
             :data="itemList"
             :columns="itemColumns"
             showToolbar
@@ -110,6 +112,7 @@ import {
   itemList,
   itemColumns,
   itemPage,
+  ITEM_TABLE_CID,
   formRef,
   itemTableRef,
   handleSave,
@@ -136,6 +139,9 @@ import { ElMessage } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import type { TableColumnDesc } from "@/types/page";
 import envConfig from "@jhlc/common-core/src/store/env-config";
+import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+
+export const ITEM_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 
 export const API_CONFIG = {
   getById: "/[服务缩写]/[主资源]/getById",
@@ -184,22 +190,25 @@ export const itemTableRef = ref();
 export const itemList = ref<any[]>([]);
 export const itemPage = reactive({ current: 1, size: 10, total: 0 });
 
-export const itemColumns: TableColumnDesc<any>[] = [
-  { type: "index", width: 55 },
-  { label: "[子项字段]", name: "[fieldName]", minWidth: 120 },
+export const itemColumns: TableColumnDesc<any>[] = defineColumns([
+  { type: "index", label: "序号", width: 60, align: "center" },
+  {
+    label: "[子项字段]",
+    name: "[fieldName]",
+    cid: `${ITEM_TABLE_CID}-[fieldName]`,
+    minWidth: 120,
+  },
   {
     label: "操作",
+    name: "_action",
+    cid: `${ITEM_TABLE_CID}-action`,
     width: 100,
     fixed: "right",
-    operations: [
-      {
-        name: "remove",
-        label: "删除",
-        onClick: (row: any) => removeItem(row),
-      },
-    ],
+    align: "center",
+    defaultSlot: ({ row }: any) =>
+      renderOps([{ type: "del", onClick: () => removeItem(row) }]),
   },
-];
+] as any) as TableColumnDesc<any>[];
 
 // ===== 数据加载 =====
 export async function loadItems() {
@@ -453,7 +462,14 @@ defineExpose({ open });
       @reset="select"
     />
     <BaseToolbar :items="toolbars" />
-    <BaseTable ref="tableRef" :data="list" :columns="columns" showToolbar />
+    <BaseTable
+      ref="tableRef"
+      render-type="agGrid"
+      :cid="TABLE_CID"
+      :data="list"
+      :columns="columns"
+      showToolbar
+    />
     <jh-pagination
       v-show="page.total && page.total > 0"
       :total="page.total || 0"
@@ -468,7 +484,7 @@ defineExpose({ open });
 </template>
 
 <script setup lang="ts">
-import { createPage } from "./data";
+import { createPage, TABLE_CID } from "./data";
 import AddModal from "./components/addModal.vue";
 
 const addModalRef = ref();
@@ -547,22 +563,44 @@ let _editModalRef: any = null;
 
 /** 管理视角列定义 */
 export function managementColumns(): TableColumnDesc<any>[] {
-  return [
-    { type: "selection" },
-    { type: "index" },
+  return defineColumns([
+    { type: "selection", width: 55, fixed: "left", align: "center", headerAlign: "center" },
+    { type: "index", label: "序号", width: 60, align: "center" },
     // ... 管理视角列（按原型顺序）
-    { label: "操作", width: 100, fixed: "right", operations: [...] }
-  ];
+    {
+      label: "操作",
+      name: "_action",
+      cid: `${TABLE_CID}-management-action`,
+      width: 120,
+      fixed: "right",
+      align: "center",
+      defaultSlot: ({ row }: any) => renderOps([
+        { type: "edit", onClick: () => _editModalRef?.value?.open(row.id) },
+        { type: "del", onClick: () => Page?.remove(row.id) }
+      ])
+    }
+  ] as any) as TableColumnDesc<any>[];
 }
 
 /** 使用视角列定义（含业务明细字段） */
 export function usageColumns(): TableColumnDesc<any>[] {
-  return [
-    { type: "selection" },
-    { type: "index" },
+  return defineColumns([
+    { type: "selection", width: 55, fixed: "left", align: "center", headerAlign: "center" },
+    { type: "index", label: "序号", width: 60, align: "center" },
     // ... 使用视角列（按原型顺序，通常比管理视角多出业务字段）
-    { label: "操作", width: 100, fixed: "right", operations: [...] }
-  ];
+    {
+      label: "操作",
+      name: "_action",
+      cid: `${TABLE_CID}-usage-action`,
+      width: 120,
+      fixed: "right",
+      align: "center",
+      defaultSlot: ({ row }: any) => renderOps([
+        { type: "edit", onClick: () => _editModalRef?.value?.open(row.id) },
+        { type: "del", onClick: () => Page?.remove(row.id) }
+      ])
+    }
+  ] as any) as TableColumnDesc<any>[];
 }
 
 let Page: any = null;
@@ -756,18 +794,20 @@ export function createPage() {
     ];
   }
   columnsDef() {
-    return [
+    return defineColumns([
       // ...
       {
-        label: "操作", fixed: "right",
-        operations: [
-          {
-            name: "edit", label: "编辑",
-            onClick: (row: any) => navigateToForm({ id: row.id })
-          }
-        ]
+        label: "操作",
+        name: "_action",
+        cid: `${TABLE_CID}-action`,
+        fixed: "right",
+        align: "center",
+        defaultSlot: ({ row }: any) =>
+          renderOps([
+            { type: "edit", onClick: () => navigateToForm({ id: row.id }) }
+          ])
       }
-    ];
+    ] as any) as TableColumnDesc<any>[];
   }
 }
 ```
@@ -846,21 +886,13 @@ onMounted(() => {
 ### 实现方式
 
 ```vue
-<!-- 表格列：v-if 按 mode 控制 -->
-<el-table-column v-if="isChange" label="使用组织" prop="useOrg" />
-<el-table-column
-  v-if="!isChange && !isView"
-  label="免息天数"
-  prop="interestFreeDays"
+<!-- 表格列：按 mode 在 data.ts 中切换 columns，仍使用 BaseTable + AGGrid -->
+<BaseTable
+  render-type="agGrid"
+  :cid="DETAIL_TABLE_CID"
+  :data="list"
+  :columns="isChange ? changeColumns : addColumns"
 />
-
-<!-- 操作列：变更模式多一个编辑按钮 -->
-<el-table-column v-if="!isView" label="操作" :width="isChange ? 120 : 80">
-  <template #default="{ row, $index }">
-    <el-button v-if="isChange" type="primary" link @click="editRow(row, $index)">编辑</el-button>
-    <el-button type="danger" link @click="list.splice($index, 1)">删除</el-button>
-  </template>
-</el-table-column>
 
 <!-- 底部新增行链接（变更模式） -->
 <div
@@ -1000,7 +1032,7 @@ spec.features.hiddenMenu === true：
 ✅ query: spec 12 项 = code 12 项，顺序一致
 ✅ columns: spec 16 项 = code 16 项，顺序一致
 ✅ toolbar: spec 7 项 = code 7 项，顺序一致，颜色正确
-✅ operations: spec 3 项 = code 3 项，顺序一致
+✅ rowActions: spec 3 项 = code 3 项，顺序一致
 ✅ tabs: spec 3 项 = code 3 项，顺序一致
 ✅ subTables: businessInfo(editable) — 有新增/删除
 ✅ dict 字段: 8 个全部配置 logicType
@@ -1013,7 +1045,7 @@ spec.features.hiddenMenu === true：
 ```
 ❌ columns: spec 35 项 ≠ code 34 项 — 缺少 customerName 列 → 已补全
 ❌ toolbar 顺序: spec [新增申请, 删除, 启用] ≠ code [新增, 启用, 删除] → 已调整
-❌ operations: spec [查看, 编辑, 删除] ≠ code [编辑, 删除] — 缺少"查看" → 已补全
+❌ rowActions: spec [查看, 编辑, 删除] ≠ code [编辑, 删除] — 缺少"查看" → 已补全
 ```
 
 ---

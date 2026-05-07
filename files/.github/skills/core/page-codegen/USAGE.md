@@ -7,7 +7,7 @@
 
 ## 这个 Skill 解决什么问题
 
-基于《页面清单》+ `api.md`，**自动生成符合项目规范的 Vue 页面**（标准页面骨架：index.vue / data.ts / index.scss + api.md 按需），并跑一遍内部规范自检（Pre-flight + 完成摘要）。
+基于《页面清单》+ `api.md`，**自动生成符合项目规范的 Vue 页面**（标准页面骨架：index.vue / data.ts / index.scss + api.md + mock 按需），并跑一遍内部规范自检（Pre-flight + 完成摘要）。
 
 生成出来的代码**满足 13 条 standards**，无需手工改语法/命名。
 
@@ -23,7 +23,9 @@
 
 ## 触发关键词
 
-`生成页面` / `创建页面` / `代码生成` / `vue 页面` / `按原型生成` / `帮我生成`
+`生成页面` / `创建页面` / `代码生成` / `vue 页面` / `按原型生成` / `帮我生成` / `列表页` / `管理页` / `台账` / `mock` / `先能跑` / `AGGrid` / `skills-ui`
+
+用户不需要精确说出 Skill 名。只要表达“做个页面”“根据截图生成”“先用假数据”“菜单也加上”“风格没生效”，AI 应自动进入 Intent Router，读取 `page-codegen/SKILL.md`、模板索引、匹配模板和 `standards/12-base-table.md`。
 
 ---
 
@@ -37,8 +39,9 @@ AI：[Pre-flight]
     模板基线：templates/domains/produce/customer/
     13 条 standards 自检通过项预估：
     ✓ AbstractPageQueryHook 正确继承
-    ✓ EColumn 元数据完备
-    ✓ pageRef 命名规范
+    ✓ BaseTable render-type="agGrid"
+    ✓ TABLE_CID / 列级 cid 完整
+    ✓ defineColumns / renderOps 已使用
     ✓ scoped scss
     ⚠ 待确认：customerStatus 字典 logicValue 名
     [生成中... 8 分钟]
@@ -56,10 +59,11 @@ AI：[Pre-flight]
 
 ```
 src/views/<域>/<模块>/<子模块>/<page-name>/
-├── data.ts        EColumn 定义、API_CONFIG、Hook 类
+├── data.ts        API_CONFIG、Hook 类、TABLE_CID、defineColumns/renderOps
 ├── index.vue      template + script + import data.ts
 ├── index.scss     页面专属样式（已 :deep / scoped 包好）
-└── api.md         （由 api-contract 生成，codegen 不覆盖）
+├── api.md         （由 api-contract 生成，codegen 不覆盖）
+└── mock/*.ts      mock-first 场景下生成，端点与 API_CONFIG 对齐
 ```
 
 外加生成报告：`.github/reports/PAGE_CODEGEN_<模块>_<YYYYMMDD>.md`
@@ -81,12 +85,29 @@ src/views/<域>/<模块>/<子模块>/<page-name>/
 
 ## 常见踩坑
 
-| 现象                                | 原因                                   | 解法                                                |
-| ----------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| 生成出来的页面 console 报字典查不到 | 字典还没在 reports/SYS_DICT_INFO.md 中 | 先跑 `dict-sync` 拉取，或手动补 dict                |
-| 表单弹窗未加 v-loading              | api.md 没标记 save/update 为耗时操作   | 在 api.md 接口清单中加 `**预计耗时：> 2s**` 标记    |
-| `EColumn` 字段缺 `width`            | 模板默认不指定 width                   | 模板里手动加，或选用 `templates/domains/` 下的成品  |
-| AGGrid cid 重复                     | 多页面同时生成时随机数撞了             | cid 已用 `{首字母缩写}-{Unix秒后6位}`，理论极低概率 |
+| 现象                                | 原因                                   | 解法                                                                          |
+| ----------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
+| 生成出来的页面 console 报字典查不到 | 字典还没在 reports/SYS_DICT_INFO.md 中 | 先跑 `dict-sync` 拉取，或手动补 dict                                          |
+| 表单弹窗未加 v-loading              | api.md 没标记 save/update 为耗时操作   | 在 api.md 接口清单中加 `**预计耗时：> 2s**` 标记                              |
+| `EColumn` 字段缺 `width`            | 模板默认不指定 width                   | 模板里手动加，或选用 `templates/domains/` 下的成品                            |
+| AGGrid cid 重复                     | cid 生成不规范                         | 使用 `{页面目录首字母缩写}-{Date.now().toString(36)}`，多表追加 `-sub1/-sub2` |
+| 表格不是 AGGrid                     | 模板未写 `render-type="agGrid"`        | 使用最新模板，或运行 `wl-skills validate-page <页面目录>`                     |
+| 操作列还是旧按钮                    | 生成了 `operations: []`                | 改成 `defaultSlot + renderOps()`                                              |
+| skills-ui 安装但风格没生效          | tokens/styles/preset/runtime 未接入    | 运行 `wl-skills doctor-ui` 查看缺项                                           |
+
+---
+
+## 生成后建议命令
+
+```bash
+wl-skills validate-page src/views/<module>/<subModule>/<page>
+wl-skills doctor-ui
+```
+
+若 AI 可调用 MCP，优先使用：
+
+- `wls_validate_page`
+- `wls_doctor_ui`
 
 ---
 

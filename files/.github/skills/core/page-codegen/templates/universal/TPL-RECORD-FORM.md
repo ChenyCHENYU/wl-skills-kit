@@ -2,7 +2,6 @@
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
-
 > 适用场景：通过 BaseQuery 选定主记录（如炉号、生产计划号），展示可编辑的 BaseForm 字段区 + BaseTable 明细行，**无分页**。
 > 典型于生产域实绩录入（转炉实绩、精炼实绩、连铸实绩等）。
 > 参考实现：`src/views/produce/production-omom/lgsj/mmsm-convert-progress/`
@@ -23,16 +22,19 @@ import {
   BaseQueryItemDesc,
   ActionButtonDesc,
   TableColumnDesc,
-  BusLogicDataType
+  BusLogicDataType,
 } from "@/types/page";
 import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import c_spliterTitle from "@/components/local/c_spliterTitle/index.vue";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { debounce } from "lodash-es";
+import { defineColumns } from "@agile-team/wk-skills-ui/runtime";
+
+export const BOTTOM_TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
 export const API_CONFIG = {
-  getByKey:     "/[服务缩写]/[资源名]/getBy[Key]",    // 按主键查询（炉号/计划号/熔炼号）
-  saveOrUpdate: "/[服务缩写]/[资源名]/saveOrUpdate"   // 保存实绩
+  getByKey: "/[服务缩写]/[资源名]/getBy[Key]", // 按主键查询（炉号/计划号/熔炼号）
+  saveOrUpdate: "/[服务缩写]/[资源名]/saveOrUpdate", // 保存实绩
 } as const;
 
 // ─────────────── 查询区 ───────────────
@@ -44,8 +46,8 @@ export const queryItems: BaseQueryItemDesc<any>[] = [
   {
     name: "[keyField]",
     label: "[主键名]",
-    placeholder: "请输入[主键名]"
-  }
+    placeholder: "请输入[主键名]",
+  },
   // 如需关联 Picker，使用 componentVNode 渲染（参考 mmsm-convert-progress PlanMainPicker）
 ];
 
@@ -54,7 +56,7 @@ export const select = async () => {
   const res = await getAction(API_CONFIG.getByKey, queryParam.value);
   form.value = {
     ...queryParam.value,
-    ...(res.data?.[主数据字段] || {})
+    ...(res.data?.[主数据字段] || {}),
   };
   bottomTableData.value = res.data?.[明细字段] || [];
 };
@@ -85,7 +87,7 @@ export const formItems: BaseFormItemDesc<any>[] = [
     label: "",
     labelWidth: "0px",
     span: 4,
-    componentVNode: () => h(c_spliterTitle, { title: "[分区名称]" })
+    componentVNode: () => h(c_spliterTitle, { title: "[分区名称]" }),
   },
   // 普通文本
   { label: "[字段名]", name: "[fieldName]", placeholder: "请输入[字段名]" },
@@ -96,22 +98,22 @@ export const formItems: BaseFormItemDesc<any>[] = [
     placeholder: "请选择[字典字段]",
     logicType: BusLogicDataType.dict,
     logicValue: "[dictCode]",
-    required: true
+    required: true,
   },
   // 时间
   {
     label: "[时间字段]",
     name: "[timeField]",
     placeholder: "请选择[时间字段]",
-    logicType: BusLogicDataType.datetime
+    logicType: BusLogicDataType.datetime,
   },
   // 数值
   {
     label: "[数值字段]",
     name: "[numField]",
     placeholder: "请输入[数值字段]",
-    logicType: BusLogicDataType.number
-  }
+    logicType: BusLogicDataType.number,
+  },
 ];
 
 /** 工具栏（需传入 formRef 以触发校验） */
@@ -126,13 +128,15 @@ export const toolbars = (formRef: any): ActionButtonDesc[] => [
         ElMessageBox.confirm("确定保存吗？", "提示", {
           confirmButtonText: "确定",
           cancelButtonText: "取消",
-          type: "warning"
+          type: "warning",
         }).then(async () => {
-          const res = await postAction(API_CONFIG.saveOrUpdate, { ...form.value });
+          const res = await postAction(API_CONFIG.saveOrUpdate, {
+            ...form.value,
+          });
           ElMessage.success(res?.message || "保存成功");
         });
       });
-    }, 600)
+    }, 600),
   },
   {
     label: "重置",
@@ -141,8 +145,8 @@ export const toolbars = (formRef: any): ActionButtonDesc[] => [
     onClick: () => {
       resetForm();
       formRef?.resetFields();
-    }
-  }
+    },
+  },
 ];
 
 // ─────────────── 明细表格区 ───────────────
@@ -150,17 +154,18 @@ export const toolbars = (formRef: any): ActionButtonDesc[] => [
 export const bottomTableData = ref<any[]>([]);
 
 /** 明细表格列配置 */
-export const bottomTableColumns: TableColumnDesc<any>[] = [
-  { type: "index", width: 55 },
+export const bottomTableColumns: TableColumnDesc<any>[] = defineColumns([
+  { type: "index", label: "序号", width: 60, align: "center" },
   {
     label: "[列名]",
     name: "[fieldName]",
+    cid: `${BOTTOM_TABLE_CID}-[fieldName]`,
     minWidth: 100,
     sortable: true,
-    filterable: true
-  }
+    filterable: true,
+  },
   // 按原型顺序添加明细列，通常为只读（无操作列）
-];
+] as any) as TableColumnDesc<any>[];
 ```
 
 #### index.vue
@@ -190,6 +195,8 @@ export const bottomTableColumns: TableColumnDesc<any>[] = [
       />
       <!-- 明细表格（无分页） -->
       <BaseTable
+        render-type="agGrid"
+        :cid="BOTTOM_TABLE_CID"
         :data="bottomTableData"
         :columns="bottomTableColumns"
         :height="300"
@@ -209,7 +216,8 @@ import {
   reset,
   bottomTableData,
   bottomTableColumns,
-  resetForm
+  BOTTOM_TABLE_CID,
+  resetForm,
 } from "./data";
 
 const formRef = ref<any>(null);
@@ -248,14 +256,14 @@ onMounted(() => {
 
 #### 关键约束
 
-| 约束 | 说明 |
-|------|------|
-| **不用 AbstractPageQueryHook** | 直接导出 `ref` + 函数，无 `createPage()` 包装 |
-| **无分页** | `bottomTableData` 绑定全量数据，不加 `jh-pagination` |
-| **auto-select: false** | BaseQuery 查询是"选择主记录"，不自动触发，用户主动点击 |
-| **toolbars(formRef)** | template 中调用函数传入 `formRef`，不是直接绑定数组 |
-| **debounce 保存** | 防止连点，来自 `lodash-es`，600ms |
-| **c_spliterTitle 分区** | 表单字段按业务分组，每组前插分隔标题 |
+| 约束                           | 说明                                                   |
+| ------------------------------ | ------------------------------------------------------ |
+| **不用 AbstractPageQueryHook** | 直接导出 `ref` + 函数，无 `createPage()` 包装          |
+| **无分页**                     | `bottomTableData` 绑定全量数据，不加 `jh-pagination`   |
+| **auto-select: false**         | BaseQuery 查询是"选择主记录"，不自动触发，用户主动点击 |
+| **toolbars(formRef)**          | template 中调用函数传入 `formRef`，不是直接绑定数组    |
+| **debounce 保存**              | 防止连点，来自 `lodash-es`，600ms                      |
+| **c_spliterTitle 分区**        | 表单字段按业务分组，每组前插分隔标题                   |
 
 #### Mock 文件要点
 
@@ -312,20 +320,29 @@ export default mockApi;
 defineExpose({ loadData, collectFormData, validate, loadDiffData, clearDiffData })
 ```
 
-| 方法 | 说明 |
-|------|------|
+| 方法                     | 说明                                     |
+| ------------------------ | ---------------------------------------- |
 | `loadDiffData(prevData)` | 接收旧版数据，组件内部对比并渲染差异指示 |
-| `clearDiffData()` | 清除比对状态 |
+| `clearDiffData()`        | 清除比对状态                             |
 
 **组件内部实现要点**：
 
 1. **表单字段 diff**：用 `div.diff-field-col` 包裹 `jh-select` + `<span class="diff-old-value">`，旧值出现在字段**下方**（不破坏原布局）：
+
 ```html
 <el-form-item label="纳税类型" prop="taxCategory">
   <div class="diff-field-col">
-    <jh-select v-model="basicInfo.taxCategory" dict="tax_category" label="" placeholder="请选择" />
-    <span v-if="diffBasicInfo && diffBasicInfo.taxCategory !== basicInfo.taxCategory"
-          class="diff-old-value">{{ diffBasicInfo.taxCategory }}</span>
+    <jh-select
+      v-model="basicInfo.taxCategory"
+      dict="tax_category"
+      label=""
+      placeholder="请选择"
+    />
+    <span
+      v-if="diffBasicInfo && diffBasicInfo.taxCategory !== basicInfo.taxCategory"
+      class="diff-old-value"
+      >{{ diffBasicInfo.taxCategory }}</span
+    >
   </div>
 </el-form-item>
 ```
@@ -333,6 +350,7 @@ defineExpose({ loadData, collectFormData, validate, loadDiffData, clearDiffData 
 > **数据约定**：`diffBasicInfo` 中存储显示标签（如 `"小规模纳税人"`），不存储 dict code，与 `basicInfo` 保持一致格式，才能正确比对和展示。
 
 2. **表格行 diff**：使用 `computed` 在每条主数据行后插入带 `_isDiffRow: true` 标记的旧版行：
+
 ```typescript
 const displayList = computed(() => {
   if (!diffList.value) return mainList.value;
@@ -341,8 +359,11 @@ const displayList = computed(() => {
     result.push({ ...row, _seq: i + 1 });
     const old = diffList.value![i];
     if (old) {
-      const changed = Object.keys(old).filter(k => !k.startsWith('_') && String(old[k]) !== String(row[k]));
-      if (changed.length) result.push({ ...old, _isDiffRow: true, _changedFields: changed });
+      const changed = Object.keys(old).filter(
+        (k) => !k.startsWith("_") && String(old[k]) !== String(row[k]),
+      );
+      if (changed.length)
+        result.push({ ...old, _isDiffRow: true, _changedFields: changed });
     }
   });
   return result;
@@ -352,25 +373,49 @@ const displayList = computed(() => {
 3. **单元格级高亮**：每个 view 模式列的 `<span>` 加上 `diffCellClass(row, 'fieldName')`。
 
 4. **CSS 样式**（在组件 scoped style 中）：
+
 ```scss
 /* 表单字段 diff 包装器：列方向 flex，使旧值出现在 jh-select 下方 */
 .diff-field-col {
-  display: flex; flex-direction: column; width: 100%;
-  :deep(.el-select) { width: 100% !important; }
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  :deep(.el-select) {
+    width: 100% !important;
+  }
 }
 /* 表单字段旧值：在字段下方，● 前缀不加删除线，文字橙色 + 删除线 */
 .diff-old-value {
-  display: block; font-size: 12px; color: #e6a23c;
-  text-decoration: line-through; margin-top: 2px; line-height: 1.4;
-  &::before { content: "● "; text-decoration: none; display: inline-block; }
+  display: block;
+  font-size: 12px;
+  color: #e6a23c;
+  text-decoration: line-through;
+  margin-top: 2px;
+  line-height: 1.4;
+  &::before {
+    content: "● ";
+    text-decoration: none;
+    display: inline-block;
+  }
 }
 /* 表格对比行：已变更字段 —— 橙色 + 删除线 */
-.diff-changed { color: #e6a23c !important; text-decoration: line-through; }
-.diff-row-marker { color: #e6a23c; font-size: 12px; }
+.diff-changed {
+  color: #e6a23c !important;
+  text-decoration: line-through;
+}
+.diff-row-marker {
+  color: #e6a23c;
+  font-size: 12px;
+}
 /* 表格对比行：整行浅红背景 + 未变字段灰色，已变字段橙色覆盖 */
 :deep(.el-table .is-diff-row) {
   background-color: #fef0f0 !important;
-  td { background-color: #fef0f0 !important; color: #c0c4cc; }
-  .diff-changed { color: #e6a23c !important; }
+  td {
+    background-color: #fef0f0 !important;
+    color: #c0c4cc;
+  }
+  .diff-changed {
+    color: #e6a23c !important;
+  }
 }
 ```

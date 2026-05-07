@@ -119,6 +119,15 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
 19. **未知交互兜底**：当原型未提供交互细节、且无法从通用模式推断时，`onClick` 中使用 `ElMessage.info("需业务确认交互逻辑")` 作为占位
 20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/` 目录是否存在
+21. **默认 Mock First**：新生成页面默认必须走 `vite-plugin-mock`。必须生成 `mock/[页面kebab-name].ts`，并确保 `API_CONFIG` 中每个 URL 都有对应 mock 端点；只有当用户明确要求关闭 mock 或 `.env.dev` 中 `ENV_MOCK=false` 时，才允许直接联调真实接口。
+22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/list`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/list`），这样关闭 mock 后无需修改业务代码。
+23. **页面初始数据必须由 mock 提供**：列表页 `onMounted(() => select())` 后必须能显示模拟数据，不允许生成空白页等待后端接口；`list` 端点返回 `{ code: 2000, data: { records, total, size, current } }`。
+24. **必须使用 wk-skills-ui runtime 风格**：当项目安装了 `@agile-team/wk-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
+25. **wk-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wk-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wk-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
+26. **pages.ts 分组注册**：多页面模块必须按当前业务目录分组写入 `vite/plugins/shared/pages.ts`，使用 `gProd(module, { subModule: [[page, label]] })` 结构，不允许把所有页面扁平追加到一个数组。
+27. **BaseTable 强制 AGGrid**：所有业务主列表/台账/主从表/树表/详情子表的 `BaseTable` 必须显式写 `render-type="agGrid"`，并绑定全局唯一 `cid`。弹窗小表格可豁免，但必须在生成摘要中说明理由。
+28. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
+29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wk-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
 
 ### 禁止事项（严格遵守）
 
@@ -135,6 +144,11 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 11. **❌ 禁止表单控件宽度不统一**：`jh-select`、`jh-date`、`el-input-number`、`jh-file-upload` 默认宽度可能与 `el-input` 不一致，必须在 scoped style 中用 `:deep()` 统一设为 `width: 100%`（详见 §表单页 UI 细节规范）
 12. **❌ 禁止表单页无滚动**：独立路由表单页内容超出视口时必须可滚动，`.app-page-container` 须设 `overflow-y: auto`（**不要加 `height: 100%`，全局已有 `height: calc(100vh - 100px)`，叠加会导致双滚动条**）
 13. **❌ 禁止内联 style 散落**：所有页面/组件样式统一写在 `index.scss` 中（便于复用和移动），不可在 template 中大量使用内联 `style="..."`
+14. **❌ 禁止生成无 mock 的页面**：只写 `API_CONFIG` 但不写 `mock/*.ts` 属于生成失败。
+15. **❌ 禁止生成空 onClick**：`onClick: () => {}` 属于生成失败；未知逻辑也必须用 `ElMessage.info(...)` 明示。
+16. **❌ 禁止忽略 wk-skills-ui**：项目已安装 `@agile-team/wk-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
+17. **❌ 禁止 BaseTable 非 AGGrid**：业务列表中 `<BaseTable>` 未写 `render-type="agGrid"` 或缺少 `cid/:cid` 属于生成失败。
+18. **❌ 禁止列缺 cid**：AGGrid 表格的数据列/操作列缺少列级 `cid` 属于生成失败。
 
 ### c_formModal 使用规范
 
@@ -294,18 +308,20 @@ export function createPage() {
       ];
     }
     columnsDef(): TableColumnDesc<any>[] {
-      return [
+      return defineColumns([
         // ...
         {
           label: "操作",
-          operations: [
-            {
-              label: "编辑",
-              onClick: (row: any) => navigateToForm({ id: row.id })  // 带 id：编辑
-            }
-          ]
+          name: "_action",
+          cid: `${TABLE_CID}-action`,
+          fixed: "right",
+          align: "center",
+          defaultSlot: ({ row }: any) =>
+            renderOps([
+              { type: "edit", onClick: () => navigateToForm({ id: row.id }) }  // 带 id：编辑
+            ])
         }
-      ];
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
   return Page.create() as any;
@@ -401,34 +417,38 @@ const ids = rows.map((r: any) => r.id);
 ```typescript
 {
   label: "操作",
+  name: "_action",
+  cid: `${TABLE_CID}-action`,
   width: 140,
   fixed: "right",
-  operations: [
-    {
-      name: "edit",
-      label: "修改",
-      show: (row: any) => row.verifyStatus === "已核实",
-      onClick: (row: any) => _editModalRef?.value?.edit(row.id)
-    },
-    {
-      name: "danger",
-      label: "作废",
-      show: (row: any) => row.verifyStatus === "已核实",
-      onClick: (row: any) => { /* cancel API */ }
-    },
-    {
-      name: "edit",
-      label: "编辑",
-      show: (row: any) => row.verifyStatus !== "已核实",
-      onClick: (row: any) => _editModalRef?.value?.edit(row.id)
-    },
-    {
-      name: "remove",
-      label: "删除",
-      show: (row: any) => row.verifyStatus !== "已核实",
-      onClick: (row: any) => { /* remove API */ }
-    }
-  ]
+  align: "center",
+  defaultSlot: ({ row }: any) =>
+    renderOps([
+      {
+        type: "edit",
+        label: "修改",
+        show: () => row.verifyStatus === "已核实",
+        onClick: () => _editModalRef?.value?.edit(row.id)
+      },
+      {
+        type: "danger",
+        label: "作废",
+        show: () => row.verifyStatus === "已核实",
+        onClick: () => handleCancel(row)
+      },
+      {
+        type: "edit",
+        label: "编辑",
+        show: () => row.verifyStatus !== "已核实",
+        onClick: () => _editModalRef?.value?.edit(row.id)
+      },
+      {
+        type: "del",
+        label: "删除",
+        show: () => row.verifyStatus !== "已核实",
+        onClick: () => Page?.remove(row.id)
+      }
+    ])
 }
 ```
 
@@ -497,15 +517,24 @@ function renderStatusTag(row: any, field: string) {
 let Page: any = null;
 
 export function managementColumns(): TableColumnDesc<any>[] {
-  return [
+  return defineColumns([
     // ...
-    { label: "操作", fixed: "right", width: 100, operations: [
-      { name: "remove", label: "删除", onClick: (row: any) => Page?.remove(row.id) }
-    ]}
-  ];
+    {
+      label: "操作",
+      name: "_action",
+      cid: `${TABLE_CID}-management-action`,
+      fixed: "right",
+      width: 100,
+      align: "center",
+      defaultSlot: ({ row }: any) =>
+        renderOps([
+          { type: "del", label: "删除", onClick: () => Page?.remove(row.id) }
+        ])
+    }
+  ] as any) as TableColumnDesc<any>[];
 }
 export function usageColumns(): TableColumnDesc<any>[] {
-  return [ /* 使用视角列... */ ];
+  return defineColumns([ /* 使用视角列... */ ] as any) as TableColumnDesc<any>[];
 }
 
 export function createPage(editModalRef?: any) {
@@ -866,6 +895,50 @@ import { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-qu
 
 page-codegen 生成页面代码后，**必须追加写入菜单配置信息到 `reports/SYS_MENU_INFO.md`**。
 
+## pages.ts 分组注册规则（Module Federation 子应用）
+
+多页面子应用必须使用与 `wl-mdata` 验证一致的分组模式，禁止扁平追加：
+
+```typescript
+import type { SharedPageItem } from "./utils";
+
+type PageTuple = [string, string];
+type SubModuleMap = Record<string, PageTuple[]>;
+
+const gProd = (module: string, subModules: SubModuleMap): SharedPageItem[] =>
+  Object.entries(subModules).flatMap(([subModule, pages]) =>
+    pages.map(([page, label]) => ({
+      name: `${module}/${subModule}/${page}/index.vue`,
+      label
+    }))
+  );
+
+const mdataModule = gProd("mdata", {
+  model: [
+    ["mdata-model-config", "主数据模型配置"],
+    ["mdata-attr-mapping", "属性映射管理"]
+  ],
+  integration: [
+    ["mdata-integ-system", "集成系统管理"]
+  ]
+});
+
+export const list: SharedPageItem[] = mdataModule;
+export default list;
+```
+
+生成规则：
+
+| 字段 | 规则 |
+| --- | --- |
+| `module` | 来自项目启动参数 `--module=xxx`，如 `mdata` |
+| `subModule` | 来自页面目录第二级，如 `src/views/mdata/model/...` → `model` |
+| `page` | 页面 kebab 目录名，如 `mdata-model-config` |
+| `name` | `${module}/${subModule}/${page}/index.vue` |
+| `label` | 页面中文名 |
+
+> menu-sync 的 `component` 必须与 `pages.ts` 生成的 `name` 完全一致，否则菜单能创建但点击无法加载页面。
+
 ### 写入策略（默认追加，不覆盖）
 
 - **默认为追加模式**：保留已有内容，在末尾追加本次生成的菜单。避免覆盖团队之前累积的菜单记录。
@@ -875,24 +948,27 @@ page-codegen 生成页面代码后，**必须追加写入菜单配置信息到 `
 
 ### 生成模板
 
-每个页面生成一个菜单条目，格式如下：
+多级菜单必须先写目录（`type=M`），再在目录下写页面菜单（`type=C`）。格式如下：
 
 ```markdown
-## [序号]. [菜单名称]
+# 系统菜单配置 — [项目名] [业务模块]
 
-| 字段         | 填写值 |
-| ------------ | ------ |
-| 类型 Tab     | 选择 **菜单** |
-| 上级目录     | `[父目录名]` |
-| 应用选择     | `[应用名]` |
-| 使用缓存     | ◉ 使用 |
-| 显示排序     | `[序号]` |
-| 菜单路径     | `[camelCase目录名]` |
-| 菜单名称     | `[中文名]` |
-| 名称编码后缀 | `[菜单路径拼音小写]` |
-| 组件路径     | `[域]/[模块]/[子模块]/[kebab-目录名]/index.vue` |
-| 权限标识     | `[camelCase目录名]` |
-| 是否隐藏     | **否** / **是** |
+> **module 命名**：`[module]`
+> **父级菜单**：来自 `.github/skills/sync/env.local.json` 的 `menu.parentMenuId`
+
+## 一级目录（type=M）
+
+| # | 菜单名 | path | orderNum | 备注 |
+| - | ------ | ---- | -------- | ---- |
+| 1 | [目录中文名] | `[目录pathCamel]` | 1 | 含 N 个子菜单 |
+
+## 二级菜单（type=C）
+
+### 1. [目录中文名] 子菜单
+
+| 菜单名 | path | component | permission |
+| ------ | ---- | --------- | ---------- |
+| [页面中文名] | `[pageCamel]` | `[module]/[subModule]/[pageKebab]/index.vue` | `[module]:[pageCamel]:list` |
 ```
 
 ### 字段生成规则
@@ -901,8 +977,8 @@ page-codegen 生成页面代码后，**必须追加写入菜单配置信息到 `
 |------|------|------|
 | 菜单路径 | page-spec.kebabName | kebab-case → camelCase（`mmwr-customer-archive` → `mmwrCustomerArchive`） |
 | 菜单名称 | page-spec.pageName | 直接使用中文名 |
-| 组件路径 | pages.ts 注册路径 | `[域]/[模块]/[子模块]/[kebab-目录名]/index.vue` |
-| 权限标识 | 同菜单路径 | camelCase |
+| 组件路径 | pages.ts 注册路径 | `[module]/[subModule]/[kebab-目录名]/index.vue` |
+| 权限标识 | module + 菜单路径 | `[module]:[pageCamel]:list` |
 | 是否隐藏 | page-spec.features.hiddenMenu | `true` → 是，`false` → 否 |
 | 上级目录 | 用户指定 / page-spec 推断 | 如果用户在原型扫描阶段指定了上级目录，使用该值 |
 | 应用选择 | pages.ts 域名 | `produce` → 生产，`sale` → 销售 |
@@ -919,29 +995,27 @@ page-codegen 生成页面代码后，**必须追加写入菜单配置信息到 `
 ### SYS_MENU_INFO.md 文件结构
 
 ```markdown
-# 系统菜单配置 — [模块名称]（[域] / [子模块路径]）
+# 系统菜单配置 — [项目名] [模块名]
 
-> 对应系统管理 → 菜单管理 → 新增菜单，每栏直接复制粘贴。
-> **操作顺序：先建目录（第 0 步），再逐个添加菜单。**
->
-> **pages.ts 注册位置**：`vite/plugins/shared/pages.ts` → `[模块变量名]` → `[子模块key]`
+> **父级菜单**：`[parentMenuId]`
+> **应用编码**：`[sysAppNo]`
+> **module 命名**：`[module]`
 
-## 第 0 步：新建目录（如需要）
+## 一级目录（type=M）
 
-| 字段     | 值 |
-| -------- | -- |
-| 上级目录 | `[上级目录名]` |
-| 菜单名称 | `[目录名]` |
-| 显示排序 | `[序号]` |
+| # | 菜单名 | path | orderNum | 备注 |
+| - | ------ | ---- | -------- | ---- |
+| 1 | [目录名] | `[目录pathCamel]` | 1 | 含 N 个子菜单 |
 
-## 第 1 步：[页面名称]
+## 二级菜单（type=C）
 
-[菜单条目表格]
+### 1. [目录名] 子菜单
 
-> pages.ts 对应：`["[kebab-name]", "[中文名]"]`
+| 菜单名 | path | component | permission |
+| ------ | ---- | --------- | ---------- |
+| [页面名称] | `[pageCamel]` | `[module]/[subModule]/[pageKebab]/index.vue` | `[module]:[pageCamel]:list` |
 
-## 第 2 步：[页面名称]
-...
+> pages.ts 对应：`gProd("[module]", { [subModule]: [["[pageKebab]", "[页面名称]"]] })`
 ```
 
 ### 与 menu-sync 的衔接
@@ -950,6 +1024,7 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 - **自动创建**：用户说"帮我创建菜单" → menu-sync 读取 SYS_MENU_INFO.md → 调 API 逐条创建
 - **手动创建**：用户也可直接按 SYS_MENU_INFO.md 的表格在系统管理后台手动创建菜单
 - 两种方式等价，菜单创建后通过 `组件路径` 字段与 pages.ts 注册的文件路径关联
+- **自动创建顺序**：必须先调用 `wls_menu_query` 获取当前 domain 菜单树，再 `wls_menu_upsert` 创建/更新一级目录（type=M），拿到目录 id 后再创建二级菜单（type=C）。不得把二级页面全部直接挂到根 `parentMenuId`。
 
 ---
 

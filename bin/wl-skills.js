@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.4.2
+ * wl-skills-kit CLI v2.5.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -9,7 +9,9 @@
  *   clean     构建清理（移除 AI 指令/文档/样例，保留组件和类型）
  *   check     环境预检（工具链 / MCP 配置 / manifest）
  *   diff      对比已安装文件与当前 kit 版本
- *   validate  静态检查 src/views 页面文件完整性
+ *   validate  静态检查 src/views 页面文件完整性、AGGrid、skills-ui runtime、mock
+ *   validate-page validate 的别名，适用于单页/目录检查
+ *   doctor-ui 检查 @agile-team/wk-skills-ui 接入完整性
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
@@ -44,7 +46,9 @@ if (showHelp) {
     clean      构建清理（移除开发期 AI 文件，保留 src/components + src/types）
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
     diff       对比已安装文件与当前 kit 版本的差异
-    validate   静态检查 src/views 页面文件完整性
+    validate   静态检查 src/views 页面文件、AGGrid、skills-ui runtime、mock
+    validate-page validate 的别名，适用于单页/目录检查
+    doctor-ui  检查 @agile-team/wk-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
 
   选项:
@@ -60,6 +64,8 @@ if (showHelp) {
     npx @agile-team/wl-skills-kit check                 检查本地环境
     npx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
     npx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
+    npx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
+    npx @agile-team/wl-skills-kit doctor-ui             检查 wk-skills-ui 接入
     npx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
     npx @agile-team/wl-skills-kit clean                 清理开发期文件
     npx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
@@ -739,22 +745,45 @@ function scanPageDirs(scanRel) {
   const pages = [];
   for (const [dir, names] of dirs.entries()) {
     if (!names.has("index.vue")) continue;
-    let apiConfigCount = 0;
+    const indexPath = path.join(TARGET_DIR, dir, "index.vue");
+    const indexContent = fs.existsSync(indexPath)
+      ? fs.readFileSync(indexPath, "utf8")
+      : "";
     const dataPath = path.join(TARGET_DIR, dir, "data.ts");
-    if (fs.existsSync(dataPath)) {
-      apiConfigCount = (
-        fs.readFileSync(dataPath, "utf8").match(/API_CONFIG/g) || []
-      ).length;
-    }
+    const dataContent = fs.existsSync(dataPath)
+      ? fs.readFileSync(dataPath, "utf8")
+      : "";
+    let apiConfigCount = 0;
+    if (dataContent)
+      apiConfigCount = (dataContent.match(/API_CONFIG/g) || []).length;
     pages.push({
       dir,
       hasDataTs: names.has("data.ts"),
       hasIndexScss: names.has("index.scss"),
       hasApiMd: names.has("api.md"),
       apiConfigCount,
+      baseTableCount: (indexContent.match(/<BaseTable\b/g) || []).length,
+      agGridCount: (indexContent.match(/render-type=["']agGrid["']/g) || [])
+        .length,
+      cidBindCount: (indexContent.match(/\bcid=|:cid=/g) || []).length,
+      hasDefineColumns: /defineColumns\s*\(/.test(dataContent),
+      hasRenderOps: /renderOps\s*\(/.test(dataContent),
+      hasOperationsArray: /operations\s*:/.test(dataContent),
+      hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
+        dataContent,
+      ),
+      apiUrls: Array.from(
+        dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
+      ).map((m) => m[1]),
     });
   }
   return pages.sort((a, b) => a.dir.localeCompare(b.dir));
+}
+
+function findMockFiles() {
+  const mockDir = path.join(TARGET_DIR, "mock");
+  if (!fs.existsSync(mockDir)) return [];
+  return walkDir(mockDir, TARGET_DIR).filter((rel) => /\.(ts|js)$/.test(rel));
 }
 
 function runValidate() {
@@ -762,7 +791,7 @@ function runValidate() {
     args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
   const pages = scanPageDirs(scanPath);
   console.log("");
-  console.log("  wl-skills-kit v" + PKG.version + "  [validate]");
+  console.log("  wl-skills-kit v" + PKG.version + "  [" + command + "]");
   console.log("  扫描目录: " + scanPath);
   console.log("");
 
@@ -774,6 +803,10 @@ function runValidate() {
   }
 
   const issues = [];
+  const mockFiles = findMockFiles();
+  const mockContent = mockFiles
+    .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
+    .join("\n");
   for (const page of pages) {
     if (!page.hasDataTs)
       issues.push({
@@ -789,17 +822,164 @@ function runValidate() {
         dir: page.dir,
         text: "检测到 API_CONFIG 但缺 api.md",
       });
+    if (page.baseTableCount > 0 && page.agGridCount < page.baseTableCount)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: 'BaseTable 必须显式 render-type="agGrid"',
+      });
+    if (page.baseTableCount > 0 && page.cidBindCount < page.baseTableCount)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "BaseTable 必须配置全局唯一 cid / :cid",
+      });
+    if (page.hasDataTs && page.baseTableCount > 0 && !page.hasDefineColumns)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "表格列必须使用 wk-skills-ui defineColumns()",
+      });
+    if (page.hasOperationsArray)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "操作列禁止 operations 数组，必须使用 defaultSlot + renderOps()",
+      });
+    if (
+      page.hasDataTs &&
+      page.baseTableCount > 0 &&
+      !page.hasRenderOps &&
+      /操作|_action/.test(
+        fs.readFileSync(path.join(TARGET_DIR, page.dir, "data.ts"), "utf8"),
+      )
+    )
+      issues.push({
+        level: "warn",
+        dir: page.dir,
+        text: "疑似存在操作列但未使用 renderOps()",
+      });
+    if (page.hasEmptyOnClick)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "存在空 onClick: () => {}",
+      });
+    if (page.apiConfigCount > 0 && mockFiles.length === 0)
+      issues.push({
+        level: "warn",
+        dir: page.dir,
+        text: "检测到 API_CONFIG 但项目 mock/ 目录无 mock 文件",
+      });
+    for (const url of page.apiUrls.filter((item) => item.startsWith("/"))) {
+      const mockUrl = `/dev-api${url}`;
+      if (mockContent && !mockContent.includes(mockUrl))
+        issues.push({
+          level: "warn",
+          dir: page.dir,
+          text: "mock 中未发现端点 " + mockUrl,
+        });
+    }
   }
 
   console.log("  页面目录: " + pages.length);
   console.log("  提示项: " + issues.length);
   console.log("");
+  const errors = issues.filter((issue) => issue.level === "error").length;
   for (const issue of issues) {
-    console.log("  ⚠ " + issue.dir + " — " + issue.text);
+    const icon = issue.level === "error" ? "✖" : "⚠";
+    console.log("  " + icon + " " + issue.dir + " — " + issue.text);
   }
   if (issues.length === 0) console.log("  ✔ 页面文件完整性检查通过");
   console.log("");
-  if (issues.length > 0) process.exitCode = 1;
+  if (errors > 0 || issues.length > 0) process.exitCode = 1;
+}
+
+function readJsonSafe(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function runDoctorUi() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [doctor-ui]");
+  console.log("  目标目录: " + TARGET_DIR);
+  console.log("");
+
+  const checks = [];
+  function add(name, ok, detail) {
+    checks.push({ name, ok, detail });
+  }
+
+  const pkg = readJsonSafe(path.join(TARGET_DIR, "package.json"));
+  const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
+  add(
+    "@agile-team/wk-skills-ui",
+    Boolean(deps["@agile-team/wk-skills-ui"]),
+    deps["@agile-team/wk-skills-ui"] || "未安装",
+  );
+  add(
+    "@element-plus/icons-vue",
+    Boolean(deps["@element-plus/icons-vue"]),
+    deps["@element-plus/icons-vue"] || "未安装",
+  );
+
+  const files = fs.existsSync(TARGET_DIR)
+    ? walkDir(TARGET_DIR, TARGET_DIR)
+    : [];
+  const sourceFiles = files.filter(
+    (rel) =>
+      /\.(ts|vue|scss|html)$/.test(rel) && !rel.startsWith("node_modules/"),
+  );
+  const readAll = (pattern) =>
+    sourceFiles
+      .filter((rel) => pattern.test(rel))
+      .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
+      .join("\n");
+  const allSource = readAll(/.*/);
+
+  add(
+    "design tokens",
+    /@agile-team\/wk-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
+      allSource,
+    ),
+    "需引入 design tokens",
+  );
+  add(
+    "styles preset",
+    /@agile-team\/wk-skills-ui\/styles/.test(allSource),
+    "需引入 styles 或 skin preset",
+  );
+  add(
+    "installCommonPreset",
+    /installCommonPreset\s*\(/.test(allSource),
+    "需在入口或业务 preset 中调用",
+  );
+  add(
+    "defineColumns",
+    /defineColumns\s*\(/.test(allSource),
+    "页面列定义需使用 defineColumns",
+  );
+  add("renderOps", /renderOps\s*\(/.test(allSource), "操作列需使用 renderOps");
+
+  for (const item of checks) {
+    console.log(
+      "  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail,
+    );
+  }
+  const failed = checks.filter((item) => !item.ok).length;
+  console.log("");
+  console.log(
+    failed === 0
+      ? "  ✔ wk-skills-ui 接入检查通过"
+      : "  ⚠ wk-skills-ui 接入仍有 " + failed + " 项需处理",
+  );
+  console.log("");
+  if (failed > 0) process.exitCode = 1;
 }
 
 function parseMarkdownTable(content) {
@@ -899,7 +1079,11 @@ switch (command) {
     runDiff();
     break;
   case "validate":
+  case "validate-page":
     runValidate();
+    break;
+  case "doctor-ui":
+    runDoctorUi();
     break;
   case "export":
     runExport();

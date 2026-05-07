@@ -2,18 +2,22 @@
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
-
 #### data.ts（额外部分）
 
 在标准 createPage 基础上，增加 createBottomPage：
 
 ```typescript
 // ... 同模板 A 的 imports 和 API_CONFIG（增加从表相关 URL）
+import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+
+export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
+export const BOTTOM_TABLE_CID = `${TABLE_CID}-sub1`;
+
 export const API_CONFIG = {
   list: "/[服务缩写]/[主资源]/list",
   remove: "/[服务缩写]/[主资源]/remove",
   // ...标准 CRUD
-  bottomList: "/[服务缩写]/[从资源]/list" // 从表查询
+  bottomList: "/[服务缩写]/[从资源]/list", // 从表查询
 } as const;
 
 export function createPage(/* refs */) {
@@ -24,7 +28,7 @@ export function createPage(/* refs */) {
 export function handleRowDblclick(
   row: any,
   bottomSelect: Function,
-  BottomPage: any
+  BottomPage: any,
 ) {
   BottomPage.queryParam.value.mainId = row.id;
   BottomPage.tableRef.value.loading();
@@ -51,10 +55,16 @@ export function createBottomPage() {
       return [];
     }
     columnsDef(): TableColumnDesc<any>[] {
-      return [
-        { type: "index" }
+      return defineColumns([
+        { type: "index", label: "序号", width: 60, align: "center" },
+        {
+          label: "[从表字段]",
+          name: "[fieldName]",
+          cid: `${BOTTOM_TABLE_CID}-[fieldName]`,
+          minWidth: 120,
+        },
         // 从表字段
-      ];
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
   return (Page as any).create() as any;
@@ -77,6 +87,8 @@ export function createBottomPage() {
         <BaseToolbar :items="toolbars" />
         <BaseTable
           ref="tableRef"
+          render-type="agGrid"
+          :cid="TABLE_CID"
           :data="list"
           :columns="columns"
           showToolbar
@@ -97,6 +109,8 @@ export function createBottomPage() {
         <BaseToolbar :items="bottomToolbars" />
         <BaseTable
           ref="bottomTableRef"
+          render-type="agGrid"
+          :cid="BOTTOM_TABLE_CID"
           :data="bottomList"
           :columns="bottomColumns"
           showToolbar
@@ -107,7 +121,13 @@ export function createBottomPage() {
 </template>
 
 <script setup lang="ts">
-import { createPage, createBottomPage, handleRowDblclick } from "./data";
+import {
+  createPage,
+  createBottomPage,
+  handleRowDblclick,
+  TABLE_CID,
+  BOTTOM_TABLE_CID,
+} from "./data";
 
 const Page = createPage();
 const {
@@ -118,7 +138,7 @@ const {
   queryItems,
   columns,
   toolbars,
-  select
+  select,
 } = Page;
 
 const BottomPage = createBottomPage();
@@ -127,7 +147,7 @@ const {
   list: bottomList,
   columns: bottomColumns,
   select: bottomSelect,
-  toolbars: bottomToolbars
+  toolbars: bottomToolbars,
 } = BottomPage;
 
 onMounted(() => select());

@@ -38,17 +38,17 @@ skills/
 
 ## 启用 Skill 路由表
 
-| Skill 名         | 状态       | 路径                                         | 触发关键词                                                                 |
-| ---------------- | ---------- | -------------------------------------------- | -------------------------------------------------------------------------- |
-| prototype-scan   | ✅ 启用    | `skills/core/prototype-scan/SKILL.md`        | 扫描原型 / 解析原型 / 页面清单 / 详设文档 / 口述需求 / 建个页面 / 写个页面 |
-| api-contract     | ✅ 启用    | `skills/core/api-contract/SKILL.md`          | 接口约定 / api.md / 字段定义 / 前后端对齐 / 接口设计                       |
-| page-codegen     | ✅ 启用    | `skills/core/page-codegen/SKILL.md`          | 生成页面 / 创建页面 / 代码生成 / vue页面 / 按原型生成 / 帮我生成           |
-| convention-audit | ✅ 启用    | `skills/core/convention-audit/SKILL.md`      | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检 |
-| template-extract | ✅ 启用    | `skills/core/template-extract/SKILL.md`      | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                  |
-| menu-sync        | ✅ 启用    | `skills/sync/menu-sync/SKILL.md`             | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单                                    |
-| dict-sync        | ✅ 启用    | `skills/sync/dict-sync/SKILL.md`             | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                           |
-| permission-sync  | ✅ 启用    | `skills/sync/permission-sync/SKILL.md`       | 创建角色 / 角色管理 / 角色授权 / 给角色分配菜单 / 挂动作 / 添加动作按钮 / 同步权限 / 权限码注册 |
-| code-fix         | ✅ 启用    | `skills/ops/code-fix/SKILL.md`               | 自动修复 / 整改偏差 / 修复报告 / 规范整改 / 修复偏差 / code fix               |
+| Skill 名         | 状态    | 路径                                    | 触发关键词                                                                                                                              |
+| ---------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| prototype-scan   | ✅ 启用 | `skills/core/prototype-scan/SKILL.md`   | 扫描原型 / 解析原型 / 页面清单 / 详设文档 / 口述需求 / 建个页面 / 写个页面 / 根据截图 / 根据原型                                        |
+| api-contract     | ✅ 启用 | `skills/core/api-contract/SKILL.md`     | 接口约定 / api.md / 字段定义 / 前后端对齐 / 接口设计                                                                                    |
+| page-codegen     | ✅ 启用 | `skills/core/page-codegen/SKILL.md`     | 生成页面 / 创建页面 / 代码生成 / vue页面 / 按原型生成 / 帮我生成 / 列表页 / 管理页 / 台账 / mock / 假数据 / 先能跑 / AGGrid / skills-ui |
+| convention-audit | ✅ 启用 | `skills/core/convention-audit/SKILL.md` | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检                                             |
+| template-extract | ✅ 启用 | `skills/core/template-extract/SKILL.md` | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                                                                               |
+| menu-sync        | ✅ 启用 | `skills/sync/menu-sync/SKILL.md`        | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单 / 页面点击进不来 / 菜单打不开                                                                   |
+| dict-sync        | ✅ 启用 | `skills/sync/dict-sync/SKILL.md`        | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                                                                                |
+| permission-sync  | ✅ 启用 | `skills/sync/permission-sync/SKILL.md`  | 创建角色 / 角色管理 / 角色授权 / 给角色分配菜单 / 挂动作 / 添加动作按钮 / 同步权限 / 权限码注册                                         |
+| code-fix         | ✅ 启用 | `skills/ops/code-fix/SKILL.md`          | 自动修复 / 整改偏差 / 修复报告 / 规范整改 / 修复偏差 / code fix                                                                         |
 
 ---
 
@@ -58,6 +58,8 @@ skills/
 2. SKILL.md 中标注的 `必读 standards` 按 `standards/index.md` 任务类型映射加载
 3. 如用户表达连续交付/智能体/全流程意图，同时读取 `_pipeline.md` 获取 Skill I/O 与 `next_suggest`
 4. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制约定式输出）
+5. 页面生成任务必须额外读取 `standards/12-base-table.md`，并执行 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 硬约束
+6. 若消息包含“风格 / skills-ui / 状态标签 / 操作列 / AGGrid”，同时建议运行 `wl-skills doctor-ui`
 
 ---
 
@@ -75,9 +77,9 @@ skills/
 
 每个启用 Skill 同目录下都有 `USAGE.md`：
 
-| 文件            | 读者           | 用途                                       |
-| --------------- | -------------- | ------------------------------------------ |
-| `SKILL.md`      | AI 编辑器/模型 | 触发规则、流程步骤、Pre-flight 声明        |
-| `USAGE.md`      | 团队成员       | 示例对话、踩坑、FAQ、快速上手              |
+| 文件            | 读者                      | 用途                                                     |
+| --------------- | ------------------------- | -------------------------------------------------------- |
+| `SKILL.md`      | AI 编辑器/模型            | 触发规则、流程步骤、Pre-flight 声明                      |
+| `USAGE.md`      | 团队成员                  | 示例对话、踩坑、FAQ、快速上手                            |
 | `_pipeline.md`  | AI 编辑器/模型 + 团队成员 | Skill 间 I/O 契约、next_suggest、Agent Pipeline 调度协议 |
-| `*.MAINTAIN.md` | kit 维护者     | 维护要点（在 `kit-internal/skills/` 目录） |
+| `*.MAINTAIN.md` | kit 维护者                | 维护要点（在 `kit-internal/skills/` 目录）               |

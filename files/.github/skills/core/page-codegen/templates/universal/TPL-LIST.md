@@ -2,7 +2,6 @@
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
-
 #### data.ts
 
 ```typescript
@@ -14,7 +13,10 @@ import {
   TableColumnDesc,
   BusLogicDataType
 } from "@/types/page";
-import { getAction, postAction } from "@jhlc/common-core/src/api/action";
+import { ElMessage } from "element-plus";
+import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+
+export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
 export const API_CONFIG = {
   list: "/[服务缩写]/[资源名]/list",
@@ -88,18 +90,24 @@ export function createPage(editModalRef?: any) {
           label: "新增",
           plain: true,
           onClick: () => editModalRef?.value?.open()
+        },
+        {
+          label: "导出",
+          plain: true,
+          onClick: () => ElMessage.info("导出逻辑待业务确认")
         }
       ];
     }
 
     columnsDef(): TableColumnDesc<any>[] {
-      return [
-        { type: "selection" },
-        { type: "index" },
+      return defineColumns([
+        { type: "selection", width: 55, fixed: "left", align: "center", headerAlign: "center" },
+        { type: "index", label: "序号", width: 60, align: "center" },
         // 普通列
         {
           label: "[列名]",
           name: "[fieldName]",
+          cid: `${TABLE_CID}-[fieldName]`,
           minWidth: 120,
           sortable: true,
           filterable: true
@@ -108,6 +116,7 @@ export function createPage(editModalRef?: any) {
         {
           label: "[状态名]",
           name: "[statusField]",
+          cid: `${TABLE_CID}-[statusField]`,
           minWidth: 120,
           logicType: BusLogicDataType.dict,
           logicValue: "[dictCode]",
@@ -117,22 +126,18 @@ export function createPage(editModalRef?: any) {
         // 操作列（如需要行内编辑/删除按钮）
         {
           label: "操作",
+          name: "_action",
+          cid: `${TABLE_CID}-action`,
           width: 150,
           fixed: "right",
-          operations: [
-            {
-              name: "edit",
-              label: "编辑",
-              onClick: (row: any) => editModalRef?.value?.open(row.id)
-            },
-            {
-              name: "remove",
-              label: "删除",
-              onClick: (row: any) => this.remove(row.id)
-            }
-          ]
+          align: "center",
+          defaultSlot: ({ row }: any) =>
+            renderOps([
+              { type: "edit", onClick: () => editModalRef?.value?.open(row.id) },
+              { type: "del", onClick: () => this.remove(row.id) }
+            ])
         }
-      ];
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
 
@@ -152,7 +157,14 @@ export function createPage(editModalRef?: any) {
       @reset="select"
     />
     <BaseToolbar :items="toolbars" />
-    <BaseTable ref="tableRef" :data="list" :columns="columns" showToolbar />
+    <BaseTable
+      ref="tableRef"
+      render-type="agGrid"
+      :cid="TABLE_CID"
+      :data="list"
+      :columns="columns"
+      showToolbar
+    />
     <jh-pagination
       v-show="page.total && page.total > 0"
       :total="page.total || 0"
@@ -165,7 +177,7 @@ export function createPage(editModalRef?: any) {
 </template>
 
 <script setup lang="ts">
-import { createPage } from "./data";
+import { createPage, TABLE_CID } from "./data";
 
 const Page = createPage();
 const {
@@ -176,7 +188,7 @@ const {
   queryItems,
   columns,
   toolbars,
-  select
+  select,
 } = Page;
 
 onMounted(() => select());
@@ -191,6 +203,83 @@ onMounted(() => select());
 
 ```scss
 // 页面特有样式（无特殊需求可留空）
+```
+
+#### mock/[页面kebab-name].ts
+
+```typescript
+import type { MockMethod } from "vite-plugin-mock";
+
+const dataPool = Array.from({ length: 23 }).map((_, index) => ({
+  id: String(index + 1),
+  name: `模拟数据${index + 1}`,
+  status: index % 2 === 0 ? "1" : "0",
+  remark: "由 vite-plugin-mock 提供，关闭 ENV_MOCK 后直接走真实接口",
+}));
+
+function pageList(query: any) {
+  const current = Number(query?.current || query?.pageNum || 1);
+  const size = Number(query?.size || query?.pageSize || 10);
+  const start = (current - 1) * size;
+  return {
+    code: 2000,
+    message: "success",
+    data: {
+      records: dataPool.slice(start, start + size),
+      total: dataPool.length,
+      current,
+      size,
+    },
+  };
+}
+
+export default [
+  {
+    url: "/dev-api/[服务缩写]/[资源名]/list",
+    method: "get",
+    response: ({ query }: any) => pageList(query),
+  },
+  {
+    url: "/dev-api/[服务缩写]/[资源名]/remove",
+    method: "post",
+    response: ({ body, query }: any) => {
+      const id = body?.id || query?.id;
+      const ids = body?.ids || (id ? [id] : []);
+      ids.forEach((itemId: string) => {
+        const index = dataPool.findIndex((item) => item.id === String(itemId));
+        if (index >= 0) dataPool.splice(index, 1);
+      });
+      return { code: 2000, message: "删除成功", data: null };
+    },
+  },
+  {
+    url: "/dev-api/[服务缩写]/[资源名]/save",
+    method: "post",
+    response: ({ body }: any) => {
+      const row = { id: String(Date.now()), ...body };
+      dataPool.unshift(row);
+      return { code: 2000, message: "新增成功", data: row };
+    },
+  },
+  {
+    url: "/dev-api/[服务缩写]/[资源名]/update",
+    method: "post",
+    response: ({ body }: any) => {
+      const index = dataPool.findIndex((item) => item.id === String(body?.id));
+      if (index >= 0) Object.assign(dataPool[index], body);
+      return { code: 2000, message: "更新成功", data: dataPool[index] || body };
+    },
+  },
+  {
+    url: "/dev-api/[服务缩写]/[资源名]/getById",
+    method: "get",
+    response: ({ query }: any) => ({
+      code: 2000,
+      message: "success",
+      data: dataPool.find((item) => item.id === String(query?.id)) || null,
+    }),
+  },
+] as MockMethod[];
 ```
 
 ---
