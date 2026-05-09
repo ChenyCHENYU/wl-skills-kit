@@ -46,8 +46,9 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ────────────────────────────────────────────────
 📌 后续步骤：
    1. 在 router/pages.ts 注册路由
-   2. 提交：git cz（禁止直接 git commit）
-   3. 可选：触发 convention-audit 扫描本次生成文件
+   2. 若本页 hiddenMenu=true → 在 src/util/navigate-hidden.ts 的 HIDDEN_ROUTE_MAP 追加一行
+   3. 提交：git cz（禁止直接 git commit）
+   4. 可选：触发 convention-audit 扫描本次生成文件
 ────────────────────────────────────────────────
 ```
 
@@ -259,9 +260,10 @@ function handleCodeClick(row: any) {
 >
 > | 场景 | 方式 | 原因 |
 > |---|---|---|
-> | **菜单页 → 隐藏页**（如列表→表单） | `envConfig()?.router` + `location.href` | 需要父壳刷新菜单高亮 |
-> | **隐藏页 → 隐藏页**（如表单→变更历史） | `envConfig()?.router` + `location.href` | `router.push()` 跳过 shell 的 `generateCurrentRoute`，导致 "Invalid route component" 报错 |
+> | **菜单页 → 隐藏页 / 隐藏页 → 隐藏页** | `navigateHidden(path, query?)` from `src/util/navigate-hidden.ts` | 懒注册 + router.push，无整页刷新；内部自动兜底 location.href 防白屏 |
 > | **返回上一页** | `useRouter().back()` | 任何页面均可用 |
+>
+> ⚠️ `navigateHidden` 依赖 `src/util/navigate-hidden.ts` 的 `HIDDEN_ROUTE_MAP`。**每新增一个隐藏页，必须在该 Map 里追加一行**，否则兜底会退化为整页刷新。
 
 #### 路由路径命名规则
 
@@ -274,36 +276,60 @@ function handleCodeClick(row: any) {
 - 子模块名取 pages.ts 的 key，如 `aiflow`
 - 页面目录名整体转 PascalCase（含 `mmwr` 前缀），如 `mmwr-customer-apply-add-form` → `mmwrCustomerApplyAddForm`
 
-#### 标准实现（data.ts）
+#### navigate-hidden.ts 标准实现（首次使用时创建，后续只追加 Map 条目）
 
 ```typescript
-// ✅ 正确：用 envConfig
+// src/util/navigate-hidden.ts
 import envConfig from "@jhlc/common-core/src/store/env-config";
+import { ElMessage } from "element-plus";
+
+/**
+ * 隐藏页路由懒注册表
+ * 每新增一个 hiddenMenu=true 的页面，在此追加一行
+ */
+const HIDDEN_ROUTE_MAP: Record<string, () => Promise<any>> = {
+  // "/aiflow/mmwrCustomerApplyAddForm": () => import("@/views/produce/aiflow/mmwr-customer-apply-add-form/index.vue"),
+};
+
+export async function navigateHidden(path: string, query?: Record<string, string>) {
+  const router = envConfig()?.router;
+  if (!router) { ElMessage.error("路由未初始化，请刷新页面重试"); return; }
+
+  const matched = router.resolve({ path }).matched;
+  if (!matched.length || matched[0].path === "/:pathMatch(.*)*") {
+    const loader = HIDDEN_ROUTE_MAP[path];
+    if (!loader) {
+      // 降级兜底：路由 Map 未配置时整页跳转，不白屏
+      location.href = router.resolve({ path, query } as any).href;
+      return;
+    }
+    router.addRoute({ path, component: loader });
+  }
+  await router.push({ path, query } as any);
+}
+```
+
+#### 调用侧标准实现（data.ts）
+
+```typescript
+// ✅ 正确：用 navigateHidden
+import { navigateHidden } from "@/util/navigate-hidden";
 
 // 在 createPage() 外部定义，避免每次调用都重新创建
 const FORM_ROUTE = "/aiflow/mmwrCustomerApplyAddForm";
 
 function navigateToForm(query?: Record<string, string>) {
-  const router = envConfig()?.router;
-  if (!router) {
-    ElMessage.error("路由未初始化，请刷新页面重试");
-    return;
-  }
-  const target: any = { path: FORM_ROUTE };
-  if (query) target.query = query;
-  location.href = router.resolve(target).href;
+  navigateHidden(FORM_ROUTE, query);
 }
 
 export function createPage() {
-  // ... 不在 createPage 内部声明 router
   const Page = new (class extends AbstractPageQueryHook {
-    // ...
     toolbarDef(): ActionButtonDesc[] {
       return [
         {
           name: "primary",
           label: "新增申请",
-          onClick: () => navigateToForm()   // 无参：新增
+          onClick: () => navigateToForm()        // 无参：新增
         }
       ];
     }
@@ -328,14 +354,16 @@ export function createPage() {
 }
 ```
 
+> **✅ 正确做法**：
+> - 跳转隐藏页 → `navigateHidden(path, query?)`（懒注册 + router.push，无刷新，内部兜底防白屏）
+> - 返回上一页 → `useRouter().back()`
+>
 > **❌ 禁止**：
-> - `router.push({ path: "/mmwr-xxx-form" })`（kebab-case 路径错误）
-> - 在**菜单可见页面**（如列表页 data.ts 的 `navigateToForm`）中使用 `router.push()`（父壳无法刷新菜单高亮）
+> - 直接 `router.push({ path: "..." })` — 主应用过滤了 hidden 路由，路由未注册直接 push 会白屏或报 "Invalid route component"
+> - 直接 `location.href = router.resolve(...).href` — 触发整页重载，有加载动画刷新感；`navigateHidden` 内部已兜底，**外部调用侧禁止直接使用**
+> - kebab-case 路径（`/mmwr-xxx-form`）— 路由路径必须是 camelCase
 >
-> **✅ 允许**：
-> - `useRouter().back()`（表单页"取消"按钮返回上一页时可用）
->
-> ⚠️ **所有前进导航（包括隐藏页→隐藏页）必须用 `location.href`**。`router.push()` 会跳过 shell 的 `generateCurrentRoute`，在 dev 模式下触发 "Invalid route component" 错误（已在 `mmwrCustomerApplyChangeHistory` 实测验证）。
+> ⚠️ **新增隐藏页时必须同步维护 `src/util/navigate-hidden.ts` 的 `HIDDEN_ROUTE_MAP`**，否则 `navigateHidden` 降级为整页刷新，失去无刷新优势。
 
 ---
 
