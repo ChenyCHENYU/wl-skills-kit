@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.5.0** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.5.1** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -23,11 +23,13 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 
 ## 版本亮点
 
-当前 2.4.x 版本重点完善生命周期、规范插件和跨包协作体验：
+当前 2.5.x 版本重点完善 Skill 规范精度和隐藏页导航体系：
 
 - `init/update/diff/clean/check/validate/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查和基线导出
 - 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wk-skills-ui` runtime，但保留 `common-core` 平台骨架
 - 新增 `doctor-ui` / `validate-page`：检查 `wk-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
+- **`prototype-scan` Skill 补齐 Axure 访问前置说明**：明确 `index.html` 永久不可用（VS Code 内嵌 Chromium 不加载用户 Chrome 扩展），只能用 `open_browser_page(具体页.html)` 或 `read_file`；`(not visible)` 不等于不可访问
+- **`page-codegen` Skill 统一隐藏页导航为 `navigateHidden` 主路**：懒注册 + router.push 无整页刷新，内部自动兜底防白屏；外部调用禁止直接 `location.href`，新增页面生成摘要步骤强提醒维护 `HIDDEN_ROUTE_MAP`
 - 增强 Intent Router：用户只需说“做个页面 / 先 mock / 菜单同步 / 风格不生效”，AI 自动识别触发 Skill/MCP
 - manifest 记录安装文件哈希，`reports/`、`src/components/`、`src/types/` 等关键资产受到保护
 - 自动生成 Copilot、Claude Code、Cursor、Windsurf、Cline、Kiro、Trae、Qoder、通用 Agents 规则文件

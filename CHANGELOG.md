@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1] - 2026-05-09
+
+### Changed
+
+- `prototype-scan` Skill 补齐 Axure 原型文件访问前置说明：`index.html` 永久不可用（VS Code 内嵌 Chromium 不加载用户 Chrome 扩展）；只能用 `open_browser_page(具体页.html)` 或 `read_file`；`(not visible)` 不等于不可访问。
+- `page-codegen` Skill 将隐藏页导航方案统一为 `navigateHidden` 主路（`src/util/navigate-hidden.ts`）：懒注册 + `router.push` 无整页刷新，内部自动 `location.href` 兜底防白屏；禁止外部调用侧直接使用 `location.href`；生成摘要后续步骤新增"维护 `HIDDEN_ROUTE_MAP`"强提醒。
+
 ## [2.5.0] - 2026-05-07
 
 ### Added
