@@ -1,0 +1,368 @@
+"use strict";
+
+/**
+ * MCP Tool 描述符集中注册（v2.7.0+ auto-discovery）
+ *
+ * 每个描述符字段：
+ *   - name              工具唯一标识（wls_*）
+ *   - description       工具说明（出现在 tools/list 响应中）
+ *   - inputSchema       JSON Schema
+ *   - handle(args, cfg) 处理函数，返回字符串文本
+ *   - needsBackendConfig  是否需要 loadConfig()（false: 纯本地工具）
+ *
+ * server.js 仅做协议层 + 自动调度；新增 Tool 只改本文件，不动 server.js。
+ *
+ * 导出：
+ *   - DESCRIPTORS  完整描述符数组（含 handle）
+ *   - TOOLS        对外公开的 tools/list 数据（仅 name/description/inputSchema）
+ *   - HANDLERS     工具名 → 描述符的映射，供 dispatchTool 查表
+ */
+
+const {
+  handleMenuQuery,
+  handleMenuUpsert,
+  handleMenuSyncFromReport,
+} = require("./tools/menuSync");
+const { handleDictQuery, handleDictUpsert } = require("./tools/dictSync");
+const {
+  handleRoleQuery,
+  handleRoleUpsert,
+  handleRoleAssignMenus,
+  handleAssignableMenusQuery,
+  handleActionQuery,
+  handleActionUpsert,
+} = require("./tools/permissionSync");
+const {
+  handleCodeScan,
+  handleValidatePage,
+  handleDoctorUi,
+  handleRouteCheck,
+  handleGitLogExtract,
+  handleAuditReportPush,
+} = require("./tools/projectTools");
+
+const DESCRIPTORS = [
+  // ── menu ───────────────────────────────────────────────────────────
+  {
+    name: "wls_menu_query",
+    description:
+      "查询当前应用的完整菜单树。自动从 .github/skills/sync/env.local.json 读取 domainId，" +
+      "无需传参。在 wls_menu_upsert 前调用，用于判断哪些菜单需要新增、哪些需要更新。",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    needsBackendConfig: true,
+    handle: (_args, config) => handleMenuQuery(config),
+  },
+  {
+    name: "wls_menu_upsert",
+    description:
+      "批量新增或更新菜单项。有 id 字段 → 更新；无 id 字段 → 新增。" +
+      "新增时响应自动包含服务端生成的 id，可链式用于创建子菜单。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          description:
+            "MenuSaveBody 数组。每项字段：" +
+            "id(更新时传), sysAppNo, menuName, menuNameCode, parentId, " +
+            'type("M"=目录/"C"=菜单), path, icon, orderNum, ' +
+            "useCache(1), common(2), hidden(false), editMode(false), " +
+            "component(type=C时传), permission(type=C时传)",
+          items: { type: "object" },
+        },
+      },
+      required: ["items"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleMenuUpsert(args, config),
+  },
+  {
+    name: "wls_menu_sync_from_report",
+    description:
+      "读取 .github/reports/SYS_MENU_INFO*.md，按一级目录(type=M)优先、二级菜单(type=C)随后同步到后端菜单。" +
+      "自动查询 domain 菜单树去重，复用或更新已存在菜单，避免把二级页面全部挂到根 parentMenuId。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reportPath: {
+          type: "string",
+          description:
+            "可选。SYS_MENU_INFO*.md 路径；不传则使用 .github/reports 下最新报告。",
+        },
+        dryRun: {
+          type: "boolean",
+          description: "可选。true 时只解析和预览，不调用保存接口。",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleMenuSyncFromReport(args, config),
+  },
+  // ── dict ───────────────────────────────────────────────────────────
+  {
+    name: "wls_dict_query",
+    description:
+      "查询当前应用的所有字典模块及字典项。在 wls_dict_upsert 前调用，" +
+      "用于判断哪些模块/字典项已存在。",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    needsBackendConfig: true,
+    handle: (_args, config) => handleDictQuery(config),
+  },
+  {
+    name: "wls_dict_upsert",
+    description:
+      "新增或更新字典模块及其字典项。内部自动处理：" +
+      "若模块不存在则创建（data=null 后自动 re-query 获取 id），" +
+      "若已存在则直接取 id；字典项自动跳过已存在的 strSn。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        module: {
+          type: "object",
+          description:
+            'DictModuleSaveBody: strSn(必填), strName(必填), sortPriority("1"), strLevel(2)',
+          properties: {
+            strSn: { type: "string", description: '模块标识符，如 "gender"' },
+            strName: { type: "string", description: '模块显示名，如 "性别"' },
+            sortPriority: {
+              type: "string",
+              description: '排序，字符串类型，如 "1"',
+            },
+            strLevel: { type: "number", description: "固定传 2" },
+          },
+          required: ["strSn", "strName"],
+        },
+        items: {
+          type: "array",
+          description:
+            "DictItemSaveBody 数组（可选）。每项字段：" +
+            "strSn(必填), strName(必填), strLevel(2), " +
+            'dtlValue(""), dtlValueRequired(false), dtlValue2Required(false), ' +
+            "dtlValue3Required(false), dtlValue4Required(false)",
+          items: { type: "object" },
+        },
+      },
+      required: ["module"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleDictUpsert(args, config),
+  },
+  // ── role / permission ──────────────────────────────────────────────
+  {
+    name: "wls_role_query",
+    description:
+      "查询角色列表。可选参数 current/size 翻页，默认 size=100。返回精简字段：id, roleName, code, sysAppNo, roleDesc。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        current: { type: "number", description: "页码，默认 1" },
+        size: { type: "number", description: "每页数量，默认 100" },
+      },
+      required: [],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleRoleQuery(args, config),
+  },
+  {
+    name: "wls_role_upsert",
+    description:
+      "批量新增角色（按 code 字段自动去重；已存在则跳过）。每项必填 roleName 和 code，可选 configDesc。" +
+      "注意：角色仅新增不更新，因角色变更通常需要业务确认。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          description:
+            "角色数组。字段：roleName(必填，显示名), code(必填，唯一标识), configDesc(可选，描述)",
+          items: { type: "object" },
+        },
+      },
+      required: ["items"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleRoleUpsert(args, config),
+  },
+  {
+    name: "wls_assignable_menus_query",
+    description:
+      "查询全量可授权菜单列表（扁平结构，含菜单 id/menuName/permission）。" +
+      "在 wls_role_assign_menus 前调用，AI 据此选出要分配给角色的 menuIds。",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    needsBackendConfig: true,
+    handle: (args, config) => handleAssignableMenusQuery(args, config),
+  },
+  {
+    name: "wls_role_assign_menus",
+    description:
+      "给指定角色批量分配菜单权限。menuIds 传字符串数组，内部自动拼成逗号分隔字符串提交后端。" +
+      "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        roleId: {
+          type: "string",
+          description: "角色 id（来自 wls_role_query）",
+        },
+        menuIds: {
+          type: "array",
+          description: "该角色应拥有的全部菜单 id 数组",
+          items: { type: "string" },
+        },
+      },
+      required: ["roleId", "menuIds"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleRoleAssignMenus(args, config),
+  },
+  {
+    name: "wls_action_query",
+    description:
+      "查询指定页面菜单（type=C）下的动作按钮列表（type=A）。返回 id/menuName/permission/orderNum/icon。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        menuId: { type: "string", description: "父菜单 id（页面菜单）" },
+      },
+      required: ["menuId"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleActionQuery(args, config),
+  },
+  {
+    name: "wls_action_upsert",
+    description:
+      "在指定页面菜单下批量新增动作按钮（type=A），按 permission 字段自动去重。" +
+      "权限码命名规范：{资源camelCase}_{动作} 或 {模块}:{资源}:{动作}（与项目既有约定保持一致）。" +
+      "常见动作：add/edit/remove/export/import/approve。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        parentId: {
+          type: "string",
+          description: "页面菜单 id（动作挂在它下面）",
+        },
+        items: {
+          type: "array",
+          description:
+            "动作数组。字段：menuName(必填，显示名), permission(必填，权限码), icon(可选，默认list), orderNum(可选，默认1), useCache(可选，默认1)",
+          items: { type: "object" },
+        },
+      },
+      required: ["parentId", "items"],
+    },
+    needsBackendConfig: true,
+    handle: (args, config) => handleActionUpsert(args, config),
+  },
+  // ── project / local（无需后端配置）─────────────────────────────────
+  {
+    name: "wls_code_scan",
+    description:
+      "扫描项目页面目录，返回 index.vue/data.ts/index.scss/api.md 完整性与 API_CONFIG 概览。" +
+      "默认扫描 src/views，可传 path 指定目录。适用于 convention-audit / Agent Pipeline 前置感知项目结构。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "相对项目根目录的扫描路径，默认 src/views",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleCodeScan(args),
+  },
+  {
+    name: "wls_route_check",
+    description:
+      "检查 src/views 页面目录是否能在路由文件中被发现。默认查找 vite/plugins/shared/pages.ts 等常见路由文件，" +
+      "可传 path 和 routeFile 定制。用于 page-codegen/menu-sync 后闭环验证。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "页面扫描路径，默认 src/views" },
+        routeFile: {
+          type: "string",
+          description: "路由文件路径，默认自动探测",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleRouteCheck(args),
+  },
+  {
+    name: "wls_validate_page",
+    description:
+      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、mock-first、api.md 等。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "页面或目录路径，默认 src/views" },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleValidatePage(args),
+  },
+  {
+    name: "wls_doctor_ui",
+    description:
+      "检查 @agile-team/wk-skills-ui 是否真正接入：依赖、tokens、styles preset、installCommonPreset、defineColumns、renderOps。",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    needsBackendConfig: false,
+    handle: (args) => handleDoctorUi(args),
+  },
+  {
+    name: "wls_git_log_extract",
+    description:
+      "提取最近 N 次 git commit 摘要，用于 convention-audit 的 Git 规范检查或 changelog-gen 的数据源。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        n: { type: "number", description: "提取数量，默认 20，最大 100" },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleGitLogExtract(args),
+  },
+  {
+    name: "wls_audit_report_push",
+    description:
+      "将最新审计报告推送到飞书机器人 webhook。未配置 env.local.json 的 feishu_webhook 时静默跳过，不影响其他流程。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reportPath: {
+          type: "string",
+          description:
+            "审计报告路径，不传则自动选择 .github/reports 下最新 AUDIT_*.md 或规范审查报告.md",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleAuditReportPush(args),
+  },
+];
+
+const TOOLS = DESCRIPTORS.map((d) => ({
+  name: d.name,
+  description: d.description,
+  inputSchema: d.inputSchema,
+}));
+
+const HANDLERS = Object.create(null);
+for (const d of DESCRIPTORS) {
+  if (HANDLERS[d.name]) {
+    throw new Error(
+      "[mcp/registry] 工具名重复: " + d.name + "（请检查 DESCRIPTORS 数组）",
+    );
+  }
+  HANDLERS[d.name] = d;
+}
+
+module.exports = { DESCRIPTORS, TOOLS, HANDLERS };

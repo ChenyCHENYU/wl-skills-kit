@@ -1,6 +1,7 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.6.0  
+> **版本基线**：wl-skills-kit v2.7.0  
+> **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
 > **定位**：统一说明 17 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---

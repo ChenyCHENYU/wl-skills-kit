@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.7.0] - 2026-05-12
+
+### Added
+
+- **CLI 未知 flag/命令防护**：`bin/wl-skills.js` 引入 `KNOWN_COMMANDS` / `KNOWN_FLAGS` 白名单。`node bin/wl-skills.js --version` 等未识别参数不再默认走 `init`，而是**退出非零并提示**，彻底消除 v2.6.x 时段被验证过的"误装风险"。
+- **MCP Tool auto-discovery**：新增 `mcp/registry.js` 集中维护 17 个工具描述符（含 `handle` / `needsBackendConfig`）。`mcp/server.js` 大幅瘦身（496 行 → 130 行），不再硬编码 17 项 switch case；新增 / 修改 Tool 仅改 `mcp/registry.js`。
+- **版本一致性自检脚本**：新增 `scripts/verify-version.js`（`npm run version:verify`），跨文件校验 `package.json#version` 与 CLI header / README / `guides/architecture.md` / headers 中描述行的一致性，并交叉校验 `_registry.md` 的 ✅ 启用 行数与 README / `package.json#description` 中的 "N 个 AI Skill" 数字一致。
+- **prepublishOnly 守门**：`npm publish` 前自动运行 `version:verify` + `vitest run`，不一致或测试失败则阻断发版。
+- **vitest 单元测试**：`tests/registry.test.js`（17 项 Tool 描述符 / Skill 计数 / package.json 一致性，9 测试）+ `tests/cli.test.js`（A1 防护黑盒测试 + dry-run 隔离验证，6 测试）+ `tests/version-tools.test.js`（version 工具脚本，3 测试）。共 **18 测试**全绿。
+- 新增 `dict-sync` / `code-fix` 的 `USAGE.md`，与其他 8 个启用 Skill 文档结构一致。
+
+### Changed
+
+- **`scripts/sync-version.js` 改为 registry-driven**：`SKILL_COUNT` 不再是手动维护常量，自动从 `files/.github/skills/_registry.md` 解析 ✅ 启用 行数得到；`MCP_TOOL_COUNT` 自动从 `mcp/registry.js` 取。
+- `files/.github/copilot-instructions.md` 删除内嵌的 Skill 状态表，改为单行指针 → `_registry.md`，消除三处独立维护。
+- `kit-internal/architecture.md` 重写为 **ADR 索引 + 当前架构指针**，不再复制能力清单；当前能力盘点统一指向 `docs/全盘分析与智能体搭建指南.md` 等单一数据源。
+- `package.json` 新增 `test` / `version:verify` / `prepublishOnly` 脚本与 `vitest` devDependency。
+
+### Notes
+
+- 业务项目升级 `npx @agile-team/wl-skills-kit update` 即可，无破坏性变更。
+- 维护者新增 Skill：仅改 `_registry.md` 与 `_pipeline.md` + 写 SKILL.md/USAGE.md，**不再需要手改 sync-version 常量与 copilot Skill 表**。
+- 维护者新增 MCP Tool：仅改 `mcp/registry.js` 加一条描述符，**不再需要改 server.js**。
+- 验证：`npm run version:verify && npm test` 应全绿，CI 可直接接入。
+
 ## [2.6.0] - 2026-05-12
 
 ### Added

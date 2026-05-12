@@ -267,18 +267,7 @@ onMounted(() => select());
 - 保留 `common-core` 平台骨架，不得生搬硬套 `wk-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`
 - 生成后建议运行 `wl-skills validate-page <页面目录>` 和 `wl-skills doctor-ui`
 
-| Skill 名             | 状态     | 一句话说明                              |
-| -------------------- | -------- | --------------------------------------- |
-| prototype-scan       | ✅ 启用  | 原型/详设 → page-spec JSON              |
-| api-contract         | ✅ 启用  | 生成 api.md 接口约定                    |
-| page-codegen         | ✅ 启用  | 页面骨架 + 模板调度 + 菜单追加            |
-| business-doc-extract | ✅ 启用  | 原型/详设/字段/字典/现有页面 → docs/business 业务文档 |
-| menu-sync            | ✅ 启用  | reports/SYS_MENU_INFO → 后端菜单接口    |
-| convention-audit     | ✅ 启用  | 13 条规范扫描 + 偏差报告 + 提取建议     |
-| template-extract     | ✅ 启用  | 现有页面 → 领域模板沉淀                 |
-| dict-sync            | ✅ 启用   | 字典数据同步                            |
-| permission-sync      | ✅ 启用   | 角色+授权+动作权限同步（MCP）           |
-| code-fix             | ✅ 启用   | 自动整改 🟢🟡 等级偏差                  |
+**Skill 状态总览 / 路径 / 完整触发词**：见 `skills/_registry.md`（**单一数据源**，新增或激活 Skill 只改这一处）。
 
 **执行规则**：
 

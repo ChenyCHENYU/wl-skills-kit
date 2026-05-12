@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.6.0** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.7.0** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -22,6 +22,14 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 ---
 
 ## 版本亮点
+
+**v2.7.0**：一致性治理与可测性升级，安全防护加固。
+
+- **CLI 未知 flag / 命令防护**：`npx @agile-team/wl-skills-kit --version` 等未识别参数不再默认走 `init` 误装，而是退出非零并提示
+- **MCP Tool auto-discovery**：新增 `mcp/registry.js`，17 个 Tool 描述符集中维护；`mcp/server.js` 从 496 行瘦身到 130 行，新增 Tool 仅改 registry
+- **版本一致性自检**：`npm run version:verify` 跨文件校验版本 + Skill 计数；`prepublishOnly` 在 `npm publish` 前自动运行它与 `vitest`，不一致则阻断发版
+- **单元测试**：registry / CLI / version-tools 共 18 项覆盖，上面三项防护都有连动验证
+- **单一数据源加固**：`SKILL_COUNT` 从常量改为从 `_registry.md` 动态计算；copilot-instructions 删除内嵌 Skill 表改为指针；dict-sync / code-fix 补 USAGE.md
 
 当前 2.6.x 重点补齐业务理解闭环：原型/详设 → 业务文档 → 接口契约 → 页面代码 → 复扫。
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.6.0
+ * wl-skills-kit CLI v2.7.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -27,11 +27,57 @@ const MANIFEST_NAME = ".wl-skills-manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
 const PKG = require("../package.json");
 const args = process.argv.slice(2);
+
+// ─── 已知命令 / 选项白名单（A1: 防止未知 flag 默认走 init 误装）──────────
+const KNOWN_COMMANDS = new Set([
+  "init",
+  "update",
+  "clean",
+  "check",
+  "diff",
+  "validate",
+  "validate-page",
+  "doctor-ui",
+  "export",
+]);
+const KNOWN_FLAGS = new Set([
+  "--dry-run",
+  "--keep-reports",
+  "--force",
+  "--help",
+  "-h",
+]);
+
 const dryRun = args.includes("--dry-run");
 const showHelp = args.includes("--help") || args.includes("-h");
 const keepReports = args.includes("--keep-reports");
 const force = args.includes("--force");
-const command = args.find((a) => !a.startsWith("-")) || "init";
+
+// 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
+if (!showHelp) {
+  const unknownFlags = args.filter(
+    (a) => a.startsWith("-") && !KNOWN_FLAGS.has(a),
+  );
+  if (unknownFlags.length > 0) {
+    console.error("");
+    console.error("  ✖ 未知选项: " + unknownFlags.join(", "));
+    console.error("  请使用 --help 查看可用选项");
+    console.error("");
+    process.exit(1);
+  }
+}
+
+const positional = args.filter((a) => !a.startsWith("-"));
+const command = positional[0] || "init";
+
+// 校验主命令是否已知（--help 时跳过；空命令默认 init）
+if (!showHelp && !KNOWN_COMMANDS.has(command)) {
+  console.error("");
+  console.error('  ✖ 未知命令: "' + command + '"');
+  console.error("  请使用 --help 查看可用命令");
+  console.error("");
+  process.exit(1);
+}
 
 if (showHelp) {
   console.log(`

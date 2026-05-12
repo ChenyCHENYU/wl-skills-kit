@@ -30,9 +30,33 @@ if (!version) {
 const ROOT = path.resolve(__dirname, "..");
 const today = new Date().toISOString().slice(0, 10);
 
-// ── Skill 数量（✅ 启用的技能总数，激活新 Skill 时同步更新这里）─────────────
-const SKILL_COUNT = 10;
-const MCP_TOOL_COUNT = 17;
+// ── Skill 数量（自动从 _registry.md 解析 ✅ 启用 行数，无需手动维护）──────
+function countEnabledSkills() {
+  const registryPath = path.join(
+    ROOT,
+    "files/.github/skills/_registry.md",
+  );
+  const content = fs.readFileSync(registryPath, "utf8");
+  const matches = content.match(/^\|\s*[\w-]+\s*\|\s*✅\s*启用\s*\|/gm) || [];
+  return matches.length;
+}
+const SKILL_COUNT = countEnabledSkills();
+if (SKILL_COUNT === 0) {
+  console.error(
+    "[sync-version] 错误：未在 _registry.md 解析到任何启用 Skill，请检查表格格式。",
+  );
+  process.exit(1);
+}
+// MCP Tool 数量：自动从 mcp/registry.js 取（v2.7.0+ 引入 auto-discovery）
+function countMcpTools() {
+  try {
+    const registry = require(path.join(ROOT, "mcp", "registry.js"));
+    return Array.isArray(registry.TOOLS) ? registry.TOOLS.length : 0;
+  } catch {
+    return 17; // 回落值（mcp/registry.js 不存在时）
+  }
+}
+const MCP_TOOL_COUNT = countMcpTools();
 // ──────────────────────────────────────────────────────────────────────────────
 
 const SKILL_DESC_PATTERN = /13 条标准 \+ \d+ 个 Skill 自动调度/g;
