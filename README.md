@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.5.1** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.5.2** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -25,7 +25,7 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 
 当前 2.5.x 版本重点完善 Skill 规范精度和隐藏页导航体系：
 
-- `init/update/diff/clean/check/validate/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查和基线导出
+- `init/update/diff/clean/check/validate/validate-page/doctor-ui/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查、UI 接入诊断和基线导出
 - 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wk-skills-ui` runtime，但保留 `common-core` 平台骨架
 - 新增 `doctor-ui` / `validate-page`：检查 `wk-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
 - **`prototype-scan` Skill 补齐 Axure 访问前置说明**：明确 `index.html` 永久不可用（VS Code 内嵌 Chromium 不加载用户 Chrome 扩展），只能用 `open_browser_page(具体页.html)` 或 `read_file`；`(not visible)` 不等于不可访问
@@ -80,7 +80,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── package.json                          name: @agile-team/wl-skills-kit
 │
 ├── bin/
-│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / export）
+│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / validate-page / doctor-ui / export）
 │
 ├── files/                                ★★★ 真正会被打包并复制到业务项目的内容 ★★★
 │   └── .github/

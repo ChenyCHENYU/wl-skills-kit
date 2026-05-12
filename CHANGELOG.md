@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.2] - 2026-05-12
+
+### Added
+
+- 新增 `docs/mcp-tool-risk-matrix.md`，按只读、本地检查、后端写入、外部通知分级说明 MCP Tool 风险、确认要求和自动化边界。
+- 新增 `docs/agent-pipeline-runbook.md`，定义 Agent Pipeline 执行顺序、人工确认点、运行报告字段和闭环验证建议。
+
+### Changed
+
+- 同步 `package.json`、`package-lock.json`、CLI header、README 的版本文案到 `2.5.2`，修复 2.5.x 发布后残留的旧版本描述。
+- 升级 `docs/全盘分析与智能体搭建指南.md` 与 `docs/ai全景分析.md` 到 2.5.x 当前能力，补齐 17 个 MCP Tool、`validate-page`、`doctor-ui`、`wk-skills-ui` 桥接和 `navigateHidden` 隐藏页导航实践。
+
 ## [2.5.1] - 2026-05-09
 
 ### Changed
