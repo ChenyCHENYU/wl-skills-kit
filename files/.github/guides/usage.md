@@ -53,7 +53,7 @@ AI 会自动识别意图，触发对应的 Skill。
 
 ---
 
-## 9 个 Skill 速览
+## 10 个 Skill 速览
 
 | Skill              | 触发关键词                     | 用途                                                 |
 | ------------------ | ------------------------------ | ---------------------------------------------------- |
@@ -63,7 +63,8 @@ AI 会自动识别意图，触发对应的 Skill。
 | `menu-sync`        | 创建菜单 / 同步菜单            | 菜单数据同步到后端（MCP 自动 / prompt 手动两种模式） |
 | `dict-sync`        | 同步字典 / 创建字典 / 字典审计 | 字典基线同步到后端（MCP 自动 / prompt 手动两种模式） |
 | `convention-audit` | 规范审计 / 代码审计            | 13 条规范扫描 + 偏差报告                             |
-| `template-extract` | 提取模板 / 抄取模板            | 从现有页面沉淠领域专属模板                           |
+| `business-doc-extract` | 语义级智能触发（无关键词列表） | 原型/详设/字段/字典/现有页面 → docs/business 业务文档 |
+| `template-extract` | 提取模板 / 抄取模板            | 从现有页面沉淀领域专属模板                         |
 | `permission-sync`  | 创建角色 / 角色授权 / 同步权限 | 角色+授权+动作权限同步（MCP）                        |
 | `code-fix`         | 自动修复 / 整改偏差 / 规范整改 | 受控自动修复审计报告中的偏差                         |
 
@@ -80,7 +81,7 @@ AI 会自动识别意图，触发对应的 Skill。
 ├── .github/
 │   ├── copilot-instructions.md      AI 主入口
 │   ├── standards/                   13 条模块化规范
-│   ├── skills/                      9 个启用 Skill + 多编辑器适配
+│   ├── skills/                      10 个启用 Skill + 多编辑器适配
 │   ├── guides/                      使用指南 + 架构设计
 │   └── reports/                     AI 生成报告（SYS_MENU_INFO 等）
 ├── docs/                            12 个组件 API 文档（jh-* / request 等）
