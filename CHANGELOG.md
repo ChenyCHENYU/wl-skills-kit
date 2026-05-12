@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.6.0] - 2026-05-12
+
+### Added
+
+- 新增 `business-doc-extract` Skill（`files/.github/skills/core/business-doc-extract/`）：以**语义级智能触发**取代关键词列表，依据「资料源 + 用户意图 + 范围完整度」三因素判断是否进入业务文档生成态。
+- 业务理解文档落点固化为 `docs/business/`：`index.md`（项目业务全景）、`open-questions.md`（全局待确认汇总）、`0X-<module>/{index.md,requirement.md,dictionary.md,field.md}`（模块四件套），并提供 6 个最小骨架模板。
+- Skill 内置 4 种生成模式：`preview`（仅预览不落盘）/ `module`（单模块生成或更新）/ `project`（项目级刷新）/ `incremental`（基于字段表、字典表、新需求做增量维护）。
+- 同步更新 `_registry.md`、`_pipeline.md`、`copilot-instructions.md`：在 Pipeline 中把 `business-doc-extract` 作为 `prototype-scan → api-contract` 之间的**建议性插入点**，碎片化任务默认跳过。
+
+### Changed
+
+- README 增补 2.6.x 版本亮点、`docs/business` 结构示意、新增 `business-doc-extract` USAGE 链接、Pipeline 流程图补 `business-doc-extract` 节点、Skill 数从 9 上调到 10。
+- `docs/全盘分析与智能体搭建指南.md`、`docs/ai全景分析.md`、`docs/agent-pipeline-runbook.md`、`docs/mcp-tool-risk-matrix.md` 版本基线统一升级到 v2.6.0，并在能力总览补充 `business-doc-extract`。
+- `scripts/sync-version.js` 把 `SKILL_COUNT` 调整为 10，并对齐 README 头部 `一键将 13 条规范、N 个 AI Skill、N 个 MCP Tool` 的当前文案。
+
+### Notes
+
+- 页面级 `api.md` 仍位于 `src/views/**/api.md`，是接口契约的唯一详细位置；模块 `docs/business/0X-xx/index.md` 只做链接索引，不重复维护字段。
+- `business-doc-extract` 不引入新关键词列表，触发完全由 AI 自行判断；缺资料时 Skill 会暂停并要求用户提供原型/详设/字段资料路径，不会凭推断写入 `docs/business`。
+
 ## [2.5.2] - 2026-05-12
 
 ### Added

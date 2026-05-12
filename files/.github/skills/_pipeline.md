@@ -19,6 +19,7 @@
 
 ```text
 prototype-scan
+  → business-doc-extract（可选，资料达模块级时推荐）
   → api-contract
   → page-codegen
   → convention-audit
@@ -30,12 +31,16 @@ prototype-scan
 常见变体：
 
 ```text
-口述需求 → page-codegen → convention-audit
-存量项目 → convention-audit → code-fix
+口述需求 → page-codegen → convention-audit                  // 碎片化，不走业务文档
+存量项目反向梳理 → business-doc-extract → convention-audit
+原型/详设 → business-doc-extract → api-contract → page-codegen
+存量项目体检 → convention-audit → code-fix
 只同步菜单 → menu-sync
 只同步字典 → dict-sync
 只做权限 → permission-sync
 ```
+
+> `business-doc-extract` 是**建议性插入点**，不是必经步骤：仅在资料达到模块/项目级完整度、且用户意图为业务沉淀时才走；碎片需求默认跳过。
 
 ---
 
@@ -43,8 +48,9 @@ prototype-scan
 
 | Skill | input_from | output_file | next_suggest |
 |---|---|---|---|
-| `prototype-scan` | 原型/详设/口述需求 | `.github/reports/PROTOTYPE_SCAN_*.md` | `api-contract` |
-| `api-contract` | `prototype-scan` 输出或用户口述接口信息 | `src/views/**/api.md` | `page-codegen` |
+| `prototype-scan` | 原型/详设/口述需求 | `.github/reports/PROTOTYPE_SCAN_*.md` | `business-doc-extract`（资料达模块级）或 `api-contract` |
+| `business-doc-extract` | 已发布原型目录 / 详设 / 字段实体 / 字典资料 / 现有页面 + `api.md` / `prototype-scan` 输出 | `docs/business/index.md` + `docs/business/open-questions.md` + `docs/business/0X-xx/{index,requirement,dictionary,field}.md` | `api-contract` 或 `page-codegen`（项目需求依据） |
+| `api-contract` | `prototype-scan` 输出、`docs/business/0X-xx/requirement.md` + `field.md` 或用户口述接口信息 | `src/views/**/api.md` | `page-codegen` |
 | `page-codegen` | `api.md` / page-spec / 用户口述需求 | `src/views/**/{index.vue,data.ts,index.scss,api.md}` + `.github/reports/SYS_MENU_INFO.md` | `convention-audit`；如有菜单则 `menu-sync` |
 | `convention-audit` | 任意源码目录或文件 | `.github/reports/AUDIT_*.md` | 有可自动修复项时 `code-fix`；有菜单/字典/权限差异时对应 sync Skill |
 | `code-fix` | `convention-audit` 报告 | 源码 diff / 修复摘要 | `convention-audit` 复扫 |

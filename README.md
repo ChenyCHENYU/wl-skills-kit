@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.5.2** — 一键将 13 条规范、9 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.6.0** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -23,8 +23,20 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 
 ## 版本亮点
 
-当前 2.5.x 版本重点完善 Skill 规范精度和隐藏页导航体系：
+当前 2.6.x 重点补齐业务理解闭环：原型/详设 → 业务文档 → 接口契约 → 页面代码 → 复扫。
 
+- **新增 `business-doc-extract` Skill**：语义级智能触发（不依赖固定关键词），在资料达模块/项目级完整度时建议生成业务文档：
+  ```text
+  docs/business/
+  ├── index.md                # 项目业务全景 + 模块索引
+  ├── open-questions.md       # 全局待确认问题汇总
+  └── 0X-<module>/
+      ├── index.md            # 模块全景 + 页面/API 索引
+      ├── requirement.md      # 需求理解 + 流程 + 页面清单 + 模块待确认
+      ├── dictionary.md       # 字典枚举
+      └── field.md            # 字段清单
+  ```
+  碎片化问答、单截图、小修小改默认不触发，不污染轻量路径。页面级 `api.md` 仍然住页面目录，模块 `index.md` 只做链接索引。
 - `init/update/diff/clean/check/validate/validate-page/doctor-ui/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查、UI 接入诊断和基线导出
 - 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wk-skills-ui` runtime，但保留 `common-core` 平台骨架
 - 新增 `doctor-ui` / `validate-page`：检查 `wk-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
@@ -46,6 +58,9 @@ npm run standards:init                   # 本包维护/业务项目均可复用
     │
     ▼ [Skill: prototype-scan]          ← 可跳过（直接口述需求时）
 《页面清单》(reports/PROTOTYPE_SCAN_*.md)
+    │
+    ▼ [Skill: business-doc-extract]    ← 可选，资料达模块级时建议走
+docs/business/0X-xx/{index,requirement,dictionary,field}.md
     │
     ▼ [Skill: api-contract]
 api.md（页面级前后端契约）
@@ -124,7 +139,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 13 条)
 │   │   └── 13-platform-components.md
-│   ├── skills/                           9 个启用 Skill（全部激活）
+│   ├── skills/                           10 个启用 Skill（全部激活）
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -132,6 +147,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   │   ├── api-contract/     { SKILL.md, USAGE.md }
 │   │   │   ├── page-codegen/     { SKILL.md, USAGE.md, templates/ }
 │   │   │   ├── convention-audit/ { SKILL.md, USAGE.md }
+│   │   │   ├── business-doc-extract/ { SKILL.md, USAGE.md, templates/ }
 │   │   │   └── template-extract/ { SKILL.md, USAGE.md }
 │   │   ├── sync/                         数据同步类
 │   │   │   ├── menu-sync/        { SKILL.md, USAGE.md, env/ }
@@ -333,6 +349,10 @@ AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable(render-type="agGrid"
 
 ## 进一步阅读
 
+- 🧭 全盘分析与智能体搭建：[docs/全盘分析与智能体搭建指南.md](docs/全盘分析与智能体搭建指南.md)
+- 🔁 Agent Pipeline 运行手册：[docs/agent-pipeline-runbook.md](docs/agent-pipeline-runbook.md)
+- 🛡️ MCP Tool 风险矩阵：[docs/mcp-tool-risk-matrix.md](docs/mcp-tool-risk-matrix.md)
+- 📝 业务文档抽取 Skill：[files/.github/skills/core/business-doc-extract/USAGE.md](files/.github/skills/core/business-doc-extract/USAGE.md)
 - 📚 业务方使用指南：`.github/guides/usage.md`（业务项目内）
 - 🏗️ 架构与决策：`.github/guides/architecture.md`（业务项目内）
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）

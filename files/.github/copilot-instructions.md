@@ -245,6 +245,7 @@ onMounted(() => select());
 | 菜单 / 注册页面 / 点击进不来 / 同步菜单 / 补菜单 | `menu-sync` + `route-check` |
 | 风格 / 样式不生效 / skills-ui / 操作列 / 状态标签 / AGGrid | `page-codegen` + `wk-skills-ui runtime` + `doctor-ui` |
 | 规范检查 / 体检 / 接手项目 / 偏差 | `convention-audit` 或 CLI `validate` |
+| 用户提供完整原型/详设/字段或字典资料，且意图为业务梳理/模块沉淀/字段字典维护/待确认事项整理 | `business-doc-extract`（**语义级触发，禁止仅靠关键词命中**；碎片需求默认跳过） |
 
 页面生成类任务命中后，必须读取：
 
@@ -271,6 +272,7 @@ onMounted(() => select());
 | prototype-scan       | ✅ 启用  | 原型/详设 → page-spec JSON              |
 | api-contract         | ✅ 启用  | 生成 api.md 接口约定                    |
 | page-codegen         | ✅ 启用  | 页面骨架 + 模板调度 + 菜单追加            |
+| business-doc-extract | ✅ 启用  | 原型/详设/字段/字典/现有页面 → docs/business 业务文档 |
 | menu-sync            | ✅ 启用  | reports/SYS_MENU_INFO → 后端菜单接口    |
 | convention-audit     | ✅ 启用  | 13 条规范扫描 + 偏差报告 + 提取建议     |
 | template-extract     | ✅ 启用  | 现有页面 → 领域模板沉淀                 |

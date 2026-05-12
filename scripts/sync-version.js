@@ -31,7 +31,7 @@ const ROOT = path.resolve(__dirname, "..");
 const today = new Date().toISOString().slice(0, 10);
 
 // ── Skill 数量（✅ 启用的技能总数，激活新 Skill 时同步更新这里）─────────────
-const SKILL_COUNT = 9;
+const SKILL_COUNT = 10;
 const MCP_TOOL_COUNT = 17;
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ const updates = [
   },
   {
     file: "README.md",
-    regex: /一条命令将 13 条编码规范、\d+ 个 AI Skill/g,
-    replace: `一条命令将 13 条编码规范、${SKILL_COUNT} 个 AI Skill`,
+    regex: /一[条键]将 13 条(?:编码)?规范、\d+ 个 AI Skill、\d+ 个 MCP Tool/g,
+    replace: `一键将 13 条规范、${SKILL_COUNT} 个 AI Skill、${MCP_TOOL_COUNT} 个 MCP Tool`,
   },
   {
     file: "files/.github/guides/architecture.md",

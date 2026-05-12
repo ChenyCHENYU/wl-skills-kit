@@ -1,6 +1,6 @@
 # AI 辅助开发全景分析 & 架构演进蓝图
 
-> **基于 wl-skills-kit v2.5.2 架构**
+> **基于 wl-skills-kit v2.6.0 架构**
 > **日期**：2026-05-12
 > **目标**：企业级通用 · 质量精度高 · 速度快 · 节省 token · 还原度高 · 开箱即用 · 支持 Agent Pipeline
 
@@ -10,7 +10,7 @@
 
 ```text
 L1 提示词工程         ✅ copilot-instructions + 多编辑器适配 + standards 懒加载
-L2 Skills             ✅ 9 个启用 Skill + registry + pre-flight
+L2 Skills             ✅ 10 个启用 Skill + registry + pre-flight（含 business-doc-extract）
 L3 MCP                ✅ 17 个 Tool（菜单/字典/权限/项目感知/页面校验/UI 体检/通知）
 L4 CLI                ✅ init/update/clean/check/diff/validate/validate-page/doctor-ui/export
 L5 Agent Pipeline     🟡 已落地协议与运行手册，可进入试运行
@@ -25,7 +25,7 @@ L7 自演化体系         🔭 需要足够审计报告与模板样本后再规
 | 资产 | 数量/状态 | 说明 |
 |---|---:|---|
 | Standards | 13 条 | 场景化 code-structure、Git 审计、AGGrid 判定均已纳入 |
-| Skills | 9 个 | core/sync/ops 全部启用，domain 暂不扩展 |
+| Skills | 10 个 | core/sync/ops 全部启用（含 business-doc-extract），domain 暂不扩展 |
 | MCP Tools | 17 个 | 覆盖 code_scan / route_check / validate_page / doctor_ui / git_log_extract / audit_report_push 等 |
 | CLI 命令 | 9 个 | init / update / clean / check / diff / validate / validate-page / doctor-ui / export |
 | Pipeline 协议 | 1 份 | `.github/skills/_pipeline.md` |
@@ -33,7 +33,16 @@ L7 自演化体系         🔭 需要足够审计报告与模板样本后再规
 
 ---
 
-## 3. v2.5.x 关键能力
+## 3. v2.6.x 关键能力
+
+### 3.0 业务理解闭环（business-doc-extract）
+
+新增语义级智能触发的业务文档抽取 Skill：
+
+- 资料达模块/项目级完整度时建议生成 `docs/business/{index, open-questions, 0X-xx/{index, requirement, dictionary, field}}.md`
+- 碎片化问答、单截图、小修小改默认不触发，不污染轻量路径
+- 页面级 `api.md` 仍然住页面目录，不重复维护接口字段
+- 上游接 `prototype-scan`，下游供 `api-contract` / `page-codegen` / `dict-sync` / `permission-sync` 复用
 
 ### 3.1 Agent Pipeline
 

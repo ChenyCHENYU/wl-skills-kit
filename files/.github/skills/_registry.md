@@ -16,6 +16,7 @@ skills/
 │   ├── api-contract/
 │   ├── page-codegen/
 │   ├── convention-audit/
+│   ├── business-doc-extract/
 │   └── template-extract/
 │
 ├── sync/                数据同步类（与后端联动）
@@ -44,6 +45,7 @@ skills/
 | api-contract     | ✅ 启用 | `skills/core/api-contract/SKILL.md`     | 接口约定 / api.md / 字段定义 / 前后端对齐 / 接口设计                                                                                    |
 | page-codegen     | ✅ 启用 | `skills/core/page-codegen/SKILL.md`     | 生成页面 / 创建页面 / 代码生成 / vue页面 / 按原型生成 / 帮我生成 / 列表页 / 管理页 / 台账 / mock / 假数据 / 先能跑 / AGGrid / skills-ui |
 | convention-audit | ✅ 启用 | `skills/core/convention-audit/SKILL.md` | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检                                             |
+| business-doc-extract | ✅ 启用 | `skills/core/business-doc-extract/SKILL.md` | **语义级触发，不依赖固定关键词**：用户提供原型 / 详设 / 字段或字典资料 / 现有页面 + api.md，且意图为业务梳理 / 模块沉淀 / 字段字典维护 / 待确认事项整理时触发；碎片化问答、单截图、小修小改默认不触发 |
 | template-extract | ✅ 启用 | `skills/core/template-extract/SKILL.md` | 提取模板 / 抽取模板 / 沉淀模板 / 模板贡献                                                                                               |
 | menu-sync        | ✅ 启用 | `skills/sync/menu-sync/SKILL.md`        | 创建菜单 / 注册菜单 / 同步菜单 / 补菜单 / 页面点击进不来 / 菜单打不开                                                                   |
 | dict-sync        | ✅ 启用 | `skills/sync/dict-sync/SKILL.md`        | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                                                                                |
@@ -60,6 +62,7 @@ skills/
 4. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制约定式输出）
 5. 页面生成任务必须额外读取 `standards/12-base-table.md`，并执行 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 硬约束
 6. 若消息包含“风格 / skills-ui / 状态标签 / 操作列 / AGGrid”，同时建议运行 `wl-skills doctor-ui`
+7. `business-doc-extract` 不依赖关键词匹配，AI 必须按 `资料源 + 意图 + 范围` 三因素自行判断；缺资料时先询问用户提供原型/详设/字段资料路径，不要凭推断写入 `docs/business`
 
 ---
 
