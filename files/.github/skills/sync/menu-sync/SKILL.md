@@ -69,16 +69,19 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 
 ---
 
-## Phase 1：AI 调用 API 创建菜单（当前方案）
+## Phase 1：MCP 驱动创建菜单（当前方案）
 
-> 此方案参考平台伙伴的 jh4j-cloud skill，适配 cx-ui-produce 项目。
-> 本质是 **menu-sync-design.md 的方案 C（只增不删）**，由 AI 自动执行。
+> 本质是 **menu-sync-design.md 的方案 C（只增不删）**，由 AI 调 MCP 工具自动执行。
+
+> 📖 **必读公共护栏**：`../_mcp-guardrail.md`
+> 该文件定义了 MCP 调用纪律、错误分层判定、自愈闭环剧本。AI 首次执行 sync 类任务时必须先 `read_file` 加载它。
+>
+> 本 Skill 使用的 MCP 工具：`wls_menu_sync_from_report` / `wls_menu_query` / `wls_menu_upsert`。工具不可用或调用失败时，按 guardrail §2 剧本引导用户完善 `env.local.json` 后重试，**不得用 curl/手拼 HTTP 绕开 MCP**。
 
 ### 前置条件
 
-1. 用户提供后端系统管理地址（如 `http://localhost:9000` 或实际网关地址）
-2. 用户提供有效的 Bearer Token（从浏览器开发者工具 Network 面板复制）
-3. 用户提供父级菜单 ID（`menuId`），可通过查询接口获取
+1. MCP 已连接（工具列表中可见 `wls_menu_sync_from_report`）
+2. `.github/skills/sync/env.local.json` 已填写 `token`（纯 JWT，不含 `bearer ` 前缀）、`gatewayPath`、`sysAppNo`、`menu.parentMenuId`、`menu.domainId`
 
 ### 输入
 
@@ -96,45 +99,47 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 | `C`  | 菜单（页面） | `menuName`, `path`, `permission`, `component` |
 | `A`  | 动作按钮     | `menuName`, `path`                            |
 
-### 执行流程
+### 执行流程（首选：一步到位）
+
+**默认走 `wls_menu_sync_from_report`**——它内部完成「读报告 → 查菜单树 → 一级目录 upsert → 二级菜单 upsert」全流程：
+
+```
+工具：wls_menu_sync_from_report
+入参：{ dryRun?: boolean, reportPath?: string }   // 不传 reportPath 自动用最新 SYS_MENU_INFO*.md
+第一次执行：先传 dryRun: true 预览，确认无误后再正式执行（去掉 dryRun）
+```
+
+### 手动拆分流程（仅当一步式不满足时）
 
 #### Step 1: 查询当前 domain 菜单树（防重复 + 取父级信息）
 
 ```
-工具：wls_menu_query
-读取：env.local.json → menu.domainId
+工具：wls_menu_query   （无参，自动读 env.local.json → menu.domainId）
 返回：当前应用域完整菜单树
 ```
 
-> 推荐：具备 MCP 时优先调用 `wls_menu_sync_from_report`，它会自动读取最新 `SYS_MENU_INFO*.md`、查询菜单树、复用/更新目录，再把二级菜单挂到对应目录下。可先传 `dryRun: true` 做预览。
+#### Step 2: 先创建一级目录（type=M），再创建二级页面菜单（type=C）
 
-#### Step 2: 先创建一级目录（type=M）
-
-对于 `SYS_MENU_INFO` 中的一级目录，按 `menuName/path` 在父级 `parentMenuId` 下去重；不存在则创建，存在则复用 id。
-
-#### Step 3: 再创建二级页面菜单（type=C）
-
-对于每条页面菜单，`parentId` 必须使用上一步对应目录的 id，禁止全部挂到根 `parentMenuId`。
-
-> **响应码说明**：后端成功响应为 `code: 2000`（非标准 HTTP 200），判断成功应检查 `response.body.code === 2000` 或 `message` 包含"成功"。
+- 一级目录按 `menuName/path` 在父级 `parentMenuId` 下去重；不存在则创建，存在则复用 id
+- 二级页面菜单的 `parentId` 必须是上一步对应目录的 id，**禁止**全部挂到根 `parentMenuId`
 
 ```
-POST {gatewayPath}/system/menu/save
-Headers:
-  authorization: bearer {token}
-  Sysappno: {sysAppNo}
-  Content-Type: application/json
+工具：wls_menu_upsert
+入参：{ items: [<下面的对象>...] }
+```
 
-Body:
+**`items[]` 单条对象模板（仅作为 MCP 入参参考，禁止 AI 自行 fetch）**：
+
+```jsonc
 {
   "useCache": 1,
   "icon": "list",
   "common": 2,
   "hidden": false,
-  "type": "C",
-  "parentId": "{parentMenuId}",
+  "type": "C",                      // "M"=目录, "C"=菜单, "A"=动作
+  "parentId": "{父级目录的 id}",
   "sysAppNo": "{sysAppNo}",
-  "orderNum": {nextOrder},
+  "orderNum": 1,
   "menuName": "客户档案",
   "menuNameCode": "{parentMenuNameCode}:{pinyinName}",
   "path": "mmwrCustomerArchive",
@@ -142,6 +147,8 @@ Body:
   "component": "produce/production-mmwr/aiflow/mmwr-customer-archive/index.vue"
 }
 ```
+
+> **MCP 内部说明**（AI 不可据此自行调接口）：底层走 `POST /system/menu/save`，成功码 `code: 2000`。
 
 #### Step 3: 记录结果
 

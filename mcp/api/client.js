@@ -49,10 +49,17 @@ function wlsFetch(urlPath, options, config) {
           if (json.code === 2000) {
             resolve({ ok: true, data: json.data, code: json.code })
           } else {
+            // 友好提示：401/4004 等典型错误附带排查指引
+            let hint = ''
+            if (json.code === 401 || /token|未登录|鉴权/i.test(json.message || '')) {
+              hint = '（Token 可能已过期，请重新登录后更新 env.local.json 的 token 字段，仅填纯 JWT 不含 bearer 前缀）'
+            } else if (json.code === 4004 || /url:|not\s*found/i.test(json.message || '')) {
+              hint = '（接口未找到。可能是 gatewayPath 配置缺失前缀或后端环境差异；请检查 env.local.json 的 gatewayPath。不要让 AI 绕开 MCP 自己拼 HTTP）'
+            }
             resolve({
               ok: false,
               data: null,
-              error: json.message || `服务端返回 code=${json.code}`,
+              error: (json.message || `服务端返回 code=${json.code}`) + hint,
               code: json.code,
             })
           }

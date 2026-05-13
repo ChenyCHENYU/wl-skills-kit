@@ -234,6 +234,18 @@ onMounted(() => select());
 
 完整触发词与 Skill 路径见 `skills/_registry.md`（**单一数据源**，不在此处重复）。
 
+> 🔖 **首选「场景索引」**：`skills/_best-practices.md`
+>
+> 进入项目对话或开启新任务时，AI 必须先 `read_file` 加载：
+>
+> 1. `skills/_best-practices.md`（按场景的最佳实践索引，**首选路由依据**）
+> 2. `skills/_registry.md`（触发词 → Skill 路径映射）
+> 3. `skills/_pipeline.md`（Skill I/O 契约 + 推荐链式顺序）
+>
+> 三者联合判定后再决定调用哪个 Skill / MCP 工具。**禁止仅凭关键词命中就跳过 best-practices 的语义判断**。
+>
+> sync 类（菜单/字典/权限）任务必须额外加载 `skills/sync/_mcp-guardrail.md`，调用失败按 §2 自愈剧本引导用户完善配置后重试，不绕开 MCP。
+
 ### Intent Router（自然语言智能识别）
 
 用户不需要记住 Skill 名。只要消息包含以下任一语义，AI 必须自动路由到对应 Skill：

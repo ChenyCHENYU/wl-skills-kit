@@ -1,5 +1,32 @@
 # Changelog
 
+## [2.7.2] - 2026-05-13
+
+### Added
+
+- **`skills/_best-practices.md`**（新文档）：场景级最佳实践索引。AI 每轮对话默认读取，按场景（新建模块 / 补菜单 / 补字典 / 角色授权 / 项目体检等）路由 Skill，弱化"靠关键词猜触发"。人也可当 Runbook 查阅。
+- **`skills/sync/_mcp-guardrail.md`**（新文档）：sync 类 Skill 通用护栏。明确 MCP 调用纪律 + 错误分层（L0~L4）+ **自愈闭环剧本**：MCP 调用失败时引导用户完善 `env.local.json`（token/domainId/gatewayPath 等）后重试，**禁止** AI 用 curl/PowerShell/fetch 绕开 MCP 自拼 HTTP。
+- **`scripts/lint-skills.js`**（新脚本）+ **`tests/lint-skills.test.js`**：静态校验 sync SKILL.md 引用 guardrail、列出"严禁 curl"纪律、无残留 `TODO_CONFIRM`，`_registry.md` 引用的 Skill 路径必须存在。`prepublishOnly` 已串联。
+- **`mcp/server.js` 启动 banner**：写入 stderr（不污染 stdio JSON-RPC），列出版本、`WL_PROJECT_ROOT`、已注册的 17 个工具，方便快速判断"MCP 是否真连上"。
+- **`mcp/api/client.js` 友好错误提示**：401 / 4004 自动附排查指引（"token 仅填纯 JWT 不含 bearer 前缀" / "gatewayPath 可能缺前缀，不要让 AI 绕开 MCP 拼 HTTP"）。
+- **`_registry.md` 增加「MCP 工具依赖」列**：明确每个 Skill 用到的 `wls_*` 工具，AI 加载 Skill 时一并核验工具可用性。
+
+### Fixed
+
+- **`dict-sync/SKILL.md`** 完全重写（451 → 215 行）：删除文件被错误拼接的旧版残留段、`TODO_CONFIRM` 错路径（`/system/dict/list` 等）、错字段名；改为 MCP 优先，明确 `wls_dict_query` / `wls_dict_upsert` 入参模板。
+- **`menu-sync/SKILL.md`**：执行流程改为 `wls_menu_sync_from_report` 一步到位优先；HTTP body 显式标注「仅为 MCP 入参参考」，杜绝 AI 据此自行 fetch。
+- **`menu-sync/USAGE.md`**：修正旧字段（`tenantId` / `rootMenuId` / 旧路径示例）→ 统一为 `sysAppNo` / `menu.parentMenuId` / `sync/env.local.json`。
+- **`permission-sync/SKILL.md` §6**：标题从"无 MCP 时的兜底"改为"MCP 内部实现，AI 不得调用"，杜绝 AI 把它当 fallback 路径自己跑 HTTP。
+
+### Changed
+
+- **`copilot-instructions.md`** AI Skills 自动调度段：新增"首选场景索引（best-practices）"流程，三件套（best-practices + registry + pipeline）联合路由替代单纯关键词命中。
+- **三个 sync SKILL.md 顶部纪律段统一**：均改为引用 `_mcp-guardrail.md`，错误处理走自愈闭环（不再"立即停止"）。
+
+### Notes
+
+- 纯文档 + MCP 运行时增强，无 SDK 行为破坏性变更，业务项目 `npx @agile-team/wl-skills-kit update` 即可同步。
+
 ## [2.7.1] - 2026-05-13
 
 ### Fixed

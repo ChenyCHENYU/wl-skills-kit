@@ -31,18 +31,22 @@
 
 ## 前置条件
 
-`.github/skills/sync/menu-sync/env/env.local.json`（首次使用先填写）：
+`.github/skills/sync/env.local.json`（首次使用先填写，已加入 `.gitignore`）：
 
 ```json
 {
-  "gatewayPath": "https://uat-api.example.com",
-  "token": "Bearer xxx",
-  "tenantId": "10001",
-  "rootMenuId": "1234567890"
+  "gatewayPath": "http://192.168.10.50:9000",
+  "sysAppNo": "应用编码（非明文，从已有菜单接口响应获取）",
+  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）",
+  "menu": {
+    "parentMenuId": "父级菜单 ID（菜单管理后台获取）",
+    "domainId": "应用域 ID（Network 面板 getMenuTreeByDomainId?domainId=xxx 获取）"
+  }
 }
 ```
 
-> **`env.local.json` 不入 git**（已加 .gitignore）。每个开发者本地填自己的 token。
+> **`env.local.json` 不入 git**。每个开发者本地填自己的 token（更新 token 时只换 token 字段，其他不动）。
+> 字段获取详见 `env/guide.md`。
 
 ---
 
@@ -54,11 +58,11 @@ AI：[Pre-flight]
     步骤 1：读取线上菜单基线 reports/SYS_MENU_INFO.md（最新更新：2025-04-20）
     步骤 2：扫描 src/views/produce/aiflow/ 共 7 个页面
     步骤 3：对比缺失：5 项缺失，2 项已存在
-    步骤 4：将调用 /sys/menu/save 创建 5 项
+    步骤 4：将调用 wls_menu_sync_from_report 创建 5 项
     [需你确认]：
-    - 父菜单：精整作业 → 客户管理（rootMenuId: xxx）
-    - 排序：sortNo 自动递增
-    - 权限标识：mmwr:customer:list 等
+    - 父菜单：精整作业 → 客户管理（menu.parentMenuId: xxx）
+    - 排序：orderNum 自动递增
+    - 权限标识：mmwrCustomerArchive 等
     确认 yes/no？
 ```
 
@@ -78,8 +82,10 @@ AI：[Pre-flight]
 | -------------------- | ---------------------------- | ---------------------------------------------- |
 | 同步成功但 UI 看不到 | 用户角色没分配新菜单         | 跑 permission-sync（PLANNED）或后台手工分配    |
 | 401/403 报错         | env.local.json 的 token 过期 | 重新登录系统，从 Network 抓 Authorization 替换 |
+| AI 用 curl/Invoke-RestMethod 调接口，返回 4004 | AI 没走 MCP，自行拼接了错误的接口路径 | 确认 MCP 已连接（Cursor/Kiro 设置里可见 wls_menu_sync_from_report），然后重新说「帮我同步菜单」|
+| token 填了 `Bearer eyJ...` 整串，接口 401 | Authorization Header 变成 `Bearer Bearer eyJ...` | token 字段只填 `eyJ...` 纯 JWT 部分，去掉 `bearer ` 前缀 |
 | 同名菜单重复创建     | 没读 SYS_MENU_INFO.md 基线   | 先跑一遍"刷新基线"再 sync                      |
-| 父菜单 ID 不对       | rootMenuId 配错              | 从浏览器开发者工具看父菜单的 dom data-id       |
+| 父菜单 ID 不对       | menu.parentMenuId 配错     | 从菜单后台编辑页复制菜单 ID，填入 env.local.json |
 
 ---
 

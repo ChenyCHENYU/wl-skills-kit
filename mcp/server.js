@@ -122,7 +122,28 @@ function startServer() {
 
 // 仅在直接执行时启动监听；被 require（如测试）时不启动
 if (require.main === module) {
+  printBanner();
   startServer();
+}
+
+/**
+ * 启动 banner — 写入 stderr，不污染 stdout 的 JSON-RPC 通道
+ * 让用户在编辑器 MCP 输出面板能直观看到：版本、工具数量、项目根
+ */
+function printBanner() {
+  const projectRoot = process.env.WL_PROJECT_ROOT || process.cwd();
+  const lines = [
+    "",
+    "═══════════════════════════════════════════════════",
+    `  wl-skills MCP Server v${PKG.version}`,
+    "═══════════════════════════════════════════════════",
+    `  项目根 (WL_PROJECT_ROOT): ${projectRoot}`,
+    `  已注册工具 (${TOOLS.length}):`,
+    ...TOOLS.map((t) => `    • ${t.name}`),
+    "═══════════════════════════════════════════════════",
+    "",
+  ];
+  process.stderr.write(lines.join("\n") + "\n");
 }
 
 module.exports = { TOOLS, HANDLERS, dispatchTool, startServer };
