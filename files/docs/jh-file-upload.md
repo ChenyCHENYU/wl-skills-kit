@@ -191,6 +191,49 @@ interface FileItem {
 
 ---
 
+## 编程式调用（FormDialog 工具类）
+
+源码中 `FormDialog` 提供了便捷的附件上传/预览方法，无需手动放置 `<jh-file-upload />`：
+
+### uploadAttach — 上传附件弹窗
+
+```ts
+import { FormDialog } from "@jhlc/common-core/src/util/form-dialog";
+
+const handleUpload = async () => {
+  const { type, fileList } = await FormDialog.uploadAttach("上传附件", {
+    relativeType: "order",
+    relativeId: orderId,
+    autoUpload: false,  // 点确认后才上传
+    limit: 5,
+    deletable: true,
+    disabled: false,
+  });
+  if (type === "success") {
+    // 上传成功
+  }
+};
+```
+
+### previewAttach — 预览附件弹窗（只读）
+
+```ts
+FormDialog.previewAttach("查看附件", "order", orderId);
+```
+
+### previewAttachBatch — 批量预览
+
+```ts
+FormDialog.previewAttachBatch("查看全部附件", [
+  { relativeType: "order", relativeId: id1, title: "订单附件" },
+  { relativeType: "contract", relativeId: id2, title: "合同附件" },
+]);
+```
+
+> **源码位置**: `@jhlc/common-core/src/util/form-dialog.ts`
+
+---
+
 ## 🎯 真实项目示例
 
 ### 示例 1：合同附件

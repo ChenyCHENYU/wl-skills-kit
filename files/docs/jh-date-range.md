@@ -98,11 +98,11 @@ const query = ref({
 
 ```ts
 // data.ts 查询项配置
-export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
+export const queryItems: BaseQueryItemDesc<any>[] = [
   {
     name: "createDateTime",
-    startName: "createDateTimeStart", // 开始字段
-    endName: "createDateTimeEnd", // 结束字段
+    startName: "createDateTimeStart", // 开始字段（自动拆分）
+    endName: "createDateTimeEnd",     // 结束字段（自动拆分）
     label: "创建日期",
     component: () => {
       return {
@@ -110,18 +110,50 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
         type: "daterange",
         rangeSeparator: "至",
         showFormat: "YYYY-MM-DD",
-        valueFormat: "YYYY-MM-DD"
+        format: "YYYY-MM-DD"
       };
     }
   }
 ];
 
-// 使用时会自动拆分为 startName 和 endName 两个字段
+// 运行时框架会自动拆分为 startName 和 endName 两个字段：
 // query.createDateTimeStart = "2026-01-01"
 // query.createDateTimeEnd = "2026-01-31"
 ```
 
-### 场景 4：与后端接口参数映射
+### 场景 4：使用 defaultValue 预设值（源码内置）
+
+框架在 `BaseQueryItemDesc` 中内置了丰富的日期范围预设值，配合 `startName` / `endName` 使用：
+
+```ts
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "dateRange",
+    startName: "startDate",
+    endName: "endDate",
+    label: "业务日期",
+    defaultValue: "recentDay7",  // 默认选中近 7 天
+    component: () => ({ tag: "jh-date", type: "daterange" })
+  },
+];
+```
+
+**全部可用预设值**（源码 `setFormDefaultValue`）：
+
+| 预设值                                | 说明                                     |
+| ------------------------------------- | ---------------------------------------- |
+| `"recentDay3"`                        | 近 3 天（startDate ~ 明天）                |
+| `"recentDay7"`                        | 近 7 天（startDate ~ 明天）                |
+| `"recentDay30"`                       | 近 30 天（startDate ~ 明天）               |
+| `"recentDay3Datetime"`                | 近 3 天（含时分秒 00:00:00 ~ 23:59:59）  |
+| `"rangeDatetimeToday"`                | 今天（00:00:00 ~ 23:59:59）               |
+| `"rangeDayCurrentMonth1ToToday"`      | 本月 1 号 ~ 今天                           |
+| `"rangeDayCurrentMonth1ToLastDay"`    | 本月 1 号 ~ 本月最后一天                   |
+| `"rangeDatetimeCurrentMonth1ToLastDay"` | 本月 1 号 ~ 本月最后一天（含时分秒）       |
+
+> **单字段预设值**（非范围）：`"currentDay"` | `"currentMonth"` | `"currentYear"` | `"currentDept"`
+
+### 场景 5：与后端接口参数映射
 
 ```ts
 // v-model 方式
@@ -183,7 +215,7 @@ params: {
 ### 1️⃣ 统一返回字符串格式（强烈推荐）
 
 ```vue
-<jh-date-range v-model="query.dateRange" value-format="YYYY-MM-DD" />
+<jh-date-range v-model="query.dateRange" format="YYYY-MM-DD" />
 ```
 
 避免 Date / string 混用，接口参数更稳定
@@ -223,7 +255,7 @@ request({
    - 必须使用数组字段接收
    - 推荐默认 `[]`
 
-2. **valueFormat 决定返回类型**
+2. **format 决定返回类型**
    - 默认 `"YYYY-MM-DD"` 字符串数组
    - 不建议返回 Date（容易引入时区/格式问题）
 

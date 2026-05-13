@@ -176,16 +176,24 @@ onMounted(() => {
 
 ## Props 属性
 
-| 参数       | 说明                                 | 类型      | 默认值  |
-| ---------- | ------------------------------------ | --------- | ------- |
-| top-height | 上部区域的初始高度（单位：px）       | `number`  | -       |
-| topPercent | 上部区域的初始百分比（与 top-height 二选一） | `number`  | -       |
-| bottomHeight | 下部区域的初始高度（单位：px）       | `number`  | -       |
-| bottomPercent | 下部区域的初始百分比       | `number`  | -       |
-| height     | 容器总高度       | `string`  | `"400px"` |
-| sliderWidth | 拖拽分割线的宽度（单位：px） | `number`  | `10`    |
+| 参数              | 说明                                         | 类型      | 默认值      |
+| ----------------- | -------------------------------------------- | --------- | ----------- |
+| topHeight         | 上部区域的初始高度（单位：px）               | `number`  | -           |
+| topPercent        | 上部区域的初始百分比（与 topHeight 二选一）   | `number`  | -           |
+| bottomHeight      | 下部区域的初始高度（单位：px）               | `number`  | -           |
+| isNest            | 是否嵌套使用（嵌套在另一个 drag 组件内部）   | `boolean` | `false`     |
+| width             | 容器总宽度                                   | `string`  | `"400px"`   |
+| height            | 容器总高度                                   | `string`  | `"400px"`   |
+| sliderWidth       | 拖拽分割线的高度（单位：px）                 | `number`  | `10`        |
+| sliderColor       | 拖拽手柄指示线颜色                           | `string`  | `"#6f808d"` |
+| sliderBgColor     | 拖拽手柄背景色                               | `string`  | `"#a7caec"` |
+| sliderHoverColor  | 拖拽手柄悬停时指示线颜色                     | `string`  | `"#6f808d"` |
+| sliderBgHoverColor| 拖拽手柄悬停时背景色                         | `string`  | `"#c8dcea"` |
 
-> **提示**: 推荐使用 `top-height` 设置上部区域高度,下部区域会自动填充剩余空间。
+> **提示**:
+> - 推荐使用 `topHeight` 设置上部区域高度，下部区域会自动填充剩余空间
+> - `topPercent` 与 `topHeight` 二选一；当两者都传时，`topHeight` 在 mounted 后会被转换为百分比
+> - 实际项目中通常配合 CSS `height: 100%` 使容器占满可用空间，因此 `width`/`height` prop 仅作为兜底默认值
 
 ## Slots 插槽
 
@@ -506,24 +514,39 @@ const handlePlanChange = (row: any) => {
 
 ## 样式定制
 
-### 修改拖拽手柄样式
+### 通过 Props 自定义手柄颜色（推荐）
+
+```vue
+<jh-drag-row
+  :top-height="380"
+  slider-color="#409eff"
+  slider-bg-color="#e6f0fa"
+  slider-hover-color="#1890ff"
+  slider-bg-hover-color="#bae0ff"
+>
+  ...
+</jh-drag-row>
+```
+
+### 通过 CSS 覆盖手柄样式
 
 ```scss
 :deep(.drager_row) {
   height: 100%;
 
-  // 拖拽手柄
-  .drager {
-    background: #e0e0e0; // 手柄背景色
-    height: 6px; // 手柄高度
-    cursor: row-resize; // 鼠标样式
+  // 拖拽手柄（CSS 类名为 .slider_row）
+  > .slider_row {
+    background: #e0e0e0;
+    cursor: row-resize;
 
     &:hover {
-      background: #1890ff; // 悬停颜色
+      background: #1890ff;
     }
   }
 }
 ```
+
+> **源码 CSS 类名参考**: `.drager_row`（主容器）、`.drager_top`（上部区域）、`.drager_bottom`（下部区域）、`.slider_row`（拖拽手柄）
 
 ### 调整上下区域内边距
 
@@ -531,12 +554,12 @@ const handlePlanChange = (row: any) => {
 :deep(.drager_row) {
   height: 100%;
 
-  .top-area {
-    padding: 10px;
+  .drager_top {
+    padding-bottom: 10px;
   }
 
-  .bottom-area {
-    padding: 10px;
+  .drager_bottom {
+    padding-top: 10px;
   }
 }
 ```

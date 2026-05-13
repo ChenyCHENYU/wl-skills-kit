@@ -67,9 +67,10 @@ import "@jhlc/common-core";
 | fontSize | 字体大小 | `"extra-small" \| "small" \| "base" \| "medium" \| "large" \| "extra-large"` | - |
 | fontWeight | 字体粗细 | `"light" \| "regular" \| "medium" \| "semi"` | - |
 
-> **提示**: 
-> - `dict` 传入时,会自动设置 `type="dict"`
-> - 同时使用 `logicType` 和 `logicValue` 可以实现自动翻译
+> **源码说明**:
+> - `content` 是框架内部渲染时优先使用的属性（如 `base-form-detail` 自动传入 `content: form[name]`）
+> - `dict` 传入时，会自动设置 `type="dict"`
+> - `logicType` + `logicValue` 是配置式用法的核心，框架会根据类型自动翻译（字典/用户/部门）
 
 ---
 
@@ -132,27 +133,44 @@ import "@jhlc/common-core";
 />
 ```
 
-### 场景 5：BaseDetail 配置式用法
+### 场景 5：BaseFormDetail 配置式用法（自动渲染）
+
+在 `BaseFormDetail` 中，当配置项没有自定义 `component` 时，框架会自动使用 `jh-text` 渲染，并传入 `content`、`logicType`、`logicValue`：
 
 ```ts
-// data.ts 详情项配置
-export const detailItemsConfig: BaseFormDetailDesc[] = [
+import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+
+export const detailItems: BaseFormDetailDesc[] = [
   {
     name: "status",
     label: "状态",
     logicType: BusLogicDataType.dict,
-    logicValue: "order_status"
-    // 会自动渲染为 jh-text 并翻译字典
+    logicValue: "order_status",
+    // 框架自动渲染为: <jh-text :content="form.status" logicType="dict" logicValue="order_status" />
   },
   {
     name: "createUserId",
     label: "创建人",
     logicType: BusLogicDataType.user,
-    logicValue: "userId"
-    // 会自动翻译用户名
-  }
+    // 自动翻译用户 ID 为用户名称
+  },
+  {
+    name: "deptId",
+    label: "部门",
+    logicType: BusLogicDataType.dept,
+    // 自动翻译部门 ID 为部门名称
+  },
+  {
+    name: "remark",
+    label: "备注",
+    // 无 logicType 时直接展示文本
+  },
 ];
 ```
+
+> **源码逻辑**（`form-detail-item.ts` 的 `renderItem`）：
+> 1. 若配置了 `component` → 渲染自定义组件
+> 2. 若未配置 `component` → 自动渲染 `<jh-text :content="form[name]" :logicType :logicValue />`
 
 ---
 

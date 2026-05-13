@@ -53,7 +53,9 @@ const form = ref({
 | clearable            | 是否可清空                   | `boolean`                               | `true`         |
 | teleported           | 是否将下拉面板插入 body      | `boolean`                               | `true`         |
 
-> **提示**: `valueFormat` 为 Element Plus 原生属性,此处统一使用 `format` 属性代替,控制返回值格式。
+> **重要说明**:
+> - `format` 控制 v-model 返回值格式，`showFormat` 控制界面显示格式
+> - 与 Element Plus 的 `value-format` / `format` 命名不同，请使用 jh-date 自己的 `format` 和 `showFormat`
 
 ---
 
@@ -96,9 +98,44 @@ const form = ref({
 
 ### 场景 3：BaseQuery 配置式用法
 
+#### 方式一：使用 logicType 自动映射（推荐）
+
 ```ts
-// data.ts 查询项配置
-export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
+import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "deliveryDate",
+    label: "交期日期",
+    logicType: BusLogicDataType.date,
+    // 自动渲染为 jh-date，默认 type="date"，format="YYYY-MM-DD"
+  },
+  {
+    name: "year",
+    label: "年份",
+    logicType: BusLogicDataType.date_yyyy,
+    // 自动渲染为 jh-date，type="year"，format="YYYY"
+  },
+];
+```
+
+> **源码映射规则**（`getFormItemByLogicType`）：
+> - `BusLogicDataType.date` → `DateComponent`（type="date"）
+> - `BusLogicDataType.date_yyyy` → `DateComponent`（type="year", format="YYYY"）
+> - `BusLogicDataType.datetime` → `DateTimeComponent`（format="YYYY-MM-DD HH:mm:ss"）
+> - 自定义 `"month"` → `jh-date`（type="month"）
+
+#### 方式二：使用 component 自定义
+
+```ts
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "month",
+    label: "月份",
+    logicType: "month" as any,
+    dateFormat: "YYYY-MM",
+    // 源码会渲染为 jh-date，type="month"，format="YYYY-MM"
+  },
   {
     name: "deliveryDate",
     label: "交期日期",
@@ -107,24 +144,14 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
         tag: "jh-date",
         type: "date",
         showFormat: "YYYY-MM-DD",
-        valueFormat: "YYYY-MM-DD" // 或使用 format
+        format: "YYYY-MM-DD"
       };
     }
   },
-  {
-    name: "month",
-    label: "月份",
-    component: () => {
-      return {
-        tag: "jh-date",
-        type: "month",
-        showFormat: "YYYY-MM",
-        valueFormat: "YYYY-MM"
-      };
-    }
-  }
 ];
 ```
+
+> **dateFormat 可选值**（在 BaseQueryItemDesc 中）：`"YYYY-MM-DD"` | `"YYYY-MM"` | `"YYYYMM"` | `"YYYYMMDD"`
 
 ---
 
@@ -160,10 +187,10 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
 
 ### 1️⃣ 统一返回字符串格式
 
-推荐保持 `valueFormat="YYYY-MM-DD"`，避免 Date / string 混用：
+推荐保持 `format="YYYY-MM-DD"`，避免 Date / string 混用：
 
 ```vue
-<jh-date v-model="form.date" value-format="YYYY-MM-DD" />
+<jh-date v-model="form.date" format="YYYY-MM-DD" />
 ```
 
 ---
@@ -185,7 +212,7 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
 
 ## 注意事项
 
-1. **v-model 返回值取决于 valueFormat**
+1. **v-model 返回值取决于 format**
    - 默认返回 `"YYYY-MM-DD"` 字符串
    - 若不配置可能返回 Date（取决于组件封装）
 

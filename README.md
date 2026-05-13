@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.7.0** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.7.1** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -22,6 +22,13 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 ---
 
 ## 版本亮点
+
+**v2.7.1**：JH 组件文档全面修正，基于 `@jhlc/common-core` 源码校准 Props/API/映射规则。
+
+- 修正 `jh-drag-row` 6 个缺失 Props、`jh-date`/`jh-date-range` format 命名
+- 补充 `defaultValue` 日期范围预设表、`BusLogicDataType` 组件映射表
+- 新增 `jh-textarea.md`、`FormDialog` 编程式附件上传文档
+- `page-query-hook-best-practices.md` 全面修正方法名（`select()` / `queryDef()` 等）
 
 **v2.7.0**：一致性治理与可测性升级，安全防护加固。
 

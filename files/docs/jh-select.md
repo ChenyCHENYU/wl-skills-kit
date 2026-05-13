@@ -50,7 +50,9 @@ const form = ref({
 | collapseTag          | 多选时是否折叠 Tag        | `boolean`                                                | `false`    |
 | teleported           | 是否将下拉面板插入 body   | `boolean`                                                | `true`     |
 
-> **重点**: 当 `dict` 属性存在时,组件会自动加载对应字典数据,无需手动设置 `items`。
+> **重点**:
+> - 当 `dict` 属性存在时，组件会自动加载对应字典数据，无需手动设置 `items`
+> - 源码中 `BusLogicDataType.dict` 和 `BusLogicDataType.company` 都映射为 `SelectComponent`，即公司选择也使用同一组件
 
 ## Events 事件
 
@@ -81,9 +83,38 @@ const form = ref({
 
 ### 场景 4：BaseQuery 配置式用法（推荐）
 
+#### 方式一：使用 logicType 自动映射（推荐）
+
 ```ts
-// data.ts 查询项配置
-export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
+import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "status",
+    label: "状态",
+    logicType: BusLogicDataType.dict,
+    logicValue: "order_status",
+    // 自动渲染为 jh-select，自动加载字典 order_status 的选项
+  },
+  {
+    name: "companyId",
+    label: "公司",
+    logicType: BusLogicDataType.company,
+    logicValue: "companyId",
+    // BusLogicDataType.company 同样映射为 SelectComponent
+  },
+];
+```
+
+> **源码映射规则**（`getFormItemByLogicType`）：
+> - `BusLogicDataType.dict` → `SelectComponent`
+> - `BusLogicDataType.company` → `SelectComponent`
+> - `BusLogicDataType.enums` → `SelectComponent`
+
+#### 方式二：使用 component 自定义
+
+```ts
+export const queryItems: BaseQueryItemDesc<any>[] = [
   {
     name: "orderStatus",
     label: "操作类型",
@@ -91,7 +122,6 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
     component: () => {
       return {
         tag: "jh-select",
-        // 方式一：静态数据
         items: [
           { label: "是", value: 1 },
           { label: "否", value: 0 }
@@ -99,14 +129,20 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
       };
     }
   },
-  {
-    name: "status",
-    label: "状态",
-    logicType: BusLogicDataType.dict,
-    logicValue: "order_status" // 字典 code
-    // 方式二：使用字典数据（会自动加载）
-  }
 ];
+```
+
+#### historyTop 个人偏好（仅对 jh-select 生效）
+
+```ts
+{
+  name: "customerId",
+  label: "客户",
+  logicType: BusLogicDataType.dict,
+  logicValue: "customer_type",
+  historyTop: true,
+  // 启用后，用户近期选择过的选项会置顶显示
+}
 ```
 
 ### 场景 5：静态 items 方式
@@ -126,9 +162,10 @@ export const queryItemsConfig: BaseQueryItemDesc<any>[] = [
 
 ## 最佳实践
 
-1. **始终使用 dict 属性**
-   - 不要手动写 options
-   - 保证字典来源统一
+1. **优先使用 logicType + logicValue**
+   - 配置式优于模板式，保证字典来源统一
+   - `logicType: BusLogicDataType.dict` 自动渲染 jh-select
+   - 只有静态选项时才使用 `component` + `items`
 
 2. **配合 jh-text 使用**
    - 列表展示用 `jh-text`

@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.7.1] - 2026-05-13
+
+### Fixed
+
+- **jh-drag-row.md**：Props 表重写，补充 `isNest`/`sliderColor`/`sliderBgColor`/`sliderHoverColor`/`sliderBgHoverColor`，删除源码中不存在的 `bottomPercent`，修正 CSS 类名引用
+- **jh-date.md / jh-date-range.md**：修正 `valueFormat` → `format`（jh-date 自有 prop），补充 `BusLogicDataType.date_yyyy`/`"month"` 类型映射
+- **jh-date-range.md**：补充 `defaultValue` 预设值表（`recentDay7`/`recentDay30`/`rangeDatetimeToday` 等 8 个内置）
+- **jh-select.md**：补充 `BusLogicDataType.company`/`enums` 也映射为 `SelectComponent`；新增 `historyTop` 置顶偏好说明
+- **jh-text.md**：澄清 `content` prop 由框架 `form-detail-item.ts` 自动传入；补充 `BaseFormDetail` 自动渲染逻辑
+- **jh-file-upload.md**：新增 `FormDialog.uploadAttach`/`previewAttach`/`previewAttachBatch` 编程式调用文档
+- **jh-user-picker.md / jh-dept-picker.md**：补充 `BusLogicDataType.user`/`dept` → 对应 Picker 组件的配置式用法
+- **page-query-hook-best-practices.md**：修正 `getTableList()` → `select()`、`formSchemas` → `queryDef()` 等错误方法名；补充源码构造参数表 / 核心属性表 / 关键方法一览
+
+### Added
+
+- **jh-textarea.md**（新文档）：`BusLogicDataType.textarea` 映射的多行文本组件文档
+
+### Notes
+
+- 纯文档修正，无功能变更，业务项目 `npx @agile-team/wl-skills-kit update` 即可同步最新文档
+
 ## [2.7.0] - 2026-05-12
 
 ### Added

@@ -97,6 +97,23 @@ const form = ref({
 
 > ⚠️ `jh-user-picker` 仅用于选择，展示请使用 `jh-text`
 
+### 场景 4：BaseQuery 配置式用法（推荐）
+
+```ts
+import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "createUserId",
+    label: "创建人",
+    logicType: BusLogicDataType.user,
+    // 自动渲染为 UserPickerComponent
+  },
+];
+```
+
+> **源码映射**: `BusLogicDataType.user` → `UserPickerComponent`
+
 ---
 
 ## 与手动实现对比

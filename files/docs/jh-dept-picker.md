@@ -100,6 +100,23 @@ const form = ref({
 
 > ⚠️ `jh-dept-picker` 仅用于选择，展示请使用 `jh-text`
 
+### 场景 4：BaseQuery 配置式用法（推荐）
+
+```ts
+import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+
+export const queryItems: BaseQueryItemDesc<any>[] = [
+  {
+    name: "deptId",
+    label: "部门",
+    logicType: BusLogicDataType.dept,
+    // 自动渲染为 DeptPickerComponent
+  },
+];
+```
+
+> **源码映射**: `BusLogicDataType.dept` → `DeptPickerComponent`
+
 ---
 
 ## 与手动实现对比
