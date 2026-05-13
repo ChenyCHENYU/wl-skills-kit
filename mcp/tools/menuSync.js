@@ -413,4 +413,15 @@ module.exports = {
   handleMenuQuery,
   handleMenuUpsert,
   handleMenuSyncFromReport,
+  // 导出纯工具函数供单测覆盖
+  _internal: {
+    cleanCell,
+    splitMarkdownRow,
+    isDividerRow,
+    parseBoolean,
+    normalizeTree,
+    flattenMenus,
+    findExisting,
+    parseReport,
+  },
 };

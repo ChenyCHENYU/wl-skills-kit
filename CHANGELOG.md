@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.7.3] - 2026-05-13
+
+### Added
+
+- **`tests/mcp-tools.test.js`**（30 个测试）：覆盖 `menuSync` 8 个纯函数（cleanCell / splitMarkdownRow / isDividerRow / parseBoolean / normalizeTree / flattenMenus / findExisting / parseReport）、`dictSync.extractModules`、`handleDictUpsert` 参数校验、`handleRoleUpsert` / `handleRoleAssignMenus` 参数校验，填补最易出 Bug 的 MCP 工具层零覆盖空白。
+- **`.gitattributes`**：统一 `eol=lf`，消除 Windows 开发者打开文件后 CRLF 行尾符变更噪音。
+
+### Changed
+
+- **`scripts/lint-skills.js`** 扩展 core/ops Skill 校验：有写操作的 5 个 Skill（page-codegen / convention-audit / business-doc-extract / template-extract / code-fix）必须包含 Pre-flight 声明 + standards 引用，防止关键约束被遗漏；同时清理旧版 AI-bypass 警告规则（误报率高，作用有限）。输出信息更新为"公共文件 N 个、sync Skill N 个、write Skill N 个全部合规"。
+- **`mcp/tools/menuSync.js` / `dictSync.js`**：新增 `_internal` 导出，暴露纯工具函数供单测调用，不影响运行时行为。
+- **`files/.github/skills/sync/permission-sync/SKILL.md`**：275 → 240 行（-13%），命名规范表从 9 行精简为 1 行覆盖范例、后端接口参考表删去冗余 Body 示例列、报告输出改为一句话描述。
+
+### Notes
+
+- 纯工程质量提升，无 Skill 行为变更、无 MCP API 变更，业务项目无需操作。
+
 ## [2.7.2] - 2026-05-13
 
 ### Added

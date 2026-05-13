@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.7.2** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.7.3** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -22,6 +22,13 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 ---
 
 ## 版本亮点
+
+**v2.7.3**：工程质量提升 — MCP tools 单测覆盖、lint-skills 扩展到 core Skill、.gitattributes 消除行尾符噪音、permission-sync SKILL.md 精简。
+
+- 新增 `tests/mcp-tools.test.js`（30 个测试）覆盖 menuSync/dictSync/permissionSync 核心纯函数与参数校验
+- `lint-skills` 新增 core/ops SKILL.md 规则：有写操作 Skill 必须含 Pre-flight + standards 引用
+- 新增 `.gitattributes` 统一 LF 行尾，消除 Windows 开发者提交噪音
+- `permission-sync/SKILL.md` 压缩 275 → 240 行，命名规范表与报告示例精简
 
 **v2.7.2**：sync 类 Skill 自愈闭环 + 场景索引路由。
 

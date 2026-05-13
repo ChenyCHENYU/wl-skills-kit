@@ -170,4 +170,9 @@ async function handleDictUpsert(args, config) {
   return output
 }
 
-module.exports = { handleDictQuery, handleDictUpsert }
+module.exports = {
+  handleDictQuery,
+  handleDictUpsert,
+  // 导出纯工具函数供单测覆盖
+  _internal: { extractModules },
+}
