@@ -28,6 +28,24 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 - **通用弹窗**（新增/编辑表单，2+ 页面可复用）→ 提取到 `src/components/local/c_xxxModal/`
 - **极个性弹窗**（仅单页面使用，c_modal 无法满足）→ 放在页面 `components/xxxModal.vue`
 
+## Mock 架构（与页面完全解耦）
+
+> 详细规范见 `docs/mock-architecture.md`
+
+```
+mock/
+├── _utils.ts              ← 共享工具（pageResult / ok / paginate / nowStr / pick）
+└── [业务域]/              ← 镜像 src/views 第一级目录
+    └── [模块].ts          ← 每个模块一个文件，export default MockMethod[]
+```
+
+- **开关**：`.env.dev` 中 `ENV_MOCK=true/false`，`vite.config.ts` 中 `viteMockServe({ enable: command === "serve" && config.ENV_MOCK !== "false" })`
+- **解耦**：mock 文件放在项目根 `mock/` 目录，不在 `src/views` 中 import 任何 mock
+- **URL 对齐**：`API_CONFIG` 保持真实路径（如 `/mdata/mdataModel/list`），mock 端点带 `/dev-api` 前缀，关闭 mock 后无需改页面代码
+- **STORE 模式**：`let STORE = Array.from({ length: N }, genRecord)` 可变数组，CRUD 直接修改内存，查询立即可见
+- **按模块自治**：删某业务 mock 只删对应文件，不影响其他模块
+- **一键清理**：`wl-skills mock-clean --domain [域]` 或 `--all`
+
 ## data.ts 核心模式
 
 > 配置化驱动，通过 `API_CONFIG` + `class extends AbstractPageQueryHook` 实现零 API 层开发。

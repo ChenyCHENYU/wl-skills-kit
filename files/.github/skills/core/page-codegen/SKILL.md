@@ -92,7 +92,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 
 - `pages.ts` 注册片段
 - **`reports/SYS_MENU_INFO.md`** — 集中式菜单配置，**追加写入**（见下方 §SYS_MENU_INFO 生成规则）
-- `mock/[页面kebab-name].ts`（项目根目录 `mock/` 下，`vite-plugin-mock` 自动加载，与 api.md 的 URL 和字段完全一致）
+- `mock/[业务域]/[模块].ts`（项目根目录 `mock/` 下按域分目录，`vite-plugin-mock` 自动加载，与 api.md 的 URL 和字段完全一致；详见 `docs/mock-architecture.md`）
 
 ---
 
@@ -108,7 +108,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 6. 字典字段用 `logicType: BusLogicDataType.dict, logicValue: "dictCode"`
 7. 同时生成 api.md（基于 api-contract Skill 模板）
 8. 提供 pages.ts 注册片段
-9. 同时在 `mock/` 目录下生成对应的 mock 文件（`MockMethod[]` + mockjs，URL 和字段与 api.md 一致，URL 必须带 `/dev-api` 前缀）
+9. 同时在 `mock/[业务域]/` 目录下生成对应的 mock 文件（`MockMethod[]` + mockjs，URL 和字段与 api.md 一致，URL 必须带 `/dev-api` 前缀）。业务域取 `src/views/` 下第一级目录名（如 `sale`、`mdata`）。mock 文件必须 `import { paginate, ok, pick, nowStr } from "../_utils"` 复用共享工具，不可自行重复定义
 10. **查询字段顺序**：`queryDef()` 中字段顺序必须与 page-spec `query` 数组顺序严格一致（即原型从左到右、从上到下）
 11. **表格列顺序**：`columnsDef()` 中列顺序必须与 page-spec `columns` 数组顺序严格一致（`selection` + `index` 在最前，其余按原型表头从左到右）
 12. **按钮顺序与颜色**：`toolbarDef()` 中按钮顺序和 `name`（颜色）必须与 page-spec `toolbar` 数组严格一致（`primary`=蓝底, `danger`=红色, `warning`=橙色, `default`=灰色; `plain: true`=线框）。**"新增"类按钮永远排第一**（如"新增"、"新增申请"），这是产品通用规范
@@ -119,8 +119,8 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 17. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
 18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
 19. **未知交互兜底**：当原型未提供交互细节、且无法从通用模式推断时，`onClick` 中使用 `ElMessage.info("需业务确认交互逻辑")` 作为占位
-20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/` 目录是否存在
-21. **默认 Mock First**：新生成页面默认必须走 `vite-plugin-mock`。必须生成 `mock/[页面kebab-name].ts`，并确保 `API_CONFIG` 中每个 URL 都有对应 mock 端点；只有当用户明确要求关闭 mock 或 `.env.dev` 中 `ENV_MOCK=false` 时，才允许直接联调真实接口。
+20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/_utils.ts` 是否存在（若不存在则从 kit 种子文件补充）
+21. **默认 Mock First**：新生成页面默认必须走 `vite-plugin-mock`。必须生成 `mock/[业务域]/[模块].ts`（import `../_utils` 共享工具），并确保 `API_CONFIG` 中每个 URL 都有对应 mock 端点；只有当用户明确要求关闭 mock 或 `.env.dev` 中 `ENV_MOCK=false` 时，才允许直接联调真实接口。
 22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/list`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/list`），这样关闭 mock 后无需修改业务代码。
 23. **页面初始数据必须由 mock 提供**：列表页 `onMounted(() => select())` 后必须能显示模拟数据，不允许生成空白页等待后端接口；`list` 端点返回 `{ code: 2000, data: { records, total, size, current } }`。
 24. **必须使用 wk-skills-ui runtime 风格**：当项目安装了 `@agile-team/wk-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
@@ -145,7 +145,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 11. **❌ 禁止表单控件宽度不统一**：`jh-select`、`jh-date`、`el-input-number`、`jh-file-upload` 默认宽度可能与 `el-input` 不一致，必须在 scoped style 中用 `:deep()` 统一设为 `width: 100%`（详见 §表单页 UI 细节规范）
 12. **❌ 禁止表单页无滚动**：独立路由表单页内容超出视口时必须可滚动，`.app-page-container` 须设 `overflow-y: auto`（**不要加 `height: 100%`，全局已有 `height: calc(100vh - 100px)`，叠加会导致双滚动条**）
 13. **❌ 禁止内联 style 散落**：所有页面/组件样式统一写在 `index.scss` 中（便于复用和移动），不可在 template 中大量使用内联 `style="..."`
-14. **❌ 禁止生成无 mock 的页面**：只写 `API_CONFIG` 但不写 `mock/*.ts` 属于生成失败。
+14. **❌ 禁止生成无 mock 的页面**：只写 `API_CONFIG` 但不写 `mock/[业务域]/*.ts` 属于生成失败。mock 文件必须按域分目录、import `_utils` 共享工具（详见 `docs/mock-architecture.md`）。
 15. **❌ 禁止生成空 onClick**：`onClick: () => {}` 属于生成失败；未知逻辑也必须用 `ElMessage.info(...)` 明示。
 16. **❌ 禁止忽略 wk-skills-ui**：项目已安装 `@agile-team/wk-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
 17. **❌ 禁止 BaseTable 非 AGGrid**：业务列表中 `<BaseTable>` 未写 `render-type="agGrid"` 或缺少 `cid/:cid` 属于生成失败。

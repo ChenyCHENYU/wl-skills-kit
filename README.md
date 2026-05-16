@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.7.3** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.8.0** — 一键将 13 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -22,6 +22,15 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 ---
 
 ## 版本亮点
+
+**v2.8.0**：Mock 架构体系固化 + `mock-clean` CLI 命令。
+
+- 新增 `docs/mock-architecture.md` — Mock 目录约定、开关机制、模块化规范、一键清理流程
+- 新增 `mock/_utils.ts` 种子文件 — `init` 自动写入，提供 `pageResult`/`ok`/`paginate`/`nowStr`/`pick`
+- 新增 CLI `mock-clean` 命令 — `--domain <name>` 按域清理、`--all` 全量清理（保留 `_utils.ts`）、`--dry-run` 预览
+- `copilot-instructions.md` 新增 Mock 架构节（目录约定、开关、STORE 模式、URL 对齐）
+- `page-codegen/SKILL.md` 规则 9/20/21 修正为按域分目录 + 强制引用 `_utils`
+- `validate` 增强：检查 `_utils.ts` 存在、mock 文件是否按域分目录、是否引用共享工具
 
 **v2.7.3**：工程质量提升 — MCP tools 单测覆盖、lint-skills 扩展到 core Skill、.gitattributes 消除行尾符噪音、permission-sync SKILL.md 精简。
 
@@ -53,7 +62,7 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 - **单元测试**：registry / CLI / version-tools 共 18 项覆盖，上面三项防护都有连动验证
 - **单一数据源加固**：`SKILL_COUNT` 从常量改为从 `_registry.md` 动态计算；copilot-instructions 删除内嵌 Skill 表改为指针；dict-sync / code-fix 补 USAGE.md
 
-当前 2.6.x 重点补齐业务理解闭环：原型/详设 → 业务文档 → 接口契约 → 页面代码 → 复扫。
+2.6.x 以来重点补齐业务理解闭环：原型/详设 → 业务文档 → 接口契约 → 页面代码 → 复扫。
 
 - **新增 `business-doc-extract` Skill**：语义级智能触发（不依赖固定关键词），在资料达模块/项目级完整度时建议生成业务文档：
   ```text
@@ -125,16 +134,17 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── package.json                          name: @agile-team/wl-skills-kit
 │
 ├── bin/
-│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / validate-page / doctor-ui / export）
+│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / validate-page / doctor-ui / export / mock-clean）
 │
 ├── files/                                ★★★ 真正会被打包并复制到业务项目的内容 ★★★
-│   └── .github/
-│       ├── copilot-instructions.md       源 AI 主入口（编辑这里，不要编辑业务项目里的副本）
-│       ├── standards/                    13 条规范
-│       ├── skills/                       Skill 目录（含 _compat/ 多编辑器适配源）
-│       ├── guides/                       人读指南
-│       └── reports/                      领域基线模板（菜单/字典/权限）
-│   ├── docs/                             组件 API 文档
+│   ├── .github/
+│   │   ├── copilot-instructions.md       源 AI 主入口（编辑这里，不要编辑业务项目里的副本）
+│   │   ├── standards/                    13 条规范
+│   │   ├── skills/                       Skill 目录（含 _compat/ 多编辑器适配源）
+│   │   ├── guides/                       人读指南
+│   │   └── reports/                      领域基线模板（菜单/字典/权限）
+│   ├── docs/                             组件 API 文档 + Mock 架构规范
+│   ├── mock/                             Mock 共享工具种子（_utils.ts）
 │   └── demo/                             领域样例
 │
 ├── kit-internal/                         ★★ 仅仓库可见，不会安装到业务项目 ★★
@@ -163,7 +173,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 你的业务项目/
 │
 ├── .github/                              ← 来自本包 files/.github/
-│   ├── copilot-instructions.md           Copilot 主入口（精简 ~320 行）
+│   ├── copilot-instructions.md           Copilot 主入口（精简 ~340 行）
 │   ├── standards/                        13 条模块化规范 + index.md 门控
 │   │   ├── 01-toolchain.md
 │   │   ├── 02-code-structure.md
@@ -204,7 +214,11 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
 ├── .qoder/rules/conventions.md           Qoder
 │
-├── docs/                                 12 个组件 API 文档
+├── mock/                                 ← 来自本包 files/mock/（init 自动写入）
+│   ├── _utils.ts                         共享工具（pageResult / ok / paginate / nowStr / pick）
+│   └── [业务域]/[模块].ts               按域分目录，page-codegen 自动生成
+│
+├── docs/                                 12 个组件 API 文档 + mock-architecture.md
 ├── demo/                                 13 个领域样例
 └── src/
     ├── components/                       全局/局部/远程组件
@@ -253,6 +267,12 @@ npx @agile-team/wl-skills-kit clean
 
 # 清理但保留 reports/（菜单/字典/权限累积数据）
 npx @agile-team/wl-skills-kit clean --keep-reports
+
+# 清理指定业务域的 mock 文件（保留 _utils.ts）
+npx @agile-team/wl-skills-kit mock-clean --domain mdata
+
+# 清理全部 mock（保留 _utils.ts）
+npx @agile-team/wl-skills-kit mock-clean --all
 
 # 任何命令都可加 --dry-run 预览
 npx @agile-team/wl-skills-kit update --dry-run
@@ -313,6 +333,7 @@ npx @agile-team/wl-skills-kit update
 | `api-contract`     | ✅ 启用 | `skills/core/api-contract/`     | 生成 api.md 前后端契约                      |
 | `page-codegen`     | ✅ 启用 | `skills/core/page-codegen/`     | 页面骨架生成 + 模板调度                     |
 | `convention-audit` | ✅ 启用 | `skills/core/convention-audit/` | 13 条规范扫描 + 双报告                      |
+| `business-doc-extract` | ✅ 启用 | `skills/core/business-doc-extract/` | 语义触发，业务文档抽取与维护            |
 | `template-extract` | ✅ 启用 | `skills/core/template-extract/` | 现有页面 → 领域模板                         |
 | `menu-sync`        | ✅ 启用 | `skills/sync/menu-sync/`        | 菜单基线 ↔ 后端接口                         |
 | `dict-sync`        | ✅ 启用 | `skills/sync/dict-sync/`        | 字典基线 ↔ 后端接口                         |

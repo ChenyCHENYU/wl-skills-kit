@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.8.0] - 2026-05-16
+
+### Added
+
+- **`files/docs/mock-architecture.md`**（新文档）：Mock 架构规范，涵盖目录约定（按业务域分目录 `mock/[域]/[模块].ts`）、`_utils.ts` 共享工具、`ENV_MOCK` 开关机制、STORE 可变数组持久化模式、端点覆盖检查、一键清理流程。
+- **`files/mock/_utils.ts`**（种子文件）：`init`/`update` 自动写入目标项目 `mock/_utils.ts`，提供 `pageResult`/`ok`/`paginate`/`nowStr`/`pick` 五个共享工具，消除各 mock 模块重复定义。
+- **CLI `mock-clean` 命令**：`--domain <name>` 按域清理（如 `mock-clean --domain mdata`）、`--all` 全量清理（保留 `_utils.ts`）、支持 `--dry-run` 预览。清理后提示修改 `ENV_MOCK` 并运行 `validate`。
+
+### Changed
+
+- **`copilot-instructions.md`** 新增 Mock 架构节：目录结构约定、开关机制、URL 对齐、STORE 模式、模块自治原则、`mock-clean` CLI 用法。
+- **`page-codegen/SKILL.md`** 规则修正：规则 9 → `mock/[业务域]/[模块].ts` 按域分目录 + 强制 `import ../_utils`；规则 20 → 自检 `mock/_utils.ts` 存在；规则 21 → 路径格式对齐；禁止 14 → 引用 `docs/mock-architecture.md`。
+- **`validate` 增强**：新增 3 项 mock 架构质量检查 —— `_utils.ts` 存在性（warn）、mock 文件是否按域分目录（info）、是否引用共享工具（info）。输出新增 `ℹ` info 级别图标。
+- **`_best-practices.md`** 场景 6 扩展：从一句话描述 → 完整 mock 架构速览 + 目录树 + 开关/清理说明。
+- **`--domain` / `--all` 加入 `KNOWN_FLAGS`**；flag 校验兼容 `--domain=xxx` 等号格式。
+
+### Notes
+
+- Mock 架构为前端最佳实践固化，已在 wl-mdata 项目验证。新项目 `init` 后即获得 `mock/_utils.ts`；已有项目 `update` 后自动补充。
+
 ## [2.7.3] - 2026-05-13
 
 ### Added

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.7.3
+ * wl-skills-kit CLI v2.8.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -13,6 +13,7 @@
  *   validate-page validate 的别名，适用于单页/目录检查
  *   doctor-ui 检查 @agile-team/wk-skills-ui 接入完整性
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
+ *   mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
  */
@@ -39,6 +40,7 @@ const KNOWN_COMMANDS = new Set([
   "validate-page",
   "doctor-ui",
   "export",
+  "mock-clean",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -46,6 +48,8 @@ const KNOWN_FLAGS = new Set([
   "--force",
   "--help",
   "-h",
+  "--domain",
+  "--all",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -56,7 +60,10 @@ const force = args.includes("--force");
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
 if (!showHelp) {
   const unknownFlags = args.filter(
-    (a) => a.startsWith("-") && !KNOWN_FLAGS.has(a),
+    (a) =>
+      a.startsWith("-") &&
+      !KNOWN_FLAGS.has(a) &&
+      !KNOWN_FLAGS.has(a.split("=")[0]),
   );
   if (unknownFlags.length > 0) {
     console.error("");
@@ -96,11 +103,14 @@ if (showHelp) {
     validate-page validate 的别名，适用于单页/目录检查
     doctor-ui  检查 @agile-team/wk-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
+    mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
 
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
     --keep-reports   clean 命令保留 .github/reports/（默认一起删除）
     --force          强制执行，跳过同版本检测（忽略已安装状态）
+    --domain <name>  mock-clean 指定要清理的业务域（如 sale、mdata）
+    --all            mock-clean 清理全部 mock（保留 _utils.ts）
     --help           显示帮助
 
   示例:
@@ -116,6 +126,9 @@ if (showHelp) {
     npx @agile-team/wl-skills-kit clean                 清理开发期文件
     npx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
     npx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
+    npx @agile-team/wl-skills-kit mock-clean --domain mdata  清理 mdata 域 mock
+    npx @agile-team/wl-skills-kit mock-clean --all           清理全部 mock
+    npx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
 
   保护路径（init / update 不覆盖已存在的）:
     .github/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -853,6 +866,54 @@ function runValidate() {
   const mockContent = mockFiles
     .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
     .join("\n");
+
+  // ── Mock 架构质量检查 ──────────────────────────────────────────────
+  const mockDir = path.join(TARGET_DIR, "mock");
+  const hasMockDir = fs.existsSync(mockDir);
+  const hasUtilsTs =
+    hasMockDir &&
+    (fs.existsSync(path.join(mockDir, "_utils.ts")) ||
+      fs.existsSync(path.join(mockDir, "_utils.js")));
+  if (hasMockDir && mockFiles.length > 0 && !hasUtilsTs) {
+    issues.push({
+      level: "warn",
+      dir: "mock/",
+      text: "缺少 mock/_utils.ts 共享工具文件（建议 wl-skills init 补充）",
+    });
+  }
+  // 检查 mock 文件是否按域分目录（非 _utils 的 ts/js 文件不应直接放在 mock/ 根）
+  for (const rel of mockFiles) {
+    const parts = rel
+      .replace(/\\/g, "/")
+      .replace(/^mock\//, "")
+      .split("/");
+    const basename = parts[parts.length - 1];
+    if (parts.length === 1 && !basename.startsWith("_")) {
+      issues.push({
+        level: "info",
+        dir: "mock/",
+        text:
+          basename +
+          " 直接放在 mock/ 根目录，建议按业务域分子目录（如 mock/sale/" +
+          basename +
+          "）",
+      });
+    }
+  }
+  // 检查 mock 模块文件是否 import _utils
+  for (const rel of mockFiles) {
+    const basename = path.basename(rel);
+    if (basename.startsWith("_")) continue;
+    const content = fs.readFileSync(path.join(TARGET_DIR, rel), "utf8");
+    if (hasUtilsTs && !/_utils/.test(content)) {
+      issues.push({
+        level: "info",
+        dir: rel,
+        text: "未引用 mock/_utils 共享工具，建议统一使用 pageResult/ok/paginate",
+      });
+    }
+  }
+
   for (const page of pages) {
     if (!page.hasDataTs)
       issues.push({
@@ -933,7 +994,8 @@ function runValidate() {
   console.log("");
   const errors = issues.filter((issue) => issue.level === "error").length;
   for (const issue of issues) {
-    const icon = issue.level === "error" ? "✖" : "⚠";
+    const icon =
+      issue.level === "error" ? "✖" : issue.level === "info" ? "ℹ" : "⚠";
     console.log("  " + icon + " " + issue.dir + " — " + issue.text);
   }
   if (issues.length === 0) console.log("  ✔ 页面文件完整性检查通过");
@@ -1106,6 +1168,85 @@ function runExport() {
   console.log("");
 }
 
+// ─── mock-clean ──────────────────────────────────────────────────────────
+
+function runMockClean() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [mock-clean]");
+  console.log("");
+
+  const mockDir = path.join(TARGET_DIR, "mock");
+  if (!fs.existsSync(mockDir)) {
+    console.log("  ⚠ mock/ 目录不存在，无需清理");
+    console.log("");
+    return;
+  }
+
+  const domainArg = args.find((a) => a.startsWith("--domain"));
+  const cleanAll = args.includes("--all");
+  let domain = "";
+  if (domainArg) {
+    // 支持 --domain=xxx 和 --domain xxx
+    if (domainArg.includes("=")) {
+      domain = domainArg.split("=")[1];
+    } else {
+      const idx = args.indexOf(domainArg);
+      domain = args[idx + 1] || "";
+    }
+  }
+
+  if (!domain && !cleanAll) {
+    console.error("  ✖ 请指定 --domain <name> 或 --all");
+    console.error("  示例: wl-skills mock-clean --domain mdata");
+    console.error("        wl-skills mock-clean --all");
+    console.error("");
+    process.exit(1);
+  }
+
+  // 收集要删除的文件/目录
+  const toRemove = [];
+  if (cleanAll) {
+    // 删除 mock/ 下除 _utils.ts/_utils.js 之外的所有文件和子目录
+    const entries = fs.readdirSync(mockDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith("_")) continue; // 保留 _utils.ts 等
+      toRemove.push(path.join(mockDir, entry.name));
+    }
+  } else {
+    // 删除指定域目录
+    const domainDir = path.join(mockDir, domain);
+    if (!fs.existsSync(domainDir)) {
+      console.log('  ⚠ mock/' + domain + '/ 不存在');
+      console.log("");
+      return;
+    }
+    toRemove.push(domainDir);
+  }
+
+  if (toRemove.length === 0) {
+    console.log("  ✔ 无需清理（仅剩 _utils.ts）");
+    console.log("");
+    return;
+  }
+
+  for (const target of toRemove) {
+    const rel = path.relative(TARGET_DIR, target);
+    if (dryRun) {
+      console.log("  [dry-run] 将删除: " + rel);
+    } else {
+      fs.rmSync(target, { recursive: true, force: true });
+      console.log("  ✔ 已删除: " + rel);
+    }
+  }
+
+  console.log("");
+  if (!dryRun) {
+    console.log("  建议：将 .env.dev 中 ENV_MOCK 改为 false");
+    console.log("  然后运行 wl-skills validate 检查页面无 mock 依赖残留");
+    console.log("");
+  }
+}
+
 // ─── 主路由 ─────────────────────────────────────────────────────────────
 
 switch (command) {
@@ -1133,6 +1274,9 @@ switch (command) {
     break;
   case "export":
     runExport();
+    break;
+  case "mock-clean":
+    runMockClean();
     break;
   default:
     console.error(

@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.7.3（2026-05-13）
+> **当前版本**：v2.8.0（2026-05-16）
 
 ---
 
@@ -478,9 +478,11 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | v1.x | 5 个 Skill 平铺 + 9 个 TPL 平铺 + 单一超长 copilot-instructions                                                                           | ✅ 已发布 |
 | v2.0 | 规范模块化（13 条）+ 模板分层（universal/domains）+ 报告分类 + Pre-flight + 工具链门控                                                    | ✅ 已发布 |
-| v2.1 | Skill 分级目录（core/sync/ops/domain）+ 多 AI 适配解耦（editors.json）+ 各 Skill USAGE.md + api-contract 真实响应 + 3 个 PLANNED 草稿补全 | ✅ 当前   |
-| v2.2 | dict-sync / permission-sync / code-fix 从 PLANNED → 转正（视后端接口稳定情况）                                                            | ⏳ 规划中 |
-| v2.3 | CI 流水线接入（convention-audit 报告注入 PR 评论）+ Skill 版本感知                                                                        | ⏳ 规划中 |
+| v2.1 | Skill 分级目录（core/sync/ops/domain）+ 多 AI 适配解耦（editors.json）+ 各 Skill USAGE.md + api-contract 真实响应 + 3 个 PLANNED 草稿补全 | ✅ 已发布 |
+| v2.2–2.3 | dict-sync / permission-sync / code-fix 从 PLANNED → 转正 + lint-skills 静态护栏 + MCP 自愈闭环                                      | ✅ 已发布 |
+| v2.6 | business-doc-extract 语义触发 + 业务文档体系 + AGGrid/cid/defineColumns/renderOps 最终标准 + doctor-ui / validate 增强                     | ✅ 已发布 |
+| v2.7 | JH 组件文档全面修正 + MCP tools 单测覆盖 + 场景索引路由 + _mcp-guardrail 自愈闭环 + .gitattributes + 版本一致性自检                       | ✅ 已发布 |
+| v2.8 | Mock 架构体系固化（mock-architecture.md + _utils.ts 种子 + mock-clean CLI + validate mock 质量检查 + 规则修正）                            | ✅ 当前   |
 
 ---
 
