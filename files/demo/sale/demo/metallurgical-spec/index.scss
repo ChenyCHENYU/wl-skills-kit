@@ -220,7 +220,7 @@
 
     // 明细信息的表格容器（固定高度，给实验表格留空间）
     &[data-tab="detail"] {
-      // 移除 table-container 固定高度，让 C_Splitter 控制
+      // 移除 table-container 固定高度，让 jh-drag-row 控制
       .detail-tables-splitter {
         flex: 1;
       }

@@ -151,7 +151,8 @@
 
                 <!-- 选择节点后显示表格数据 -->
                 <div v-else class="tables-content">
-                  <C_Splitter direction="vertical">
+                  <jh-drag-row :topHeight="320">
+                    <template #top>
                     <div class="main-table-section">
                       <BaseTable
                         :key="updateKey"
@@ -163,6 +164,8 @@
                         @row-click="handleRowClick"
                       />
                     </div>
+                    </template>
+                    <template #bottom>
                     <div>
                       <div class="experiment-section">
                         <div class="experiment-header">
@@ -193,7 +196,8 @@
                         </div>
                       </div>
                     </div>
-                  </C_Splitter>
+                    </template>
+                  </jh-drag-row>
                 </div>
               </div>
             </div>
@@ -220,7 +224,7 @@
 import { onMounted, onUnmounted, watch, nextTick } from "vue";
 import { ArrowDown, ArrowLeft } from "@element-plus/icons-vue";
 import c_formModal from "@/components/local/c_formModal/index.vue";
-import C_Splitter from "@/components/global/C_Splitter/index.vue";
+// jh-drag-row 是 @jhlc/jh-ui 全局注册组件，无需 import
 import {
   // 状态
   activeTab,

@@ -1065,7 +1065,7 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 | LIST | templates/universal/TPL-LIST.md | 标准查询+工具栏+表格+分页 | mmwr-customer-archive |
 | MASTER_DETAIL | templates/universal/TPL-MASTER-DETAIL.md | jh-drag-row 主从表，双击联动 | ompt-ht-plan-order |
 | TREE_LIST | templates/universal/TPL-TREE-LIST.md | 左侧 C_Tree + 右侧列表 | — |
-| DETAIL_TABS | templates/universal/TPL-DETAIL-TABS.md | C_Splitter 上Tab表单+下子表 | add-demo / domestic-trade-order |
+| DETAIL_TABS | templates/universal/TPL-DETAIL-TABS.md | jh-drag-row 上Tab表单+下子表 | add-demo / domestic-trade-order |
 | FORM_ROUTE | templates/universal/TPL-FORM-ROUTE.md | 复杂表单独立路由（非弹窗） | mmwr-customer-apply-add-form |
 | CHANGE_HISTORY | templates/universal/TPL-CHANGE-HISTORY.md | 左历史时间线+右变更详情 | mmwr-customer-apply-change-history |
 | RECORD_FORM | templates/universal/TPL-RECORD-FORM.md | BaseQuery选主记录+Form+Table无分页 | mmsm-convert-progress |

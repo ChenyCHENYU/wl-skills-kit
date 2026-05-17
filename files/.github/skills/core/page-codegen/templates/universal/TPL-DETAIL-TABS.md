@@ -3,15 +3,16 @@
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
 > 适用场景：编辑/维护页面，上半区为多 Tab 表单（基本信息/客户信息/其他信息），下半区为子项表格。
-> 布局核心：`C_Splitter direction="vertical"` 垂直分割上下区域。
+> **布局核心**：`jh-drag-row :topHeight="..."` 垂直分割上下区域（严禁 `C_Splitter`，详 standards/14-layout-containers.md）。
 > **参考标杆**：`src/views/sale/demo/add-demo/`、`src/views/sale/demo/domestic-trade-order-mainten/`
 
 #### index.vue
 
 ```vue
 <template>
-  <div class="app-container app-page-container">
-    <C_Splitter direction="vertical">
+  <div class="app-container app-page-container" style="height: 100%">
+    <jh-drag-row :topHeight="380">
+      <template #top>
       <!-- 上：表单区 -->
       <el-card shadow="never" class="form-card">
         <!-- 页头工具栏 -->
@@ -66,7 +67,9 @@
           </el-tab-pane>
         </el-tabs>
       </el-card>
+      </template>
 
+      <template #bottom>
       <!-- 下：子项表格区 -->
       <el-card shadow="never" class="items-card">
         <div class="items-section">
@@ -97,13 +100,14 @@
           />
         </div>
       </el-card>
-    </C_Splitter>
+      </template>
+    </jh-drag-row>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-import C_Splitter from "@/components/global/C_Splitter/index.vue";
+// ⚠️ 不再需要 import C_Splitter——jh-drag-row 是 @jhlc/jh-ui 全局注册组件
 import {
   form,
   rules,

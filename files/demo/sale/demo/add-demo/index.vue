@@ -9,8 +9,9 @@
  -->
 <template>
   <div class="main-maintenance-container">
-    <!-- C_Splitter 包裹表单区和项次信息 -->
-    <C_Splitter direction="vertical" class="main-splitter">
+    <!-- jh-drag-row 包裹表单区和项次信息（上下拖拽） -->
+    <jh-drag-row :topHeight="480" class="main-splitter">
+      <template #top>
       <!-- 🆕 使用增强版组件（集成所有功能） -->
       <c_formSections
         :sections="sectionsConfig"
@@ -43,7 +44,9 @@
           </el-row>
         </template>
       </c_formSections>
+      </template>
 
+      <template #bottom>
       <el-card
         shadow="never"
         class="items-card"
@@ -88,7 +91,8 @@
           </div>
         </div>
       </el-card>
-    </C_Splitter>
+      </template>
+    </jh-drag-row>
 
     <!-- 全屏模式 - 使用 Teleport 传送到 body -->
     <Teleport to="body">
@@ -136,7 +140,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { ArrowDown, Close } from "@element-plus/icons-vue";
-import C_Splitter from "@/components/global/C_Splitter/index.vue";
+// jh-drag-row 是 @jhlc/jh-ui 全局注册组件，无需 import
 import c_formSections from "@/components/local/c_formSections/index.vue";
 import {
   form,

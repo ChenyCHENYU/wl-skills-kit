@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.9.0] - 2026-05-17
+
+### Added
+
+- **`files/.github/standards/14-layout-containers.md`**（新规范，🔴 必遵 + 阻断）：布局容器规范。根因解析 `C_Splitter` 在 `onMounted` 中调用 `slots.default()` 冻结 vnode 快照、导致子树响应式完全失效；明确左右分割只用 `jh-drag-col`（`#left`/`#right`），上下分栈只用 `jh-drag-row`（`#top`/`#bottom`）；附迁移对照表、lint 规则、废弃路线图。
+- **`files/src/components/global/C_Splitter/index.vue`** 加入 `@deprecated` 注释 + 运行时 `console.warn`（同会话仅警告一次），引导改用 `jh-drag-col` / `jh-drag-row`。
+
+### Changed
+
+- **`standards/index.md`**：13 条 → 14 条；任务 A（生成新页面）/ B（修改重构）必读集合纳入 `14`。
+- **`standards/13-platform-components.md`** 与 `copilot-instructions.md`：「左右分割」推荐组件由 `C_Splitter` 改为 `jh-drag-col`；明确 `C_Splitter` 已废弃及根因。
+- **TPL-TREE-LIST.md**：模板示例改为 `<jh-drag-col :leftWidth="220">` + `#left`/`#right` 显式插槽；SCSS 去除 `.my-splitter-container :deep` 残留；顶部加「布局硬约束」段。
+- **TPL-DETAIL-TABS.md**：示例由 `<C_Splitter direction="vertical">` 改为 `<jh-drag-row :topHeight="380">` + `#top`/`#bottom`；移除 `import C_Splitter`。
+- **`page-codegen/SKILL.md`** 与 `templates/_index.md`：TREE_LIST 描述同步至 jh-drag-col；上下分栈描述同步至 jh-drag-row。
+- **`prototype-scan/SKILL.md`**：原型扫描产出物示例与说明同步至 jh-drag-col。
+- **`demo/sale/demo/add-demo/`** 与 **`demo/sale/demo/metallurgical-spec/`**：示例 `<C_Splitter>` 全部迁移到 `<jh-drag-row>`；SCSS 注释、README 文案对齐。
+
+### Notes
+
+- 兼容性：`C_Splitter` 源文件保留但加废弃警告，**不删除**，避免外部业务项目升级时立即报错；下一个 major 版本前再做物理移除评估。
+- 参考案例：`wl-ui-sale` 项目所有左树右表/上下分栈页面（material、materialCategory、transactionType、unit、price-maintain、ContractEditTab 等）均使用 `jh-drag-col` / `jh-drag-row`，未踩 `C_Splitter` 冻 vnode 坑——本次规范固化的正是该实战路径。
+
 ## [2.8.0] - 2026-05-16
 
 ### Added

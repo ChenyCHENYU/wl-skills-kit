@@ -23,6 +23,22 @@
 <script setup>
 import { ref, reactive, onMounted, useSlots, onUnmounted } from "vue";
 
+// ⚠️ [DEPRECATED] C_Splitter 已废弃，请改用：
+//   左右分割 → <jh-drag-col :leftWidth="260"> #left / #right </jh-drag-col>
+//   上下分栈 → <jh-drag-row :topHeight="200"> #top / #bottom </jh-drag-row>
+// 原因：C_Splitter 在 onMounted 中调用 slots.default() 冻结 vnode 快照，
+//      导致子树响应式绑定（v-if / v-show / 插值）与父组件 ref 完全解耦，
+//      ref 赋值不触发重渲染。详见 .github/standards/14-layout-containers.md
+if (typeof window !== "undefined" && !window.__C_SPLITTER_WARNED__) {
+  window.__C_SPLITTER_WARNED__ = true;
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[C_Splitter 已废弃] 已检测到 C_Splitter 使用。请改用 jh-drag-col / jh-drag-row。\n" +
+    "原因：slots.default() 被冻结为 vnode 快照，导致子树响应式失效。\n" +
+    "详见：.github/standards/14-layout-containers.md"
+  );
+}
+
 const props = defineProps({
   direction: {
     type: String,

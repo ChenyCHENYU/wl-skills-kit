@@ -1,13 +1,14 @@
 # TREE_LIST：树形+列表
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
+> **布局硬约束**：严禁使用 `C_Splitter`（冻vnode导致响应式完全失效），必须用 `jh-drag-col`（详 standards/14-layout-containers.md）。
 
 #### index.vue
 
 ```vue
 <template>
-  <div class="app-container app-page-container">
-    <C_Splitter :left-width="220">
+  <div class="app-container app-page-container" style="height: 100%">
+    <jh-drag-col :leftWidth="220">
       <template #left>
         <C_Tree
           :tree-data="treeData"
@@ -40,7 +41,7 @@
           @size-change="select"
         />
       </template>
-    </C_Splitter>
+    </jh-drag-col>
   </div>
 </template>
 
@@ -197,10 +198,8 @@ export function createPage(editModalRef?: any) {
 
 ```scss
 .app-page-container {
-  // C_Splitter 需要父容器撑满高度
-  :deep(.my-splitter-container) {
-    height: 100%;
-  }
+  // jh-drag-col 需要父容器擑满高度
+  height: 100%;
 }
 ```
 

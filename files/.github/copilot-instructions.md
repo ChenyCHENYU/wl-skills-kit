@@ -203,7 +203,7 @@ onMounted(() => select());
 | 部门选择 | jh-dept-picker | @jhlc/jh-ui                      |
 | 文件上传 | jh-file-upload | @jhlc/jh-ui                      |
 | 文本翻译 | jh-text        | @jhlc/jh-ui                      |
-| 左右分割 | C_Splitter     | src/components/global            |
+| 左右分割 | jh-drag-col    | @jhlc/jh-ui (#left/#right slot)  |
 | 树形面板 | C_Tree         | src/components/global            |
 
 ## 组件提取策略
