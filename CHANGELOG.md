@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.9.2] - 2026-05-17
+
+### Added
+
+- **`doctor-ui` 新增 C_Splitter 残留扫描（standards/14 一致性）**：
+  - 业务代码（`.vue / .ts / .scss / .js`）命中 → `✖ error`，列出文件:行号:片段
+  - 文档/规则（`.md / .mdc`）命中 → `⚠ warn`
+  - 自动豁免：上下文 ±1 行含 `已废弃 / DEPRECATED / 严禁 / 不再需要 / 已迁移 / deprecated`；`C_Splitter/` 组件目录自身豁免
+  - 明细分组打印，单次最多列 60 条，超出汇总"另有 X 处未列出"
+- **`standards/14-layout-containers.md` 扩充**：
+  - §6 lint/codegen 强制项追加 `validate` / `doctor-ui` 命令矩阵
+  - 新增 §7 FAQ（旧页面是否要改、阈值配置、嵌套性能、过渡期保留）
+- **`tests/doctor-ui.test.js`**：4 项新单测覆盖无残留、业务代码命中、豁免词、自身组件豁免
+
+### Notes
+
+- 测试矩阵：cli + lint-skills + doctor-ui + registry + version-tools 合计 **53 测试通过**
+- 升级路径：`npx @agile-team/wl-skills-kit@latest update` 同步 standards/14；CI 增挂 `wl-skills doctor-ui` 即可
+
 ## [2.9.1] - 2026-05-17
 
 ### Added

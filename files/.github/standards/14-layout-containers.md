@@ -129,6 +129,26 @@ done
 - `prototype-scan` / `page-codegen` 生成的模板**禁止**包含 `C_Splitter`
 - TPL-TREE-LIST、TPL-DETAIL-TABS 等模板必须使用 `jh-drag-col` / `jh-drag-row`
 - `wl-skills validate-page` 扫到 `C_Splitter` 直接 fail
+- `wl-skills validate src/views`：业务页面扫描 `<C_Splitter` / `import C_Splitter` / 过时注释（error / info 三级）
+- `wl-skills doctor-ui`：全仓扫描 `.vue/.ts/.scss/.md/.mdc`，区分**业务代码残留（error）**与**文档/规则残留（warn）**；含 `已废弃|DEPRECATED|严禁|不再需要|已迁移` 关键词的上下文自动豁免；`C_Splitter/` 组件目录自身豁免
+
+> 推荐在 CI 非阻断阶段挂 `wl-skills doctor-ui`，残留明细一目了然；提交前 pre-commit 由 `lint-skills` 兜底，禁止任何新增引用流入仓库。
+
+---
+
+## 7. FAQ
+
+**Q1：旧页面跑得好好的，为什么也要改？**
+现状只是"还没踩到 ref 变更的场景"。一旦页面后续接入树节点切换 / 全屏刷新 / 编辑回填，就会出现 ref 改了 UI 不动的灵异 bug，排查成本远大于一次性迁移。
+
+**Q2：`jh-drag-col` 没有 `min-left-width` 怎么办？**
+内部默认 200~600 阈值已可用；如需自定义，传 `:minLeftWidth` / `:maxLeftWidth`（数值，单位 px）。
+
+**Q3：嵌套两层分栏会有性能问题吗？**
+不会。`jh-drag-col` / `jh-drag-row` 都是直接 `<slot />`，没有 vnode 缓存或额外 watcher，嵌套层数与原生 div 等价。
+
+**Q4：必须保留 `C_Splitter` 组件文件吗？**
+保留一段过渡期（带 deprecation warning）即可。等仓库扫描 0 命中后，下一个大版本直接删除 `src/components/global/C_Splitter/`。
 
 ---
 

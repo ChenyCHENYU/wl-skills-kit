@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.9.1 
+ * wl-skills-kit CLI v2.9.2 
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1106,10 +1106,74 @@ function runDoctorUi() {
   );
   add("renderOps", /renderOps\s*\(/.test(allSource), "操作列需使用 renderOps");
 
+  // —— C_Splitter 残留扫描（standards/14 一致性）——
+  // 业务代码（.vue / .scss / .ts）禁止任何 C_Splitter；文档/规则（.md / .mdc）只允许"废弃说明"句式
+  const EXEMPT_KEYWORDS =
+    /已废弃|DEPRECATED|严禁|不再需要|已迁移|deprecated/i;
+  const splitterFiles = files.filter(
+    (rel) =>
+      /\.(ts|vue|scss|js|tsx|md|mdc)$/.test(rel) &&
+      !rel.startsWith("node_modules/") &&
+      !rel.startsWith("dist/") &&
+      !rel.startsWith(".git/"),
+  );
+  const codeHits = [];
+  const docHits = [];
+  for (const rel of splitterFiles) {
+    if (
+      rel.includes("/C_Splitter/") ||
+      rel.endsWith("/C_Splitter/index.vue") ||
+      rel.endsWith("/C_Splitter/index.scss")
+    )
+      continue; // 组件自身保留（带 deprecation warning）
+    const full = path.join(TARGET_DIR, rel);
+    let content;
+    try {
+      content = fs.readFileSync(full, "utf8");
+    } catch {
+      continue;
+    }
+    if (!/C_Splitter/.test(content)) continue;
+    const lines = content.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      if (!/C_Splitter/.test(line)) return;
+      // 取上下文 ±1 行做豁免判断
+      const ctx = [lines[idx - 1] || "", line, lines[idx + 1] || ""].join("\n");
+      if (EXEMPT_KEYWORDS.test(ctx)) return;
+      const item = { rel, line: idx + 1, text: line.trim().slice(0, 100) };
+      if (/\.(vue|ts|scss|js|tsx)$/.test(rel)) codeHits.push(item);
+      else docHits.push(item);
+    });
+  }
+  add(
+    "C_Splitter 业务代码残留",
+    codeHits.length === 0,
+    codeHits.length === 0
+      ? "无"
+      : codeHits.length + " 处（详见下方明细，需改 jh-drag-col/-row）",
+  );
+  add(
+    "C_Splitter 文档/规则残留",
+    docHits.length === 0,
+    docHits.length === 0
+      ? "无"
+      : docHits.length + " 处（详见下方明细，建议同步说明）",
+  );
+
   for (const item of checks) {
     console.log(
       "  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail,
     );
+  }
+  if (codeHits.length || docHits.length) {
+    console.log("");
+    console.log("  ── C_Splitter 残留明细 ──");
+    for (const h of codeHits.slice(0, 30))
+      console.log("  ✖ " + h.rel + ":" + h.line + "  " + h.text);
+    for (const h of docHits.slice(0, 30))
+      console.log("  ⚠ " + h.rel + ":" + h.line + "  " + h.text);
+    const overflow = codeHits.length + docHits.length - 60;
+    if (overflow > 0) console.log("  … 另有 " + overflow + " 处未列出");
   }
   const failed = checks.filter((item) => !item.ok).length;
   console.log("");
