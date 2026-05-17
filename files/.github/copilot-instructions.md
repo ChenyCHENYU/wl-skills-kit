@@ -52,11 +52,13 @@ mock/
 > 基类内置 `getAction`/`postAction`/`putAction`/`deleteAction`/`actionBatch` 等 HTTP 方法（详见 `docs/request.md`），标准 CRUD 无需独立 API 文件。
 
 ```typescript
-import { AbstractPageQueryHook } from "@jhlc/common-core/src/page-hooks/page-query-hook.ts";
-import { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type.ts";
-import { ActionButtonDesc } from "@jhlc/common-core/src/components/toolbar/type.ts";
-import { TableColumnDesc } from "@jhlc/common-core/src/components/table/base-table/type.ts";
-import { BusLogicDataType } from "@jhlc/types/src/logical-data";
+import {
+  AbstractPageQueryHook,
+  BaseQueryItemDesc,
+  ActionButtonDesc,
+  TableColumnDesc,
+  BusLogicDataType
+} from "@/types/page";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 
 export const API_CONFIG = {
@@ -230,16 +232,9 @@ onMounted(() => select());
 
 > ⚠️ 本节为**强制约定**，所有 AI 编辑器/模型都必须遵守。
 
-完整 13 条编码规范拆分在 `.github/standards/01 ~ 13.md`，由 `standards/index.md` 提供任务类型 → 规范子集映射，**按需加载，不全量读取**。
+完整 14 条编码规范拆分在 `.github/standards/01 ~ 14.md`，由 `standards/index.md` 提供任务类型 → 规范子集映射，**按需加载，不全量读取**。
 
-| 任务类型              | 必读规范                                          |
-| --------------------- | ------------------------------------------------- |
-| A. 生成新页面         | 01, 02, 03, 04, 05, 06, 07, 09, 10, 11, 12, 13   |
-| B. 修改/重构现有代码  | 02, 04, 05, 06, 09, 10, 12, 13                    |
-| C. 规范审计           | 全部 01 ~ 13                                       |
-| D. 模板提取           | 02, 03, 09, 12, 13                                |
-| E. 数据同步（菜单等） | 04, 05, 07                                        |
-| F. Git/分支/提交      | 08                                                |
+> 任务类型 → 必读规范映射以 `standards/index.md` 为**唯一数据源**，此处不再重复列表。执行前先 `read_file` 加载 `standards/index.md` 确认当前映射。
 
 **执行任何代码生成或改动前**：
 1. 先 `read_file` 加载 `standards/index.md` 确认任务类型

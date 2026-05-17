@@ -19,6 +19,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ 已读取 standards/02-code-structure.md     → 三文件分离+接口契约 + 三段式 + script 9段顺序
 ✅ 已读取 standards/12-base-table.md         → AGGrid必用 + cid命名规范
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
+✅ 已读取 standards/14-layout-containers.md   → 布局容器（禁用 C_Splitter，必须用 jh-drag-row/jh-drag-col）
 ✅ 已读取 docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
 ✅ 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓  [全部就绪]
 ✅ cid 已生成：{value}（{首字母缩写说明}）

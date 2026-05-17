@@ -130,7 +130,7 @@ wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一
 
 ```
 wls_code_scan          ← 概览：页面目录、API_CONFIG、文件完整性
-  → convention-audit   ← 13 条规范全量扫描，产出 AUDIT_*.md
+  → convention-audit   ← 14 条规范全量扫描，产出 AUDIT_*.md
   → code-fix（可选）   ← 自动修复可整改项
 ```
 
@@ -188,7 +188,7 @@ mock/
 | business-doc-extract | 模块级资料 → 业务文档沉淀 |
 | api-contract | 生成 `api.md` 接口约定 |
 | page-codegen | 生成 Vue 页面三件套 + api.md + SYS_MENU_INFO.md |
-| convention-audit | 13 条规范审计 |
+| convention-audit | 14 条规范审计 |
 | code-fix | 按审计报告自动修复 |
 | menu-sync | 后端菜单同步（MCP）|
 | dict-sync | 后端字典同步（MCP）|

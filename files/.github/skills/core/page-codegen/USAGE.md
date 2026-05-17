@@ -114,7 +114,7 @@ wl-skills doctor-ui
 ## FAQ
 
 **Q：生成完了但 build 报错？**
-A：跑一下 `convention-audit` Skill，会扫出 13 条规范偏差并给出修复建议。
+A：跑一下 `convention-audit` Skill，会扫出 14 条规范偏差并给出修复建议。
 
 **Q：能否只生成 data.ts 不生成 index.vue？**
 A：可以，告诉 AI"只生成 data.ts"。但通常一起生成，因为它们字段必须对齐。

@@ -1,11 +1,11 @@
 ---
 name: convention-audit
-description: "Use when: auditing project source code against the 13 modular standards in .github/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, 接手新项目, 存量代码分析, 项目体检, audit code, check conventions, onboard project."
+description: "Use when: auditing project source code against the 14 modular standards in .github/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, 接手新项目, 存量代码分析, 项目体检, audit code, check conventions, onboard project."
 ---
 
 # Skill: 规范审计（convention-audit）v2
 
-以 `.github/standards/` 13 条规范为唯一基线，扫描项目源码，输出**偏差报告**和**组件提取建议**到 `reports/` 目录。
+以 `.github/standards/` 14 条规范为唯一基线，扫描项目源码，输出**偏差报告**和**组件提取建议**到 `reports/` 目录。
 
 > **核心理念**：审查全覆盖、结果强量化、规则场景化、新增严格 + 存量渐进。
 > 本 Skill 只负责发现偏差并给出整改建议，**不自动修复**（修复由 code-fix Skill 完成）。
@@ -23,7 +23,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 ```
 🚀 已触发技能 convention-audit/SKILL.md → 规范审计：扫描源码 + 偏差报告 + 提取建议
 ✅ 已读取 standards/index.md          → 规范门控
-✅ 已读取 standards/01 ~ 13           → 完整 13 条规范基线（审计场景需全量加载）
+✅ 已读取 standards/01 ~ 14           → 完整 14 条规范基线（审计场景需全量加载）
 ✅ 已读取 reports/规范审查报告.md      → 现有报告（用于追加，不覆盖）
 ✅ 审计范围：{用户指定的目录或单文件}
 ✅ 工具链检测：ESLint {状态} / tsc {状态} / Husky {状态}
@@ -45,7 +45,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 
 ---
 
-## 审计范围（13 条规范全覆盖）
+## 审计范围（14 条规范全覆盖）
 
 ### 审计方式分层
 
@@ -55,7 +55,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | **工具链委托** | ESLint / tsc --noEmit / Git 命令（高可信度，不浪费 AI 算力） |
 | **AI 场景判断** | 页面类型识别、豁免判定（中可信度，需人工确认） |
 
-### 13 条规范审计维度
+### 14 条规范审计维度
 
 | 编号 | 审计维度 | 审计方式 | 严重度判定 |
 | ---- | -------- | -------- | ---------- |
@@ -72,6 +72,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | 11 | 表单校验 | AI 场景判断 | FORM_ROUTE 缺 validate / resetFields → 🔴 |
 | 12 | BaseTable + cid | 静态 + 场景判断 | 主列表用 el-table → 🔴；cid 缺失/重复 → 🔴；弹窗小表格见豁免规则 |
 | 13 | 平台组件合规 | 静态扫描 | 业务页面用 el-form/el-table/el-date-picker 替代封装 → 🔴；封装组件内部 → ⚠️ 待确认；3+ 复用 → 提取建议 |
+| 14 | 布局容器 | 静态扫描 | 业务代码用 `C_Splitter` → 🔴（必须替换为 `jh-drag-row`/`jh-drag-col`） |
 
 ---
 
@@ -159,7 +160,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | 当前分支 | {分支名} — {符合规范 / 不符合规范} |
 | 最近提交规范性 | {N}/{总数} 条符合 type(scope): 格式 |
 
-### 3. 13 条规范覆盖矩阵
+### 3. 14 条规范覆盖矩阵
 
 | 规范 | 审查方式 | 结果 | 🔴 | 🟡 | 🟢 |
 |---|---|---|---:|---:|---:|
@@ -176,6 +177,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 | 11 表单校验 | 场景扫描 | {结果} | {N} | {N} | {N} |
 | 12 BaseTable | 静态+场景 | {结果} | {N} | {N} | {N} |
 | 13 平台组件 | 静态扫描 | {结果} | {N} | {N} | {N} |
+| 14 布局容器 | 静态扫描 | {结果} | {N} | {N} | {N} |
 
 ### 4. 🔴 严重偏差（必须整改）
 
@@ -370,7 +372,7 @@ description: "Use when: auditing project source code against the 13 modular stan
 
 ## 注意事项
 
-1. **规范基线唯一**：以 `standards/index.md` 加载的 13 条文件为准，**不接受**"旧代码一直这么写"的辩解
+1. **规范基线唯一**：以 `standards/index.md` 加载的 14 条文件为准，**不接受**"旧代码一直这么写"的辩解
 2. **追加不覆盖**：每次审计追加新章节到报告，**不删除历史**，便于追溯整改进度
 3. **菜单位置解析**：依赖 koroFileHeader 文件头注释，缺失文件头时标记 `菜单位置：未知`
 4. **AI 自我审计**：page-codegen 生成代码后，建议立即跑一次单页审计验证合规

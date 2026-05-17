@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.9.4] - 2026-05-18
+
+### Fixed
+
+- **规范条数 13→14 全面对齐**：`standards/index.md` 已升级至 14 条（新增 `14-layout-containers.md`），同步修复以下 7 个文件中残留的"13 条"引用：
+  - `copilot-instructions.md`、`convention-audit/SKILL.md`、`_best-practices.md`、`guides/usage.md`、`page-codegen/USAGE.md`
+- **`copilot-instructions.md` 任务类型映射去重**：移除与 `standards/index.md` 重复且过期的映射副本，改为唯一指针引用
+- **`copilot-instructions.md` 导入路径纠正**：代码示例中 `@jhlc/common-core/src/...` 深路径改为 `@/types/page` 桶文件导入，与 `page-codegen` 模板及 `standards/09` 规范一致
+- **`prototype-scan` 交互模式枚举对齐**：`FORM_TAB` → `DETAIL_TABS`，补齐 `FORM_ROUTE / CHANGE_HISTORY / RECORD_FORM / OPERATION_STATION / TEMPLATE_DRIVEN` 5 种模式，与 `page-codegen` 模板完全一致
+- **`page-codegen` Pre-flight 补齐 `standards/14`**：任务类型 A 必读规范已含 14，Pre-flight 声明同步补齐
+- **`convention-audit` 审计维度表补齐 14 行**：审计维度表和覆盖矩阵模板各补一行 `14 布局容器`
+
 ## [2.9.3] - 2026-05-17
 
 ### Fixed
