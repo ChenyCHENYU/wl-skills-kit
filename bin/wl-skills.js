@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.9.0
+ * wl-skills-kit CLI v2.9.1 
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -831,6 +831,17 @@ function scanPageDirs(scanRel) {
       hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
         dataContent,
       ),
+      hasCSplitterTag: /<C_Splitter\b/.test(indexContent),
+      hasCSplitterImport:
+        /from\s+["'][^"']*C_Splitter[^"']*["']/.test(indexContent) ||
+        /from\s+["'][^"']*C_Splitter[^"']*["']/.test(dataContent),
+      staleSplitterComments: (
+        (indexContent.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) || [])
+          .concat(
+            dataContent.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) ||
+              [],
+          )
+      ).length,
       apiUrls: Array.from(
         dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
       ).map((m) => m[1]),
@@ -971,6 +982,27 @@ function runValidate() {
         level: "error",
         dir: page.dir,
         text: "存在空 onClick: () => {}",
+      });
+    if (page.hasCSplitterTag)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "禁用 <C_Splitter>：请改用 jh-drag-col（左右）/ jh-drag-row（上下），详 standards/14-layout-containers.md",
+      });
+    if (page.hasCSplitterImport)
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        text: "禁止 import C_Splitter：该组件已废弃（onMounted 冻 vnode 致响应式失效），详 standards/14",
+      });
+    if (page.staleSplitterComments > 0)
+      issues.push({
+        level: "info",
+        dir: page.dir,
+        text:
+          "发现 " +
+          page.staleSplitterComments +
+          " 处提及 C_Splitter 的过时注释，建议清理",
       });
     if (page.apiConfigCount > 0 && mockFiles.length === 0)
       issues.push({

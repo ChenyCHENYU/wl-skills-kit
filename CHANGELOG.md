@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.9.1] - 2026-05-17
+
+### Added
+
+- **`validate` 三项新检查**（接 v2.9.0 的 standards/14 落地阻断）：
+  - 🔴 `error`：页面 `index.vue` 出现 `<C_Splitter>` 标签
+  - 🔴 `error`：`index.vue` / `data.ts` 出现 `import C_Splitter`
+  - ℹ `info`：提及 `C_Splitter` 的过时注释（如 `已改为 C_Splitter`、`migrate to C_Splitter`、`TODO ... C_Splitter`）
+- **`scripts/lint-skills.js` 新增规则 8**：扫描 `files/**/*.{vue,ts}`，禁止任何 `<C_Splitter>` 标签或 `import C_Splitter`（仅允许 `files/src/components/global/C_Splitter/index.vue` 自身保留废弃声明）。
+- **`.husky/pre-commit` 接入 `lint-skills`**：维护者侧提交时自动守门，从源头阻止 C_Splitter 回潮。
+
+### Notes
+
+- 实战验证：wl-mdata 现网 28 个页面 0 命中（之前已全量迁移）；故意污染测试用例可精准触发 3 项检查。
+- 兼容性：所有新检查均为加法，未改动既有 validate 规则；下游项目无需调整。
+
 ## [2.9.0] - 2026-05-17
 
 ### Added
