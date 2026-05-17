@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.9.3] - 2026-05-17
+
+### Fixed
+
+- **`doctor-ui` C_Splitter 残留扫描噪音过大**：
+  - 豁免词扩展为 `已废弃 / DEPRECATED / 严禁 / 禁用 / 禁止 / 废弃 / 不再需要 / 已迁移 / deprecated`
+  - `standards/14-*` 文件路径整体豁免（文档本身就是讲 C_Splitter 的）
+  - `*.d.ts` 和 `components.d.ts` 整体豁免（unplugin-vue-components 自动生成产物）
+  - 文档/规则残留改为**纯警告**，不再参与 exitCode 判定（业务代码命中才阻断）
+- 实战验证：wl-mdata 仓库二次扫描从 1 处业务残留 + 18 处误报 → **0 命中**
+
 ## [2.9.2] - 2026-05-17
 
 ### Added

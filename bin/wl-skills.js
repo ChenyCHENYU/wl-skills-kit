@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.9.2 
+ * wl-skills-kit CLI v2.9.3 
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1109,7 +1109,7 @@ function runDoctorUi() {
   // —— C_Splitter 残留扫描（standards/14 一致性）——
   // 业务代码（.vue / .scss / .ts）禁止任何 C_Splitter；文档/规则（.md / .mdc）只允许"废弃说明"句式
   const EXEMPT_KEYWORDS =
-    /已废弃|DEPRECATED|严禁|不再需要|已迁移|deprecated/i;
+    /已废弃|DEPRECATED|严禁|禁用|禁止|废弃|不再需要|已迁移|deprecated/i;
   const splitterFiles = files.filter(
     (rel) =>
       /\.(ts|vue|scss|js|tsx|md|mdc)$/.test(rel) &&
@@ -1123,9 +1123,13 @@ function runDoctorUi() {
     if (
       rel.includes("/C_Splitter/") ||
       rel.endsWith("/C_Splitter/index.vue") ||
-      rel.endsWith("/C_Splitter/index.scss")
+      rel.endsWith("/C_Splitter/index.scss") ||
+      /standards\/14[-_]/.test(rel) ||
+      /\.d\.ts$/.test(rel) ||
+      rel === "components.d.ts" ||
+      rel.endsWith("/components.d.ts")
     )
-      continue; // 组件自身保留（带 deprecation warning）
+      continue; // 组件自身 + standards/14 + 自动生成产物豁免
     const full = path.join(TARGET_DIR, rel);
     let content;
     try {
@@ -1152,17 +1156,21 @@ function runDoctorUi() {
       ? "无"
       : codeHits.length + " 处（详见下方明细，需改 jh-drag-col/-row）",
   );
-  add(
-    "C_Splitter 文档/规则残留",
-    docHits.length === 0,
-    docHits.length === 0
+  // 文档/规则残留只 warn，不参与 exitCode
+  const docOk = docHits.length === 0;
+  checks.push({
+    name: "C_Splitter 文档/规则残留",
+    ok: true,
+    warn: !docOk,
+    detail: docOk
       ? "无"
-      : docHits.length + " 处（详见下方明细，建议同步说明）",
-  );
+      : docHits.length + " 处（详见下方明细，仅警告）",
+  });
 
   for (const item of checks) {
+    const icon = item.warn ? "⚠" : statusIcon(item.ok);
     console.log(
-      "  " + statusIcon(item.ok) + " " + item.name + " — " + item.detail,
+      "  " + icon + " " + item.name + " — " + item.detail,
     );
   }
   if (codeHits.length || docHits.length) {
