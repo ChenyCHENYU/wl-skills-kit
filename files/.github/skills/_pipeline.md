@@ -18,20 +18,24 @@
 ## 2. Pipeline 总览
 
 ```text
-prototype-scan
+prototype-scan                       // 原型线：Axure / 截图 / 口述 / 非规范详设
+spec-doc-parse                       // 规范线：wl-skills-design 标准说明书（二者二选一，汇聚同一 page-spec）
   → business-doc-extract（可选，资料达模块级时推荐）
   → api-contract
   → page-codegen
-  → convention-audit
+  → convention-audit（规范线可追加 --mode spec-align 生成 GAP 报告）
   → code-fix（可选）
   → menu-sync / dict-sync / permission-sync（按页面需要选择）
   → template-extract（成熟页面沉淀，可选）
 ```
 
+> **双线隔离**：`prototype-scan`（原型线）与 `spec-doc-parse`（规范线）是互斥的两个入口，按输入类型二选一（详见 `_registry.md` 调度规则优先级 0），输出格式完全相同，下游无感知。
+
 常见变体：
 
 ```text
 口述需求 → page-codegen → convention-audit                  // 碎片化，不走业务文档
+标准说明书 → spec-doc-parse → api-contract → page-codegen → convention-audit --mode spec-align   // 规范线闭环
 存量项目反向梳理 → business-doc-extract → convention-audit
 原型/详设 → business-doc-extract → api-contract → page-codegen
 存量项目体检 → convention-audit → code-fix
@@ -48,11 +52,12 @@ prototype-scan
 
 | Skill | input_from | output_file | next_suggest |
 |---|---|---|---|
-| `prototype-scan` | 原型/详设/口述需求 | `.github/reports/PROTOTYPE_SCAN_*.md` | `business-doc-extract`（资料达模块级）或 `api-contract` |
+| `prototype-scan` | 原型/非规范详设/口述需求 | `.github/reports/PROTOTYPE_SCAN_*.md` | `business-doc-extract`（资料达模块级）或 `api-contract` |
+| `spec-doc-parse` | wl-skills-design 标准说明书（`docs/spec/{项目代号}/ch1-3.md` + `4.x-*.md` + `4.N-data-report.md`） | `.github/reports/SPEC_PARSE_*.md`（含 page-spec JSON + 解析报告） | `api-contract`（处理完阻断/待确认项后） |
 | `business-doc-extract` | 已发布原型目录 / 详设 / 字段实体 / 字典资料 / 现有页面 + `api.md` / `prototype-scan` 输出 | `docs/business/index.md` + `docs/business/open-questions.md` + `docs/business/0X-xx/{index,requirement,dictionary,field}.md` | `api-contract` 或 `page-codegen`（项目需求依据） |
-| `api-contract` | `prototype-scan` 输出、`docs/business/0X-xx/requirement.md` + `field.md` 或用户口述接口信息 | `src/views/**/api.md` | `page-codegen` |
+| `api-contract` | `prototype-scan` 输出、`spec-doc-parse` 输出、`docs/business/0X-xx/requirement.md` + `field.md` 或用户口述接口信息 | `src/views/**/api.md` | `page-codegen` |
 | `page-codegen` | `api.md` / page-spec / 用户口述需求 | `src/views/**/{index.vue,data.ts,index.scss,api.md}` + `.github/reports/SYS_MENU_INFO.md` | `convention-audit`；如有菜单则 `menu-sync` |
-| `convention-audit` | 任意源码目录或文件 | `.github/reports/AUDIT_*.md` | 有可自动修复项时 `code-fix`；有菜单/字典/权限差异时对应 sync Skill |
+| `convention-audit` | 任意源码目录或文件；`--mode spec-align` 时额外入 `spec-doc-parse` 的 page-spec / 说明书 | `.github/reports/AUDIT_*.md`；`--mode spec-align` 输出 `SPEC_GAP_*.md` | 有可自动修复项时 `code-fix`；有菜单/字典/权限差异时对应 sync Skill |
 | `code-fix` | `convention-audit` 报告 | 源码 diff / 修复摘要 | `convention-audit` 复扫 |
 | `menu-sync` | `.github/reports/SYS_MENU_INFO.md` | 后端菜单数据 + 同步摘要 | `permission-sync`（如需角色授权/动作） |
 | `dict-sync` | `.github/reports/SYS_DICT_INFO.md` | 后端字典数据 + 同步摘要 | `convention-audit` 复扫（如页面依赖字典） |

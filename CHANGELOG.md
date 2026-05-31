@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.10.0] - 2026-05-31
+
+### Added
+
+- **新增 `spec-doc-parse` Skill（规范线）**：专门解构 wl-skills-design 产出的标准《需求设计说明书》（IPO 表 / 功能编码 / 流程五要素），输出与 `prototype-scan` 完全相同格式的 page-spec JSON，自带 Pre-flight 校验 + Parse Validation 五项检查 + 自动修复纠偏 + 解析报告（`SPEC_PARSE_*.md`）
+- **`convention-audit` 新增 `--mode spec-align`（GAP 报告）**：比对 spec 定义字段 vs 代码实际字段，输出 `SPEC_GAP_*.md`，完成「说明书 → 代码」零损耗闭环验证
+
+### Changed
+
+- **双线隔离（原型线 / 规范线）**：`_registry.md` 调度规则新增「优先级 0」——输入命中 `docs/spec/` / 功能编码 `/[A-Z]{2,6}[0-9]{3}/` / IPO 表特征时强制路由 `spec-doc-parse`，禁止 `prototype-scan` 接管；两线最终汇聚同一份 page-spec JSON，下游无感知
+- **`prototype-scan` 模式 B 收敛**：由「详设文档」收敛为「非规范零散详设」，加入排除声明，避免与标准说明书混淆
+- 同步更新 `_pipeline.md`（规范线分支 + I/O 契约）、`copilot-instructions.md`（Intent Router）、`kit-internal/architecture.md`（ADR-009）、`lint-skills.js`（spec-doc-parse 纳入写操作 Skill 校验）
+- 启用 Skill 数 10 → 11
+
 ## [2.9.4] - 2026-05-18
 
 ### Fixed

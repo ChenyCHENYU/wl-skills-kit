@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.9.4** — 一键将 14 条规范、10 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.10.0** — 一键将 14 条规范、11 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -184,6 +184,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
 │   │   │   ├── prototype-scan/   { SKILL.md, USAGE.md }
+│   │   │   ├── spec-doc-parse/   { SKILL.md, USAGE.md }
 │   │   │   ├── api-contract/     { SKILL.md, USAGE.md }
 │   │   │   ├── page-codegen/     { SKILL.md, USAGE.md, templates/ }
 │   │   │   ├── convention-audit/ { SKILL.md, USAGE.md }
@@ -329,7 +330,8 @@ npx @agile-team/wl-skills-kit update
 
 | Skill              | 状态    | 路径                            | 核心用途                                    |
 | ------------------ | ------- | ------------------------------- | ------------------------------------------- |
-| `prototype-scan`   | ✅ 启用 | `skills/core/prototype-scan/`   | 原型/详设/口述 → 页面清单                   |
+| `prototype-scan`   | ✅ 启用 | `skills/core/prototype-scan/`   | 原型线：Axure/截图/口述/非规范详设 → 页面清单 |
+| `spec-doc-parse`   | ✅ 启用 | `skills/core/spec-doc-parse/`   | 规范线：wl-skills-design 标准说明书 → 页面清单 |
 | `api-contract`     | ✅ 启用 | `skills/core/api-contract/`     | 生成 api.md 前后端契约                      |
 | `page-codegen`     | ✅ 启用 | `skills/core/page-codegen/`     | 页面骨架生成 + 模板调度                     |
 | `convention-audit` | ✅ 启用 | `skills/core/convention-audit/` | 13 条规范扫描 + 双报告                      |

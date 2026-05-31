@@ -42,6 +42,7 @@ const SYNC_SKILLS = [
 // 有写操作的 core / ops Skill，需要 Pre-flight + standards 引用
 const WRITE_SKILLS = [
   "core/page-codegen/SKILL.md",
+  "core/spec-doc-parse/SKILL.md",
   "core/convention-audit/SKILL.md",
   "core/business-doc-extract/SKILL.md",
   "core/template-extract/SKILL.md",

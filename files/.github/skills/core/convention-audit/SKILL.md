@@ -366,6 +366,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | **page-codegen** | 审计发现偏差后，可调用 page-codegen 重新生成合规代码 |
 | **template-extract** | 审计输出的"组件提取建议"，确认后可触发 template-extract |
 | **code-fix** | 审计报告中 ✅/⚠️ 标记项作为修复输入 |
+| **spec-doc-parse** | 提供 spec 对齐模式的基准：用规范线解析出的 page-spec 与生成代码比对，输出 GAP 报告 |
 | **CI/CD** | 审计可作为 PR 检查项，不合规 PR 阻断合并 |
 
 ---
@@ -378,3 +379,54 @@ description: "Use when: auditing project source code against the 14 modular stan
 4. **AI 自我审计**：page-codegen 生成代码后，建议立即跑一次单页审计验证合规
 5. **工具链优先**：TS 类型 / ESLint 规则优先借助工具链扫描，AI 负责监督验证和归类，不浪费算力逐文件做语义分析
 6. **场景化判定**：`data.ts` / `api.md` / AGGrid 均按场景规则判定，不机械检查文件数量
+
+---
+
+## spec 对齐扫描（GAP 报告）
+
+> 闭环能力：与 `core/spec-doc-parse` 联动。当页面代码来自「规范线」（wl-skills-design 说明书 → spec-doc-parse → page-codegen）时，本模式把 **原始 spec 定义的字段** 与 **代码中实际存在的字段** 逐项比对，生成 GAP 报告，验证「说明书 → 代码」是否零损耗。
+
+### 触发
+
+```
+审计 {页面目录} --mode spec-align --spec docs/spec/{项目代号}/4.x-{子模块}.md
+```
+或自然语言：「检查 {页面} 是否跟说明书对齐」。
+
+### 比对维度
+
+| 维度 | 检查点 | 偏差判定 |
+|------|--------|---------|
+| 查询字段 | spec `query[]` vs 代码 `queryDef()` | spec 有代码缺 → 🔴 漏字段；代码多出 → 🟡 超出 spec |
+| 表格列 | spec `columns[]` vs 代码 `columnsDef()` | 同上，且顺序不一致 → 🟡 |
+| 工具栏 | spec `toolbar[]` vs 代码 `toolbarDef()` | 按钮缺失/多出 → 🔴/🟡 |
+| 表单字段 | spec `formSections[].fields[]` vs 弹窗组件 | 必填字段缺失 → 🔴 |
+| 接口 URL | spec 推算 URL vs 代码 `API_CONFIG` | 路径不一致 → 🟡 待确认 |
+| 权限码 | spec notes 权限码候选 vs 代码 v-permission | 未挂载 → 🟡，建议 permission-sync |
+
+### GAP 报告（reports/SPEC_GAP_{模块}_{日期}.md）
+
+```markdown
+# Spec 对齐 GAP 报告
+- 生成时间：{YYYY-MM-DD HH:mm}
+- spec 来源：docs/spec/{项目代号}/4.x-{子模块}.md
+- 代码范围：src/views/.../{页面}/
+
+## GAP 摘要
+- spec 字段总数：N  代码实现：N  漏：N  多：N  顺序不一致：N
+
+## 漏字段（spec 有、代码无 → 🔴）
+| # | 类型 | spec 字段 | 所在功能 | 建议 |
+|---|------|----------|---------|------|
+| 1 | query | customerType | PMMB001 | 补入查询项 |
+
+## 多余字段（代码有、spec 未定义 → 🟡）
+| # | 类型 | 代码字段 | 建议 |
+|---|------|----------|------|
+| 1 | column | remark | 确认是否需要，否则反馈 design 补 spec |
+
+## 下一步
+→ 漏字段交 code-fix / page-codegen 补齐；多余字段反馈上游 design 补 spec。
+```
+
+> spec 对齐模式**只对规范线生成的页面生效**；原型线（prototype-scan）生成的页面无 spec 基准，跳过本模式。

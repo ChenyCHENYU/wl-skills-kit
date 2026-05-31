@@ -31,6 +31,31 @@
 > 按时间倒序。每条 ADR 记录"做了什么决策、为什么、影响面"。
 > 实施细节 / 当前状态参见上方"单一数据源"。
 
+### ADR-009（v2.10.0，2026-05-31）— 双线解构：原型线 / 规范线隔离
+
+**做了什么**：
+
+- 新增 `core/spec-doc-parse` Skill：专门解构 wl-skills-design 产出的标准《需求设计说明书》（IPO 表 / 功能编码 / 流程五要素）→ page-spec JSON
+- 与 `prototype-scan`（原型线）硬隔离：`_registry.md` 调度规则加「优先级 0」——输入命中 `docs/spec/` / 功能编码 / IPO 表特征时强制路由 spec-doc-parse，禁止 prototype-scan 接管
+- `prototype-scan` 模式 B 由「详设文档」收敛为「**非规范零散详设**」，加入排除声明，避免与规范文档混淆
+- `spec-doc-parse` 自带自闭环：Pre-flight + Parse Validation 五项检查 + 自动修复纠偏 + 解析报告（`SPEC_PARSE_*.md`）
+- `convention-audit` 新增 `--mode spec-align`：比对 spec 字段 vs 代码字段，输出 GAP 报告（`SPEC_GAP_*.md`），完成「说明书 → 代码」闭环验证
+- 同步更新 `_registry.md` / `_pipeline.md` / `copilot-instructions.md` / `lint-skills.js`
+
+**为什么**：
+
+- wl-skills-design = 上游「生成标准」，wl-skills-kit = 下游「解构标准」，职责必须分清
+- 标准说明书是高精度结构化文档（95-100%），落入 prototype-scan 模式 B 走通用推断会损耗精度
+- 原型线与规范线若不隔离，后期触发词会互相污染，两条线都做不到最优
+
+**影响面**：
+
+- 业务项目：新增一条「有标准说明书 → spec-doc-parse」路径，原型线行为不变
+- 维护者：启用 Skill 数 10 → 11，已由 `_registry.md` 自动计数同步到各处
+- 上下游：与 wl-skills-design 形成 `design 生成 → kit 解构 → 代码` 完整链路
+
+---
+
 ### ADR-008（v2.7.0，2026-05-12）— 一致性治理与可测性升级
 
 **做了什么**：

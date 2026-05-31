@@ -266,6 +266,7 @@ onMounted(() => select());
 | 用户自然表达 | 自动触发 |
 | ------------ | -------- |
 | 生成页面 / 做个页面 / 列表页 / 管理页 / 台账 / 根据原型 / 根据截图 / 补页面 | `page-codegen`，必要时先 `prototype-scan` + `api-contract` |
+| 解析说明书 / 规范文档转页面 / 根据说明书生成 / IPO 转页面 / docs/spec 路径 / 功能编码（PMMB001） | `spec-doc-parse`（**规范线**，wl-skills-design 标准说明书专属，禁止 prototype-scan 接管） |
 | mock / 假数据 / 后端没好 / 先能跑 / 联调前 | `page-codegen` 的 mock-first 规则 |
 | 菜单 / 注册页面 / 点击进不来 / 同步菜单 / 补菜单 | `menu-sync` + `route-check` |
 | 风格 / 样式不生效 / skills-ui / 操作列 / 状态标签 / AGGrid | `page-codegen` + `wk-skills-ui runtime` + `doctor-ui` |

@@ -1,6 +1,6 @@
 ---
 name: prototype-scan
-description: "Use when: analyzing Axure exported HTML prototype files to extract page inventory, classify interaction patterns, identify reusable components, and produce a structured page checklist for Vue development. Also supports detailed design documents (MD/Word) or natural language descriptions as input. Triggers on: prototype analysis, axure scan, page inventory, 原型解析, 页面清单, axure转vue, 详设文档, design doc, 详细设计, 口述需求, 自然语言建页面, natural language page request, 建个页面, 写个页面, 口头描述页面."
+description: "Use when: analyzing Axure exported HTML prototype files to extract page inventory, classify interaction patterns, identify reusable components, and produce a structured page checklist for Vue development. Also supports NON-standard detailed design documents (free-form MD/Word) or natural language descriptions as input. DO NOT use for standard requirement-spec documents produced by wl-skills-design (path contains docs/spec/, has function codes like PMMB001, IPO tables, flow five-elements) — route those to spec-doc-parse instead. Triggers on: prototype analysis, axure scan, page inventory, 原型解析, 页面清单, axure转vue, 口述需求, 自然语言建页面, natural language page request, 建个页面, 写个页面, 口头描述页面."
 ---
 
 # Skill: 原型解析（prototype-scan）
@@ -15,7 +15,9 @@ description: "Use when: analyzing Axure exported HTML prototype files to extract
 |------|------|----------|
 | **模式 0（自然语言）** | 用户口述需求，无文件 | 日常对话："帮我建一个客户管理页面，有XX字段" |
 | **模式 A（Axure）** | Axure HTML 文件包目录 | 已有原型设计，AI 全量扫描 HTML |
-| **模式 B（详设文档）** | MD/Word/表格格式的详细设计文档 | 已有详细设计文档，AI 解析结构化字段 |
+| **模式 B（非规范详设）** | MD/Word/表格格式的零散详细设计 | 已有非规范详设文档，AI 解析结构化字段 |
+
+> ⚠️ **双线隔离（必读）**：本 Skill 走「原型线」。若输入是 wl-skills-design 产出的**标准需求设计说明书**（路径含 `docs/spec/`、含功能编码 `/[A-Z]{2,6}[0-9]{3}/`、含 IPO 表「处理逻辑」、含流程五要素），属于「规范线」，**禁止本 Skill 接管**，必须路由到 `core/spec-doc-parse/SKILL.md`。两线各自解析，最终都汇聚到同一份 page-spec JSON，下游 `api-contract` / `page-codegen` 无感知来源。
 
 ---
 
@@ -403,9 +405,13 @@ const [模块名]Module = gProd("[base-path]", {
 
 ---
 
-## 输入模式 B：详细设计文档
+## 输入模式 B：非规范详细设计文档
 
-> 详设文档输入比 Axure HTML **精度更高（95-100%）**，因为字段名和类型是明确写出的，不需要从视觉推断。
+> ⚠️ **模式 B 排除范围**：若文档路径含 `docs/spec/`，或文档内含 `§四 功能设计详细规范` / IPO 表格（含「处理逻辑」二级标题）/ 功能编码（正则 `/[A-Z]{2,6}[0-9]{3}/`）/ 流程说明五要素，
+> **表明这是 wl-skills-design 的标准产出，不触发本模式**，应转发 `core/spec-doc-parse/SKILL.md`。
+> 本模式只处理**非规范、零散的**详设（本来就不规范的输入，AI 自由发挥是帮助）；面对高精度规范文档时，专属解析才能保证零损耗。
+
+> 非规范详设输入比 Axure HTML **精度更高（95-100%）**，因为字段名和类型是明确写出的，不需要从视觉推断。
 > 输出格式与模式 A 完全一致（page-spec JSON），page-codegen 无感知。
 
 ### 为什么详设比 Axure 更精确

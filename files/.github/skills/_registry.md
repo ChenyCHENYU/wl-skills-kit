@@ -13,6 +13,7 @@ skills/
 │
 ├── core/                核心通用 Skill（任何前端业务项目通用）
 │   ├── prototype-scan/
+│   ├── spec-doc-parse/
 │   ├── api-contract/
 │   ├── page-codegen/
 │   ├── convention-audit/
@@ -41,7 +42,8 @@ skills/
 
 | Skill 名         | 状态    | 路径                                    | MCP 工具依赖                                                                                                              | 触发关键词                                                                                                                              |
 | ---------------- | ------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| prototype-scan   | ✅ 启用 | `skills/core/prototype-scan/SKILL.md`   | —                                                                                                                          | 扫描原型 / 解析原型 / 页面清单 / 详设文档 / 口述需求 / 建个页面 / 写个页面 / 根据截图 / 根据原型                                        |
+| prototype-scan   | ✅ 启用 | `skills/core/prototype-scan/SKILL.md`   | —                                                                                                                          | 扫描原型 / 解析原型 / 页面清单 / 口述需求 / 建个页面 / 写个页面 / 根据截图 / 根据原型（**非规范零散详设**）                              |
+| spec-doc-parse   | ✅ 启用 | `skills/core/spec-doc-parse/SKILL.md`   | —                                                                                                                          | 解析说明书 / 解析需求文档 / 规范文档转页面 / 根据说明书生成 / IPO 转页面 / 功能编码 / docs/spec（**wl-skills-design 标准说明书**）       |
 | api-contract     | ✅ 启用 | `skills/core/api-contract/SKILL.md`     | —                                                                                                                          | 接口约定 / api.md / 字段定义 / 前后端对齐 / 接口设计                                                                                    |
 | page-codegen     | ✅ 启用 | `skills/core/page-codegen/SKILL.md`     | `wls_validate_page` / `wls_doctor_ui`                                                                                      | 生成页面 / 创建页面 / 代码生成 / vue页面 / 按原型生成 / 帮我生成 / 列表页 / 管理页 / 台账 / mock / 假数据 / 先能跑 / AGGrid / skills-ui |
 | convention-audit | ✅ 启用 | `skills/core/convention-audit/SKILL.md` | `wls_code_scan` / `wls_audit_report_push`                                                                                  | 规范审计 / 代码审计 / 规范检查 / 对齐规范 / 规范偏差 / 接手新项目 / 存量代码分析 / 项目体检                                             |
@@ -58,6 +60,7 @@ skills/
 
 ## 调度规则
 
+0. **优先级 0（最高）— 双线隔离**：若用户输入路径含 `docs/spec/`，或文档含功能编码 `/[A-Z]{2,6}[0-9]{3}/` / IPO 表「处理逻辑」/ 流程五要素，**强制路由 `spec-doc-parse`（规范线）**，跳过 `prototype-scan` 的所有模式匹配。反之，Axure HTML / 截图 / 口述 / 非规范零散详设走 `prototype-scan`（原型线）。两线最终汇聚到同一份 page-spec JSON。
 1. **首先加载** `_best-practices.md`（场景索引，语义级路由依据），结合用户意图判断属于哪个场景
 2. 按场景指向的 Skill，`read_file` 加载对应 SKILL.md
 3. SKILL.md 中标注的 `必读 standards` 按 `standards/index.md` 任务类型映射加载
@@ -74,7 +77,7 @@ skills/
 
 当用户消息同时匹配多个 Skill 时（如"扫描原型并生成页面"）：
 
-1. 优先识别**完整流水线意图**：读取 `_pipeline.md`，按 `prototype-scan` → `api-contract` → `page-codegen` → `convention-audit` → sync/ops 的顺序建议下一步
+1. 优先识别**完整流水线意图**：读取 `_pipeline.md`，按 `prototype-scan`（原型线）或 `spec-doc-parse`（规范线）→ `api-contract` → `page-codegen` → `convention-audit` → sync/ops 的顺序建议下一步
 2. 否则按**最具体的触发词**匹配单个 Skill
 3. 用户明确指定时（如"只扫描，不生成"），按用户指示
 
