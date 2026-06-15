@@ -79,4 +79,23 @@ describe("CLI 参数防护（A1）", () => {
     expect(after.length).toBe(0);
     fs.rmdirSync(dir);
   });
+
+  it("export 应从 .wl-skills/reports 导出 xlsx", () => {
+    const dir = makeIsolatedDir();
+    const reportsDir = path.join(dir, ".wl-skills", "reports");
+    fs.mkdirSync(reportsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(reportsDir, "SYS_MENU_INFO.md"),
+      "| 名称 | 路径 |\n|---|---|\n| 首页 | /home |\n",
+      "utf8",
+    );
+
+    const res = runCli(["export"], { cwd: dir });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/已导出/);
+    expect(
+      fs.existsSync(path.join(reportsDir, "exports", "wl-skills-sys-export.xlsx")),
+    ).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

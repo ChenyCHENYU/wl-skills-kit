@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const https = require("https");
+const { runAstRules } = require("../../lib/ast-rules");
+const { alignPage } = require("../../lib/page-spec");
 
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -188,13 +190,37 @@ async function handleValidatePage(args) {
     }
   }
 
+  // ── AST 语义级规则检测（v2.10.0+）─────────────────────────────────
+  const astResult = runAstRules(root, scanPath);
+  if (astResult.astAvailable === false) {
+    issues.push([
+      scanPath,
+      "warn",
+      "AST 引擎不可用，跳过语义级规则（R1~R7）",
+    ]);
+  } else {
+    for (const iss of astResult.issues) {
+      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
+    }
+  }
+
+  // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
+  for (const page of pages) {
+    const absDir = path.join(root, page.dir);
+    const { issues: specIssues } = alignPage(absDir, page.dir);
+    for (const iss of specIssues) {
+      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
+    }
+  }
+
   const errors = issues.filter((item) => item[1] === "error").length;
   const lines = [
     `✅ 页面校验完成：${scanPath}`,
     "",
     `- 页面目录：${pages.length}`,
     `- error：${errors}`,
-    `- warn：${issues.length - errors}`,
+    `- warn：${issues.length - errors - issues.filter(i => i[1] === "info").length}`,
+    `- info：${issues.filter(i => i[1] === "info").length}`,
     "",
   ];
   if (issues.length === 0) lines.push("✔ 未发现偏差");

@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * 从项目的 .github/skills/sync/env.local.json 加载 MCP 运行配置
+ * 从项目的 .wl-skills/skills/sync/env.local.json 加载 MCP 运行配置
  * 项目根目录通过环境变量 WL_PROJECT_ROOT 传入（由 .cursor/mcp.json 注入）
  */
 function loadConfig() {
@@ -12,12 +12,12 @@ function loadConfig() {
     ? path.resolve(process.env.WL_PROJECT_ROOT)
     : process.cwd()
 
-  const configPath = path.join(projectRoot, '.github', 'skills', 'sync', 'env.local.json')
+  const configPath = path.join(projectRoot, '.wl-skills', 'skills', 'sync', 'env.local.json')
 
   if (!fs.existsSync(configPath)) {
     throw new Error(
       `配置文件不存在: ${configPath}\n` +
-      `请先执行 npx @agile-team/wl-skills-kit init，然后填写 .github/skills/sync/env.local.json`
+      `请先执行 pnpm dlx @agile-team/wl-skills-kit init，然后填写 .wl-skills/skills/sync/env.local.json`
     )
   }
 

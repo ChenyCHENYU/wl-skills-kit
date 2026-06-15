@@ -1,6 +1,11 @@
 node_modules/
-*.local
+dist/
+package-lock.json
 .DS_Store
-.wl-skills-manifest.json
-.npmrc
-bash.exe.stackdump
+*.log
+.env.local
+.env.*.local
+.npmrc.local
+*.local.npmrc
+nul
+_test_dir/

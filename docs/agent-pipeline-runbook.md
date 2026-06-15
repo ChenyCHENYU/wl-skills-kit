@@ -136,9 +136,9 @@ page-codegen 产出 SYS_* 报告
 ### 本地页面质量
 
 ```bash
-npx @agile-team/wl-skills-kit validate
-npx @agile-team/wl-skills-kit validate-page src/views/xxx/yyy
-npx @agile-team/wl-skills-kit doctor-ui
+pnpm dlx @agile-team/wl-skills-kit validate
+pnpm dlx @agile-team/wl-skills-kit validate-page src/views/xxx/yyy
+pnpm dlx @agile-team/wl-skills-kit doctor-ui
 ```
 
 ### MCP 项目感知

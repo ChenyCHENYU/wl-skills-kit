@@ -15,12 +15,12 @@
 | AI 全景架构演进 | `docs/ai全景分析.md` |
 | Agent Pipeline 执行手册 | `docs/agent-pipeline-runbook.md` |
 | MCP Tool 风险矩阵 | `docs/mcp-tool-risk-matrix.md` |
-| Skill 路由表 / 触发词 | `files/.github/skills/_registry.md` |
-| Skill I/O 契约 | `files/.github/skills/_pipeline.md` |
-| 多编辑器适配注册表 | `files/.github/skills/_compat/editors.json` |
+| Skill 路由表 / 触发词 | `files/.wl-skills/skills/_registry.md` |
+| Skill I/O 契约 | `files/.wl-skills/skills/_pipeline.md` |
+| 多编辑器适配注册表 | `files/.wl-skills/skills/_compat/editors.json` |
 | MCP Tool 描述符（auto-discovery） | `mcp/registry.js` |
-| 业务方使用指南 | `files/.github/guides/usage.md` |
-| 业务方架构说明 | `files/.github/guides/architecture.md` |
+| 业务方使用指南 | `files/.wl-skills/guides/usage.md` |
+| 业务方架构说明 | `files/.wl-skills/guides/architecture.md` |
 
 > 维护这些文档时，**只在上述位置改一份**。本文件只是路径地图，不复制内容。
 
@@ -78,7 +78,7 @@
 
 - 业务项目：无破坏性变更，业务侧使用方式不变
 - 维护者：新增 Skill 仅需改 `_registry.md`；新增 MCP Tool 仅需改 `mcp/registry.js`
-- CI：可加 `npm run version:verify` 阻断不一致的发版
+- CI：可加 `pnpm version:verify` 阻断不一致的发版
 
 ---
 
@@ -100,7 +100,7 @@
 - 页面级 `api.md` 仍位于 `src/views/**/api.md`（接口契约唯一详细位置），不重复维护字段
 - 模块 `docs/business/0X-xx/index.md` 只做链接索引
 
-详情参考 `CHANGELOG.md` 2.6.0 条目与 `files/.github/skills/core/business-doc-extract/SKILL.md`。
+详情参考 `CHANGELOG.md` 2.6.0 条目与 `files/.wl-skills/skills/core/business-doc-extract/SKILL.md`。
 
 ---
 

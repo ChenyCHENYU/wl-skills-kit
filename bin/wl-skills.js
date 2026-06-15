@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.10.0
+ * wl-skills-kit CLI v2.11.1
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -22,6 +22,19 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
+// ─── AST 规则引擎（v2.10.1+，语义级约束检测）──────────────────────────
+const {
+  runAstRules,
+  getStagedFiles,
+  hasAstAvailable,
+} = require("../lib/ast-rules");
+
+// ─── page-spec 比对引擎（v2.11.1+，"约定 vs 代码"确定性核对）────────────
+const { alignPage } = require("../lib/page-spec");
+
+// ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
+const { runSafeFix } = require("../lib/safe-fix");
+
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
 const MANIFEST_NAME = ".wl-skills-manifest.json";
@@ -41,6 +54,7 @@ const KNOWN_COMMANDS = new Set([
   "doctor-ui",
   "export",
   "mock-clean",
+  "fix",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -50,12 +64,16 @@ const KNOWN_FLAGS = new Set([
   "-h",
   "--domain",
   "--all",
+  "--pre-commit",
+  "--strict",
 ]);
 
 const dryRun = args.includes("--dry-run");
 const showHelp = args.includes("--help") || args.includes("-h");
 const keepReports = args.includes("--keep-reports");
 const force = args.includes("--force");
+const preCommit = args.includes("--pre-commit");
+const strict = args.includes("--strict");
 
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
 if (!showHelp) {
@@ -91,7 +109,7 @@ if (showHelp) {
   wl-skills-kit v${PKG.version} — AI Skill 模板包
 
   用法:
-    npx @agile-team/wl-skills-kit [命令] [选项]
+    pnpm dlx @agile-team/wl-skills-kit [命令] [选项]
 
   命令:
     init       全量安装模板文件到当前项目（默认）
@@ -100,38 +118,42 @@ if (showHelp) {
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
     diff       对比已安装文件与当前 kit 版本的差异
     validate   静态检查 src/views 页面文件、AGGrid、skills-ui runtime、mock
+               v2.10.1+ 集成 AST 语义级检测（R1~R7），覆盖正则无法检测的规则
     validate-page validate 的别名，适用于单页/目录检查
     doctor-ui  检查 @agile-team/wk-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
+    fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
 
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
-    --keep-reports   clean 命令保留 .github/reports/（默认一起删除）
+    --keep-reports   clean 命令保留 .wl-skills/reports/（默认一起删除）
     --force          强制执行，跳过同版本检测（忽略已安装状态）
     --domain <name>  mock-clean 指定要清理的业务域（如 sale、mdata）
     --all            mock-clean 清理全部 mock（保留 _utils.ts）
+    --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
+    --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --help           显示帮助
 
   示例:
-    npx @agile-team/wl-skills-kit                       安装全量文件
-    npx @agile-team/wl-skills-kit update                仅更新有变化的文件
-    npx @agile-team/wl-skills-kit update --force        强制更新（忽略同版本检测）
-    npx @agile-team/wl-skills-kit check                 检查本地环境
-    npx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
-    npx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
-    npx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
-    npx @agile-team/wl-skills-kit doctor-ui             检查 wk-skills-ui 接入
-    npx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
-    npx @agile-team/wl-skills-kit clean                 清理开发期文件
-    npx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
-    npx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
-    npx @agile-team/wl-skills-kit mock-clean --domain mdata  清理 mdata 域 mock
-    npx @agile-team/wl-skills-kit mock-clean --all           清理全部 mock
-    npx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
+    pnpm dlx @agile-team/wl-skills-kit                       安装全量文件
+    pnpm dlx @agile-team/wl-skills-kit update                仅更新有变化的文件
+    pnpm dlx @agile-team/wl-skills-kit update --force        强制更新（忽略同版本检测）
+    pnpm dlx @agile-team/wl-skills-kit check                 检查本地环境
+    pnpm dlx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
+    pnpm dlx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
+    pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
+    pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wk-skills-ui 接入
+    pnpm dlx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
+    pnpm dlx @agile-team/wl-skills-kit clean                 清理开发期文件
+    pnpm dlx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
+    pnpm dlx @agile-team/wl-skills-kit clean --dry-run       预览将要清理哪些文件
+    pnpm dlx @agile-team/wl-skills-kit mock-clean --domain mdata  清理 mdata 域 mock
+    pnpm dlx @agile-team/wl-skills-kit mock-clean --all           清理全部 mock
+    pnpm dlx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
 
   保护路径（init / update 不覆盖已存在的）:
-    .github/reports/   AI 生成报告（团队累积数据，存在则跳过）
+    .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
 
   清理保护路径（clean 不删除）:
     src/components/    通用组件（被业务页面 import，构建必需）
@@ -232,20 +254,20 @@ function writeManifest(data) {
 }
 
 // 受保护路径（clean 不删除）
-const PROTECTED_PREFIXES = ["src/components/", "src/types/"];
+const PROTECTED_PREFIXES = ["src/components/", "src/types/", ".wl-skills/src/components/", ".wl-skills/src/types/"];
 function isProtected(relPath) {
   return PROTECTED_PREFIXES.some((p) => relPath.startsWith(p));
 }
 
 // reports/ 中的 AI 生成报告：init/update 遇到已存在不覆盖（团队累积数据）
 function isReportFile(relPath) {
-  return relPath.startsWith(".github/reports/") && relPath.endsWith(".md");
+  return (relPath.startsWith(".wl-skills/reports/") || relPath.startsWith(".github/reports/")) && relPath.endsWith(".md");
 }
 
 // ─── 旧版遗留路径（v1.x/v2.0 → v2.1 迁移清理）───────────────────────────
 // update 时自动检测并移除，避免旧结构与新结构并存产生歧义。
 const LEGACY_PATHS = [
-  // Skill 目录重组：flat → core/sync/ops 分级（v2.1）
+  // v2.1: Skill 目录重组 flat → core/sync/ops
   ".github/skills/prototype-scan/SKILL.md",
   ".github/skills/api-contract/SKILL.md",
   ".github/skills/page-codegen/SKILL.md",
@@ -261,34 +283,42 @@ const LEGACY_PATHS = [
   ".github/skills/menu-sync/SKILL.md",
   ".github/skills/menu-sync/env/env.local.json",
   ".github/skills/menu-sync/env/guide.md",
-  ".github/skills/convention-extract/SKILL.md", // 已更名为 convention-audit
-  // docs/ 废弃文件：内容已迁移至 guides/ 或 reports/（v2.0）
+  ".github/skills/convention-extract/SKILL.md",
   ".github/docs/menu-sync-design.md",
   ".github/docs/use-skill.md",
   ".github/docs/wl-skills-kit.md",
-  ".github/docs/SYS_MENU_INFO.md", // 已迁移至 reports/
-  // _compat/ 旧说明文件（v2.0 → v2.1 重构为可执行配置层）
+  ".github/docs/SYS_MENU_INFO.md",
   ".github/skills/_compat/ai-model-matrix.md",
   ".github/skills/_compat/editor-setup.md",
+];
+
+// ─── v2.11 迁移：.github/ → .wl-skills/ 目录重构 ────────────────────────────
+// update 时自动检测旧目录结构并清理
+const LEGACY_DIR_PREFIXES = [
+  ".github/skills/",
+  ".github/standards/",
+  ".github/guides/",
+  ".github/reports/",
 ];
 
 // ─── 编辑器配置生成（从 _compat/editors.json 读取，特化 frontmatter 注入）─────
 
 const AUTO_HEADER_NOTE =
-  "<!-- 由 @agile-team/wl-skills-kit 自动生成。源文件：.github/copilot-instructions.md -->\n" +
-  "<!-- 请勿手动编辑本文件，更新时重新执行：npx @agile-team/wl-skills-kit@latest update -->\n\n";
+  "<!-- 由 @agile-team/wl-skills-kit 自动生成。薄壳入口 → .wl-skills/copilot-instructions-full.md -->\n" +
+  "<!-- 请勿手动编辑本文件，更新时重新执行：pnpm dlx @agile-team/wl-skills-kit@latest update -->\n\n";
 
 function getEditorConfigs(raw) {
+  // v2.11+: _compat 目录已迁移到 .wl-skills/skills/_compat/
   const editorsJsonPath = path.join(
     FILES_DIR,
-    ".github",
+    ".wl-skills",
     "skills",
     "_compat",
     "editors.json",
   );
   const headersDir = path.join(
     FILES_DIR,
-    ".github",
+    ".wl-skills",
     "skills",
     "_compat",
     "headers",
@@ -341,12 +371,19 @@ function runInstall(incremental) {
 
   const oldManifest = readManifest();
 
+  // ── 约束基础设施：无论版本是否相同，都确保 pre-commit hook 和 eslint 配置就绪 ──
+  // 这样即使 early-return（同版本跳过文件复制），hook 也会被创建/更新
+  if (!dryRun) {
+    ensurePreCommitHook(TARGET_DIR);
+    ensureEslintConfig(TARGET_DIR);
+  }
+
   // ── 版本去重：同版本跳过，不同版本自动增量更新 ──────────────────────
   if (oldManifest && !force) {
     if (oldManifest.version === PKG.version) {
       console.log("  ✔ 当前项目已安装 v" + PKG.version + "，无需重复操作");
       console.log(
-        "    如需强制重装：npx @agile-team/wl-skills-kit@latest " +
+        "    如需强制重装：pnpm dlx @agile-team/wl-skills-kit@latest " +
           label +
           " --force",
       );
@@ -374,6 +411,9 @@ function runInstall(incremental) {
   if (dryRun) console.log("  [Step 1] files/ 静态文件:\n");
 
   for (const relPath of files) {
+    // eslint 模板由 ensureEslintConfig 单独处理，不通过 Step 1 复制
+    if (relPath === "eslint.config.wl-skills.cjs") continue;
+
     const src = path.join(FILES_DIR, relPath);
     const dest = path.join(TARGET_DIR, relPath);
     const srcHash = fileMd5(src);
@@ -453,6 +493,8 @@ function runInstall(incremental) {
   if (incremental) {
     let migrated = 0;
     if (dryRun) console.log("\n  [Step 3] 旧版遗留文件检查（迁移清理）:\n");
+
+    // v2.1 旧版单文件清理
     for (const legacyRel of LEGACY_PATHS) {
       const legacyFull = path.join(TARGET_DIR, legacyRel);
       if (fs.existsSync(legacyFull)) {
@@ -464,6 +506,28 @@ function runInstall(incremental) {
         migrated++;
       }
     }
+
+    // v2.11 目录重构迁移：.github/skills|standards|guides|reports/ → .wl-skills/
+    for (const prefix of LEGACY_DIR_PREFIXES) {
+      const legacyDir = path.join(TARGET_DIR, prefix);
+      if (fs.existsSync(legacyDir)) {
+        const legacyFiles = walkDir(legacyDir, legacyDir);
+        for (const f of legacyFiles) {
+          const legacyFile = path.join(legacyDir, f);
+          if (dryRun) {
+            console.log("  迁移清理  " + prefix + f + "  (v2.11 目录重构)");
+          } else {
+            removeFileAndEmptyParents(legacyFile);
+          }
+          migrated++;
+        }
+        // 删除空目录
+        if (!dryRun && fs.existsSync(legacyDir)) {
+          try { fs.rmSync(legacyDir, { recursive: true, force: true }); } catch {}
+        }
+      }
+    }
+
     if (!dryRun && migrated > 0) {
       console.log(
         "    迁移: " +
@@ -548,12 +612,128 @@ function runInstall(incremental) {
     );
   }
   console.log(
-    "  ℹ 规范插件：建议执行 npx @robot-admin/git-standards init 接入代码质量与提交规范。",
+    "  ℹ 规范插件：建议执行 pnpm dlx @robot-admin/git-standards init 接入代码质量与提交规范。",
   );
   console.log("");
+
 }
 
 // ─── 命令: clean ────────────────────────────────────────────────────────
+
+/**
+ * 确保 .husky/pre-commit 包含 wl-skills validate --pre-commit
+ * — 这是让 AI 生成的代码"绕不开"规范的核心拦截点
+ *
+ * 策略：
+ * 1. 如果 .husky/pre-commit 不存在 → 创建（包含 validate 调用）
+ * 2. 如果存在但不含 wl-skills → 追加（不破坏用户已有的 hook 内容）
+ * 3. 如果存在且已含但格式过旧 → 刷新为最新格式
+ * 4. 如果存在且格式最新 → 跳过
+ *
+ * hook 使用包管理器动态解析，避免硬编码 node_modules 路径在 pnpm 下失效。
+ * 包含存在性守卫：kit 未安装时优雅跳过，不阻断提交。
+ */
+function ensurePreCommitHook(targetDir) {
+  const huskyDir = path.join(targetDir, ".husky");
+  const preCommitPath = path.join(huskyDir, ".husky/pre-commit");
+
+  // 只有 git 仓库才创建 husky hook
+  if (!fs.existsSync(path.join(targetDir, ".git"))) return;
+  if (!fs.existsSync(huskyDir)) return;
+
+  const VALIDATE_MARKER = "wl-skills validate --pre-commit";
+  // 最新 hook 版本标记，用于检测旧格式并刷新
+  const HOOK_VERSION_TAG = "# wl-skills-hook-v2";
+
+  const hookContent =
+    "#!/usr/bin/env sh\n" +
+    HOOK_VERSION_TAG + "\n" +
+    "# wl-skills-kit 自动管理：提交前规范检测（error 阻断提交）\n" +
+    "# 如果 node_modules 不存在或 kit 未安装，优雅跳过，不阻断提交\n" +
+    'if [ -f "node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js" ]; then\n' +
+    '  node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --pre-commit\n' +
+    "  if [ $? -ne 0 ]; then\n" +
+    '    echo ""\n' +
+    '    echo "  ✖ 规范检测未通过，提交已阻断。修复后重新 git add + git commit"\n' +
+    "    exit 1\n" +
+    "  fi\n" +
+    "else\n" +
+    '  echo "  ⚠ wl-skills-kit 未安装（node_modules 中未找到），跳过提交前检测"\n' +
+    "fi\n";
+
+  const preCommitFile = path.join(huskyDir, "pre-commit");
+
+  if (!fs.existsSync(preCommitFile)) {
+    fs.writeFileSync(preCommitFile, hookContent, "utf8");
+    try { fs.chmodSync(preCommitFile, 0o755); } catch {}
+    console.log("  ✔ 已创建 .husky/pre-commit（提交前自动运行 wl-skills validate）");
+    console.log("    → 每次 git commit 时自动检测页面规范，error 级别阻断提交");
+    console.log("    → kit 未安装时自动跳过，不阻断提交");
+    console.log("");
+  } else {
+    const existing = fs.readFileSync(preCommitFile, "utf8");
+
+    // 已有最新版本标记 → 跳过
+    if (existing.includes(HOOK_VERSION_TAG)) return;
+
+    // 有旧 marker 但格式过旧 → 替换整段 wl-skills 块为最新格式
+    if (existing.includes(VALIDATE_MARKER)) {
+      // 删除旧的 wl-skills 块（从 VALIDATE_MARKER 前的注释行到对应的 fi）
+      const lines = existing.split("\n");
+      const filtered = [];
+      let skipMode = false;
+      for (const line of lines) {
+        if (line.includes(VALIDATE_MARKER) || line.includes("wl-skills-kit 自动")) {
+          skipMode = true;
+          continue;
+        }
+        if (skipMode && (line.includes("exit 1") || line.trim() === "fi")) {
+          skipMode = false;
+          continue;
+        }
+        if (!skipMode) filtered.push(line);
+      }
+      // 去尾部空行
+      while (filtered.length > 0 && filtered[filtered.length - 1].trim() === "") {
+        filtered.pop();
+      }
+      // 追加最新格式
+      const updated = filtered.join("\n").trimEnd() + "\n\n" + hookContent.replace("#!/usr/bin/env sh\n", "");
+      fs.writeFileSync(preCommitFile, updated, "utf8");
+      try { fs.chmodSync(preCommitFile, 0o755); } catch {}
+      console.log("  ✔ 已刷新 .husky/pre-commit 为最新格式（v2，含存在性守卫）");
+      console.log("");
+      return;
+    }
+
+    // 无 marker → 追加
+    const addition = "\n" + hookContent.replace("#!/usr/bin/env sh\n", "");
+    fs.writeFileSync(preCommitFile, existing.trimEnd() + "\n" + addition, "utf8");
+    try { fs.chmodSync(preCommitFile, 0o755); } catch {}
+    console.log("  ✔ 已在 .husky/pre-commit 追加 wl-skills validate（提交前规范检测）");
+    console.log("    → kit 未安装时自动跳过，不阻断提交");
+    console.log("");
+  }
+}
+
+/**
+ * 确保业务项目有 ESLint 配置
+ * 策略：如果项目根目录没有 eslint.config.cjs，从 kit 复制模板
+ *       如果已有，不覆盖（尊重用户自定义配置）
+ */
+function ensureEslintConfig(targetDir) {
+  const targetEslint = path.join(targetDir, "eslint.config.cjs");
+  if (fs.existsSync(targetEslint)) return; // 用户已有自定义配置
+
+  const templatePath = path.join(FILES_DIR, "eslint.config.wl-skills.cjs");
+  if (!fs.existsSync(templatePath)) return;
+
+  const content = fs.readFileSync(templatePath, "utf8");
+  fs.writeFileSync(targetEslint, content, "utf8");
+  console.log("  ✔ 已创建 eslint.config.cjs（wl-skills-kit 模板）");
+  console.log("    → 安装依赖后生效：pnpm add -D eslint eslint-plugin-vue vue-eslint-parser @typescript-eslint/parser @typescript-eslint/eslint-plugin");
+  console.log("");
+}
 
 function runClean() {
   console.log("");
@@ -565,7 +745,7 @@ function runClean() {
   const manifest = readManifest();
   if (!manifest) {
     console.log("  ⚠ 未找到 " + MANIFEST_NAME);
-    console.log("  请先执行 npx @agile-team/wl-skills-kit init 安装一次。");
+    console.log("  请先执行 pnpm dlx @agile-team/wl-skills-kit init 安装一次。");
     console.log("");
     process.exit(1);
   }
@@ -573,12 +753,12 @@ function runClean() {
   const allFiles = Object.keys(manifest.files);
   const toRemove = allFiles.filter((f) => {
     if (isProtected(f)) return false;
-    if (keepReports && f.startsWith(".github/reports/")) return false;
+    if (keepReports && (f.startsWith(".wl-skills/reports/") || f.startsWith(".github/reports/"))) return false;
     return true;
   });
   const toKeep = allFiles.filter((f) => {
     if (isProtected(f)) return true;
-    if (keepReports && f.startsWith(".github/reports/")) return true;
+    if (keepReports && (f.startsWith(".wl-skills/reports/") || f.startsWith(".github/reports/"))) return true;
     return false;
   });
 
@@ -614,7 +794,7 @@ function runClean() {
       console.log(
         "    保留: " +
           toKeep.length +
-          " 个文件（src/components/ + src/types/ + .github/reports/）",
+          " 个文件（src/components/ + src/types/ + .wl-skills/reports/）",
       );
     } else {
       console.log(
@@ -633,6 +813,7 @@ function expectedManifestFiles() {
   for (const relPath of files) {
     expected[relPath] = fileMd5(path.join(FILES_DIR, relPath));
   }
+  // v2.11+: copilot-instructions.md 是薄壳入口，完整地图在 .wl-skills/
   const instructionsSrc = path.join(
     FILES_DIR,
     ".github",
@@ -665,14 +846,36 @@ function runCheck() {
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   add("Node 版本", nodeMajor >= 16, process.versions.node + "（要求 >=16）");
 
-  const toolFiles = [".prettierrc.js", "eslint.config.ts", ".husky"];
-  for (const rel of toolFiles) {
-    add(
-      rel,
-      fs.existsSync(path.join(TARGET_DIR, rel)),
-      fs.existsSync(path.join(TARGET_DIR, rel)) ? "存在" : "缺失",
-    );
+  // 工具链检测：支持多种可能的文件名
+  const prettierExists =
+    fs.existsSync(path.join(TARGET_DIR, ".prettierrc.js")) ||
+    fs.existsSync(path.join(TARGET_DIR, ".prettierrc")) ||
+    fs.existsSync(path.join(TARGET_DIR, ".prettierrc.cjs"));
+  add(".prettierrc", prettierExists, prettierExists ? "存在" : "缺失");
+
+  const eslintExists =
+    fs.existsSync(path.join(TARGET_DIR, "eslint.config.ts")) ||
+    fs.existsSync(path.join(TARGET_DIR, "eslint.config.mjs")) ||
+    fs.existsSync(path.join(TARGET_DIR, "eslint.config.cjs")) ||
+    fs.existsSync(path.join(TARGET_DIR, "eslint.config.js"));
+  add("eslint.config", eslintExists, eslintExists ? "存在" : "缺失");
+
+  // husky 目录检测
+  const huskyExists = fs.existsSync(path.join(TARGET_DIR, ".husky"));
+  add(".husky", huskyExists, huskyExists ? "存在" : "缺失");
+
+  // pre-commit hook 内容检测（不只检查目录存在）
+  const preCommitPath = path.join(TARGET_DIR, ".husky", "pre-commit");
+  let preCommitHasValidate = false;
+  if (fs.existsSync(preCommitPath)) {
+    const hookContent = fs.readFileSync(preCommitPath, "utf8");
+    preCommitHasValidate = hookContent.includes("wl-skills validate --pre-commit");
   }
+  add(
+    ".husky/pre-commit (wl-skills validate)",
+    preCommitHasValidate,
+    preCommitHasValidate ? "已配置规范检测" : huskyExists ? "存在但未配置 wl-skills validate" : "不存在",
+  );
 
   const manifest = readManifest();
   add(
@@ -859,10 +1062,37 @@ function findMockFiles() {
 function runValidate() {
   const scanPath =
     args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
-  const pages = scanPageDirs(scanPath);
+
+  // --pre-commit 模式：获取 staged 文件列表，用于过滤
+  let stagedSet = null;
+  if (preCommit) {
+    const staged = getStagedFiles(TARGET_DIR);
+    if (staged.length === 0) {
+      console.log("");
+      console.log("  wl-skills-kit v" + PKG.version + "  [validate --pre-commit]");
+      console.log("  ⚠ 无 staged 的 .vue/.ts 文件，跳过检测");
+      console.log("");
+      return;
+    }
+    stagedSet = new Set(staged.map((f) => f.replace(/\\/g, "/")));
+  }
+
+  const allPages = scanPageDirs(scanPath);
+  // 在 pre-commit 模式下，只保留包含 staged 文件的页面目录
+  const pages = preCommit
+    ? allPages.filter((page) =>
+        Array.from(stagedSet).some(
+          (f) =>
+            f.startsWith(page.dir + "/") ||
+            f === page.dir + "/index.vue" ||
+            f === page.dir + "/data.ts",
+        ),
+      )
+    : allPages;
+
   console.log("");
-  console.log("  wl-skills-kit v" + PKG.version + "  [" + command + "]");
-  console.log("  扫描目录: " + scanPath);
+  console.log("  wl-skills-kit v" + PKG.version + "  [" + command + "]" + (preCommit ? "  [pre-commit]" : ""));
+  console.log("  扫描目录: " + scanPath + (preCommit ? "（仅 staged 文件）" : ""));
   console.log("");
 
   if (pages.length === 0) {
@@ -1021,18 +1251,207 @@ function runValidate() {
     }
   }
 
-  console.log("  页面目录: " + pages.length);
+  // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
+  // 补充正则无法覆盖的 7 条语义规则（R1~R7），与正则规则合并输出
+  // 在 pre-commit 模式下复用上面已计算的 stagedSet
+  const astStagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
+  const astResult = runAstRules(TARGET_DIR, scanPath, {
+    stagedFiles: astStagedFiles,
+  });
+  // 合并 AST 结果（降级和正常都 push）
+  issues.push(...astResult.issues);
+
+  // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
+  // 页面目录存在 page-spec.json 时，比对 data.ts 实际实现与原型约定真值。
+  // 无 page-spec.json 的页面静默跳过，不影响其他检查。
+  let specAlignedPages = 0;
+  for (const page of pages) {
+    const absDir = path.join(TARGET_DIR, page.dir);
+    const { issues: specIssues, hasSpec } = alignPage(absDir, page.dir);
+    if (hasSpec) specAlignedPages++;
+    issues.push(...specIssues);
+  }
+
+  // ── 输出 ───────────────────────────────────────────────────────────
+  console.log(
+    "  页面目录: " +
+      pages.length +
+      (astResult.pages ? "（AST 扫描 " + astResult.pages + "）" : "") +
+      (specAlignedPages ? "（spec-align " + specAlignedPages + "）" : ""),
+  );
   console.log("  提示项: " + issues.length);
   console.log("");
   const errors = issues.filter((issue) => issue.level === "error").length;
+  const warns = issues.filter(
+    (issue) => issue.level === "warn" || issue.level === undefined,
+  ).length;
   for (const issue of issues) {
     const icon =
       issue.level === "error" ? "✖" : issue.level === "info" ? "ℹ" : "⚠";
     console.log("  " + icon + " " + issue.dir + " — " + issue.text);
   }
-  if (issues.length === 0) console.log("  ✔ 页面文件完整性检查通过");
+  if (issues.length === 0) console.log("  \u2714 \u9875\u9762\u6587\u4ef6\u5b8c\u6574\u6027\u68c0\u67e5\u901a\u8fc7");
   console.log("");
-  if (errors > 0 || issues.length > 0) process.exitCode = 1;
+
+  // ── \u4fee\u590d\u5efa\u8bae\u8f93\u51fa\uff08P0 \u6539\u8fdb\uff1a\u963b\u65ad\u65f6\u544a\u8bc9\u5f00\u53d1\u8005\u600e\u4e48\u4fee\uff09─────────────────────
+  const blockingIssues = issues.filter((i) => i.level === "error" || (strict && i.level === "warn"));
+  if (blockingIssues.length > 0) {
+    printFixSuggestions(blockingIssues);
+  }
+
+  if (preCommit) {
+    // pre-commit \u6a21\u5f0f\uff1aerror \u963b\u65ad\u63d0\u4ea4
+    // --pre-commit --strict \u7ec4\u5408\uff1aerror + warn \u90fd\u963b\u65ad
+    const failCount = strict ? errors + warns : errors;
+    if (failCount > 0) {
+      console.log(
+        "  \u2716 pre-commit \u68c0\u67e5\u53d1\u73b0 " +
+        errors + " \u4e2a error" +
+        (strict && warns > 0 ? " + " + warns + " \u4e2a warn\uff08strict \u6a21\u5f0f\uff09" : "") +
+        "\uff0c\u63d0\u4ea4\u5df2\u963b\u65ad",
+      );
+      console.log("  \u2192 \u8bf7\u4fee\u590d\u540e\u91cd\u65b0 git add + git commit");
+      console.log("  \u2192 \u5982\u9700 AI \u8f85\u52a9\u4fee\u590d\uff0c\u8bf7\u89e6\u53d1\uff1a\u89c4\u8303\u5ba1\u8ba1 \u2192 \u81ea\u52a8\u4fee\u590d \u2192 \u590d\u626b\u9a8c\u8bc1");
+      console.log("");
+      process.exitCode = 1;
+    } else {
+      console.log("  \u2714 pre-commit \u68c0\u67e5\u901a\u8fc7\uff08" + issues.length + " \u4e2a\u63d0\u793a\u9879\u4e0d\u963b\u65ad\u63d0\u4ea4\uff09");
+      console.log("");
+    }
+  } else if (strict) {
+    // --strict \u6a21\u5f0f\uff08CI \u7528\uff09\uff1aerror \u548c warn \u5bfc\u81f4\u5931\u8d25\uff0cinfo \u4e0d\u8ba1\u5165
+    if (errors > 0 || warns > 0) {
+      console.log(
+        "  \u2716 strict \u6a21\u5f0f\u68c0\u67e5\u53d1\u73b0 " + errors + " error / " + warns + " warn\uff0cCI \u5df2\u963b\u65ad",
+      );
+      console.log("  \u2192 --strict \u6a21\u5f0f\u4e0b warn \u4e5f\u4f1a\u5931\u8d25\uff0c\u8bf7\u4fee\u590d");
+      process.exitCode = 1;
+    } else {
+      console.log("  \u2714 strict \u6a21\u5f0f\u68c0\u67e5\u5168\u90e8\u901a\u8fc7");
+    }
+    console.log("");
+  } else {
+    // \u666e\u901a\u6a21\u5f0f\uff1a\u53ea\u6709 error \u6216 warn \u624d exit 1\uff0cinfo \u4ec5\u63d0\u793a
+    if (errors > 0 || warns > 0) process.exitCode = 1;
+  }
+}
+
+// ── \u4fee\u590d\u5efa\u8bae\u6620\u5c04\u8868\uff08P0\uff1a\u8ba9\u5f00\u53d1\u8005\u77e5\u9053\u600e\u4e48\u4fee\uff09──────────────────────────────
+const FIX_SUGGESTIONS = {
+  // \u6b63\u5219\u7ea7\u68c0\u67e5
+  'render-type="agGrid"': {
+    fix: '<BaseTable render-type="agGrid" ...>',
+    ref: 'standards/12-base-table.md',
+    auto: true,
+  },
+  'cid / :cid': {
+    fix: '\u7ed9 BaseTable \u52a0 cid="{\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}"\uff0c\u5168\u5c40\u552f\u4e00',
+    ref: 'standards/12-base-table.md',
+    auto: true,
+  },
+  'defineColumns()': {
+    fix: 'import { defineColumns } from "@agile-team/wk-skills-ui/runtime" \u5e76\u7528\u4e8e\u5217\u5b9a\u4e49',
+    ref: 'standards/12-base-table.md',
+    auto: true,
+  },
+  'renderOps()': {
+    fix: '\u64cd\u4f5c\u5217\u4f7f\u7528 defaultSlot + renderOps()\uff0c\u7981\u6b62 operations \u6570\u7ec4',
+    ref: 'standards/12-base-table.md',
+    auto: true,
+  },
+  'C_Splitter': {
+    fix: '\u66ff\u6362\u4e3a jh-drag-col\uff08\u5de6\u53f3\uff09/ jh-drag-row\uff08\u4e0a\u4e0b\uff09',
+    ref: 'standards/14-layout-containers.md',
+    auto: true,
+  },
+  'onClick: () => {}': {
+    fix: '\u586b\u5145\u5b9e\u9645\u4e8b\u4ef6\u5904\u7406\u903b\u8f91\uff0c\u6216\u8054\u52a8 code-fix \u81ea\u52a8\u4fee\u590d',
+    ref: 'standards/04-coding-basics.md',
+    auto: true,
+  },
+};
+
+const AST_FIX_SUGGESTIONS = {
+  R1: { fix: '\u5c06\u4e1a\u52a1\u903b\u8f91\u8fc1\u79fb\u5230 data.ts\uff0cindex.vue \u53ea\u4fdd\u7559\u6a21\u677f+\u89e3\u6784', ref: 'standards/02-code-structure.md', auto: false },
+  R2: { fix: '\u5c06 getAction/postAction/sessionStorage \u79fb\u5230 data.ts \u4e2d\u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
+  R3: { fix: '\u66ff\u6362 <el-table> \u4e3a <BaseTable render-type="agGrid" :cid="xxx">', ref: 'standards/12-base-table.md', auto: true },
+  R4: { fix: '\u4fee\u6539\u91cd\u590d cid \u4e3a\u5168\u5c40\u552f\u4e00\u503c\uff08\u683c\u5f0f: {\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}\uff09', ref: 'standards/12-base-table.md', auto: true },
+  R5: { fix: 'data.ts \u4e2d class extends AbstractPageQueryHook\uff0c\u5b9e\u73b0 queryDef/columnsDef', ref: 'standards/02-code-structure.md', auto: false },
+  R6: { fix: '\u5220\u9664 import axios\uff0c\u6539\u7528 getAction/postAction', ref: 'standards/06-security.md', auto: true },
+  R7: { fix: '\u5220\u9664 eval/new Function\uff0c\u7528\u5b89\u5168\u7684\u66ff\u4ee3\u65b9\u6848', ref: 'standards/06-security.md', auto: false },
+  R8: { fix: '\u521b\u5efa data.ts\uff0c\u5c06\u63a5\u53e3\u8c03\u7528\u548c\u4e1a\u52a1\u903b\u8f91\u79fb\u5165\uff1b\u786e\u4fdd index.vue \u65e0 API \u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
+  R9: { fix: '\u66f4\u65b0 api.md\uff0c\u786e\u4fdd URL \u4e0e data.ts API_CONFIG \u4e00\u81f4', ref: 'standards/02-code-structure.md', auto: true },
+  R10: { fix: '\u66ff\u6362\u539f\u751f el-* \u7ec4\u4ef6\u4e3a\u5e73\u53f0\u5c01\u88c5\uff08jh-select/jh-date/jh-pagination \u7b49\uff09', ref: 'standards/13-platform-components.md', auto: true },
+  R11: { fix: '\u4ece data.ts \u4e2d\u79fb\u9664 Pinia Store import\uff0cStore \u5e94\u5728\u7ec4\u4ef6\u5c42\u4f7f\u7528', ref: 'standards/10-pinia.md', auto: true },
+  R12: { fix: '\u5c06\u786c\u7f16\u7801 IP/URL \u79fb\u81f3 .env.* \u73af\u5883\u53d8\u91cf', ref: 'standards/07-config.md', auto: true },
+  // S 系列：page-spec 约定 vs 代码确定性核对（v2.11.1+）
+  S0: { fix: '\u4fee\u6b63 page-spec.json \u7ed3\u6784\uff08page/query/columns/toolbar/operations\uff09', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: false },
+  S1: { fix: '\u8c03\u6574 queryDef() \u67e5\u8be2\u5b57\u6bb5\u987a\u5e8f\u4e0e page-spec.json query \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+  S2: { fix: '\u8c03\u6574 columnsDef() \u8868\u683c\u5217\u987a\u5e8f/\u96c6\u5408\u4e0e page-spec.json columns \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+  S3: { fix: '\u8c03\u6574 toolbarDef() \u6309\u94ae\u987a\u5e8f/\u989c\u8272\u4e0e page-spec.json toolbar \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+  S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+};
+
+function printFixSuggestions(blockingIssues) {
+  // \u6309\u89c4\u5219\u5206\u7ec4\u53bb\u91cd
+  const ruleGroups = new Map();
+  for (const issue of blockingIssues) {
+    const key = issue.rule || guessRuleFromText(issue.text);
+    if (!key) continue;
+    if (!ruleGroups.has(key)) ruleGroups.set(key, []);
+    ruleGroups.get(key).push(issue);
+  }
+
+  if (ruleGroups.size === 0) return;
+
+  console.log("  \u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510");
+  console.log("  \u2502 \ud83d\udd27 \u4fee\u590d\u5efa\u8bae                                              \u2502");
+  console.log("  \u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
+
+  let hasAutoFix = false;
+  let hasUnknownIssue = false;
+  for (const [rule, ruleIssues] of ruleGroups.entries()) {
+    const suggestion = AST_FIX_SUGGESTIONS[rule] || findRegexSuggestion(ruleIssues[0].text);
+    const count = ruleIssues.length;
+    if (!suggestion) {
+      // 免底：未知规则的阻断项也要展示，避免用户看不到任何提示
+      hasUnknownIssue = true;
+      console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09 [\u2753\u672a\u77e5\u89c4\u5219]");
+      console.log("  \u2502    \u2192 \u8bf7\u67e5\u770b .github/standards/ \u76f8\u5173\u89c4\u8303\u6216\u89e6\u53d1\u89c4\u8303\u5ba1\u8ba1");
+      console.log("  \u2502");
+      continue;
+    }
+    const autoTag = suggestion.auto ? " [\u2705\u53ef\u81ea\u52a8\u4fee]" : " [\u270b\u9700\u4eba\u5de5]";
+    if (suggestion.auto) hasAutoFix = true;
+    console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09" + autoTag);
+    console.log("  \u2502    \u2192 " + suggestion.fix);
+    console.log("  \u2502    \u53c2\u8003: .github/" + suggestion.ref);
+    console.log("  \u2502");
+  }
+
+  console.log("  \u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
+  if (hasAutoFix) {
+    console.log("  \u2502 \ud83d\ude80 \u5feb\u901f\u4fee\u590d\uff1a\u5728 AI \u7f16\u8f91\u5668\u4e2d\u8f93\u5165\uff1a                       \u2502");
+    console.log("  \u2502    \"\u89c4\u8303\u5ba1\u8ba1\" \u2192 \"\u81ea\u52a8\u4fee\u590d\" \u2192 \"\u590d\u626b\u9a8c\u8bc1\"              \u2502");
+  } else {
+    console.log("  \u2502 \ud83d\udcdd \u8bf7\u53c2\u7167\u4e0a\u8ff0\u89c4\u8303\u6587\u6863\u624b\u52a8\u4fee\u590d                       \u2502");
+  }
+  console.log("  \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518");
+  console.log("");
+}
+
+function guessRuleFromText(text) {
+  for (const key of Object.keys(FIX_SUGGESTIONS)) {
+    if (text.includes(key)) return key;
+  }
+  return null;
+}
+
+function findRegexSuggestion(text) {
+  for (const [key, suggestion] of Object.entries(FIX_SUGGESTIONS)) {
+    if (text.includes(key)) return suggestion;
+  }
+  return null;
 }
 
 function readJsonSafe(filePath) {
@@ -1206,13 +1625,18 @@ function parseMarkdownTable(content) {
     );
 }
 
-function runExport() {
+async function runExport() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [export]");
   console.log("  目标目录: " + TARGET_DIR);
   console.log("");
 
-  const reportDir = path.join(TARGET_DIR, ".github", "reports");
+  const reportDir =
+    [
+      path.join(TARGET_DIR, ".wl-skills", "reports"),
+      path.join(TARGET_DIR, ".github", "reports"),
+    ].find((dir) => fs.existsSync(dir)) ||
+    path.join(TARGET_DIR, ".wl-skills", "reports");
   const files = [
     ["菜单", "SYS_MENU_INFO.md"],
     ["字典", "SYS_DICT_INFO.md"],
@@ -1247,25 +1671,22 @@ function runExport() {
     console.log("  将导出: " + outFile);
     console.log("  sheet 数: " + addedSheets);
   } else {
-    let XLSX;
+    let writeXlsxFile;
     try {
-      XLSX = require("xlsx");
+      writeXlsxFile = require("write-excel-file/node");
     } catch {
       console.error(
-        "  ✖ 未找到 xlsx 依赖，请重新安装最新 @agile-team/wl-skills-kit",
+        "  ✖ 未找到 write-excel-file 依赖，请重新安装最新 @agile-team/wl-skills-kit",
       );
       process.exit(1);
     }
-    const wb = XLSX.utils.book_new();
-    for (const [sheetName, rows] of sheets) {
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.aoa_to_sheet(rows),
-        sheetName,
-      );
-    }
     fs.mkdirSync(outDir, { recursive: true });
-    XLSX.writeFile(wb, outFile);
+    await writeXlsxFile(
+      sheets.map(([sheetName, rows]) => ({
+        sheet: sheetName,
+        data: rows,
+      })),
+    ).toFile(outFile);
     console.log("  ✔ 已导出: " + outFile);
     console.log("  sheet 数: " + addedSheets);
   }
@@ -1353,6 +1774,38 @@ function runMockClean() {
 
 // ─── 主路由 ─────────────────────────────────────────────────────────────
 
+// ─── 命令: fix（确定性机械修复）──────────────────────────────────────────
+
+function runFix() {
+  const scanPath =
+    args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [fix]" + (dryRun ? "  [dry-run]" : ""));
+  console.log("  扫描目录: " + scanPath);
+  console.log("");
+
+  const result = runSafeFix(TARGET_DIR, scanPath, { dryRun });
+  if (result.files.length === 0) {
+    console.log("  ✔ 未发现可自动修复的机械偏差");
+    console.log("");
+    return;
+  }
+  for (const f of result.files) {
+    for (const change of f.changes) {
+      console.log("  " + (dryRun ? "将修复" : "已修复") + "  " + f.rel + " — " + change);
+    }
+  }
+  console.log("");
+  console.log(
+    "  " + (dryRun ? "预览" : "完成") + "：" + result.fixedCount + " 处机械修复，涉及 " + result.files.length + " 个文件",
+  );
+  if (!dryRun) {
+    console.log("");
+    console.log("  → 建议执行 wl-skills validate 复扫确认；语义级偏差仍需 AI 或人工处理");
+  }
+  console.log("");
+}
+
 switch (command) {
   case "init":
     runInstall(false);
@@ -1377,10 +1830,16 @@ switch (command) {
     runDoctorUi();
     break;
   case "export":
-    runExport();
+    runExport().catch((e) => {
+      console.error("  ✖ 导出失败: " + (e && e.message ? e.message : e));
+      process.exit(1);
+    });
     break;
   case "mock-clean":
     runMockClean();
+    break;
+  case "fix":
+    runFix();
     break;
   default:
     console.error(

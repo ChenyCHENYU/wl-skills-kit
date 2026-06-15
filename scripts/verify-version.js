@@ -13,7 +13,7 @@
  *   - README.md 中的 "{N} 个 AI Skill" 与 _registry.md ✅ 启用 行数一致
  *
  * 使用方式：
- *   npm run version:verify
+ *   pnpm version:verify
  */
 
 "use strict";
@@ -68,7 +68,7 @@ checkVersionMatch(
 );
 checkVersionMatch("README.md", /AI Skill 模板包 v\d+\.\d+\.\d+/, "README 标题");
 checkVersionMatch(
-  "files/.github/guides/architecture.md",
+  "files/.wl-skills/guides/architecture.md",
   /\*\*当前版本\*\*：v\d+\.\d+\.\d+/,
   "guides/architecture.md",
 );
@@ -87,7 +87,7 @@ if (!descMatch) {
 // ─── Skill 数量一致性检查 ────────────────────────────────────────────────
 
 function countEnabledSkills() {
-  const registry = read("files/.github/skills/_registry.md");
+  const registry = read("files/.wl-skills/skills/_registry.md");
   // 路由表行：| skill-name | ✅ 启用 | path | trigger |
   // 行首是 |，第一列 skill-name（含连字符），第二列 ✅ 启用
   const matches = registry.match(/^\|\s*[\w-]+\s*\|\s*✅\s*启用\s*\|/gm) || [];
@@ -123,9 +123,9 @@ if (descSkillMatch && parseInt(descSkillMatch[1], 10) !== enabledCount) {
 
 // headers/*.txt 中 "13 条标准 + N 个 Skill" 描述也校验
 for (const headerFile of [
-  "files/.github/skills/_compat/headers/cursor-mdc.txt",
-  "files/.github/skills/_compat/headers/trae.txt",
-  "files/.github/skills/_compat/headers/kiro.txt",
+  "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
+  "files/.wl-skills/skills/_compat/headers/trae.txt",
+  "files/.wl-skills/skills/_compat/headers/kiro.txt",
 ]) {
   let content;
   try {
@@ -138,6 +138,31 @@ for (const headerFile of [
     errors.push(
       `${headerFile}: '${m[0]}' 与 _registry.md ✅ 启用 (${enabledCount}) 不一致`,
     );
+  }
+}
+
+// ─── npm 发布完整性检查（files 数组是否包含必需目录）──────────────────
+
+const REQUIRED_FILES_DIRS = ["bin/", "files/", "lib/", "mcp/"];
+for (const dir of REQUIRED_FILES_DIRS) {
+  if (!PKG.files || !PKG.files.includes(dir)) {
+    errors.push(
+      `package.json#files: 缺少 "${dir}" — 发布到 npm 后 require 将失败`,
+    );
+  }
+}
+
+// 检查 lib/ 下关键文件是否存在
+const REQUIRED_LIB_FILES = [
+  "lib/ast-rules.js",
+  "lib/vite-plugin-wl-skills.js",
+  "lib/page-spec.js",
+  "lib/safe-fix.js",
+];
+for (const rel of REQUIRED_LIB_FILES) {
+  const fullPath = path.join(ROOT, rel);
+  if (!fs.existsSync(fullPath)) {
+    errors.push(`${rel}: 文件不存在 — 发布后 require/import 将失败`);
   }
 }
 
@@ -155,5 +180,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-version] ✔ v${VERSION} 在所有位置一致；启用 Skill 数 = ${enabledCount}`,
+  `[verify-version] ✔ v${VERSION} 在所有位置一致；启用 Skill 数 = ${enabledCount}；npm files 完整`,
 );

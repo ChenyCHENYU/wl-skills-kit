@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.10.0** — 一键将 14 条规范、11 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.11.1** — 一键将 14 条规范、11 个 AI Skill、17 个 MCP Tool、编辑器 MCP 配置、文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -9,9 +9,9 @@
 ## TL;DR
 
 ```bash
-npx @robot-admin/git-standards init      # 工程化前置（必须）
-npx @agile-team/wl-skills-kit            # 安装 AI 体系
-npm run standards:init                   # 本包维护/业务项目均可复用的规范插件入口
+pnpm dlx @robot-admin/git-standards init      # 工程化前置（必须）
+pnpm dlx @agile-team/wl-skills-kit            # 安装 AI 体系
+pnpm standards:init                           # 本包维护/业务项目均可复用的规范插件入口
 # 在 AI 对话中：
 "扫描 docs/prototypes/ 下的原型生成页面清单"
 "基于上一步生成所有 api.md，再 codegen 出页面"
@@ -19,9 +19,19 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 
 > 可选桥接：如业务项目也需要统一 UI 风格、老系统化妆层和 UI 扫描修复，可单独安装 `@agile-team/wk-skills-ui`。两包职责独立，不互相强依赖：`wl-skills-kit` 负责编码规范/页面生成/菜单字典权限，`wk-skills-ui` 负责视觉一致性/设计令牌/化妆层/Runtime 渲染。
 
+> 包管理策略：本仓库维护链路 **pnpm-first**，使用 `pnpm-lock.yaml`、`pnpm verify`、`pnpm ci`；npm 只用于 `npm pack` / `npm publish` 发版环节，不提交 `package-lock.json` 和 npm token。
+
 ---
 
 ## 版本亮点
+
+**v2.11.1**：精准卡控闭环 —— 把"约定"接线到确定性执行器，生成即精确。
+
+- **新增 page-spec 落盘 + spec-align 确定性比对（S1~S5）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 的 `queryDef/columnsDef/toolbarDef` 与之逐项比对——查询字段顺序、表格列顺序、工具栏按钮顺序与颜色、操作列按钮集合、label 文字保真。过去只靠 AI 自觉的 6 条"精准实现"约定，现在变成可阻断的硬卡控
+- **新增 `wl-skills fix` 确定性机械修复**：对幂等、零语义判断的偏差（BaseTable 补 `render-type`、`::v-deep`→`:deep()`、行尾空白、文件末尾换行）做确定性自动修复，AI 只处理需语义判断的部分；`--dry-run` 预览
+- **新增「规则 → 执行器」覆盖矩阵治理**：`kit-internal/rule-coverage.md` 登记每条约定由谁兜底（R*/S*/regex/AI），`lint:skills` 校验标记「阻断」的规则必须有真实执行器，杜绝"文档约定"退化为纯文档
+- **C_Splitter 彻底删除**：废弃组件（onMounted 冻 vnode 致响应式失效）从包内移除，`lint:skills` 全量禁止任何引用，无例外
+- **修复 v2.11 目录迁移遗留**：`lint-skills.js` / `verify-version.js` / `sync-version.js` 的 `.github/` 路径全部修正为 `.wl-skills/`，CI 自检链路恢复可用
 
 **v2.8.0**：Mock 架构体系固化 + `mock-clean` CLI 命令。
 
@@ -45,7 +55,7 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 - 新增 `skills/sync/_mcp-guardrail.md` 公共护栏（含 L0~L4 错误自愈剧本，MCP 失败时引导用户完善 `env.local.json` 而不是绕开自拼 HTTP）
 - 修复 `dict-sync/SKILL.md` 旧版残留与错路径；统一 `menu-sync/USAGE.md` 字段命名
 - MCP server 启动 banner（stderr，不污染 JSON-RPC）；client.js 401/4004 友好提示
-- 新增 `npm run lint:skills` 静态护栏，已串入 `prepublishOnly`
+- 新增 `pnpm lint:skills` 静态护栏，已串入 `prepublishOnly`
 
 **v2.7.1**：JH 组件文档全面修正，基于 `@jhlc/common-core` 源码校准 Props/API/映射规则。
 
@@ -56,9 +66,9 @@ npm run standards:init                   # 本包维护/业务项目均可复用
 
 **v2.7.0**：一致性治理与可测性升级，安全防护加固。
 
-- **CLI 未知 flag / 命令防护**：`npx @agile-team/wl-skills-kit --version` 等未识别参数不再默认走 `init` 误装，而是退出非零并提示
+- **CLI 未知 flag / 命令防护**：`pnpm dlx @agile-team/wl-skills-kit --version` 等未识别参数不再默认走 `init` 误装，而是退出非零并提示
 - **MCP Tool auto-discovery**：新增 `mcp/registry.js`，17 个 Tool 描述符集中维护；`mcp/server.js` 从 496 行瘦身到 130 行，新增 Tool 仅改 registry
-- **版本一致性自检**：`npm run version:verify` 跨文件校验版本 + Skill 计数；`prepublishOnly` 在 `npm publish` 前自动运行它与 `vitest`，不一致则阻断发版
+- **版本一致性自检**：`pnpm version:verify` 跨文件校验版本 + Skill 计数；`prepublishOnly` 在 `npm publish` 前自动运行它与 `vitest`，不一致则阻断发版
 - **单元测试**：registry / CLI / version-tools 共 18 项覆盖，上面三项防护都有连动验证
 - **单一数据源加固**：`SKILL_COUNT` 从常量改为从 `_registry.md` 动态计算；copilot-instructions 删除内嵌 Skill 表改为指针；dict-sync / code-fix 补 USAGE.md
 
@@ -134,7 +144,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── package.json                          name: @agile-team/wl-skills-kit
 │
 ├── bin/
-│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / validate-page / doctor-ui / export / mock-clean）
+│   └── wl-skills.js                      CLI 实现（init / update / clean / check / diff / validate / validate-page / fix / doctor-ui / export / mock-clean）
 │
 ├── files/                                ★★★ 真正会被打包并复制到业务项目的内容 ★★★
 │   ├── .github/
@@ -162,12 +172,12 @@ wl-skills-kit/                            ← 你正看的这个仓库
 
 > **维护准则**：
 >
-> - 业务规范要改 → 改 `files/.github/standards/*.md`
-> - Skill 流程要改 → 改 `files/.github/skills/<scope>/<name>/SKILL.md`
-> - 多 AI 编辑器适配要改 → 改 `files/.github/skills/_compat/`（**不是**改业务项目里的根配置文件）
+> - 业务规范要改 → 改 `files/.wl-skills/standards/*.md`
+> - Skill 流程要改 → 改 `files/.wl-skills/skills/<scope>/<name>/SKILL.md`
+> - 多 AI 编辑器适配要改 → 改 `files/.wl-skills/skills/_compat/`（**不是**改业务项目里的根配置文件）
 > - 维护文档要写 → 进 `kit-internal/`（不会污染业务项目）
 
-### B. 业务项目结构（执行 `npx @agile-team/wl-skills-kit` 之后）
+### B. 业务项目结构（执行 `pnpm dlx @agile-team/wl-skills-kit` 之后）
 
 ```
 你的业务项目/
@@ -240,43 +250,51 @@ wl-skills-kit/                            ← 你正看的这个仓库
 
 ```bash
 # 全量安装（默认）
-npx @agile-team/wl-skills-kit
+pnpm dlx @agile-team/wl-skills-kit
 
 # 增量更新（仅覆盖有变化的文件，自动保护 reports/）
-npx @agile-team/wl-skills-kit update
+pnpm dlx @agile-team/wl-skills-kit update
 
 # 环境预检（Node / 工具链 / MCP 配置 / manifest）
-npx @agile-team/wl-skills-kit check
+pnpm dlx @agile-team/wl-skills-kit check
 
 # 对比已安装文件与当前 kit 版本差异
-npx @agile-team/wl-skills-kit diff
+pnpm dlx @agile-team/wl-skills-kit diff
 
 # 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui/mock
-npx @agile-team/wl-skills-kit validate
+pnpm dlx @agile-team/wl-skills-kit validate
 
 # 单页/指定目录校验
-npx @agile-team/wl-skills-kit validate-page src/views/mdata/model/mdata-model-config
+pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/mdata-model-config
+
+# spec-align：页面目录存在 page-spec.json 时，确定性比对"约定 vs 代码"
+# （查询字段/表格列顺序、工具栏按钮顺序与颜色、操作列严格对应、label 保真）
+# 已内置于 validate，无需额外参数
+
+# 确定性机械修复（缺 render-type、::v-deep→:deep、行尾空白等，幂等安全）
+pnpm dlx @agile-team/wl-skills-kit fix
+pnpm dlx @agile-team/wl-skills-kit fix --dry-run
 
 # 检查 wk-skills-ui 是否真正接入
-npx @agile-team/wl-skills-kit doctor-ui
+pnpm dlx @agile-team/wl-skills-kit doctor-ui
 
 # 导出菜单/字典/权限基线为 xlsx
-npx @agile-team/wl-skills-kit export
+pnpm dlx @agile-team/wl-skills-kit export
 
 # 构建前清理（保留 src/components + src/types）
-npx @agile-team/wl-skills-kit clean
+pnpm dlx @agile-team/wl-skills-kit clean
 
 # 清理但保留 reports/（菜单/字典/权限累积数据）
-npx @agile-team/wl-skills-kit clean --keep-reports
+pnpm dlx @agile-team/wl-skills-kit clean --keep-reports
 
 # 清理指定业务域的 mock 文件（保留 _utils.ts）
-npx @agile-team/wl-skills-kit mock-clean --domain mdata
+pnpm dlx @agile-team/wl-skills-kit mock-clean --domain mdata
 
 # 清理全部 mock（保留 _utils.ts）
-npx @agile-team/wl-skills-kit mock-clean --all
+pnpm dlx @agile-team/wl-skills-kit mock-clean --all
 
 # 任何命令都可加 --dry-run 预览
-npx @agile-team/wl-skills-kit update --dry-run
+pnpm dlx @agile-team/wl-skills-kit update --dry-run
 ```
 
 > 全局安装后也可直接用 `wl-skills` 命令（如 `wl-skills update`）。
@@ -313,7 +331,7 @@ npx @agile-team/wl-skills-kit update --dry-run
 
 ```bash
 # 执行增量更新即可
-npx @agile-team/wl-skills-kit update
+pnpm dlx @agile-team/wl-skills-kit update
 ```
 
 `update` 命令会自动完成：
@@ -348,7 +366,7 @@ npx @agile-team/wl-skills-kit update
 
 ## 多 AI 编辑器适配（解耦设计）
 
-`init` / `update` 读取 `files/.github/skills/_compat/editors.json` 生成对应配置：
+`init` / `update` 读取 `files/.wl-skills/skills/_compat/editors.json` 生成对应配置：
 
 | 编辑器         | 输出路径                          | Frontmatter                   |
 | -------------- | --------------------------------- | ----------------------------- |
@@ -405,11 +423,11 @@ AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable(render-type="agGrid"
 - 🧭 全盘分析与智能体搭建：[docs/全盘分析与智能体搭建指南.md](docs/全盘分析与智能体搭建指南.md)
 - 🔁 Agent Pipeline 运行手册：[docs/agent-pipeline-runbook.md](docs/agent-pipeline-runbook.md)
 - 🛡️ MCP Tool 风险矩阵：[docs/mcp-tool-risk-matrix.md](docs/mcp-tool-risk-matrix.md)
-- 📝 业务文档抽取 Skill：[files/.github/skills/core/business-doc-extract/USAGE.md](files/.github/skills/core/business-doc-extract/USAGE.md)
+- 📝 业务文档抽取 Skill：[files/.wl-skills/skills/core/business-doc-extract/USAGE.md](files/.wl-skills/skills/core/business-doc-extract/USAGE.md)
 - 📚 业务方使用指南：`.github/guides/usage.md`（业务项目内）
 - 🏗️ 架构与决策：`.github/guides/architecture.md`（业务项目内）
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
-- 🤖 多编辑器适配机制：[files/.github/skills/\_compat/README.md](files/.github/skills/_compat/README.md)
+- 🤖 多编辑器适配机制：[files/.wl-skills/skills/\_compat/README.md](files/.wl-skills/skills/_compat/README.md)
 - 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)
 
 ---

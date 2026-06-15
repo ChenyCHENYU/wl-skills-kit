@@ -1,5 +1,65 @@
 # Changelog
 
+## [2.11.1] - 2026-06-15
+
+### Added
+
+- **page-spec 落盘 + spec-align 确定性比对（S1~S5）**：新增 `lib/page-spec.js` 引擎，把"按原型精准实现"从 AI 自觉升级为代码卡控。page-codegen 生成时落盘 `page-spec.json`（单一真值），`validate` 自动比对 `data.ts` 实际实现：
+  - S1 查询字段顺序（warn）/ S2 表格列顺序与集合（error）/ S3 工具栏按钮顺序·集合·颜色（error）/ S4 操作列按钮严格对应（error）/ S5 按钮·列 label 文字保真（warn）
+  - 同步接入 MCP `wls_validate_page`，CLI 与 MCP 双通道一致
+  - 新增 `.wl-skills/docs/page-spec-schema.md` 字段规范
+- **`wl-skills fix` 确定性机械修复（F1~F5）**：新增 `lib/safe-fix.js`，对幂等零语义偏差自动修复——BaseTable 补 `render-type="agGrid"`、`::v-deep`/`/deep/` → `:deep()`、行尾空白、文件末尾换行；支持 `--dry-run` 预览。语义级偏差仍交 AI/人工
+- **规则覆盖矩阵治理**：新增 `kit-internal/rule-coverage.md`，登记每条约定的执行器（R*/S*/regex/AI）；`lint-skills.js` 校验标记「阻断」的规则必须有确定性执行器，防止"文档约定"退化
+
+### Changed
+
+- **C_Splitter 彻底删除**：从 kit 移除 `C_Splitter` 组件（`onMounted` 冻结 vnode 导致响应式失效的 bug 写法），`lint-skills` 全量禁止 `<C_Splitter>` / `import C_Splitter`（无任何例外），standards/14 更新为"已删除"
+- page-codegen SKILL.md 新增"生成时落盘 page-spec.json + 自检跑 spec-align"硬约束
+- **维护链路统一 pnpm-first**：新增 `packageManager: pnpm@11.5.3`、`pnpm-lock.yaml`、`pnpm verify` / `pnpm ci`，删除 `package-lock.json`；npm 仅保留在 `npm pack` / `npm publish` 发版环节
+- **导出依赖安全替换**：`wl-skills export` 从存在高危漏洞的 `xlsx@0.18.5` 迁移到 `write-excel-file`，并将运行时 Node 基线提升到 `>=18`
+
+### Fixed
+
+- 修复 `scripts/verify-version.js` / `scripts/sync-version.js` / `scripts/lint-skills.js` 仍指向旧版 `.github/` 路径导致 v2.11 后完全失效的问题（统一迁移到 `.wl-skills/`）
+- 清理仓库根残留的旧版 `.wl-skills-manifest.json`（v2.6.0）
+- 移除仓库 `.npmrc` 中误提交的 npm token，仅保留 registry 配置；本地私密 npmrc 已加入 ignore
+- 修复 `export` 仍读取旧 `.github/reports` 的迁移漏点，现优先读取 `.wl-skills/reports` 并兼容旧目录
+
+## [2.11.0] - 2026-06-14
+
+### Changed
+
+- **目录架构重构：.github/ 散落 → .wl-skills/ 统一隔离**：所有 Skill、规范、指南、报告、文档、模板统一收纳到 `.wl-skills/` 目录，项目根目录仅保留 7 个编辑器入口薄壳文件，一步清理、一步还原
+- **入口文件薄壳化**：`copilot-instructions.md` 从 19KB 完整指令瘦身为 ~1KB 入口指引 + 内容目录，完整指令迁移到 `.wl-skills/copilot-instructions-full.md`（完整地图架构）
+- **完整地图架构**：入口文件包含完整 Skill 路由表（11 个 Skill + 触发词 + 读取路径）、14 条规范清单、10 个场景速查、5 条护栏，AI 读完入口即知全貌，无需追链
+- **_compat 适配层迁移**：`_compat/editors.json` + `headers/` 从 `.github/skills/_compat/` 移至 `.wl-skills/skills/_compat/`
+- **init/update 自动迁移**：`wl-skills update` 自动检测并清理旧版 `.github/skills|standards|guides|reports/` 目录，迁移到新结构
+- **clean 命令适配**：`--keep-reports` 同时兼容旧版 `.github/reports/` 和新版 `.wl-skills/reports/` 路径
+- **保护路径扩展**：`.wl-skills/src/components/` 和 `.wl-skills/src/types/` 纳入 clean 保护
+
+### Migration
+
+- 已安装 v2.10.x 的项目执行 `pnpm dlx @agile-team/wl-skills-kit@latest update` 即可自动迁移
+- 旧版 `.github/skills/`、`.github/standards/`、`.github/guides/`、`.github/reports/` 目录将被自动清理
+- `.github/copilot-instructions.md` 自动替换为薄壳入口
+
+## [2.10.1] - 2026-06-14
+
+### Added
+
+- **pre-commit 阻断修复建议输出**：`wl-skills validate` 阻断时自动输出格式化修复建议框，含 AST R1~R12 规则映射和正则检查建议，标注可自动修复项，引导触发 `规范审计 → 自动修复 → 复扫验证` 流程
+- **code-fix 强制复扫验证**：新增步骤[6]闭环关键步骤，修复完成后必须自动执行 `wl-skills validate` 复扫，用户不可跳过
+- **convention-audit --quick 复扫模式**：仅复查上次报告中的 🔴🟡 项，token 消耗约全量 10%，适用于 code-fix 后轻量级闭环验证
+- **_pipeline.md 闭环强化**：code-fix→validate 从"建议"升级为"强制"约定，新增强制执行 vs 建议执行对照表
+- **_registry.md 加固调度规则 10-12**：闭环强制约定、高风险 Skill 确认机制（page-codegen/sync 类/code-fix）、误触发防护
+- **_best-practices.md 场景 5 闭环补全**：完整闭环流程含强制复扫步骤和触发话术
+- **copilot-instructions.md AI 执行护栏**：新增 5 条强制约定（闭环强制、确认机制、误触发防护、Pre-flight 声明、修复建议输出规范）
+
+### Fixed
+
+- 修复 `printFixSuggestions` 对未知规则静默跳过的问题，新增兜底输出
+- 修复 copilot-instructions.md 高风险 Skill 列表与 _registry.md 不一致的问题
+
 ## [2.10.0] - 2026-05-31
 
 ### Added
@@ -54,7 +114,7 @@
 ### Notes
 
 - 测试矩阵：cli + lint-skills + doctor-ui + registry + version-tools 合计 **53 测试通过**
-- 升级路径：`npx @agile-team/wl-skills-kit@latest update` 同步 standards/14；CI 增挂 `wl-skills doctor-ui` 即可
+- 升级路径：`pnpm dlx @agile-team/wl-skills-kit@latest update` 同步 standards/14；CI 增挂 `wl-skills doctor-ui` 即可
 
 ## [2.9.1] - 2026-05-17
 
@@ -156,7 +216,7 @@
 
 ### Notes
 
-- 纯文档 + MCP 运行时增强，无 SDK 行为破坏性变更，业务项目 `npx @agile-team/wl-skills-kit update` 即可同步。
+- 纯文档 + MCP 运行时增强，无 SDK 行为破坏性变更，业务项目 `pnpm dlx @agile-team/wl-skills-kit update` 即可同步。
 
 ## [2.7.1] - 2026-05-13
 
@@ -177,7 +237,7 @@
 
 ### Notes
 
-- 纯文档修正，无功能变更，业务项目 `npx @agile-team/wl-skills-kit update` 即可同步最新文档
+- 纯文档修正，无功能变更，业务项目 `pnpm dlx @agile-team/wl-skills-kit update` 即可同步最新文档
 
 ## [2.7.0] - 2026-05-12
 
@@ -185,7 +245,7 @@
 
 - **CLI 未知 flag/命令防护**：`bin/wl-skills.js` 引入 `KNOWN_COMMANDS` / `KNOWN_FLAGS` 白名单。`node bin/wl-skills.js --version` 等未识别参数不再默认走 `init`，而是**退出非零并提示**，彻底消除 v2.6.x 时段被验证过的"误装风险"。
 - **MCP Tool auto-discovery**：新增 `mcp/registry.js` 集中维护 17 个工具描述符（含 `handle` / `needsBackendConfig`）。`mcp/server.js` 大幅瘦身（496 行 → 130 行），不再硬编码 17 项 switch case；新增 / 修改 Tool 仅改 `mcp/registry.js`。
-- **版本一致性自检脚本**：新增 `scripts/verify-version.js`（`npm run version:verify`），跨文件校验 `package.json#version` 与 CLI header / README / `guides/architecture.md` / headers 中描述行的一致性，并交叉校验 `_registry.md` 的 ✅ 启用 行数与 README / `package.json#description` 中的 "N 个 AI Skill" 数字一致。
+- **版本一致性自检脚本**：新增 `scripts/verify-version.js`（`pnpm version:verify`），跨文件校验 `package.json#version` 与 CLI header / README / `guides/architecture.md` / headers 中描述行的一致性，并交叉校验 `_registry.md` 的 ✅ 启用 行数与 README / `package.json#description` 中的 "N 个 AI Skill" 数字一致。
 - **prepublishOnly 守门**：`npm publish` 前自动运行 `version:verify` + `vitest run`，不一致或测试失败则阻断发版。
 - **vitest 单元测试**：`tests/registry.test.js`（17 项 Tool 描述符 / Skill 计数 / package.json 一致性，9 测试）+ `tests/cli.test.js`（A1 防护黑盒测试 + dry-run 隔离验证，6 测试）+ `tests/version-tools.test.js`（version 工具脚本，3 测试）。共 **18 测试**全绿。
 - 新增 `dict-sync` / `code-fix` 的 `USAGE.md`，与其他 8 个启用 Skill 文档结构一致。
@@ -199,10 +259,10 @@
 
 ### Notes
 
-- 业务项目升级 `npx @agile-team/wl-skills-kit update` 即可，无破坏性变更。
+- 业务项目升级 `pnpm dlx @agile-team/wl-skills-kit update` 即可，无破坏性变更。
 - 维护者新增 Skill：仅改 `_registry.md` 与 `_pipeline.md` + 写 SKILL.md/USAGE.md，**不再需要手改 sync-version 常量与 copilot Skill 表**。
 - 维护者新增 MCP Tool：仅改 `mcp/registry.js` 加一条描述符，**不再需要改 server.js**。
-- 验证：`npm run version:verify && npm test` 应全绿，CI 可直接接入。
+- 验证：`pnpm version:verify && pnpm test` 应全绿，CI 可直接接入。
 
 ## [2.6.0] - 2026-05-12
 
@@ -268,7 +328,7 @@
 ### Added
 
 - CLI 安装完成后新增 `@agile-team/wk-skills-ui` 可选桥接提醒，保持两包独立分工、不强耦合
-- 新增 `standards:init` 脚本，统一指向 `npx @robot-admin/git-standards init`
+- 新增 `standards:init` 脚本，统一指向 `pnpm dlx @robot-admin/git-standards init`
 - README 补充 wk-skills-ui 可选桥接说明与规范插件入口
 
 ## [2.4.0] - 2026-05-02
@@ -654,7 +714,7 @@
 
 ### 迁移指南（从 v1.x 升级）
 
-执行 `npx @agile-team/wl-skills-kit@latest update` 即可。注意：
+执行 `pnpm dlx @agile-team/wl-skills-kit@latest update` 即可。注意：
 
 1. 老的 `docs/SYS_MENU_INFO.md` 需手动迁移到 `reports/SYS_MENU_INFO.md`
 2. 老的 `docs/menu-sync-design.md` / `docs/wl-skills-kit.md` 已删除，相关内容见 `guides/architecture.md`

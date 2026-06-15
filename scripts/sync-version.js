@@ -34,7 +34,7 @@ const today = new Date().toISOString().slice(0, 10);
 function countEnabledSkills() {
   const registryPath = path.join(
     ROOT,
-    "files/.github/skills/_registry.md",
+    "files/.wl-skills/skills/_registry.md",
   );
   const content = fs.readFileSync(registryPath, "utf8");
   const matches = content.match(/^\|\s*[\w-]+\s*\|\s*✅\s*启用\s*\|/gm) || [];
@@ -74,7 +74,7 @@ const updates = [
     replace: `一键将 13 条规范、${SKILL_COUNT} 个 AI Skill、${MCP_TOOL_COUNT} 个 MCP Tool`,
   },
   {
-    file: "files/.github/guides/architecture.md",
+    file: "files/.wl-skills/guides/architecture.md",
     regex: /\*\*当前版本\*\*：v[\d.]+（[^）]+）/,
     replace: `**当前版本**：v${version}（${today}）`,
   },
@@ -89,17 +89,17 @@ const updates = [
     replace: `"description": "AI Skill 模板包 v${version} — 13 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目"`,
   },
   {
-    file: "files/.github/skills/_compat/headers/cursor-mdc.txt",
+    file: "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
     regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },
   {
-    file: "files/.github/skills/_compat/headers/trae.txt",
+    file: "files/.wl-skills/skills/_compat/headers/trae.txt",
     regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },
   {
-    file: "files/.github/skills/_compat/headers/kiro.txt",
+    file: "files/.wl-skills/skills/_compat/headers/kiro.txt",
     regex: SKILL_DESC_PATTERN,
     replace: SKILL_DESC_REPLACE,
   },

@@ -14,6 +14,7 @@
 | --------------- | -------- | ---------------------------------------------------- |
 | 拉代码 / 装依赖 | ★ 必须   | `pnpm install` / `npm ci`                            |
 | Lint            | ★ 必须   | ESLint + Prettier（依赖 @robot-admin/git-standards） |
+| 规范验证        | ★ 必须   | `wl-skills validate --strict`（正则 + AST，拦截 --no-verify） |
 | Typecheck       | ★ 必须   | `vue-tsc --noEmit`                                   |
 | 规范审计        | ☆ 推荐   | `convention-audit` Skill 输出报告作为 PR 评论        |
 | 单元测试        | ☆ 推荐   | 业务项目自定义                                       |
@@ -59,6 +60,15 @@ pipeline {
       parallel {
         stage('Lint')      { steps { sh 'pnpm lint' } }
         stage('Typecheck') { steps { sh 'pnpm typecheck' } }
+        stage('Convention Validate') {
+          when { expression { fileExists('node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js') } }
+          steps {
+            // wl-skills validate --strict: 正则 + AST 全量检测
+            // --strict 模式下 error 和 warn 都导致 CI 失败
+            // 这是 git --no-verify 绕过 pre-commit 后的唯一机器拦截
+            sh 'node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --strict || exit 1'
+          }
+        }
       }
     }
 

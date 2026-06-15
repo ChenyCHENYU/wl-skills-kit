@@ -1,7 +1,7 @@
 # kit-internal/ — 仓库维护者专属文档
 
 > ⚠️ **本目录仅 wl-skills-kit 仓库内可见**，不通过 npm 包安装到业务项目。
-> 业务项目使用方请阅读 `files/.github/guides/usage.md`。
+> 业务项目使用方请阅读 `files/.wl-skills/guides/usage.md`。
 
 ---
 
@@ -16,9 +16,9 @@
 
 ---
 
-## 与 `files/.github/guides/` 的区别
+## 与 `files/.wl-skills/guides/` 的区别
 
-| 维度     | `files/.github/guides/`       | `kit-internal/`               |
+| 维度     | `files/.wl-skills/guides/`       | `kit-internal/`               |
 | -------- | ----------------------------- | ----------------------------- |
 | 安装范围 | ✅ 安装到业务项目             | ❌ 仅在 kit 仓库可见          |
 | 读者     | 业务项目团队成员              | wl-skills-kit 维护者          |
@@ -33,7 +33,7 @@
 | --------------------------------- | ------------------------------------------------------ |
 | `README.md`                       | 本文件                                                 |
 | `CONTRIBUTING.md`                 | 如何向 kit 贡献（规范、模板、Skill）                   |
-| `architecture.md`                 | v2.0 架构升级 ADR（历史归档；v2.1 综合版见 `files/.github/guides/architecture.md`） |
+| `architecture.md`                 | v2.0 架构升级 ADR（历史归档；v2.1 综合版见 `files/.wl-skills/guides/architecture.md`） |
 | `standards.MAINTAIN.md`           | 13 条规范的维护要点                                    |
 | `templates.MAINTAIN.md`           | 模板分层与贡献流程要点                                 |
 | `skills/{skill-name}.MAINTAIN.md` | 各 Skill 的维护要点（避坑、扩展、版本演进）            |
@@ -43,7 +43,7 @@
 
 ## 当前维护重点
 
-- 发布前必须同步 `package.json`、`package-lock.json`、`CHANGELOG.md`、README 和业务项目内指南版本信息
-- 修改 CLI 生命周期能力时，同步更新 `files/.github/guides/usage.md`、`architecture.md`、`skills/_pipeline.md` 和 `_compat/README.md`
+- 发布前必须同步 `package.json`、`pnpm-lock.yaml`、`CHANGELOG.md`、README 和业务项目内指南版本信息
+- 修改 CLI 生命周期能力时，同步更新 `files/.wl-skills/guides/usage.md`、`architecture.md`、`skills/_pipeline.md` 和 `_compat/README.md`
 - `@agile-team/wk-skills-ui` 仅作为可选桥接提醒，不在 kit 内自动安装或强绑定
-- 新增/修改规范插件配置后，至少运行 `npm run lint`、`node --check bin/wl-skills.js`、`npm pack --dry-run`
+- 新增/修改规范插件配置后，至少运行 `pnpm lint`、`node --check bin/wl-skills.js`、`npm pack --dry-run --ignore-scripts`

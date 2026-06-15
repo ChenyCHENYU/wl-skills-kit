@@ -54,7 +54,7 @@ describe("mcp/registry.js", () => {
 describe("Skill 计数（_registry.md 单一数据源）", () => {
   it("✅ 启用 行数为 11", () => {
     const content = fs.readFileSync(
-      path.join(ROOT, "files/.github/skills/_registry.md"),
+      path.join(ROOT, "files/.wl-skills/skills/_registry.md"),
       "utf8",
     );
     const matches = content.match(/^\|\s*[\w-]+\s*\|\s*✅\s*启用\s*\|/gm) || [];
@@ -63,7 +63,7 @@ describe("Skill 计数（_registry.md 单一数据源）", () => {
 
   it("README.md 中的 N 个 AI Skill 与启用 Skill 数一致", () => {
     const registry = fs.readFileSync(
-      path.join(ROOT, "files/.github/skills/_registry.md"),
+      path.join(ROOT, "files/.wl-skills/skills/_registry.md"),
       "utf8",
     );
     const enabled = (
@@ -87,7 +87,7 @@ describe("package.json", () => {
 
   it("description 中的 N 个 AI Skill 与 _registry.md 一致", () => {
     const registry = fs.readFileSync(
-      path.join(ROOT, "files/.github/skills/_registry.md"),
+      path.join(ROOT, "files/.wl-skills/skills/_registry.md"),
       "utf8",
     );
     const enabled = (
