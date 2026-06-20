@@ -17,7 +17,7 @@
 | 06   | `06-security.md`            | 安全规范               | 🔴 必遵        |
 | 07   | `07-config.md`              | 配置管理               | 🔴 必遵        |
 | 08   | `08-git.md`                 | Git 分支 & 提交 + 审计 | 🔴 必遵        |
-| 09   | `09-typescript.md`          | TypeScript 类型        | 🟡 建议        |
+| 09   | `09-typescript.md`          | TypeScript 类型 + 类型错误零容忍 | 🔴 必遵 + 阻断 |
 | 10   | `10-pinia.md`               | Pinia 状态管理         | 🔴 必遵        |
 | 11   | `11-form-validation.md`     | 表单与校验             | 🔴 必遵        |
 | 12   | `12-base-table.md`          | BaseTable + AGGrid cid | 🔴 必遵        |
@@ -79,7 +79,7 @@
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表
 ```
 
-> **不要** 一次性读取全部 13 条。错误示范：`✅ 已读取 standards/01 ~ standards/13`（浪费 token，违反懒加载原则）。
+> **不要** 一次性读取全部 14 条。错误示范：`✅ 已读取 standards/01 ~ standards/14`（浪费 token，违反懒加载原则）。
 
 ---
 

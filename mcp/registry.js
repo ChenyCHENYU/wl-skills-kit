@@ -296,11 +296,16 @@ const DESCRIPTORS = [
   {
     name: "wls_validate_page",
     description:
-      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、mock-first、api.md 等。",
+      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、mock-first、api.md 等。开启 typecheck 额外执行 vue-tsc/tsc 类型检查（R14）。",
     inputSchema: {
       type: "object",
       properties: {
         path: { type: "string", description: "页面或目录路径，默认 src/views" },
+        typecheck: {
+          type: "boolean",
+          description:
+            "是否额外执行 vue-tsc/tsc --noEmit 类型检查（R14，体积较大，CI 场景开启）",
+        },
       },
       required: [],
     },

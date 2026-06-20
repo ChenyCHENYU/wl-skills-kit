@@ -21,6 +21,10 @@ const {
   runAstRules,
   countEffectiveLines,
   extractScriptInfo,
+  computeFunctionComplexity,
+  collectFunctions,
+  parseScriptAst,
+  runTypeCheck,
   hasAstAvailable,
   getStagedFiles,
   CONFIG,
@@ -43,6 +47,7 @@ describe("ast-rules 模块导出", () => {
     expect(CONFIG.FORBIDDEN_IMPORTS).toContain("postAction");
     expect(CONFIG.FORBIDDEN_GLOBALS).toContain("sessionStorage");
     expect(CONFIG.WARN_IMPORTS).toContain("useRoute");
+    expect(CONFIG.MAX_CYCLOMATIC_COMPLEXITY).toBe(10);
     expect(CONFIG.SKIP_DIRS).toContain("node_modules");
   });
 });
@@ -119,5 +124,123 @@ describe("getStagedFiles", () => {
     // tests 目录不是 git 根 → 返回空数组（或空）
     expect(files).toBeDefined();
     expect(files.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ─── R13 圈复杂度 ────────────────────────────────────────────────────
+describe("computeFunctionComplexity (R13)", () => {
+  const parseFn = (src) => {
+    const ast = parseScriptAst(src);
+    const fns = collectFunctions(ast);
+    return fns[0];
+  };
+
+  it("空函数复杂度为 1", () => {
+    const fn = parseFn("function f() {}");
+    expect(computeFunctionComplexity(fn.node)).toBe(1);
+  });
+
+  it("每个 if / for / while / case / 三元 / 逻辑运算符各 +1", () => {
+    // 1 + if + for + while + case2 + 三元 + (&&) + (||) = 1+1+1+1+2+1+1+1 = 9
+    const src =
+      "function f(a,b){if(a){}for(;;){}while(b){}switch(a){case 1:case 2:}return a?1:(b&&b)||b}";
+    const fn = parseFn(src);
+    expect(computeFunctionComplexity(fn.node)).toBe(9);
+  });
+
+  it("嵌套函数不计入父函数复杂度（各自独立）", () => {
+    // 父 f：1 + if = 2；嵌套 g：1 + 5 个 if = 6
+    const ast = parseScriptAst(
+      "function f(){ if(1){ function g(){ if(1){if(2){if(3){if(4){if(5){}}}}} } } }",
+    );
+    const fns = collectFunctions(ast);
+    const f = fns.find((x) => x.name === "f");
+    const g = fns.find((x) => x.name === "g");
+    expect(computeFunctionComplexity(f.node)).toBe(2);
+    expect(computeFunctionComplexity(g.node)).toBe(6);
+  });
+});
+
+describe("runAstRules R13 阻断", () => {
+  it("超阈值函数报 error", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r13-"));
+    const pageDir = path.join(dir, "src", "views", "m", "p");
+    fs.mkdirSync(pageDir, { recursive: true });
+    // 12 个 if → 复杂度 13 > 10
+    const ifs = "if(1){".repeat(12) + "}".repeat(12);
+    const vue =
+      '<template><BaseTable render-type="agGrid" :cid="c"/><jh-pagination/></template>\n' +
+      '<script setup lang="ts">function big(){' +
+      ifs +
+      "}</script>";
+    fs.writeFileSync(path.join(pageDir, "index.vue"), vue);
+
+    const r = runAstRules(dir, "src/views");
+    const r13 = r.issues.filter((i) => i.rule === "R13");
+    expect(r13.length).toBeGreaterThanOrEqual(1);
+    expect(r13[0].level).toBe("error");
+    expect(r13[0].text).toContain("圈复杂度");
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+// ─── R14 类型检查 ────────────────────────────────────────────────────
+describe("runTypeCheck (R14) 优雅降级", () => {
+  it("无 tsconfig.json 时降级为 warn 不阻断", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r14-"));
+    const tc = runTypeCheck(dir);
+    expect(tc.ran).toBe(false);
+    expect(tc.issues.length).toBe(1);
+    expect(tc.issues[0].level).toBe("warn");
+    expect(tc.issues[0].rule).toBe("R14");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("返回结构包含 issues / ran / errorCount", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r14b-"));
+    const tc = runTypeCheck(dir);
+    expect(tc).toHaveProperty("issues");
+    expect(tc).toHaveProperty("ran");
+    expect(tc).toHaveProperty("errorCount");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("有 checker 时解析标准 TS error 为 error 级（跨平台假 checker）", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r14c-"));
+    fs.writeFileSync(
+      path.join(dir, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { noEmit: true } }),
+    );
+    const binDir = path.join(dir, "node_modules", ".bin");
+    fs.mkdirSync(binDir, { recursive: true });
+    // 假 checker：--version 退出 0；否则输出标准 TS error 行并退出 1
+    const script = `#!/bin/sh
+if [ "$1" = "--version" ]; then echo "Version 5.0.0"; exit 0; fi
+echo 'src/x.ts(10,5): error TS2322: Type string is not assignable to type number.'
+exit 1`;
+    fs.writeFileSync(path.join(binDir, "tsc"), script, { mode: 0o755 });
+    // Windows 额外写 .cmd
+    fs.writeFileSync(
+      path.join(binDir, "tsc.cmd"),
+      '@echo off\r\nif "%1"=="--version" (echo Version 5.0.0 & exit /b 0)\r\necho src/x.ts(10,5): error TS2322: Type string is not assignable to type number.\r\nexit /b 1\r\n',
+    );
+    const tc = runTypeCheck(dir);
+    expect(tc.ran).toBe(true);
+    expect(tc.errorCount).toBe(1);
+    expect(tc.issues.length).toBe(1);
+    expect(tc.issues[0].level).toBe("error");
+    expect(tc.issues[0].rule).toBe("R14");
+    expect(tc.issues[0].text).toContain("TS2322");
+    expect(tc.issues[0].text).toContain("x.ts:10");
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });

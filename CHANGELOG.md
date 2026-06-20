@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.11.2] - 2026-06-21
+
+### Added
+
+- **R13 圈复杂度执行器（standard 04，阻断级）**：新增 `lib/ast-rules.js` 的 R13，对 `index.vue`/`data.ts` 的每个函数计算 McCabe 圈复杂度（与 ESLint `complexity` 规则定义一致），`> 10` 报 error 阻断提交。补齐 standard 04 第 14 条核心约定 + 降复杂度手法示例（提前 return / 查表驱动 / 抽子函数）
+- **R14 类型错误零容忍执行器（standard 09，阻断级）**：新增 `runTypeCheck`，委托 `vue-tsc --noEmit`（回退 `tsc`）解析 TS error；无 `tsconfig`/checker 时优雅降级 warn。CLI 新增 `--typecheck`、MCP `wls_validate_page` 新增 `typecheck` 入参双通道一致。CI 应固定 `validate --typecheck --strict`
+
+### Changed
+
+- **standard 09 由 🟡建议 升级为 🔴必遵 + 阻断**：`vue-tsc --noEmit` 必须 0 error，职责分离——ESLint 管风格，R14 管类型正确性
+- `rule-coverage.md` 执行器图例 R1~R12 → R1~R14，登记 R13/R14 两条阻断约定；`convention-audit` 维度 09 改为 R14 委托
+- `eslint.config.ts` 复杂度 `warn 60` 修正为 `warn 10`（项目级硬阻断由 R13 兜底，此处仅作 kit 自身开发提示）
+
 ## [2.11.1] - 2026-06-15
 
 ### Added

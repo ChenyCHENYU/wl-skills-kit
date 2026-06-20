@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.1
+ * wl-skills-kit CLI v2.11.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -27,6 +27,7 @@ const {
   runAstRules,
   getStagedFiles,
   hasAstAvailable,
+  runTypeCheck,
 } = require("../lib/ast-rules");
 
 // ─── page-spec 比对引擎（v2.11.1+，"约定 vs 代码"确定性核对）────────────
@@ -66,6 +67,7 @@ const KNOWN_FLAGS = new Set([
   "--all",
   "--pre-commit",
   "--strict",
+  "--typecheck",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -74,6 +76,7 @@ const keepReports = args.includes("--keep-reports");
 const force = args.includes("--force");
 const preCommit = args.includes("--pre-commit");
 const strict = args.includes("--strict");
+const typeCheck = args.includes("--typecheck");
 
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
 if (!showHelp) {
@@ -118,7 +121,8 @@ if (showHelp) {
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
     diff       对比已安装文件与当前 kit 版本的差异
     validate   静态检查 src/views 页面文件、AGGrid、skills-ui runtime、mock
-               v2.10.1+ 集成 AST 语义级检测（R1~R7），覆盖正则无法检测的规则
+               v2.10.1+ 集成 AST 语义级检测（R1~R14），覆盖正则无法检测的规则
+               R13 圈复杂度 / R14 类型错误（R14 需 --typecheck 开启）
     validate-page validate 的别名，适用于单页/目录检查
     doctor-ui  检查 @agile-team/wk-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
@@ -133,6 +137,8 @@ if (showHelp) {
     --all            mock-clean 清理全部 mock（保留 _utils.ts）
     --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
+    --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（R14 类型错误零容忍）
+                     体积较大，CI / pre-push 必跑，pre-commit 不建议开启
     --help           显示帮助
 
   示例:
@@ -142,6 +148,7 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit check                 检查本地环境
     pnpm dlx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
     pnpm dlx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
+    pnpm dlx @agile-team/wl-skills-kit validate --typecheck  含类型检查 R14（CI 用）
     pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
     pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wk-skills-ui 接入
     pnpm dlx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
@@ -1272,12 +1279,27 @@ function runValidate() {
     issues.push(...specIssues);
   }
 
+  // ── 类型检查 R14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
+  // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
+  // 无 tsconfig / 无 checker → 优雅降级为 warn，不阻断。
+  let tcRan = false;
+  let tcErrors = 0;
+  if (typeCheck) {
+    const tc = runTypeCheck(TARGET_DIR);
+    tcRan = tc.ran;
+    tcErrors = tc.errorCount || 0;
+    issues.push(...tc.issues);
+  }
+
   // ── 输出 ───────────────────────────────────────────────────────────
   console.log(
     "  页面目录: " +
       pages.length +
       (astResult.pages ? "（AST 扫描 " + astResult.pages + "）" : "") +
-      (specAlignedPages ? "（spec-align " + specAlignedPages + "）" : ""),
+      (specAlignedPages ? "（spec-align " + specAlignedPages + "）" : "") +
+      (typeCheck
+        ? "（类型检查 " + (tcRan ? "已执行 " + tcErrors + " error" : "已跳过") + "）"
+        : ""),
   );
   console.log("  提示项: " + issues.length);
   console.log("");
@@ -1384,6 +1406,8 @@ const AST_FIX_SUGGESTIONS = {
   R10: { fix: '\u66ff\u6362\u539f\u751f el-* \u7ec4\u4ef6\u4e3a\u5e73\u53f0\u5c01\u88c5\uff08jh-select/jh-date/jh-pagination \u7b49\uff09', ref: 'standards/13-platform-components.md', auto: true },
   R11: { fix: '\u4ece data.ts \u4e2d\u79fb\u9664 Pinia Store import\uff0cStore \u5e94\u5728\u7ec4\u4ef6\u5c42\u4f7f\u7528', ref: 'standards/10-pinia.md', auto: true },
   R12: { fix: '\u5c06\u786c\u7f16\u7801 IP/URL \u79fb\u81f3 .env.* \u73af\u5883\u53d8\u91cf', ref: 'standards/07-config.md', auto: true },
+  R13: { fix: '\u62c6\u5206\u9ad8\u590d\u6742\u5ea6\u51fd\u6570\uff1a\u6309\u804c\u8d23\u62bd\u53d6\u5b50\u51fd\u6570\u3001\u7528\u63d0\u524d return \u4ee3\u66ff\u5d4c\u5957 if\u3001\u67e5\u8868\u9a71\u52a8\u53d6\u4ee3 if-else \u94fe\u3001\u7b56\u7565\u6a21\u5f0f\u6d88\u9664\u591a\u5206\u652f', ref: 'standards/04-coding-basics.md', auto: false },
+  R14: { fix: '\u6309 TS \u9519\u8bef\u4fee\u590d\u7c7b\u578b\uff08\u8865\u7c7b\u578b\u6807\u6ce8 / \u4fee\u6b63\u8c03\u7528\u53c2\u6570 / \u8865 any \u8fb9\u754c\u6ce8\u91ca\uff09\uff1b\u672a\u88c5 vue-tsc \u65f6\u5b89\u88c5\u540e\u7eb3\u5165 CI', ref: 'standards/09-typescript.md', auto: false },
   // S 系列：page-spec 约定 vs 代码确定性核对（v2.11.1+）
   S0: { fix: '\u4fee\u6b63 page-spec.json \u7ed3\u6784\uff08page/query/columns/toolbar/operations\uff09', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: false },
   S1: { fix: '\u8c03\u6574 queryDef() \u67e5\u8be2\u5b57\u6bb5\u987a\u5e8f\u4e0e page-spec.json query \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },

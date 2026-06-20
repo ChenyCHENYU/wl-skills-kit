@@ -12,7 +12,7 @@
 
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
-| `R1~R12` | AST 语义级 | `lib/ast-rules.js` | ✅ 确定性 |
+| `R1~R14` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S5` | page-spec 比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
 | `AI` | 仅 SKILL.md 约定 | 各 `SKILL.md` | ⚠️ 非确定性（靠 AI 自觉） |
@@ -39,6 +39,8 @@
 | standards/07 | 禁止硬编码 IP/URL | R12 | error/warn | 是 |
 | standards/14 | 禁用 C_Splitter | regex | error | 是 |
 | standards/04 | 禁止空 onClick | regex | error | 是 |
+| standards/04 | 单函数圈复杂度 ≤ 10（Mcabe） | **R13** | error | 是 |
+| standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **R14** | error | 是 |
 | page-codegen 10 | 查询字段顺序 = 原型顺序 | **S1** | warn | 否 |
 | page-codegen 11 | 表格列顺序 = 原型顺序 | **S2** | error | 是 |
 | page-codegen 12 | 工具栏按钮顺序/颜色 = 原型 | **S3** | error | 是 |
@@ -69,8 +71,13 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `R1~R12` → 检查 `lib/ast-rules.js` 中存在对应 `rule: "R*"`
+- `R1~R14` → 检查 `lib/ast-rules.js` 中存在对应 `rule: "R*"`
 - `S1~S5` → 检查 `lib/page-spec.js` 中存在对应 `rule: "S*"`
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。
+
+> **R14 触发约定**：R14 执行器已实现（`runTypeCheck`），但体积较大（整项目 `vue-tsc --noEmit`），
+> `validate` 默认不跑，需显式 `--typecheck`（CLI）/ `typecheck:true`（MCP）触发。
+> 无 `tsconfig.json` 或无 checker 时优雅降级为 warn。CI 流水线应固定执行
+> `wl-skills validate --typecheck --strict` 把 R14 纳入合并门禁。

@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const https = require("https");
-const { runAstRules } = require("../../lib/ast-rules");
+const { runAstRules, runTypeCheck } = require("../../lib/ast-rules");
 const { alignPage } = require("../../lib/page-spec");
 
 function getProjectRoot() {
@@ -209,6 +209,14 @@ async function handleValidatePage(args) {
     const absDir = path.join(root, page.dir);
     const { issues: specIssues } = alignPage(absDir, page.dir);
     for (const iss of specIssues) {
+      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
+    }
+  }
+
+  // ── 类型检查 R14（v2.11.2+，仅当 typecheck:true 触发）─────────────────
+  if (args && args.typecheck) {
+    const tc = runTypeCheck(root);
+    for (const iss of tc.issues) {
       issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
     }
   }

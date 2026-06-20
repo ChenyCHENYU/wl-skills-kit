@@ -112,7 +112,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 06 | 安全规范 | 静态扫描 | `v-html` 无注释 / `import axios` / `eval` / `new Function` → 🔴 |
 | 07 | 配置管理 | 静态扫描 | 硬编码 `http://` IP → 🔴；API 路径散落 → 🟡 |
 | 08 | Git 规范 | Git 命令 + 文件检测 | 工具链缺失 → 🔴；分支名不规范 → 🟡；近期提交不规范 → 🟡；历史 → 🟢 |
-| 09 | TypeScript | tsc / ESLint 委托 | AI 不逐文件做类型推导，读取工具链输出归类；`any` 滥用 → 🟡 |
+| 09 | TypeScript 类型 + 类型错误 | R14（vue-tsc/tsc 委托）+ AI | 类型检查器缺失 → 🔴；`vue-tsc --noEmit` 非 0 → 🔴；`any` 滥用 → 🟡 |
 | 10 | Pinia | 静态扫描 | `data.ts` 内 import Store → 🔴 |
 | 11 | 表单校验 | AI 场景判断 | FORM_ROUTE 缺 validate / resetFields → 🔴 |
 | 12 | BaseTable + cid | 静态 + 场景判断 | 主列表用 el-table → 🔴；cid 缺失/重复 → 🔴；弹窗小表格见豁免规则 |
@@ -158,14 +158,14 @@ description: "Use when: auditing project source code against the 14 modular stan
 1. 读取 `standards/01 ~ 14` 全部规范文件
 2. 检测工具链状态：
    - ESLint：是否可执行
-   - TypeScript：`tsc --noEmit` 是否可执行
+   - TypeScript：`vue-tsc --noEmit`（回退 `tsc --noEmit`）是否可执行、是否 0 error（R14）
    - Git：当前分支 / 最近提交
    - Husky：`.husky/pre-commit`、`.husky/commit-msg` 是否存在
 3. 读取 `package.json` 获取项目脚本名称
 
 ### 步骤 3：扫描源码
 
-逐个文件检查 13 个维度。同时记录：
+逐个文件检查 14 个维度。同时记录：
 
 - **扫描统计**：目录数、文件数、页面数、类型分布
 - **跨页面相同 el-\* 模式**（统计出现次数和位置）
