@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.11.3",
-  "description": "AI Skill 模板包 v2.11.3 — 14 条编码规范 + 11 个 AI Skill + 17 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
+  "version": "2.11.4",
+  "description": "AI Skill 模板包 v2.11.4 — 14 条编码规范 + 11 个 AI Skill + 17 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
   "main": "./bin/wl-skills.js",
   "packageManager": "pnpm@11.5.3",
   "bin": {
@@ -48,11 +48,11 @@
     "lint:skills": "node scripts/lint-skills.js",
     "test": "vitest run",
     "version:verify": "node scripts/verify-version.js",
-    "verify": "pnpm version:verify && pnpm lint:skills && pnpm test",
+    "verify": "pnpm version:verify && pnpm lint && pnpm lint:skills && pnpm test",
     "ci": "pnpm install --frozen-lockfile && pnpm verify",
     "pack:dry": "npm pack --dry-run --ignore-scripts",
     "release:check": "pnpm verify && npm pack --dry-run --ignore-scripts",
-    "prepublishOnly": "node scripts/verify-version.js && node scripts/lint-skills.js && vitest run"
+    "prepublishOnly": "node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.20.0",
@@ -90,7 +90,13 @@
     }
   },
   "lint-staged": {
-    "src/**/*.{js,jsx,ts,tsx,vue}": [
+    "bin/**/*.js": [
+      "eslint --fix --no-cache"
+    ],
+    "lib/**/*.js": [
+      "eslint --fix --no-cache"
+    ],
+    "scripts/**/*.js": [
       "eslint --fix --no-cache"
     ]
   },

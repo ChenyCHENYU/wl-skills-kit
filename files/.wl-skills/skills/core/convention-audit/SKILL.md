@@ -160,8 +160,9 @@ description: "Use when: auditing project source code against the 14 modular stan
    - ESLint：是否可执行
    - TypeScript：`vue-tsc --noEmit`（回退 `tsc --noEmit`）是否可执行、是否 0 error（R14）
    - Git：当前分支 / 最近提交
-   - Husky：`.husky/pre-commit`、`.husky/commit-msg` 是否存在
+   - Husky：`.husky/pre-commit`、`.husky/pre-push`、`.husky/commit-msg` 是否存在
 3. 读取 `package.json` 获取项目脚本名称
+4. **读取豁免配置**（v2.11.4+）：如项目根存在 `.wl-skills-validate.json`，解析其中所有豁免条目（paths / rules / reason），在报告中单列"豁免项复核清单"，供人工逐条确认是否仍需豁免
 
 ### 步骤 3：扫描源码
 

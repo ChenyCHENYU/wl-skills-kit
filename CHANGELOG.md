@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.11.4] - 2026-06-21
+
+### Added
+
+- **R14 类型检查自动接线（pre-push hook）**：`init`/`update` 自动创建 `.husky/pre-push`，推送前跑 `validate --typecheck`（R14 vue-tsc 类型检查）。补齐"pre-commit 跑 R1~R13、pre-push 跑 R14、CI 跑 R1~R14"三层确定性兜底，R14 不再是 opt-in 空规则
+- **validate 端到端集成测试（tests/validate.test.js）**：通过真实 CLI 二进制跑完整 validate 流程，覆盖正则级（agGrid/cid/defineColumns）+ AST 级（R3/R13）+ 合规页 + 豁免配置。补齐 runValidate 主体的零覆盖缺口（"自吃狗粮"）
+- **convention-audit 豁免项复核**：审计步骤新增"读取 .wl-skills-validate.json 列出所有豁免条目"，供人工逐条确认豁免是否仍需保留（豁免审计闭环）
+
+### Changed
+
+- **kit 自身代码质量门禁修复**：修复 13 个 eslint error（8 处未用变量 + 4 处嵌套过深 + 1 处死代码），`lint-staged` 匹配范围从无效的 `src/**` 改为 `bin/lib/scripts/**`，`pnpm lint` 纳入 `verify`/`prepublishOnly`。kit 自身代码不再绕开规范
+- **runAstRules 重构降复杂度**：抽出 `checkR8FileSeparation`/`checkR13Complexity` 独立 helper，降低主函数圈复杂度（84→更低），消除 R9 死代码（hasInterfaceTable/hasEntityDef）
+
+### Fixed
+
+- **jenkins-pipeline.md 滞后**：3 处 `.github/` → `.wl-skills/`（v2.11.0 目录迁移遗留未同步）；Typecheck 独立 stage 合并进 `validate --strict --typecheck`（R14 不再割裂）
+- **R14 配置错误误报**：`vue-tsc` 退出码非 0 但无标准 TS error 行时，区分 tsconfig 配置问题（warn，非类型错误）与未知失败（error），避免误导用户改类型
+- **lint-skills printFixSuggestions 残留**：`.github/standards/` 引用修正为 `.wl-skills/`
+
 ## [2.11.3] - 2026-06-21
 
 ### Added

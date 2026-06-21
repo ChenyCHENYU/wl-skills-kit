@@ -14,8 +14,7 @@
 | --------------- | -------- | ---------------------------------------------------- |
 | 拉代码 / 装依赖 | ★ 必须   | `pnpm install` / `npm ci`                            |
 | Lint            | ★ 必须   | ESLint + Prettier（依赖 @robot-admin/git-standards） |
-| 规范验证        | ★ 必须   | `wl-skills validate --strict`（正则 + AST，拦截 --no-verify） |
-| Typecheck       | ★ 必须   | `vue-tsc --noEmit`                                   |
+| 规范验证        | ★ 必须   | `wl-skills validate --strict --typecheck`（正则 + AST + 类型检查，拦截 --no-verify） |
 | 规范审计        | ☆ 推荐   | `convention-audit` Skill 输出报告作为 PR 评论        |
 | 单元测试        | ☆ 推荐   | 业务项目自定义                                       |
 | 构建            | ★ 必须   | `vite build`                                         |
@@ -59,26 +58,27 @@ pipeline {
     stage('Quality Gates') {
       parallel {
         stage('Lint')      { steps { sh 'pnpm lint' } }
-        stage('Typecheck') { steps { sh 'pnpm typecheck' } }
         stage('Convention Validate') {
           when { expression { fileExists('node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js') } }
           steps {
-            // wl-skills validate --strict: 正则 + AST 全量检测
-            // --strict 模式下 error 和 warn 都导致 CI 失败
-            // 这是 git --no-verify 绕过 pre-commit 后的唯一机器拦截
-            sh 'node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --strict || exit 1'
+            // wl-skills validate --strict --typecheck:
+            //   正则 + AST 全量检测（R1~R13）+ vue-tsc/tsc 类型检查（R14）
+            //   --strict 模式下 error 和 warn 都导致 CI 失败
+            //   --typecheck 把 R14 类型错误零容忍纳入合并门禁（与 validate 合一，不再割裂）
+            //   这是 git --no-verify 绕过 pre-commit 后的唯一机器拦截
+            sh 'node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --strict --typecheck || exit 1'
           }
         }
       }
     }
 
     stage('Convention Audit') {
-      when { expression { fileExists('.github/skills/core/convention-audit/SKILL.md') } }
+      when { expression { fileExists('.wl-skills/skills/core/convention-audit/SKILL.md') } }
       steps {
         // 由 AI 编辑器在 PR 流程外触发；CI 仅校验已有报告未过期
         sh '''
-          if [ -d .github/reports ]; then
-            latest=$(ls -t .github/reports/AUDIT_HUMAN_*.md 2>/dev/null | head -1)
+          if [ -d .wl-skills/reports ]; then
+            latest=$(ls -t .wl-skills/reports/AUDIT_HUMAN_*.md 2>/dev/null | head -1)
             if [ -z "$latest" ]; then
               echo "::warning::未发现 AUDIT_HUMAN 报告，建议提交前运行 convention-audit Skill"
             fi
@@ -146,7 +146,7 @@ pipeline {
 
 关键约束（无论用哪个平台）：
 
-1. `Lint` + `Typecheck` 必须阻断 PR 合并
+1. `Lint` + `Convention Validate --strict --typecheck`（含 R14 类型检查）必须阻断 PR 合并
 2. PROD 部署必须**人工审批 + 双人 release manager**
 3. 制品保留 ≥ 30 天，便于回滚
 4. 失败通知 ≤ 5 分钟内到群

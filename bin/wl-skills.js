@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.3
+ * wl-skills-kit CLI v2.11.4
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -26,7 +26,6 @@ const crypto = require("crypto");
 const {
   runAstRules,
   getStagedFiles,
-  hasAstAvailable,
   runTypeCheck,
 } = require("../lib/ast-rules");
 
@@ -382,6 +381,7 @@ function runInstall(incremental) {
   // 这样即使 early-return（同版本跳过文件复制），hook 也会被创建/更新
   if (!dryRun) {
     ensurePreCommitHook(TARGET_DIR);
+    ensurePrePushHook(TARGET_DIR);
     ensureEslintConfig(TARGET_DIR);
   }
 
@@ -517,21 +517,20 @@ function runInstall(incremental) {
     // v2.11 目录重构迁移：.github/skills|standards|guides|reports/ → .wl-skills/
     for (const prefix of LEGACY_DIR_PREFIXES) {
       const legacyDir = path.join(TARGET_DIR, prefix);
-      if (fs.existsSync(legacyDir)) {
-        const legacyFiles = walkDir(legacyDir, legacyDir);
-        for (const f of legacyFiles) {
-          const legacyFile = path.join(legacyDir, f);
-          if (dryRun) {
-            console.log("  迁移清理  " + prefix + f + "  (v2.11 目录重构)");
-          } else {
-            removeFileAndEmptyParents(legacyFile);
-          }
-          migrated++;
+      if (!fs.existsSync(legacyDir)) continue;
+      const legacyFiles = walkDir(legacyDir, legacyDir);
+      for (const f of legacyFiles) {
+        const legacyFile = path.join(legacyDir, f);
+        if (dryRun) {
+          console.log("  迁移清理  " + prefix + f + "  (v2.11 目录重构)");
+        } else {
+          removeFileAndEmptyParents(legacyFile);
         }
-        // 删除空目录
-        if (!dryRun && fs.existsSync(legacyDir)) {
-          try { fs.rmSync(legacyDir, { recursive: true, force: true }); } catch {}
-        }
+        migrated++;
+      }
+      // 删除空目录
+      if (!dryRun && fs.existsSync(legacyDir)) {
+        try { fs.rmSync(legacyDir, { recursive: true, force: true }); } catch {}
       }
     }
 
@@ -642,7 +641,6 @@ function runInstall(incremental) {
  */
 function ensurePreCommitHook(targetDir) {
   const huskyDir = path.join(targetDir, ".husky");
-  const preCommitPath = path.join(huskyDir, ".husky/pre-commit");
 
   // 只有 git 仓库才创建 husky hook
   if (!fs.existsSync(path.join(targetDir, ".git"))) return;
@@ -719,6 +717,58 @@ function ensurePreCommitHook(targetDir) {
     try { fs.chmodSync(preCommitFile, 0o755); } catch {}
     console.log("  ✔ 已在 .husky/pre-commit 追加 wl-skills validate（提交前规范检测）");
     console.log("    → kit 未安装时自动跳过，不阻断提交");
+    console.log("");
+  }
+}
+
+/**
+ * 确保 .husky/pre-push 包含 wl-skills validate --typecheck
+ * — pre-push 跑全量类型检查（R14），补 pre-commit 不跑 R14 的缺口
+ *
+ * 设计理由：pre-commit 跑全量 vue-tsc 太慢（拖慢日常提交），
+ * 但 pre-push 频率低、可接受耗时，且 CI 也跑相同命令。
+ * 这样 R14 在"推送到远程"和"CI"两个节点都有确定性执行器兜底。
+ *
+ * 策略同 pre-commit：不存在则创建，存在但无 marker 则追加。
+ */
+function ensurePrePushHook(targetDir) {
+  const huskyDir = path.join(targetDir, ".husky");
+  if (!fs.existsSync(path.join(targetDir, ".git"))) return;
+  if (!fs.existsSync(huskyDir)) return;
+
+  const HOOK_VERSION_TAG = "# wl-skills-prepush-hook-v1";
+  const pushContent =
+    "#!/usr/bin/env sh\n" +
+    HOOK_VERSION_TAG + "\n" +
+    "# wl-skills-kit 自动管理：推送前全量类型检查（R14，error 阻断推送）\n" +
+    "# 含 vue-tsc/tsc --noEmit，体积较大故放 pre-push 而非 pre-commit\n" +
+    "# 如果 node_modules 不存在或 kit 未安装，优雅跳过，不阻断推送\n" +
+    'if [ -f "node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js" ]; then\n' +
+    '  node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --typecheck\n' +
+    "  if [ $? -ne 0 ]; then\n" +
+    '    echo ""\n' +
+    '    echo "  ✖ 类型检查/规范检测未通过，推送已阻断（R14 类型错误零容忍）"\n' +
+    '    echo "  → 修复后重新 git push，或单独 commit 后用 --no-verify 跳过（CI 仍会拦截）"\n' +
+    "    exit 1\n" +
+    "  fi\n" +
+    "else\n" +
+    '  echo "  ⚠ wl-skills-kit 未安装，跳过推送前类型检查"\n' +
+    "fi\n";
+
+  const pushFile = path.join(huskyDir, "pre-push");
+  if (!fs.existsSync(pushFile)) {
+    fs.writeFileSync(pushFile, pushContent, "utf8");
+    try { fs.chmodSync(pushFile, 0o755); } catch {}
+    console.log("  ✔ 已创建 .husky/pre-push（推送前自动运行 wl-skills validate --typecheck）");
+    console.log("    → R14 类型检查在 pre-push 兜底（pre-commit 太慢不放这）");
+    console.log("");
+  } else {
+    const existing = fs.readFileSync(pushFile, "utf8");
+    if (existing.includes(HOOK_VERSION_TAG)) return;
+    const addition = "\n" + pushContent.replace("#!/usr/bin/env sh\n", "");
+    fs.writeFileSync(pushFile, existing.trimEnd() + "\n" + addition, "utf8");
+    try { fs.chmodSync(pushFile, 0o755); } catch {}
+    console.log("  ✔ 已在 .husky/pre-push 追加 wl-skills validate --typecheck（R14 类型检查）");
     console.log("");
   }
 }
@@ -1433,15 +1483,13 @@ function printFixSuggestions(blockingIssues) {
   console.log("  \u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
 
   let hasAutoFix = false;
-  let hasUnknownIssue = false;
   for (const [rule, ruleIssues] of ruleGroups.entries()) {
     const suggestion = AST_FIX_SUGGESTIONS[rule] || findRegexSuggestion(ruleIssues[0].text);
     const count = ruleIssues.length;
     if (!suggestion) {
       // 免底：未知规则的阻断项也要展示，避免用户看不到任何提示
-      hasUnknownIssue = true;
       console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09 [\u2753\u672a\u77e5\u89c4\u5219]");
-      console.log("  \u2502    \u2192 \u8bf7\u67e5\u770b .github/standards/ \u76f8\u5173\u89c4\u8303\u6216\u89e6\u53d1\u89c4\u8303\u5ba1\u8ba1");
+      console.log("  \u2502    \u2192 \u8bf7\u67e5\u770b .wl-skills/standards/ \u76f8\u5173\u89c4\u8303\u6216\u89e6\u53d1\u89c4\u8303\u5ba1\u8ba1");
       console.log("  \u2502");
       continue;
     }
@@ -1449,7 +1497,7 @@ function printFixSuggestions(blockingIssues) {
     if (suggestion.auto) hasAutoFix = true;
     console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09" + autoTag);
     console.log("  \u2502    \u2192 " + suggestion.fix);
-    console.log("  \u2502    \u53c2\u8003: .github/" + suggestion.ref);
+    console.log("  \u2502    \u53c2\u8003: .wl-skills/" + suggestion.ref);
     console.log("  \u2502");
   }
 
