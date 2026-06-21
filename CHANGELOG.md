@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.11.3] - 2026-06-21
+
+### Added
+
+- **validate 项目级豁免配置（零功能影响）**：业务项目根可放 `.wl-skills-validate.json`，对表单设计器/行内编辑明细表等 BaseTable 受限场景批量豁免 `R3`/`R10`，kit 不主动创建、不存在时行为完全不变。新增 `lib/ast-rules.js` 的 `loadExemptions`，`runAstRules` 内部加载（CLI/MCP 自动一致）；与单文件注释豁免（`wl-skills:ignore R3`）互补。配置 schema 详见 `.wl-skills/docs/validate-exempt.md`
+- **standards/12 豁免规则重写**：明确"标准列表强制 BaseTable+AGGrid / BaseTable 可胜任仍优先 BaseTable / BaseTable 受限特殊场景可降级 el-table"三层优先级，两层豁免机制（单文件注释 + 项目级配置），不再一棍子拍死
+
+### Fixed
+
+- **README/脚本系统性滞后修正**：v2.11.0 目录从 `.github/` 迁移到 `.wl-skills/` 后，README 大量路径残留未同步；`sync-version.js`/`verify-version.js` 仍硬编码"13 条"（规范已升 14 条），导致 verify-version 的 headers 校验**静默失效**、`npm version` 触发 sync-version 会把"14 条"**回写成 13 条**。全部修正为 14 条 + `.wl-skills/` 路径，校验链路恢复
+- `_compat/headers/{cursor-mdc,trae,kiro}.txt` 源文件注释 `.github/copilot-instructions.md` → `.wl-skills/copilot-instructions-full.md`
+
 ## [2.11.2] - 2026-06-21
 
 ### Added

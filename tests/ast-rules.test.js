@@ -25,6 +25,7 @@ const {
   collectFunctions,
   parseScriptAst,
   runTypeCheck,
+  loadExemptions,
   hasAstAvailable,
   getStagedFiles,
   CONFIG,
@@ -187,7 +188,84 @@ describe("runAstRules R13 阻断", () => {
   });
 });
 
-// ─── R14 类型检查 ────────────────────────────────────────────────────
+// ─── 项目级豁免配置 ──────────────────────────────────────────────────
+describe("loadExemptions (配置豁免)", () => {
+  const setup = (cfgObj) => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-ex-"));
+    if (cfgObj !== undefined) {
+      fs.writeFileSync(
+        path.join(dir, ".wl-skills-validate.json"),
+        JSON.stringify(cfgObj),
+      );
+    }
+    return dir;
+  };
+  const rm = (dir) => require("fs").rmSync(dir, { recursive: true, force: true });
+
+  it("无配置文件 → 全不豁免", () => {
+    const dir = setup(undefined);
+    const ex = loadExemptions(dir);
+    expect(ex.source).toBeNull();
+    expect(ex.isExempt("src/views/x", "R3")).toBe(false);
+    rm(dir);
+  });
+
+  it("精确目录 / 子目录 / glob 前缀命中，规则大小写不敏感", () => {
+    const dir = setup({
+      exemptions: [
+        {
+          paths: ["src/views/designer", "src/views/builder/**"],
+          rules: ["r3"],
+          reason: "表单设计器",
+        },
+      ],
+    });
+    const ex = loadExemptions(dir);
+    expect(ex.isExempt("src/views/designer", "R3")).toBe(true);
+    expect(ex.isExempt("src/views/designer/sub/x", "R3")).toBe(true);
+    expect(ex.isExempt("src/views/builder/x", "R3")).toBe(true);
+    expect(ex.isExempt("src/views/sale/list", "R3")).toBe(false);
+    expect(ex.isExempt("src/views/designer", "R10")).toBe(false);
+    rm(dir);
+  });
+
+  it("格式错误 → 降级 warn，不豁免", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-bad-"));
+    fs.writeFileSync(path.join(dir, ".wl-skills-validate.json"), "{ broken");
+    const ex = loadExemptions(dir);
+    expect(ex.warnings.length).toBe(1);
+    expect(ex.isExempt("src/x", "R3")).toBe(false);
+    rm(dir);
+  });
+
+  it("runAstRules 中 R3 命中豁免不报错", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r3ex-"));
+    fs.writeFileSync(
+      path.join(dir, ".wl-skills-validate.json"),
+      JSON.stringify({
+        exemptions: [
+          { paths: ["src/views/designer"], rules: ["R3"], reason: "x" },
+        ],
+      }),
+    );
+    const pageDir = path.join(dir, "src", "views", "designer", "p");
+    fs.mkdirSync(pageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pageDir, "index.vue"),
+      '<template><el-table><el-table-column/></el-table></template>',
+    );
+    const r = runAstRules(dir, "src/views");
+    const r3 = r.issues.filter((i) => i.rule === "R3");
+    expect(r3.length).toBe(0);
+    rm(dir);
+  });
+});
 describe("runTypeCheck (R14) 优雅降级", () => {
   it("无 tsconfig.json 时降级为 warn 不阻断", () => {
     const fs = require("fs");

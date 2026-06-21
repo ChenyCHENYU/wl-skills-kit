@@ -6,8 +6,8 @@
  *   - bin/wl-skills.js              CLI header 注释
  *   - README.md                      标题行
  *   - package.json#description       npm 页面描述
- *   - files/.github/guides/architecture.md   "当前版本"
- *   - files/.github/skills/_compat/headers/{cursor-mdc, kiro, trae}.txt 描述行
+ *   - files/.wl-skills/guides/architecture.md   "当前版本"
+ *   - files/.wl-skills/skills/_compat/headers/{cursor-mdc, kiro, trae}.txt 描述行
  *
  * 同时校验：
  *   - README.md 中的 "{N} 个 AI Skill" 与 _registry.md ✅ 启用 行数一致
@@ -121,7 +121,7 @@ if (descSkillMatch && parseInt(descSkillMatch[1], 10) !== enabledCount) {
   );
 }
 
-// headers/*.txt 中 "13 条标准 + N 个 Skill" 描述也校验
+// headers/*.txt 中 "14 条标准 + N 个 Skill" 描述也校验
 for (const headerFile of [
   "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
   "files/.wl-skills/skills/_compat/headers/trae.txt",
@@ -133,7 +133,7 @@ for (const headerFile of [
   } catch {
     continue;
   }
-  const m = content.match(/13 条标准 \+ (\d+) 个 Skill 自动调度/);
+  const m = content.match(/14 条标准 \+ (\d+) 个 Skill 自动调度/);
   if (m && parseInt(m[1], 10) !== enabledCount) {
     errors.push(
       `${headerFile}: '${m[0]}' 与 _registry.md ✅ 启用 (${enabledCount}) 不一致`,

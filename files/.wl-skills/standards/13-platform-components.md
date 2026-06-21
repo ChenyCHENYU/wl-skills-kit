@@ -116,6 +116,7 @@ export function createPage() {
 
 - [ ] 查询区使用了 BaseQuery，没有自己写 el-form？
 - [ ] 表格使用了 BaseTable + agGrid + cid，没有用 el-table？
+      （BaseTable 受限的特殊场景如表单/设计器内嵌表格，登记豁免后可用 el-table，见 standards/12 §豁免规则）
 - [ ] 弹窗使用了 c_formModal / c_listModal，没有手写 el-dialog？
 - [ ] 日期组件用了 jh-date 系列，没有用 el-date-picker？
 - [ ] HTTP 请求都走 `this.getAction / postAction`，没有 import axios？

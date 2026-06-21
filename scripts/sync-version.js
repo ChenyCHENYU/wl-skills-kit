@@ -4,10 +4,10 @@
  *
  * 由 npm version 钩子触发，将 package.json 的新版本号同步到：
  *   - README.md                              头部标题行
- *   - files/.github/guides/architecture.md  "当前版本" 行
+ *   - files/.wl-skills/guides/architecture.md  "当前版本" 行
  *   - bin/wl-skills.js                       顶部注释行
  *   - package.json description               npm 页面描述
- *   - files/.github/skills/_compat/headers/  三个含版本描述的 header 文件
+ *   - files/.wl-skills/skills/_compat/headers/  三个含版本描述的 header 文件
  *
  * 同时维护「Skill 数量」常量：当 _registry.md 中 ✅ 启用 的行数变化时，
  * 手动更新下方 SKILL_COUNT，sync-version 会自动将其同步到所有引用处。
@@ -59,8 +59,8 @@ function countMcpTools() {
 const MCP_TOOL_COUNT = countMcpTools();
 // ──────────────────────────────────────────────────────────────────────────────
 
-const SKILL_DESC_PATTERN = /13 条标准 \+ \d+ 个 Skill 自动调度/g;
-const SKILL_DESC_REPLACE = `13 条标准 + ${SKILL_COUNT} 个 Skill 自动调度`;
+const SKILL_DESC_PATTERN = /14 条标准 \+ \d+ 个 Skill 自动调度/g;
+const SKILL_DESC_REPLACE = `14 条标准 + ${SKILL_COUNT} 个 Skill 自动调度`;
 
 const updates = [
   {
@@ -70,8 +70,8 @@ const updates = [
   },
   {
     file: "README.md",
-    regex: /一[条键]将 13 条(?:编码)?规范、\d+ 个 AI Skill、\d+ 个 MCP Tool/g,
-    replace: `一键将 13 条规范、${SKILL_COUNT} 个 AI Skill、${MCP_TOOL_COUNT} 个 MCP Tool`,
+    regex: /一[条键]将 14 条(?:编码)?规范、\d+ 个 AI Skill、\d+ 个 MCP Tool/g,
+    replace: `一键将 14 条规范、${SKILL_COUNT} 个 AI Skill、${MCP_TOOL_COUNT} 个 MCP Tool`,
   },
   {
     file: "files/.wl-skills/guides/architecture.md",
@@ -86,7 +86,7 @@ const updates = [
   {
     file: "package.json",
     regex: /"description": ".*?"/,
-    replace: `"description": "AI Skill 模板包 v${version} — 13 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目"`,
+    replace: `"description": "AI Skill 模板包 v${version} — 14 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目"`,
   },
   {
     file: "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",

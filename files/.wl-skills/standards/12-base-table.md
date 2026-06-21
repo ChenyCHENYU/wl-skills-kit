@@ -132,10 +132,62 @@ subColumnsDef(): TableColumnDesc<any>[] {
 
 ### 豁免规则
 
-- 豁免场景仍**优先使用 `BaseTable`**（非 AGGrid 模式），而非裸 `el-table`
-- 豁免场景如果支持列持久化，仍**必须有 `cid`**
-- 审查报告中豁免项必须标注**原因**，避免滥用
-- 如果豁免场景后续升级为主列表，必须迁移到 AGGrid
+> **两层豁免机制**：单文件注释豁免（精确）+ 项目级配置豁免（批量）。标准列表页不受豁免影响，仍强制 `BaseTable + AGGrid`。
+
+#### 优先级：标准列表 vs 特殊场景
+
+| 场景类型 | 渲染要求 | R3（el-table）/ AGGrid 卡控 |
+|---|---|---|
+| **标准列表页**（分页查询、台账、核心业务列表） | `BaseTable` + `render-type="agGrid"` + `cid` | 🔴 强制，不可豁免 |
+| **BaseTable 可胜任的特殊表格**（弹窗小表、只读展示、嵌套子表） | `BaseTable`（非 AGGrid 也可），尽量带 `cid` | 🟢 豁免 AGGrid（R3 仍建议改 BaseTable） |
+| **BaseTable 受限的复杂场景**（表单/设计器内嵌表格、行内编辑明细表、特殊合并单元格/复杂行列布局） | 优先 `BaseTable`；确实受限时降级 `el-table` | 🟢 可豁免 R3（需登记豁免原因） |
+| **平台封装组件内部** | 按需 | 🟢 豁免 R3（封装层单独评审） |
+
+> 判定原则：**先用 BaseTable**；BaseTable 确实受限不能满足时，才降级 `el-table`，不直接裸用。
+
+#### 豁免方式一：单文件注释（精确到文件）
+
+在特殊文件内加注释标记，精确豁免该文件的指定规则（适合个别页面）：
+
+```vue
+<!-- index.vue -->
+<!-- wl-skills:ignore R3 -->   ← 整页豁免 R3（el-table 检测）
+<template>
+  <el-table> ... </el-table>   <!-- 表单设计器内嵌表格，AGGrid 内联编辑受限 -->
+</template>
+```
+
+```typescript
+// data.ts
+// wl-skills:ignore R10         ← 豁免该文件的 R10
+```
+
+#### 豁免方式二：项目级配置（批量到目录，推荐用于整片特殊场景）
+
+项目根放 `.wl-skills-validate.json`（kit 不主动创建，零功能影响；详见 `docs/validate-exempt.md`）：
+
+```json
+{
+  "exemptions": [
+    {
+      "paths": ["src/views/produce/designer"],
+      "rules": ["R3", "R10"],
+      "reason": "表单设计器内嵌表格，BaseTable AGGrid 内联编辑受限"
+    },
+    {
+      "paths": ["src/views/sale/order-edit/**"],
+      "rules": ["R3"],
+      "reason": "订单行内编辑明细表，AGGrid 行编辑成本高于收益"
+    }
+  ]
+}
+```
+
+- `paths`：页面目录前缀，支持 `/**` glob；命中该目录及其子目录
+- `rules`：规则编号（`R3`/`R10` 等），大小写不敏感
+- `reason`：**必填审计字段**，避免滥用
+
+> ⚠️ 豁免不是放任。豁免项升级为主列表页时，必须迁移回 `BaseTable + AGGrid`。`convention-audit` 审计时列出所有豁免项供人工复核。
 
 ### 审查报告中的分类
 
