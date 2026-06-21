@@ -177,7 +177,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 <el-table :data="dialogData">...</el-table>
 ```
 
-- 必须带规则编号（R1~R12），精确豁免，不支持全局豁免
+- 必须带规则编号（R1~R14），精确豁免，不支持全局豁免
 - CI `--strict` 模式下豁免标记仍然生效
 
 ---

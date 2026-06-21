@@ -48,7 +48,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
    wl-skills validate src/views/{生成的页面目录}
-   → 同时执行 R1~R12（AST 语义）+ S1~S5（page-spec 比对）
+   → 同时执行 R1~R14（AST 语义）+ S1~S5（page-spec 比对）
    → 结果：{0 error / N warn} 或列出 error 待修复
 ────────────────────────────────────────────────
 📌 后续步骤：

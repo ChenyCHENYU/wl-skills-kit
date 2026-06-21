@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.11.5] - 2026-06-21
+
+### Fixed
+
+- **全仓库文档滞后清零**：v2.11.0 目录从 `.github/` 迁移到 `.wl-skills/`、v2.11.2 规则从 R1~R12/R1~R7 扩展到 R1~R14、Skill 从 10→11、规范从 13→14 后，多处当前生效文档/代码注释未同步：
+  - `files/.wl-skills/guides/usage.md` 项目结构树整体仍用 `.github/` + 13 条/10 个 → 改为 `.wl-skills/` + 14 条/11 个
+  - 代码注释滞后：`lib/ast-rules.js`/`bin/wl-skills.js`/`mcp/tools/projectTools.js` 仍写"R1~R7"/"7 条语义规则" → R1~R14
+  - `files/.wl-skills/copilot-instructions-full.md`/`page-codegen SKILL.md` 豁免说明"R1~R12" → R1~R14
+  - `kit-internal/README.md`/`convention-audit USAGE.md`/`docs/全盘分析`/`docs/ai全景分析`/`AI工作流演进` 中"13 条规范"/"10 个 Skill" → 14 条/11 个
+  - CHANGELOG 历史条目与 `kit-internal/history/` 归档文件保留原样（记录当时状态）
+
 ## [2.11.4] - 2026-06-21
 
 ### Added

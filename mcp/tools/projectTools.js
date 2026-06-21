@@ -196,7 +196,7 @@ async function handleValidatePage(args) {
     issues.push([
       scanPath,
       "warn",
-      "AST 引擎不可用，跳过语义级规则（R1~R7）",
+      "AST 引擎不可用，跳过语义级规则（R1~R14）",
     ]);
   } else {
     for (const iss of astResult.issues) {

@@ -34,7 +34,7 @@
 | `README.md`                       | 本文件                                                 |
 | `CONTRIBUTING.md`                 | 如何向 kit 贡献（规范、模板、Skill）                   |
 | `architecture.md`                 | v2.0 架构升级 ADR（历史归档；v2.1 综合版见 `files/.wl-skills/guides/architecture.md`） |
-| `standards.MAINTAIN.md`           | 13 条规范的维护要点                                    |
+| `standards.MAINTAIN.md`           | 14 条规范的维护要点                                    |
 | `templates.MAINTAIN.md`           | 模板分层与贡献流程要点                                 |
 | `skills/{skill-name}.MAINTAIN.md` | 各 Skill 的维护要点（避坑、扩展、版本演进）            |
 | `skills/_planned-skills.md`       | PLANNED 列表（当前为空，记录历史 PLANNED Skill 的激活时间表） |

@@ -78,16 +78,17 @@ AI 会自动识别意图，触发对应的 Skill。
 
 ```
 你的项目/
-├── .github/
-│   ├── copilot-instructions.md      AI 主入口
-│   ├── standards/                   13 条模块化规范
-│   ├── skills/                      10 个启用 Skill + 多编辑器适配
-│   ├── guides/                      使用指南 + 架构设计
-│   └── reports/                     AI 生成报告（SYS_MENU_INFO 等）
-├── .wl-skills/docs/                            12 个组件 API 文档（jh-* / request 等）
-├── .wl-skills/templates/                            13 个领域样例（生产 + 销售）
+├── .wl-skills/                       统一隔离目录（所有 Skill/规范/指南/报告/模板）
+│   ├── copilot-instructions-full.md  AI 主入口完整指令
+│   ├── standards/                    14 条模块化规范
+│   ├── skills/                       11 个启用 Skill + 多编辑器适配
+│   ├── guides/                       使用指南 + 架构设计
+│   ├── docs/                         组件 API 文档（jh-* / request 等）+ validate 豁免说明
+│   ├── templates/                    领域样例（生产 + 销售）
+│   └── reports/                      AI 生成报告（SYS_MENU_INFO 等）
+├── .wl-skills-validate.json          可选：validate 项目级豁免配置（kit 不创建）
 └── src/
-    ├── components/                  全局/局部/远程组件
+    ├── components/                   全局/局部/远程组件
     └── types/
 ```
 

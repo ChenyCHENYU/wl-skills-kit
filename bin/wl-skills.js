@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.4
+ * wl-skills-kit CLI v2.11.5
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1309,7 +1309,7 @@ function runValidate() {
   }
 
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
-  // 补充正则无法覆盖的 7 条语义规则（R1~R7），与正则规则合并输出
+  // 补充正则无法覆盖的 AST 语义规则（R1~R14），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
   const astStagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
   const astResult = runAstRules(TARGET_DIR, scanPath, {

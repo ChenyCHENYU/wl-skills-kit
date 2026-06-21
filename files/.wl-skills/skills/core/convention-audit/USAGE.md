@@ -40,7 +40,7 @@ AI：[Pre-flight]
     - reports/AUDIT_AI_mmwr-customer-archive_20260426.md
     - reports/AUDIT_HUMAN_mmwr-customer-archive_20260426.md
     [扫描中...]
-    完成。13 条标准通过 11 条，2 条需关注：
+    完成。14 条标准通过 12 条，2 条需关注：
     ⚠ standards/data-ts.md - EColumn.cid 缺失 1 处
     ⚠ standards/scss.md - 全局样式污染（缺 :scoped）
     详见 reports/。

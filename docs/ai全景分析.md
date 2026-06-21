@@ -10,7 +10,7 @@
 
 ```text
 L1 提示词工程         ✅ copilot-instructions + 多编辑器适配 + standards 懒加载
-L2 Skills             ✅ 10 个启用 Skill + registry + pre-flight（含 business-doc-extract）
+L2 Skills             ✅ 11 个启用 Skill + registry + pre-flight（含 business-doc-extract）
 L3 MCP                ✅ 17 个 Tool（菜单/字典/权限/项目感知/页面校验/UI 体检/通知）
 L4 CLI                ✅ init/update/clean/check/diff/validate/validate-page/doctor-ui/export
 L5 Agent Pipeline     🟡 已落地协议与运行手册，可进入试运行
