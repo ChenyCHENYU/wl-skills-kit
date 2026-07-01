@@ -45,7 +45,7 @@ prototype-scan
 ```text
 page-codegen
 → validate-page
-→ doctor-ui（如接入 wk-skills-ui）
+→ doctor-ui（如接入 wl-skills-ui）
 → convention-audit
 ```
 
@@ -171,9 +171,9 @@ git diff --check
 
 ---
 
-## 7. 与 wk-skills-ui 的协作
+## 7. 与 wl-skills-ui 的协作
 
-当业务项目接入 `@agile-team/wk-skills-ui` 时，Pipeline 需要额外检查：
+当业务项目接入 `@agile-team/wl-skills-ui` 时，Pipeline 需要额外检查：
 
 - design tokens 是否引入
 - styles preset 是否引入

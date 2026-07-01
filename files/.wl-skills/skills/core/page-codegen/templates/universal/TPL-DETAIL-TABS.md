@@ -107,7 +107,7 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-// ⚠️ 不再需要 import C_Splitter——jh-drag-row 是 @jhlc/jh-ui 全局注册组件
+// ⚠️ 不再需要 import C_Splitter——jh-drag-row 是 @jhlc/common-core 全局注册组件
 import {
   form,
   rules,
@@ -143,7 +143,7 @@ import { ElMessage } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import type { TableColumnDesc } from "@/types/page";
 import envConfig from "@jhlc/common-core/src/store/env-config";
-import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const ITEM_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 

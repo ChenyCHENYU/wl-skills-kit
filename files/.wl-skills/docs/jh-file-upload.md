@@ -50,21 +50,22 @@ const form = ref({
 
 | 参数                 | 说明               | 类型                                       | 默认值      |
 | -------------------- | ------------------ | ------------------------------------------ | ----------- |
-| modelValue / v-model | 文件列表           | `FileItem[] \| string`                     | `[]`        |
+| modelValue / v-model | 文件列表           | `FileItem[] \| string \| object`           | `[]`        |
 | relativeType         | 业务类型标识       | `string`                                   | -           |
-| relativeId           | 业务主键ID         | `string \| number`                         | -           |
-| limit                | 最大上传数量       | `number`                                   | `10`        |
-| disabled             | 是否禁用           | `boolean`                                  | `false`     |
-| readonly             | 是否只读           | `boolean`                                  | `false`     |
-| listType             | 文件列表类型       | `"picture" \| "picture-card" \| "no-list"` | `"picture"` |
+| relativeId           | 业务主键ID         | `string`                                   | -           |
+| limit                | 最大上传数量       | `number`                                   | -           |
+| disabled             | 是否禁用（上传/删除/下载全部禁用） | `boolean`                       | `false`     |
+| listType             | 文件列表类型       | `"picture" \| "picture-card" \| "no-list"` | 运行时默认  |
 | accept               | 接受的文件类型     | `string`                                   | -           |
 | fileSizeLimit        | 文件大小限制       | `string`                                   | -           |
 | drag                 | 是否支持拖拽上传   | `boolean`                                  | `true`      |
-| multiple             | 是否支持多选       | `boolean`                                  | `true`      |
+| multiple             | 是否支持多选       | `boolean`                                  | -           |
 | autoUpload           | 是否自动上传       | `boolean`                                  | `false`     |
 | addable              | 是否允许添加       | `boolean`                                  | `true`      |
 | deletable            | 是否允许删除       | `boolean`                                  | `true`      |
 | downloadable         | 是否允许下载       | `boolean`                                  | `true`      |
+
+> ⚠️ **`jh-file-upload` 没有 `readonly` 属性**。详情页只读展示用 `:disabled="true"`，或按需关闭 `addable`/`deletable`/`downloadable`。`relativeId` 类型仅为 `string`（非 number）。
 | uploadUrl            | 自定义上传地址     | `string`                                   | -           |
 | listUrl              | 自定义列表查询地址 | `string`                                   | -           |
 | removeUrl            | 自定义删除地址     | `string`                                   | -           |
@@ -122,7 +123,7 @@ interface FileItem {
 ### 场景 3：详情页只读展示
 
 ```vue
-<jh-file-upload relative-type="order" :relative-id="detail.id" readonly />
+<jh-file-upload relative-type="order" :relative-id="detail.id" :disabled="true" />
 ```
 
 ---
@@ -173,7 +174,7 @@ interface FileItem {
 <jh-file-upload ... />
 
 <!-- 详情 -->
-<jh-file-upload ... readonly />
+<jh-file-upload ... :disabled="true" />
 ```
 
 ---
@@ -245,7 +246,7 @@ FormDialog.previewAttachBatch("查看全部附件", [
 ### 示例 2：详情页附件
 
 ```vue
-<jh-file-upload relative-type="contract" :relative-id="detail.id" readonly />
+<jh-file-upload relative-type="contract" :relative-id="detail.id" :disabled="true" />
 ```
 
 ---

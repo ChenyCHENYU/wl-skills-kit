@@ -14,7 +14,7 @@
 | 上下分栏   | `<jh-drag-row :topHeight="240">` + `#top` / `#bottom` slot  | `C_Splitter direction="vertical"`、手写 flex |
 | 嵌套分栏   | 多层 `jh-drag-col` / `jh-drag-row` 直接嵌套 | C_Splitter 嵌套（双倍 vnode 冻结） |
 
-> `@jhlc/jh-ui` 的 `jh-drag-col` / `jh-drag-row` 使用 Vue 原生 `<slot />` 直接渲染，**不缓存 vnode**，子组件响应式与父组件 ref 完全连通。
+> `@jhlc/common-core` 的 `jh-drag-col` / `jh-drag-row` 使用 Vue 原生 `<slot />` 直接渲染，**不缓存 vnode**，子组件响应式与父组件 ref 完全连通。
 
 ---
 

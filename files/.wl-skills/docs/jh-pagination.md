@@ -81,13 +81,18 @@ onMounted(() => {
 
 | 参数                  | 说明                     | 类型       | 默认值                                      |
 | --------------------- | ------------------------ | ---------- | ------------------------------------------- |
-| total                 | 总条目数                 | `number`   | `0`                                         |
+| total                 | 总条目数                 | `number`   | -                                           |
 | currentPage (v-model) | 当前页码                 | `number`   | `1`                                         |
 | pageSize (v-model)    | 每页显示条数             | `number`   | `10`                                        |
-| pageSizes             | 每页显示个数选择器的选项 | `number[]` | `[10, 20, 50, 100]`                         |
-| layout                | 组件布局                 | `string`   | `"total, prev, pager, next, sizes, jumper"` |
-| background            | 是否为分页按钮添加背景色 | `boolean`  | `true`                                      |
+| pageSizes             | 每页显示个数选择器的选项 | `number[]` | -                                           |
+| layout                | 组件布局                 | `string`   | 运行时默认                                  |
+| small                 | 是否使用小型分页样式     | `boolean`  | `true`                                      |
+| showTotal             | 是否显示总条数           | `boolean`  | `true`                                      |
+| showPageSize          | 是否显示每页条数选择器   | `boolean`  | `true`                                      |
+| showJumper            | 是否显示跳页输入框       | `boolean`  | `true`                                      |
 | disabled              | 是否禁用分页             | `boolean`  | `false`                                     |
+
+> ⚠️ **`jh-pagination` 没有 `background` 属性**（声明层无此 prop）。背景/布局由 `small`/`showTotal`/`showPageSize`/`showJumper` 等开关控制，无需手动配置 `layout`/`background`。
 
 ## Events 事件
 

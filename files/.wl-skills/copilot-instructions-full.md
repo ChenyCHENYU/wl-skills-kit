@@ -9,7 +9,7 @@
 
 - Vue 3.2 + Vite + TypeScript（strict: false）
 - Module Federation **子应用**，路由/权限/布局/Store 从主应用 `main` 远程加载
-- UI：Element Plus + @jhlc/jh-ui + @jhlc/common-core
+- UI：Element Plus + @jhlc/common-core（全部 `jh-*` / `Base*` / `C_*` 组件来源）+ @jhlc/jh-ui（SCSS 设计令牌 + Element Plus/Vant 主题覆盖，零组件）
 - 样式：Windi CSS + SCSS
 - 状态：Pinia
 - 页面注册：`vite/plugins/shared/pages.ts` 通过 `gProd()` / `gSale()` 声明
@@ -44,9 +44,9 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 - 使用 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination`
 - `BaseTable` 显式 `render-type="agGrid"`
 - `BaseTable` 绑定全局唯一 `cid` / `:cid`
-- 列定义使用 `@agile-team/wk-skills-ui/runtime` 的 `defineColumns()`
+- 列定义使用 `@agile-team/wl-skills-ui/runtime` 的 `defineColumns()`
 - 操作列使用 `renderOps()`，禁止 `operations: []`
-- 保留 `common-core` 平台骨架，不得生搬硬套 `wk-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`
+- 保留 `common-core` 平台骨架，不得生搬硬套 `wl-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`
 - 生成后建议运行 `wl-skills validate-page <页面目录>` 和 `wl-skills doctor-ui`
 
 ## 五、Mock 架构（与页面完全解耦）

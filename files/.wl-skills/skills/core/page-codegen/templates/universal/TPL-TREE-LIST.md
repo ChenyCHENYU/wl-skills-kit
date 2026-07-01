@@ -85,7 +85,7 @@ import {
 } from "@/types/page";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage } from "element-plus";
-import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 

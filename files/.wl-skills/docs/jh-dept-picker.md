@@ -42,23 +42,20 @@ const form = ref({
 
 ## Props 属性
 
-| 参数                 | 说明                   | 类型                  | 默认值             |
-| -------------------- | ---------------------- | --------------------- | ------------------ |
-| modelValue / v-model | 绑定值                 | `string \| string[]`  | -                  |
-| multiple             | 是否多选               | `boolean`             | `false`            |
-| placeholder          | 占位提示               | `string`              | `"请选择部门"`     |
-| disabled             | 是否禁用               | `boolean`             | `false`            |
-| clearable            | 是否可清空             | `boolean`             | `true`             |
-| checkStrictly        | 父子是否不关联         | `boolean`             | `false`            |
-| dataType             | 返回数据类型（多选时） | `"array" \| "string"` | `"array"`          |
-| dialogTitle          | 弹窗标题               | `string`              | `"选择部门"`       |
-| dialogWidth          | 弹窗宽度               | `string`              | `"600px"`          |
-| searchPlaceholder    | 搜索框占位文本         | `string`              | `"请输入部门名称"` |
+| 参数                 | 说明                   | 类型                  | 默认值        |
+| -------------------- | ---------------------- | --------------------- | ------------- |
+| modelValue / v-model | 绑定值                 | `string \| string[]`  | -             |
+| multiple             | 是否多选               | `boolean`             | `false`       |
+| disabled             | 是否禁用               | `boolean`             | `false`       |
+| status               | 控件状态               | `"default" \| "disabled" \| "readonly"` | `"default"` |
+| defaultValue         | 默认部门               | `string`              | -             |
+| placeholder          | 占位提示               | `string`              | 运行时默认    |
+| dataType             | 返回数据类型（多选时） | `"array" \| "string"` | 运行时默认    |
+| dialogTitle          | 弹窗标题               | `string`              | 运行时默认    |
+| dialogWidth          | 弹窗宽度               | `string`              | 运行时默认    |
+| searchPlaceholder    | 搜索框占位文本         | `string`              | 运行时默认    |
 
-> **重点**:
->
-> - 默认父子关联，选中父节点会自动选中子节点
-> - `checkStrictly=true` 时,父子不互相关联
+> ⚠️ **`jh-dept-picker` 没有 `checkStrictly` 和 `clearable` 属性**（声明层无此 prop）。父子节点关联行为由组件内部树控件决定，不要假设存在 `checkStrictly` 开关。
 
 ---
 
@@ -163,8 +160,8 @@ deptIds: ["d001", "d002"];
 
 ### 3️⃣ 树形选择说明
 
-- 默认父子关联
-- `checkStrictly=true` 时父子不互相关联
+- 部门为树形数据，组件内部树控件默认父子关联（选中父节点联动子节点）
+- 父子关联行为由组件内部决定，**没有 `checkStrictly` 开关**；如需独立勾选父子节点，请联系平台确认树控件配置
 
 ---
 

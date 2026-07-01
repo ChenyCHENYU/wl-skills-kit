@@ -44,24 +44,26 @@ const form = ref({
 
 | 参数                 | 说明                    | 类型               | 默认值         |
 | -------------------- | ----------------------- | ------------------ | -------------- |
-| modelValue / v-model | 绑定值                  | `string`           | -              |
-| placeholder          | 占位提示                | `string`           | `"请输入"`     |
-| rows                 | 显示行数                | `number`           | `3`            |
+| modelValue / v-model | 绑定值                  | `string \| number` | -              |
+| placeholder          | 占位提示                | `string`           | 运行时默认 |
+| rows                 | 显示行数                | `number`           | -              |
 | maxlength            | 最大输入长度            | `number`           | -              |
-| showWordLimit        | 是否显示字数统计        | `boolean`          | `false`        |
-| disabled             | 是否禁用                | `boolean`          | `false`        |
-| clearable            | 是否可清空              | `boolean`          | `true`         |
+| showWordLimit        | 是否显示字数统计        | `boolean`          | -              |
+| status               | 控件状态（禁用/只读请用此属性，非 `disabled`） | `"default" \| "disabled" \| "readonly"` | `"default"` |
 | autosize             | 自适应内容高度          | `boolean \| object`| `false`        |
 
 ---
 
 ## Events 事件
 
-| 事件名            | 说明         | 回调参数          |
-| ----------------- | ------------ | ----------------- |
-| change            | 值变化时触发 | `(value) => void` |
-| update:modelValue | v-model 更新 | `(value) => void` |
-| blur              | 失去焦点     | `() => void`      |
+| 事件名            | 说明             | 回调参数          |
+| ----------------- | ---------------- | ----------------- |
+| update:modelValue | v-model 更新     | `(value) => void` |
+| input             | 输入时触发       | `(value) => void` |
+| focus             | 获得焦点         | `() => void`      |
+| blur              | 失去焦点         | `() => void`      |
+
+> ⚠️ `jh-textarea` **没有 `change` 事件**，也没有 `clearable` 属性。监听输入请用 `@input` / `@update:modelValue`。
 
 ---
 

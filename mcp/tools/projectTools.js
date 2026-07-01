@@ -252,9 +252,9 @@ async function handleDoctorUi() {
     .join("\n");
   const checks = [
     [
-      "@agile-team/wk-skills-ui",
-      Boolean(deps["@agile-team/wk-skills-ui"]),
-      deps["@agile-team/wk-skills-ui"] || "未安装",
+      "@agile-team/wl-skills-ui",
+      Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]),
+      deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"] || "未安装",
     ],
     [
       "@element-plus/icons-vue",
@@ -263,14 +263,14 @@ async function handleDoctorUi() {
     ],
     [
       "design tokens",
-      /@agile-team\/wk-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
+      /@agile-team\/w[lk]-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
         content,
       ),
       "tokens 引入",
     ],
     [
       "styles preset",
-      /@agile-team\/wk-skills-ui\/styles/.test(content),
+      /@agile-team\/w[lk]-skills-ui\/styles/.test(content),
       "styles/skin preset 引入",
     ],
     [
@@ -282,7 +282,7 @@ async function handleDoctorUi() {
     ["renderOps", /renderOps\s*\(/.test(content), "操作列 runtime"],
   ];
   const lines = [
-    "✅ wk-skills-ui 接入检查",
+    "✅ wl-skills-ui 接入检查",
     "",
     "| 检查项 | 状态 | 说明 |",
     "|---|---:|---|",

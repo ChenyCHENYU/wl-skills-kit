@@ -47,7 +47,7 @@
 | page-codegen 13 | 操作列按钮严格对应原型 | **S4** | error | 是 |
 | page-codegen 15 | 按钮文字保真 | **S5** | warn | 否 |
 | page-codegen 21 | 默认 Mock First | regex | warn | 否 |
-| page-codegen 24 | 必须用 wk-skills-ui renderOps | regex | warn | 否 |
+| page-codegen 24 | 必须用 wl-skills-ui renderOps | regex | warn | 否 |
 
 ---
 

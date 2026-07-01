@@ -8,7 +8,7 @@
 
 ```typescript
 // ... 同模板 A 的 imports 和 API_CONFIG（增加从表相关 URL）
-import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 export const BOTTOM_TABLE_CID = `${TABLE_CID}-sub1`;

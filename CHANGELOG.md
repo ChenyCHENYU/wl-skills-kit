@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.11.6] - 2026-07-01
+
+### Fixed
+
+- **全仓库 `wk-skills-ui` 旧名漂移清零（17 文件）**：真实配套包已改名 `@agile-team/wl-skills-ui`，但本仓大量残留旧名 `wk-skills-ui`，导致两个硬故障：
+  - **6 个页面生成模板**（`TPL-LIST`/`TPL-TREE-LIST`/`TPL-MASTER-DETAIL`/`TPL-RECORD-FORM`/`TPL-FORM-ROUTE`/`TPL-DETAIL-TABS`）的 `import ... from "@agile-team/wk-skills-ui/runtime"` 直接生成无法 import 的业务代码 → 改为 `wl-skills-ui`
+  - **doctor-ui / MCP `wls_doctor_ui` 接入检测**（`bin/wl-skills.js` + `mcp/tools/projectTools.js`）原查 `deps["@agile-team/wk-skills-ui"]`，对真实包**永远检测不到**（接入检查恒为失败）→ 改为兼容新旧名（`wl-skills-ui || wk-skills-ui`），正则放宽 `w[lk]-skills-ui`，迁移期老项目仍能命中；CLI 命令 `wk-ui`→`wl-ui`
+- **jh-* 组件归属错误（4 处硬伤）**：`jh-drag-row`/`jh-drag-col` 实际来自 `@jhlc/common-core`（`@jhlc/jh-ui` 是纯 SCSS 包，零组件），修正 `standards/14-layout-containers.md`、`templates/sale/demo/metallurgical-spec`、`templates/sale/demo/add-demo`、`TPL-DETAIL-TABS` 中"@jhlc/jh-ui 全局注册组件"的错误表述
+- **平台包职责澄清**：`copilot-instructions-full.md` 与 `guides/architecture.md` 增补 `@jhlc/common-core`（全部 `jh-*`/`Base*`/`C_*` 组件 + 运行时）与 `@jhlc/jh-ui`（纯 SCSS 设计令牌 + Element Plus/Vant 主题覆盖，零组件）的职责边界，消除"@jhlc/jh-ui 含组件"的误读
+
+### Changed
+
+- **jh-* 组件文档逐属性勘误（7 篇）**：基于 `@jhlc/common-core/lib/*Component.d.ts` 真实声明逐一核对，修正虚构/错误 API：
+  - `jh-select.md`：`BusLogicDataType.enums → SelectComponent` **虚构**（源码实际落 `InputComponent`）；`disabled` → `status`；补全 `select`/`blur`/`visibleChange` 事件
+  - `jh-picker.md`：`pickerType`/`multiple`/`disabled`/`clearable` **均不在声明**；`multiple` → `:single="false"`；`valueAttr`/`labelAttr`/`dataAttr` 默认值 `["id"]`/`["name"]`/`["data","records"]` 虚构（实为 `[""]`）
+  - `jh-date-range.md`：**`placeholder` 属性不存在**（仅 `startPlaceholder`/`endPlaceholder`），基本示例原用不存在的属性；补 `DateTimeRangeComponent` 关联说明
+  - `jh-date.md`：`change` 事件虚构（实为 `blur`）；`disabled` → `status`
+  - `jh-textarea.md`：`change` 虚构（实为 `input`/`focus`/`blur`）；删 `disabled`/`clearable`
+  - `jh-pagination.md`：**`background` 属性不存在**（动摇其"内置默认 layout/background"卖点）；补 `small`/`showTotal`/`showPageSize`/`showJumper`
+  - `jh-dept-picker.md`：`checkStrictly`/`clearable` 虚构删除
+  - `jh-file-upload.md`：`readonly` 不存在 → `:disabled="true"`；`relativeId` 类型修正为 `string`
+
 ## [2.11.5] - 2026-06-21
 
 ### Fixed

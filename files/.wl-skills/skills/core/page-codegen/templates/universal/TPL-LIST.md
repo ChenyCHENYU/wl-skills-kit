@@ -14,7 +14,7 @@ import {
   BusLogicDataType
 } from "@/types/page";
 import { ElMessage } from "element-plus";
-import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 

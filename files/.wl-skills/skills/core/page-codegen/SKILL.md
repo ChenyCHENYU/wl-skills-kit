@@ -149,12 +149,12 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 21. **默认 Mock First**：新生成页面默认必须走 `vite-plugin-mock`。必须生成 `mock/[业务域]/[模块].ts`（import `../_utils` 共享工具），并确保 `API_CONFIG` 中每个 URL 都有对应 mock 端点；只有当用户明确要求关闭 mock 或 `.env.dev` 中 `ENV_MOCK=false` 时，才允许直接联调真实接口。
 22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/list`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/list`），这样关闭 mock 后无需修改业务代码。
 23. **页面初始数据必须由 mock 提供**：列表页 `onMounted(() => select())` 后必须能显示模拟数据，不允许生成空白页等待后端接口；`list` 端点返回 `{ code: 2000, data: { records, total, size, current } }`。
-24. **必须使用 wk-skills-ui runtime 风格**：当项目安装了 `@agile-team/wk-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
-25. **wk-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wk-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wk-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
+24. **必须使用 wl-skills-ui runtime 风格**：当项目安装了 `@agile-team/wl-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
+25. **wl-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wl-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wl-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
 26. **pages.ts 分组注册**：多页面模块必须按当前业务目录分组写入 `vite/plugins/shared/pages.ts`，使用 `gProd(module, { subModule: [[page, label]] })` 结构，不允许把所有页面扁平追加到一个数组。
 27. **BaseTable 强制 AGGrid**：所有业务主列表/台账/主从表/树表/详情子表的 `BaseTable` 必须显式写 `render-type="agGrid"`，并绑定全局唯一 `cid`。弹窗小表格可豁免，但必须在生成摘要中说明理由。
 28. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
-29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wk-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
+29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wl-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
 30. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts 生成内容、与原型严格一致——这是 `validate` 做 S1~S5 比对的真值。生成后自检若出现 S2/S3/S4 error，说明 data.ts 与 spec 不一致，必须修正到 0 error。
 
 ### 禁止事项（严格遵守）
@@ -174,7 +174,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 13. **❌ 禁止内联 style 散落**：所有页面/组件样式统一写在 `index.scss` 中（便于复用和移动），不可在 template 中大量使用内联 `style="..."`
 14. **❌ 禁止生成无 mock 的页面**：只写 `API_CONFIG` 但不写 `mock/[业务域]/*.ts` 属于生成失败。mock 文件必须按域分目录、import `_utils` 共享工具（详见 `.wl-skills/docs/mock-architecture.md`）。
 15. **❌ 禁止生成空 onClick**：`onClick: () => {}` 属于生成失败；未知逻辑也必须用 `ElMessage.info(...)` 明示。
-16. **❌ 禁止忽略 wk-skills-ui**：项目已安装 `@agile-team/wk-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
+16. **❌ 禁止忽略 wl-skills-ui**：项目已安装 `@agile-team/wl-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
 17. **❌ 禁止 BaseTable 非 AGGrid**：业务列表中 `<BaseTable>` 未写 `render-type="agGrid"` 或缺少 `cid/:cid` 属于生成失败。
 18. **❌ 禁止列缺 cid**：AGGrid 表格的数据列/操作列缺少列级 `cid` 属于生成失败。
 

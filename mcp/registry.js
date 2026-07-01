@@ -315,7 +315,7 @@ const DESCRIPTORS = [
   {
     name: "wls_doctor_ui",
     description:
-      "检查 @agile-team/wk-skills-ui 是否真正接入：依赖、tokens、styles preset、installCommonPreset、defineColumns、renderOps。",
+      "检查 @agile-team/wl-skills-ui 是否真正接入：依赖、tokens、styles preset、installCommonPreset、defineColumns、renderOps。",
     inputSchema: { type: "object", properties: {}, required: [] },
     needsBackendConfig: false,
     handle: (args) => handleDoctorUi(args),

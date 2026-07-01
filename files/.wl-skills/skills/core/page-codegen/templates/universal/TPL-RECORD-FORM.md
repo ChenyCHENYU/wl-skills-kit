@@ -28,7 +28,7 @@ import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/componen
 import c_spliterTitle from "@/components/local/c_spliterTitle/index.vue";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { debounce } from "lodash-es";
-import { defineColumns } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns } from "@agile-team/wl-skills-ui/runtime";
 
 export const BOTTOM_TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 

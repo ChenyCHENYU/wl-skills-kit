@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.11.5（2026-06-21）
+> **当前版本**：v2.11.6（2026-07-01）
 
 ---
 
@@ -104,7 +104,7 @@ wl-skills.js init/update
     │
     ├─ 5. 写入/更新 .wl-skills-manifest.json（文件哈希快照）
     │
-    └─ 6. 输出 wk-skills-ui 可选桥接提醒与 git-standards 规范插件建议
+    └─ 6. 输出 wl-skills-ui 可选桥接提醒与 git-standards 规范插件建议
 ```
 
 ---
@@ -194,7 +194,11 @@ standards/
 | 菜单/同步操作    | 1 条       | 07（环境变量不硬编码）       |
 | 仅 Git 提交      | 1 条       | 08                          |
 
-**第 13 条的特殊地位**：`13-platform-components.md` 是最核心的 AI 行为约束，强制 AI 在生成代码时优先使用平台封装组件（`@jhlc/jh-ui` / `@jhlc/common-core`），禁止随意使用原始 `el-table` / `el-form`。与第 12 条（BaseTable/AGGrid 封装）并列为质量门控最高优先级。
+**第 13 条的特殊地位**：`13-platform-components.md` 是最核心的 AI 行为约束，强制 AI 在生成代码时优先使用平台封装组件（`@jhlc/common-core` 提供 `Base*` / `jh-*` / `C_*` 全部组件），禁止随意使用原始 `el-table` / `el-form`。与第 12 条（BaseTable/AGGrid 封装）并列为质量门控最高优先级。
+
+> **平台包职责澄清（重要，避免混淆）**：
+> - `@jhlc/common-core` = **组件 + 逻辑运行时**：90 个业务组件（`jh-select` / `jh-date` / `jh-pagination` / `jh-user-picker` / `jh-dept-picker` / `jh-file-upload` / `jh-text` / `jh-textarea` / `jh-picker` / `jh-tree-picker` / `jh-drag-row` / `jh-drag-col` / `BaseTable` / `BaseQuery` / `BaseToolbar` …）+ `AbstractPageQueryHook` + hooks/store/util/api。
+> - `@jhlc/jh-ui` = **纯样式包（零组件）**：设计令牌 `src/standard/var.scss`（PC，主色 `#4368ff`）/ `mobile-var.scss`（移动端）+ Element Plus 40 组件主题覆盖 + Vant 主题 + 工具类。业务通过 `@import "@jhlc/jh-ui/src/standard/var"` 套用 JH 视觉，**不 import 组件**。
 
 ---
 

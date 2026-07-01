@@ -120,7 +120,7 @@ import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRouter } from "vue-router";
 import type { TableColumnDesc } from "@/types/page";
-import { defineColumns, renderOps } from "@agile-team/wk-skills-ui/runtime";
+import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const DETAIL_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 

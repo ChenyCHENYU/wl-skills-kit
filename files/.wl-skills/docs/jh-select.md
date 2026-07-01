@@ -40,13 +40,13 @@ const form = ref({
 | modelValue / v-model | 绑定值                    | `string \| number \| Array<string \| number> \| boolean` | -          |
 | dict                 | 字典名称（平台字典 code） | `string`                                                 | -          |
 | items                | 静态数据选项              | `Array<{label: string, value: any}>`                     | `[]`       |
-| placeholder          | 占位提示                  | `string`                                                 | `"请选择"` |
+| placeholder          | 占位提示                  | `string`                                                 | 运行时默认 |
 | clearable            | 是否可清空                | `boolean`                                                | `true`     |
-| disabled             | 是否禁用                  | `boolean`                                                | `false`    |
+| status               | 控件状态（禁用/只读请用此属性，非 `disabled`） | `"default" \| "disabled" \| "readonly"` | `"default"` |
 | multiple             | 是否多选                  | `boolean`                                                | `false`    |
-| filterable           | 是否可搜索                | `boolean`                                                | `false`    |
-| datasourceType       | 数据源类型                | `"static" \| "interface"`                                | `"static"` |
-| multiDataFormat      | 多选时的数据格式          | `"string" \| "array"`                                    | `"array"`  |
+| filterable           | 是否可搜索                | `boolean`                                                | -          |
+| datasourceType       | 数据源类型                | `"static" \| "interface"`                                | 运行时默认 |
+| multiDataFormat      | 多选时的数据格式          | `"string" \| "array"`                                    | 运行时默认 |
 | collapseTag          | 多选时是否折叠 Tag        | `boolean`                                                | `false`    |
 | teleported           | 是否将下拉面板插入 body   | `boolean`                                                | `true`     |
 
@@ -56,10 +56,13 @@ const form = ref({
 
 ## Events 事件
 
-| 事件名            | 说明         | 回调参数          |
-| ----------------- | ------------ | ----------------- |
-| change            | 选中值变化   | `(value) => void` |
-| update:modelValue | v-model 更新 | `(value) => void` |
+| 事件名            | 说明                 | 回调参数          |
+| ----------------- | -------------------- | ----------------- |
+| update:modelValue | v-model 更新         | `(value) => void` |
+| change            | 选中值变化           | `(value) => void` |
+| select            | 选中选项             | `() => void`      |
+| blur              | 失焦                 | `() => void`      |
+| visibleChange     | 下拉框显示/隐藏切换  | `() => void`      |
 
 ## 常见场景
 
@@ -72,7 +75,7 @@ const form = ref({
 ### 场景 2：表单编辑
 
 ```vue
-<jh-select v-model="form.type" dict="order_type" :disabled="isView" />
+<jh-select v-model="form.type" dict="order_type" :status="isView ? 'readonly' : 'default'" />
 ```
 
 ### 场景 3：多选字典
@@ -106,10 +109,10 @@ export const queryItems: BaseQueryItemDesc<any>[] = [
 ];
 ```
 
-> **源码映射规则**（`getFormItemByLogicType`）：
+> **源码映射规则**（`getFormItemByLogicType`，`common-core/src/components/form/common/type.ts`）：
 > - `BusLogicDataType.dict` → `SelectComponent`
 > - `BusLogicDataType.company` → `SelectComponent`
-> - `BusLogicDataType.enums` → `SelectComponent`
+> - ⚠️ `BusLogicDataType.enums` → **`InputComponent`（普通输入框）**，并非 SelectComponent；枚举选择请显式用 `logicType=dict` 或 `component: () => ({ tag: "jh-select", items })`
 
 #### 方式二：使用 component 自定义
 

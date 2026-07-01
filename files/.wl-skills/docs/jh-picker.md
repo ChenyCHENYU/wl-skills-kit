@@ -41,9 +41,12 @@ const form = ref({
 ```vue
 <jh-picker
   v-model="form.productIds"
-  picker-type="product"
-  multiple
-  placeholder="请选择商品"
+  :single="false"
+  :list-url="productListUrl"
+  :value-attr="['id']"
+  :label-attr="['name']"
+  :columns="productColumns"
+  start-placeholder="请选择商品"
 />
 ```
 
@@ -51,31 +54,34 @@ const form = ref({
 
 ## Props 属性
 
-| 参数                 | 说明                             | 类型                                                                     | 默认值                |
-| -------------------- | -------------------------------- | ------------------------------------------------------------------------ | --------------------- |
-| modelValue / v-model | 绑定值                           | `string \| string[]`                                                     | -                     |
-| pickerType           | 选择器类型（业务标识）           | `string`                                                                 | -                     |
-| single               | 是否单选（与 multiple 相反）     | `boolean`                                                                | `true`                |
-| multiple             | 是否多选                         | `boolean`                                                                | `false`               |
-| placeholder          | 占位提示                         | `string`                                                                 | `"请选择"`            |
-| disabled             | 是否禁用                         | `boolean`                                                                | `false`               |
-| clearable            | 是否可清空                       | `boolean`                                                                | `true`                |
-| dataType             | 返回数据类型（多选时）           | `"array" \| "string"`                                                    | `"array"`             |
-| showType             | 显示类型                         | `"" \| "button"`                                                         | `""`                  |
-| showLabel            | 按钮文本（showType="button" 时） | `string`                                                                 | -                     |
-| buttonType           | 按钮类型                         | `"default" \| "primary" \| "success" \| "info" \| "warning" \| "danger"` | `"default"`           |
-| buttonIcon           | 按钮图标                         | `"Search" \| "Edit" \| "Delete" \| "Plus" \| "Refresh"`                  | -                     |
-| title                | 弹窗标题                         | `string`                                                                 | -                     |
-| width                | 弹窗宽度                         | `string`                                                                 | `"800px"`             |
-| listUrl              | 列表查询接口                     | `string`                                                                 | -                     |
-| listByIdsUrl         | 根据ID查询接口（回显）           | `string`                                                                 | -                     |
-| query                | 查询条件配置                     | `Array`                                                                  | -                     |
-| columns              | 表格列配置                       | `Array`                                                                  | -                     |
-| valueAttr            | 值字段路径                       | `string[] \| string`                                                     | `["id"]`              |
-| labelAttr            | 标签字段路径                     | `string[] \| string`                                                     | `["name"]`            |
-| dataAttr             | 数据字段路径                     | `string[] \| string`                                                     | `["data", "records"]` |
+| 参数                 | 说明                             | 类型                                                                     | 默认值        |
+| -------------------- | -------------------------------- | ------------------------------------------------------------------------ | ------------- |
+| modelValue / v-model | 绑定值                           | `string \| string[]`                                                     | -             |
+| single               | 是否单选（**多选请用 `:single="false"`**） | `boolean`                                                       | `true`        |
+| placeholder          | 占位提示                         | `string`                                                                 | 运行时默认    |
+| status               | 控件状态（禁用/只读请用此属性，非 `disabled`） | `"default" \| "disabled" \| "readonly"`                       | `"default"`   |
+| dataType             | 返回数据类型（多选时）           | `"array" \| "string"`                                                    | 运行时默认    |
+| showType             | 显示类型                         | `"" \| "button"`                                                         | `""`          |
+| showLabel            | 按钮文本（showType="button" 时） | `string`                                                                 | -             |
+| buttonType           | 按钮类型                         | `"default" \| "primary" \| "success" \| "info" \| "warning" \| "danger"` | `"default"`   |
+| buttonIcon           | 按钮图标                         | `"Search" \| "Edit" \| "Delete" \| "Plus" \| "Refresh"`                  | -             |
+| title                | 弹窗标题                         | `string`                                                                 | -             |
+| width                | 弹窗宽度                         | `string`                                                                 | -             |
+| listUrl              | 列表查询接口（**数据源核心配置**） | `string`                                                               | -             |
+| listMethod           | 列表查询方法                     | `string`                                                                 | `""`          |
+| listByIdsUrl         | 根据 ID 查询接口（回显）         | `string`                                                                 | -             |
+| listByIdsMethod      | 回显请求方式                     | `"param" \| "body"`                                                      | `""`          |
+| query                | 查询条件配置                     | `Array`                                                                  | -             |
+| columns              | 表格列配置                       | `Array`                                                                  | -             |
+| valueAttr            | 值字段路径                       | `string[] \| string`                                                     | `[""]`        |
+| labelAttr            | 标签字段路径                     | `string[] \| string`                                                     | `[""]`        |
+| dataAttr             | 数据字段路径                     | `string[] \| string`                                                     | `[""]`        |
+| valueExpr / labelExpr | 值/标签表达式（attr 的表达式版） | `string`                                                                | -             |
+| fixQueryParam        | 固定查询参数                     | `object`                                                                 | `{}`          |
 
-> **重点**: `pickerType` 必须是平台配置过的类型,否则需要手动配置 `listUrl`、`query`、`columns` 等参数。
+> ⚠️ **关于 `pickerType`（重要澄清）**：`pickerType` **不是 `jh-picker` 的组件声明属性**（`PickerComponent.d.ts` 中无此 prop）。它是平台低代码运行时的一种配置概念——若平台已为某类型（如 `customer`）预置了选择器配置，运行时可能注入。**在标准业务代码中不能假设它一定生效**。可靠用法是显式配置 `listUrl` + `valueAttr`/`labelAttr`/`dataAttr` + `columns` + `query`。若沿用项目内已有的 `picker-type` 约定，请先确认平台确有对应配置注入，否则选择器将为空。
+
+> **关联组件**：lib 中另有独立的 `TreePickerComponent`（`jh-tree-picker`），用于树形数据选择（如组织树、分类树），本组件（`jh-picker`）为平铺列表选择。
 
 ---
 
@@ -111,7 +117,7 @@ const form = ref({
 ### 场景 3：多选关联基础资料
 
 ```vue
-<jh-picker v-model="form.materialIds" picker-type="material" multiple />
+<jh-picker v-model="form.materialIds" picker-type="material" :single="false" />
 ```
 
 ---
@@ -204,7 +210,7 @@ productIds: ["p001", "p002"];
 ### 示例 2：采购单选择商品
 
 ```vue
-<jh-picker v-model="form.productIds" picker-type="product" multiple />
+<jh-picker v-model="form.productIds" picker-type="product" :single="false" />
 ```
 
 ---

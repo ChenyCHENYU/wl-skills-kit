@@ -45,11 +45,12 @@ const form = ref({
 | 参数                 | 说明                         | 类型                                    | 默认值         |
 | -------------------- | ---------------------------- | --------------------------------------- | -------------- |
 | modelValue / v-model | 绑定值                       | `string \| Date`                        | -              |
-| placeholder          | 占位提示                     | `string`                                | `"请选择日期"` |
+| placeholder          | 占位提示                     | `string`                                | 运行时默认 |
 | type                 | 日期类型                     | `"date" \| "week" \| "month" \| "year"` | `"date"`       |
-| format               | 绑定值格式（返回给 v-model） | `string`                                | `"YYYY-MM-DD"` |
-| showFormat           | 显示格式                     | `string`                                | `"YYYY-MM-DD"` |
-| disabled             | 是否禁用                     | `boolean`                               | `false`        |
+| format               | 绑定值格式（返回给 v-model） | `string`                                | 运行时默认 |
+| showFormat           | 显示格式                     | `string`                                | 运行时默认 |
+| status               | 控件状态（禁用/只读请用此属性，非 `disabled`） | `"default" \| "disabled" \| "readonly"` | `"default"` |
+| defaultValue         | 默认日期                     | `string`                                | -              |
 | clearable            | 是否可清空                   | `boolean`                               | `true`         |
 | teleported           | 是否将下拉面板插入 body      | `boolean`                               | `true`         |
 
@@ -63,8 +64,10 @@ const form = ref({
 
 | 事件名            | 说明           | 回调参数          |
 | ----------------- | -------------- | ----------------- |
-| change            | 日期变化时触发 | `(value) => void` |
 | update:modelValue | v-model 更新   | `(value) => void` |
+| blur              | 失去焦点时触发 | `() => void`      |
+
+> ⚠️ `jh-date` **没有 `change` 事件**（声明层只有 `update:modelValue` 与 `blur`）。监听值变化请用 `@update:modelValue`。
 
 ---
 

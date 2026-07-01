@@ -49,7 +49,7 @@ const COMPLIANT_INDEX =
   '</script>\n';
 const COMPLIANT_DATA =
   'import { AbstractPageQueryHook } from "@jhlc/common-core";\n' +
-  'import { defineColumns } from "@agile-team/wk-skills-ui/runtime";\n' +
+  'import { defineColumns } from "@agile-team/wl-skills-ui/runtime";\n' +
   'const API_CONFIG = { list: "/acme/list" } as const;\n' +
   'export function createPage() {\n' +
   '  const Page = new (class extends AbstractPageQueryHook {\n' +

@@ -140,7 +140,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { ArrowDown, Close } from "@element-plus/icons-vue";
-// jh-drag-row 是 @jhlc/jh-ui 全局注册组件，无需 import
+// jh-drag-row 是 @jhlc/common-core 全局注册组件，无需 import
 import c_formSections from "@/components/local/c_formSections/index.vue";
 import {
   form,

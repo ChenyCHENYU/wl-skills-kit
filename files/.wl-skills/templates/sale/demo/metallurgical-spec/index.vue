@@ -224,7 +224,7 @@
 import { onMounted, onUnmounted, watch, nextTick } from "vue";
 import { ArrowDown, ArrowLeft } from "@element-plus/icons-vue";
 import c_formModal from "@/components/local/c_formModal/index.vue";
-// jh-drag-row 是 @jhlc/jh-ui 全局注册组件，无需 import
+// jh-drag-row 是 @jhlc/common-core 全局注册组件，无需 import
 import {
   // 状态
   activeTab,

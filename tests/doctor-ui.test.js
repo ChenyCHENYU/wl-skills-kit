@@ -35,7 +35,7 @@ describe("doctor-ui: C_Splitter 残留扫描", () => {
       "package.json",
       JSON.stringify({
         name: "x",
-        dependencies: { "@agile-team/wk-skills-ui": "1", "@element-plus/icons-vue": "2" },
+        dependencies: { "@agile-team/wl-skills-ui": "1", "@element-plus/icons-vue": "2" },
       }),
     );
     w(dir, "src/views/a/index.vue", "<template><div /></template>");

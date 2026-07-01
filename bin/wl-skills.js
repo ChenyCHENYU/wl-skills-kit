@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.5
+ * wl-skills-kit CLI v2.11.6
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -11,7 +11,7 @@
  *   diff      对比已安装文件与当前 kit 版本
  *   validate  静态检查 src/views 页面文件完整性、AGGrid、skills-ui runtime、mock
  *   validate-page validate 的别名，适用于单页/目录检查
- *   doctor-ui 检查 @agile-team/wk-skills-ui 接入完整性
+ *   doctor-ui 检查 @agile-team/wl-skills-ui 接入完整性
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
  *   --help    帮助
@@ -123,7 +123,7 @@ if (showHelp) {
                v2.10.1+ 集成 AST 语义级检测（R1~R14），覆盖正则无法检测的规则
                R13 圈复杂度 / R14 类型错误（R14 需 --typecheck 开启）
     validate-page validate 的别名，适用于单页/目录检查
-    doctor-ui  检查 @agile-team/wk-skills-ui 接入完整性
+    doctor-ui  检查 @agile-team/wl-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
     fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
@@ -149,7 +149,7 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
     pnpm dlx @agile-team/wl-skills-kit validate --typecheck  含类型检查 R14（CI 用）
     pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
-    pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wk-skills-ui 接入
+    pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wl-skills-ui 接入
     pnpm dlx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
     pnpm dlx @agile-team/wl-skills-kit clean                 清理开发期文件
     pnpm dlx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
@@ -550,7 +550,7 @@ function runInstall(incremental) {
 
   if (!dryRun) writeManifest(newManifest);
 
-  // ── Step 5: 非耦合桥接提醒（不自动安装 wk-skills-ui）───────────────────────
+  // ── Step 5: 非耦合桥接提醒（不自动安装 wl-skills-ui）───────────────────────
 
   const targetPkgPath = path.join(TARGET_DIR, "package.json");
   let hasUiPackage = false;
@@ -558,7 +558,7 @@ function runInstall(incremental) {
     try {
       const targetPkg = JSON.parse(fs.readFileSync(targetPkgPath, "utf8"));
       const deps = { ...targetPkg.dependencies, ...targetPkg.devDependencies };
-      hasUiPackage = Boolean(deps["@agile-team/wk-skills-ui"]);
+      hasUiPackage = Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]);
     } catch {
       hasUiPackage = false;
     }
@@ -610,11 +610,11 @@ function runInstall(incremental) {
   console.log("");
   if (hasUiPackage) {
     console.log(
-      "  ℹ 检测到 @agile-team/wk-skills-ui：两包独立分工，可组合触发 UI 风格对齐流程。",
+      "  ℹ 检测到 @agile-team/wl-skills-ui：两包独立分工，可组合触发 UI 风格对齐流程。",
     );
   } else {
     console.log(
-      "  ℹ 可选桥接：如需统一 UI 风格/老项目化妆层，可安装 @agile-team/wk-skills-ui。",
+      "  ℹ 可选桥接：如需统一 UI 风格/老项目化妆层，可安装 @agile-team/wl-skills-ui。",
     );
   }
   console.log(
@@ -1243,7 +1243,7 @@ function runValidate() {
       issues.push({
         level: "error",
         dir: page.dir,
-        text: "表格列必须使用 wk-skills-ui defineColumns()",
+        text: "表格列必须使用 wl-skills-ui defineColumns()",
       });
     if (page.hasOperationsArray)
       issues.push({
@@ -1422,7 +1422,7 @@ const FIX_SUGGESTIONS = {
     auto: true,
   },
   'defineColumns()': {
-    fix: 'import { defineColumns } from "@agile-team/wk-skills-ui/runtime" \u5e76\u7528\u4e8e\u5217\u5b9a\u4e49',
+    fix: 'import { defineColumns } from "@agile-team/wl-skills-ui/runtime" \u5e76\u7528\u4e8e\u5217\u5b9a\u4e49',
     ref: 'standards/12-base-table.md',
     auto: true,
   },
@@ -1549,9 +1549,9 @@ function runDoctorUi() {
   const pkg = readJsonSafe(path.join(TARGET_DIR, "package.json"));
   const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
   add(
-    "@agile-team/wk-skills-ui",
-    Boolean(deps["@agile-team/wk-skills-ui"]),
-    deps["@agile-team/wk-skills-ui"] || "未安装",
+    "@agile-team/wl-skills-ui",
+    Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]),
+    deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"] || "未安装",
   );
   add(
     "@element-plus/icons-vue",
@@ -1575,14 +1575,14 @@ function runDoctorUi() {
 
   add(
     "design tokens",
-    /@agile-team\/wk-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
+    /@agile-team\/w[lk]-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
       allSource,
     ),
     "需引入 design tokens",
   );
   add(
     "styles preset",
-    /@agile-team\/wk-skills-ui\/styles/.test(allSource),
+    /@agile-team\/w[lk]-skills-ui\/styles/.test(allSource),
     "需引入 styles 或 skin preset",
   );
   add(
@@ -1677,9 +1677,9 @@ function runDoctorUi() {
   const failed = checks.filter((item) => !item.ok).length;
   console.log("");
   console.log(
-    failed === 0
-      ? "  ✔ wk-skills-ui 接入检查通过"
-      : "  ⚠ wk-skills-ui 接入仍有 " + failed + " 项需处理",
+      failed === 0
+        ? "  ✔ wl-skills-ui 接入检查通过"
+        : "  ⚠ wl-skills-ui 接入仍有 " + failed + " 项需处理",
   );
   console.log("");
   if (failed > 0) process.exitCode = 1;
