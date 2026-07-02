@@ -140,6 +140,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 类型 | 路径 |
 |------|------|
 | 平台组件文档（jh-select 等） | `.wl-skills/.wl-skills/docs/jh-{name}.md` |
+| **组件在线查询索引（35 组件）** | `.wl-skills/docs/component-online-index.md` |
 | 组件 README（BaseTable 等） | `.wl-skills/.wl-skills/src/components/remote/{Name}/README.md` |
 | 局部组件 README | `.wl-skills/.wl-skills/src/components/local/{c_xxx}/README.md` |
 | 页面模板 | `.wl-skills/templates/` |
@@ -149,6 +150,21 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 审计报告 | `.wl-skills/reports/` |
 | 场景索引 | `.wl-skills/skills/_best-practices.md` |
 | I/O 契约 | `.wl-skills/skills/_pipeline.md` |
+
+### 🔌 组件 API 在线查询（健壮性保障）
+
+kit 内的 `jh-{name}.md` 是**精简快速参考**（11 个常用组件）。当遇到以下情况时，**主动 webfetch 在线文档**获取最新完整 API：
+
+1. 需要用 kit 未收录的组件（如 `jh-input` / `jh-radio-group` / `jh-dialog` / `jh-drawer` / `jh-cascader` 等 35 个组件中的任何一个）
+2. 某个 prop / 事件不确定，需要完整 API 表
+3. 组件行为与 kit 文档描述不符（以在线文档为准）
+
+**查询步骤**：
+1. 读 `.wl-skills/docs/component-online-index.md` 获取组件名→路径映射
+2. webfetch 在线文档（优先 vercel 站点，兜底 GitHub raw）
+3. 以在线文档 API 为准编写代码
+
+> 在线文档对照 `common-core/lib/*.d.ts` 真实声明维护，准确性有保证。最终仲裁：`@jhlc/common-core/lib/{Xxx}Component.d.ts` 类型声明。
 
 ---
 

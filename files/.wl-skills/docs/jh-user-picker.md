@@ -45,16 +45,15 @@ const form = ref({
 | 参数                 | 说明                   | 类型                  | 默认值           |
 | -------------------- | ---------------------- | --------------------- | ---------------- |
 | modelValue / v-model | 绑定值                 | `string \| string[]`  | -                |
-| multiple             | 是否多选               | `boolean`             | `false`          |
-| placeholder          | 占位提示               | `string`              | `"请选择用户"`   |
-| disabled             | 是否禁用               | `boolean`             | `false`          |
-| clearable            | 是否可清空             | `boolean`             | `true`           |
-| dataType             | 返回数据类型（多选时） | `"array" \| "string"` | `"array"`        |
-| dialogTitle          | 弹窗标题               | `string`              | `"选择用户"`     |
-| dialogWidth          | 弹窗宽度               | `string`              | `"800px"`        |
-| searchPlaceholder    | 搜索框占位文本         | `string`              | `"请输入用户名"` |
+| multiple             | 是否多选               | `boolean`             | -                |
+| placeholder          | 占位提示               | `string`              | -                |
+| status               | 控件状态               | `"default" \| "disabled" \| "readonly"` | `"default"` |
+| dataType             | 返回数据类型（多选时） | `"array" \| "string"` | -                |
+| dialogTitle          | 弹窗标题               | `string`              | -                |
+| dialogWidth          | 弹窗宽度               | `string`              | -                |
+| searchPlaceholder    | 搜索框占位文本         | `string`              | -                |
 
-> **重点**: 多选时,`dataType="string"` 会返回逗号分隔的字符串,`dataType="array"` 返回数组。
+> ⚠️ **声明层说明**：`UserPickerComponent.d.ts` 的 props 块为空（`ExtractPropTypes<{}>`），仅 `& Record<string, any>` 透传。上述为运行时通用属性，具体可用性以实际为准。推荐用 `logicType: BusLogicDataType.user` 配置式触发。
 
 ---
 

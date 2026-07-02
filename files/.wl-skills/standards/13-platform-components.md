@@ -37,6 +37,9 @@
 | 状态标签            | `C_TagStatus`                                 | ❌ el-tag + 颜色映射         |
 | HTTP 请求           | `getAction/postAction/putAction/deleteAction` | ❌ axios / fetch 直接调用    |
 
+> **📋 完整组件列表（35 个）+ 在线 API 查询**：见 `.wl-skills/docs/component-online-index.md`。
+> 需要未列入上表的组件 API（如 `jh-input` / `jh-radio-group` / `jh-dialog` / `jh-drawer` / `jh-cascader` / `jh-switch` 等）时，webfetch 在线文档获取权威用法。最终以 `common-core/lib/*.d.ts` 类型声明为准。
+
 ---
 
 ## 组件在 template 中的书写顺序
