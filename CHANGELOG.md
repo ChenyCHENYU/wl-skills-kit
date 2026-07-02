@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.11.8] - 2026-07-02
+
+### Changed
+
+- **权威属性源标注升级**：在线索引（`component-online-index.md`）与 `copilot-instructions-full.md` 标注 **props.ts 为最权威属性源**（优于 `lib/*.d.ts`）。原因：`lib/*.d.ts` 的 `ExtractPropTypes` 只推断 `defineComponent` 显式声明 props，大量属性通过运行时注入（如 user-picker 26 个属性在 .d.ts 里是空 `{}`），而 `schema-component/{group}/{name}/props.ts` 是设计器全量属性清单，无遗漏。三级优先级：① props.ts ② lib/*.d.ts ③ 在线文档
+
 ## [2.11.7] - 2026-07-02
 
 ### Added
