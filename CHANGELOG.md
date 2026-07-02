@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.11.7] - 2026-07-02
+
+### Added
+
+- **组件 API 在线查询机制（健壮性提升）**：新增 `files/.wl-skills/docs/component-online-index.md`，提供 **35 个组件**（Base×5 + jh-×25 + C_/c_×5）的名称→在线路径映射表。三层保障：kit 精简参考（11 个）→ webfetch 在线完整文档（35 个）→ common-core/lib 声明最终仲裁。双通道查询（Vercel 站点优先 + GitHub Raw 兜底）。当 AI 遇到 kit 未收录组件（jh-input/jh-dialog/jh-drawer/jh-cascader 等）或 API 不确定时，主动查在线文档，不再靠猜
+- `copilot-instructions-full.md` 与 `standards/13-platform-components.md` 增补在线查询指引入口
+
+### Changed
+
+- `jh-user-picker.md`：标注声明层 props 为空（`UserPickerComponent.d.ts` 的 `ExtractPropTypes<{}>`），仅 `Record<string, any>` 透传；`disabled`/`clearable` → `status`（统一控件状态控制）
+
 ## [2.11.6] - 2026-07-01
 
 ### Fixed
