@@ -100,9 +100,28 @@ https://raw.githubusercontent.com/ChenyCHENYU/jh-agileteam-doc/main/docs/fronten
 
 ---
 
-## 组件声明权威源（最终验证）
+## 组件属性权威源（最终验证）
 
-当在线文档也不确定时，**最终以 common-core 类型声明为准**：
+属性准确性有三个层次，**从上到下优先级递减**：
+
+### 1. props.ts（最权威，最完整）⭐
+
+低代码 schema-component 的设计器属性清单，是产品定义，属性最全：
+
+```
+lowcode-engine/packages/common/common-lowcode/components-runtime/src/schema-component/{group}/{name}/props.ts
+```
+
+分组对应：
+- `base-input-group/`：input/select/date/picker/user-picker 等表单输入
+- `base-common-group/`：button/icon/text/pagination/tree/tag 等通用
+- `base-container-group/`：dialog/drawer/tabs/drag-col/drag-row/card 等容器
+- `base-show-group/`：avatar/badge/carousel 等
+- `base-guide-group/`：breadcrumb/progress/step/steps
+
+> ⚠️ **为什么 props.ts 比 .d.ts 权威**：`lib/*.d.ts` 的 `ExtractPropTypes` 只推断 `defineComponent` 显式声明的 props，大量属性（如 user-picker 的 26 个属性、select 的数据配置组）通过运行时 `v-bind`/配置注入，**不会出现在 .d.ts**（user-picker 的 .d.ts props 块直接是空 `{}`）。props.ts 是设计器全量属性清单，无遗漏。
+
+### 2. lib/*.d.ts（编译声明，辅助参考）
 
 ```
 @jhlc/common-core/lib/{PascalCase}Component.d.ts
@@ -110,10 +129,8 @@ https://raw.githubusercontent.com/ChenyCHENYU/jh-agileteam-doc/main/docs/fronten
 
 映射规则：标签 `jh-input-number` → `InputNumberComponent.d.ts`
 
-声明文件结构：
-```
-EpPropFinalized<TypeConstructor, EnumValues, Resolved, DefaultValue>
-                                                    ↑ 第 4 个泛型 = 默认值
-```
+结构：`EpPropFinalized<T, Values, Resolved, Default>`，第 4 个泛型 = 默认值。emits 在 `// 事件` 注释后。
 
-emits 块在 `// 事件` 注释后；空块 `{}` = 无事件。
+### 3. 在线文档站（webfetch 查询，基于上述源维护）
+
+本文档上半部分的在线索引。属性表已基于 props.ts 维护。
