@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.11.9] - 2026-07-03
+
+### Added
+
+- **菜单同步自动反推 domainId**：新增 `getPermissionMenuTree` 接口链路（`queryPermissionMenuTree` + `resolveDomainId` + `locateAppDomain`），仅需 `token` + `sysAppNo`（或应用域名称关键词）即可自动倒推 `domainId` / `parentMenuId` / `sysAppNo`，不再依赖用户手动从 Network 面板抄取。`handleMenuQuery` 与 `handleMenuSyncFromReport` 在 `domainId` 缺失或为占位符时自动反推，链路不再卡死。已用主数据管理（mdata）应用域真实接口验证通过
+
 ## [2.11.8] - 2026-07-02
 
 ### Changed
