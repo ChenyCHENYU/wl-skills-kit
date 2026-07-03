@@ -3,6 +3,29 @@
 const { wlsFetch } = require('./client')
 
 /**
+ * 查询当前用户可见的全部权限菜单树（不依赖 domainId）。
+ * GET /system/menu/getPermissionMenuTree
+ *
+ * 返回的顶层节点是各"应用域"，其结构：
+ *   { id, menuName, parentId, sysAppNo, type, children, ... }
+ * 其中：
+ *   - id        = 该应用域的菜单根 ID（即 parentMenuId）
+ *   - parentId  = domainId（应用域归属 ID，用于 getMenuTreeByDomainId）
+ *   - sysAppNo  = 应用编码
+ *   - menuName  = 应用域名称（如"主数据管理"）
+ *
+ * 这是倒推 domainId 的唯一可靠入口：
+ *   ① 用 getPermissionMenuTree 拿到全部应用域
+ *   ② 按 menuName/sysAppNo/path 定位目标应用域
+ *   ③ 取该节点的 parentId 作为 domainId
+ *
+ * @param {{ gatewayPath: string, token: string }} config
+ */
+function queryPermissionMenuTree(config) {
+  return wlsFetch('/system/menu/getPermissionMenuTree', {}, config)
+}
+
+/**
  * 查询指定应用域的菜单树
  * GET /system/menu/getMenuTreeByDomainId?domainId={domainId}
  *
@@ -29,4 +52,4 @@ function saveMenu(body, config) {
   return wlsFetch('/system/menu/save', { method: 'POST', body }, config)
 }
 
-module.exports = { queryMenuTree, saveMenu }
+module.exports = { queryPermissionMenuTree, queryMenuTree, saveMenu }

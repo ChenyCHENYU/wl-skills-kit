@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { queryMenuTree, saveMenu } = require("../api/menuApi");
+const { queryPermissionMenuTree, queryMenuTree, saveMenu } = require("../api/menuApi");
 
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -67,6 +67,87 @@ function findExisting(flatMenus, item) {
       String(menu.menuName) === String(item.menuName);
     return sameParent && (samePath || sameName);
   });
+}
+
+/**
+ * 从 getPermissionMenuTree 顶层节点中，按关键字（menuName/sysAppNo/path）定位目标应用域。
+ * 定位优先级：sysAppNo 精确匹配 > menuName 包含关键词 > path 包含关键词。
+ *
+ * @param {object[]} topNodes  顶层应用域节点
+ * @param {{ sysAppNo?: string, keyword?: string }} matchers
+ * @returns {object|null}  命中的应用域节点（含 id/parentId/sysAppNo/menuName）
+ */
+function locateAppDomain(topNodes, matchers) {
+  if (!Array.isArray(topNodes) || topNodes.length === 0) return null;
+
+  // ① sysAppNo 精确匹配（最可靠）
+  if (matchers.sysAppNo) {
+    const hit = topNodes.find(
+      (n) => String(n.sysAppNo || "") === String(matchers.sysAppNo),
+    );
+    if (hit) return hit;
+  }
+
+  // ② menuName / path 关键词包含匹配
+  const kw = (matchers.keyword || "").trim();
+  if (kw) {
+    const byName = topNodes.find((n) =>
+      String(n.menuName || "").includes(kw),
+    );
+    if (byName) return byName;
+    const byPath = topNodes.find((n) => String(n.path || "").includes(kw));
+    if (byPath) return byPath;
+  }
+
+  return null;
+}
+
+/**
+ * 自动解析 domainId（应用域归属 ID）。
+ *
+ * 链路：getPermissionMenuTree（仅需 token）
+ *   → 顶层各应用域（主数据管理 等）
+ *   → 按 sysAppNo 或关键词定位目标应用域
+ *   → 取该节点的 parentId 即为 domainId
+ *   → 同时可拿到 id（parentMenuId）、sysAppNo、menuName
+ *
+ * @param {object} config  含 gatewayPath/token，可选 sysAppNo
+ * @param {{ keyword?: string }} [opts]  应用域名称关键词（如"主数据"）
+ * @returns {Promise<{ ok: boolean, domainId?: string, appRootId?: string, sysAppNo?: string, menuName?: string, error?: string }>}
+ */
+async function resolveDomainId(config, opts) {
+  const result = await queryPermissionMenuTree(config);
+  if (!result.ok) {
+    return { ok: false, error: `查询权限菜单树失败: ${result.error}` };
+  }
+
+  const topNodes = normalizeTree(result.data);
+  if (topNodes.length === 0) {
+    return { ok: false, error: "权限菜单树为空，当前账号可能无任何菜单权限" };
+  }
+
+  const matched = locateAppDomain(topNodes, {
+    sysAppNo: config.sysAppNo,
+    keyword: opts && opts.keyword,
+  });
+
+  if (!matched) {
+    const names = topNodes
+      .map((n) => `${n.menuName || "?"}(sysAppNo=${n.sysAppNo || "?"})`)
+      .join("、");
+    return {
+      ok: false,
+      error: `未能匹配到目标应用域。请确认 sysAppNo 或关键词。当前可见应用域: ${names}`,
+    };
+  }
+
+  return {
+    ok: true,
+    domainId: String(matched.parentId || ""),
+    appRootId: String(matched.id || ""),
+    sysAppNo: matched.sysAppNo || config.sysAppNo || "",
+    menuName: matched.menuName || "",
+  };
 }
 
 function findLatestReport(root) {
@@ -182,23 +263,27 @@ function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
 
 /**
  * wls_menu_query 工具处理器
- * 自动从 config.menu.domainId 读取应用域 ID，查询完整菜单树
+ * 自动从 config.menu.domainId 读取应用域 ID，查询完整菜单树。
+ * 若 domainId 缺失，则通过 getPermissionMenuTree 自动反推（仅需 token + sysAppNo/关键词）。
  *
- * @param {{ menu: { domainId?: string } }} config
+ * @param {object} config
  * @returns {Promise<string>} 返回给 AI 的文本内容
  */
 async function handleMenuQuery(config) {
-  const domainId = config.menu && config.menu.domainId;
+  let domainId = config.menu && config.menu.domainId;
 
+  // domainId 缺失或为占位符时，自动反推
   if (!domainId || domainId.toString().includes("domainId")) {
-    return [
-      "❌ 请在 env.local.json 的 menu.domainId 字段填写真实的应用域 ID",
-      "",
-      "获取方式：打开菜单管理后台，在 Network 面板找到类似",
-      "  getMenuTreeByDomainId?domainId=1777597797627056130",
-      "中的数字即为 domainId，填入 env.local.json：",
-      '  "menu": { "domainId": "1777597797627056130", ... }',
-    ].join("\n");
+    const resolved = await resolveDomainId(config);
+    if (!resolved.ok) {
+      return [
+        "❌ 未能自动获取 domainId：" + resolved.error,
+        "",
+        "请确认 env.local.json 中已填写 token，并配置 sysAppNo 或 menu.keyword。",
+        "也可手动填写 menu.domainId（从 getMenuTreeByDomainId?domainId=xxx 获取）。",
+      ].join("\n");
+    }
+    domainId = resolved.domainId;
   }
 
   const result = await queryMenuTree(domainId, config);
@@ -272,12 +357,16 @@ async function handleMenuUpsert(args, config) {
 }
 
 async function handleMenuSyncFromReport(args, config) {
-  const domainId = config.menu && config.menu.domainId;
+  let domainId = config.menu && config.menu.domainId;
+  // domainId 缺失时自动反推
+  if (!domainId || domainId.toString().includes("domainId")) {
+    const resolved = await resolveDomainId(config);
+    if (!resolved.ok)
+      return "❌ 未能自动获取 domainId：" + resolved.error + "\n请确认 token 与 sysAppNo 已填写，或手动填写 menu.domainId。";
+    domainId = resolved.domainId;
+  }
   const rootParentId =
     (config.menu && config.menu.parentMenuId) || config.parentMenuId;
-  if (!domainId || domainId.toString().includes("domainId")) {
-    return "❌ 请先在 .github/skills/sync/env.local.json 填写 menu.domainId";
-  }
   if (!rootParentId || rootParentId.toString().includes("parentMenuId")) {
     return "❌ 请先在 .github/skills/sync/env.local.json 填写 menu.parentMenuId";
   }
@@ -422,6 +511,8 @@ module.exports = {
     normalizeTree,
     flattenMenus,
     findExisting,
+    locateAppDomain,
+    resolveDomainId,
     parseReport,
   },
 };
