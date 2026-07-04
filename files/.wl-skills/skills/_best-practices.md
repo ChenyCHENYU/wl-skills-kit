@@ -204,7 +204,7 @@ wls_env_scan                 ← 只读扫描，识别 root-env / env-dir
 ```
 
 **边界**：
-- 只处理前端 env 文件、前端代理/baseURL 相关线索。
+- 只处理前端 env 文件、可识别的 Vite/运行时配置、前端代理/baseURL 相关线索。
 - 后端、Nginx、Docker、Java、配置中心不处理，后续放到 bd 能力。
 - 扫描到硬编码 URL 只列线索，不自动改业务代码。
 

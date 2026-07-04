@@ -1,6 +1,6 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.12.1
+> **版本基线**：wl-skills-kit v2.12.2
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
 > **定位**：统一说明 19 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
@@ -141,7 +141,7 @@ wls_env_scan
 
 - `env.local.json` 只放本地环境配置，不应提交真实 token。
 - R3/R4 Tool 不允许在用户无明确确认时自动执行。
-- `wls_env_apply` 虽不调用后端，但会写本地前端 env 文件；未确认时只能 dry-run，不得传 `confirmApply: true`。
+- `wls_env_apply` 虽不调用后端，但会写本地前端 env 文件与可识别的 Vite/运行时配置；未确认时只能 dry-run，不得传 `confirmApply: true`。
 - 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

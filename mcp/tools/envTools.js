@@ -21,6 +21,7 @@ function pickOptions(args = {}) {
   if (args.profileData) options.profileData = args.profileData;
   if (args.profileFile) options.profileFile = args.profileFile;
   if (args.prodPrefix) options.prodPrefix = args.prodPrefix;
+  if (args.migrateViteConfig === false) options.migrateViteConfig = false;
   return options;
 }
 

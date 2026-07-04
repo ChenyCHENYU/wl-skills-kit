@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.1
+ * wl-skills-kit CLI v2.12.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -78,6 +78,7 @@ const KNOWN_FLAGS = new Set([
   "--profile-file",
   "--project-type",
   "--prod-prefix",
+  "--no-migrate-vite",
   "--apply",
 ]);
 
@@ -165,6 +166,7 @@ if (showHelp) {
     --profile-file   env 使用自定义 Profile JSON
     --project-type   env 指定项目形态：auto/root-env/env-dir
     --prod-prefix    env 覆盖生产 API 前缀，如 prod-api 或 prd-api
+    --no-migrate-vite env 仅处理 .env.*，不迁移 vite.config / public/env-dev.json
     --apply          env apply 的正式写入确认开关
     --help           显示帮助
 
@@ -187,7 +189,8 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
     pnpm dlx @agile-team/wl-skills-kit env scan                   扫描前端环境配置
     pnpm dlx @agile-team/wl-skills-kit env apply                  预览标准化写入计划
-    pnpm dlx @agile-team/wl-skills-kit env apply --apply          确认写入前端 env 文件
+    pnpm dlx @agile-team/wl-skills-kit env apply --apply          确认写入前端 env / Vite 配置
+    pnpm dlx @agile-team/wl-skills-kit env apply --no-migrate-vite 仅预览 env 文件变更
 
   保护路径（init / update 不覆盖已存在的）:
     .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -1890,6 +1893,7 @@ function buildEnvOptions() {
   const prodPrefix = readOption("--prod-prefix");
   if (profileFile) options.profileFile = profileFile;
   if (prodPrefix) options.prodPrefix = prodPrefix;
+  if (args.includes("--no-migrate-vite")) options.migrateViteConfig = false;
   return options;
 }
 

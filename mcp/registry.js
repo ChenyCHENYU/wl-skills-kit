@@ -342,7 +342,8 @@ const DESCRIPTORS = [
         },
         profileData: {
           type: "object",
-          description: "可选。直接传入自定义 Profile 数据，结构为 { name, title, envs }。",
+          description:
+            "可选。直接传入自定义 Profile 数据，支持 { name, title, envs } 或 { appName, baseUrls, proxyPrefixes }。",
         },
         projectType: {
           type: "string",
@@ -352,6 +353,11 @@ const DESCRIPTORS = [
         prodPrefix: {
           type: "string",
           description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
+        },
+        migrateViteConfig: {
+          type: "boolean",
+          description:
+            "是否迁移 vite.config / public/env-dev.json 中可识别的硬编码环境映射，默认 true；传 false 时只处理 env 文件。",
         },
       },
       required: [],
@@ -376,7 +382,8 @@ const DESCRIPTORS = [
         },
         profileData: {
           type: "object",
-          description: "可选。直接传入自定义 Profile 数据，结构为 { name, title, envs }。",
+          description:
+            "可选。直接传入自定义 Profile 数据，支持 { name, title, envs } 或 { appName, baseUrls, proxyPrefixes }。",
         },
         projectType: {
           type: "string",
@@ -386,6 +393,11 @@ const DESCRIPTORS = [
         prodPrefix: {
           type: "string",
           description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
+        },
+        migrateViteConfig: {
+          type: "boolean",
+          description:
+            "是否迁移 vite.config / public/env-dev.json 中可识别的硬编码环境映射，默认 true；传 false 时只处理 env 文件。",
         },
         confirmApply: {
           type: "boolean",

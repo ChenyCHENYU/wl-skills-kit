@@ -77,7 +77,7 @@ skills/
     - `page-codegen`（会创建/覆盖文件）
     - `menu-sync` / `dict-sync` / `permission-sync`（会调用后端接口写数据）
     - `code-fix`（会修改源码）
-    - `env-config`（会创建/更新前端环境文件；默认必须先 dry-run）
+    - `env-config`（会创建/更新前端环境文件与可识别的 Vite 配置；默认必须先 dry-run）
 12. **误触发防护**：当用户消息同时匹配 2+ Skill 且非明确流水线意图时，必须先输出“检测到多个可能的 Skill，您的意图是？”并列出候选，而不是自行决定
 
 ---

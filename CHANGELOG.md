@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.12.2] - 2026-07-04
+
+### Changed
+
+- **env-config 补齐 Vite 硬编码迁移**：扫描和 apply 计划新增 `configChanges`，可识别并迁移 `vite.config.*` 中的 `webMap` / `webApiMap` / `[baseApi]` 代理 target，以及 `public/env-dev.json` 的本地运行时地址。
+- **客户环境 Profile 增强**：`profileData` / `profileFile` 支持 `{ appName, baseUrls, proxyPrefixes }` 简写，适配 172、华新、客户环境之间互切；服务前缀继续按 `sit-api`、`uat-api`、`pre-api`、`prod-api` / `prd-api` 规范沉淀。
+- **安全开关与文档同步**：CLI 新增 `--no-migrate-vite`，MCP 新增 `migrateViteConfig: false`，特殊项目可只处理 env 文件；README、Skill、Pipeline 和风险矩阵同步更新边界说明。
+
 ## [2.12.1] - 2026-07-04
 
 ### Changed
