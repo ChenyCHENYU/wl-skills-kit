@@ -1,6 +1,6 @@
 # Agent Pipeline 运行手册
 
-> **版本基线**：wl-skills-kit v2.11.11
+> **版本基线**：wl-skills-kit v2.12.0
 > **定位**：给 AI 编辑器、团队成员和 CI 统一一套可追踪、可回退、可复扫的 Agent Pipeline 执行方法。
 
 ---
@@ -79,6 +79,18 @@ page-codegen 产出 SYS_* 报告
 
 字典链路必须前置统一枚举模型：原型/详设/api.md 中都使用 `dictCode + dictName + items[{ value, label }]`。其中 `value` 入库为 `strKey`，`label` 入库为中文 `strValue`；`strValueCode` 由 MCP 按线上规则自动生成。不要把字典明细误建成业务模块，也不要让 AI 猜测字典编码命名风格。
 
+### 2.5 前端环境配置标准化
+
+```text
+wls_env_scan
+→ wls_env_apply（dry-run）
+→ 用户确认 Profile、API 前缀和变更文件
+→ wls_env_apply(confirmApply: true)
+→ lint / build / 本地启动验证
+```
+
+适用场景：4/5 套前端环境初始化、旧 172 地址迁移、客户环境切换、baseURL 与 `/api` / `sit-api` / `uat-api` / `prod-api` 标准化。后端环境配置不在本链路内。
+
 ---
 
 ## 3. Pipeline 运行报告
@@ -125,6 +137,7 @@ page-codegen 产出 SYS_* 报告
 涉及以下动作时，`是否需要用户确认` 必须为“是”：
 
 - 写源码文件
+- 写前端环境配置文件
 - 修改 `.wl-skills/reports/` 基线
 - 调用后端写接口
 - 覆盖角色授权
@@ -151,6 +164,14 @@ wls_route_check({ path: "src/views" })
 wls_git_log_extract({ n: 20 })
 ```
 
+### 前端环境配置
+
+```text
+wls_env_scan()
+wls_env_apply()                  # dry-run
+wls_env_apply({ confirmApply: true })
+```
+
 ### 发布前自检
 
 ```bash
@@ -170,6 +191,7 @@ git diff --check
 - **审计修复不满意**：回退源码 diff，保留审计报告。
 - **菜单/字典同步异常**：基于报告和后台查询结果人工校正，再重跑 query 类工具验证。
 - **权限授权异常**：优先重新确认全量 `menuIds`，并显式传 `confirmFullReplace: true` 后再执行覆盖式授权。
+- **环境配置写入异常**：使用 `.wl-skills/reports/env-backups/` 中的备份恢复，再重新 dry-run 确认 Profile。
 
 ---
 

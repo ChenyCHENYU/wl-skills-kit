@@ -26,7 +26,8 @@ skills/
 │   └── permission-sync/  ✅ v2.3.6 激活
 │
 ├── ops/                 运维/构建类
-│   └── code-fix/
+│   ├── code-fix/
+│   └── env-config/
 │
 └── domain/              领域专属 Skill（按域扩展，初始为空）
 ```
@@ -53,6 +54,7 @@ skills/
 | dict-sync        | ✅ 启用 | `skills/sync/dict-sync/SKILL.md`        | `wls_dict_query` / `wls_dict_upsert`                                                                                       | 同步字典 / 创建字典 / 刷新字典基线 / 字典对比 / 字典审计                                                                                |
 | permission-sync  | ✅ 启用 | `skills/sync/permission-sync/SKILL.md`  | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` | 创建角色 / 角色管理 / 角色授权 / 给角色分配菜单 / 挂动作 / 添加动作按钮 / 同步权限 / 权限码注册                                         |
 | code-fix         | ✅ 启用 | `skills/ops/code-fix/SKILL.md`          | —                                                                                                                          | 自动修复 / 整改偏差 / 修复报告 / 规范整改 / 修复偏差 / code fix                                                                         |
+| env-config       | ✅ 启用 | `skills/ops/env-config/SKILL.md`        | `wls_env_scan` / `wls_env_apply`                                                                                           | 环境配置 / 前端环境标准化 / 切环境 / baseURL / /api / sit-api / uat-api / prod-api / prd-api / 172迁移 / 客户迁移 / 华新环境 / 五套环境 |
 
 > **MCP 工具依赖说明**：sync 类 Skill 必须通过列出的 MCP 工具执行。工具不可用或返回错误时，遵循 `skills/sync/_mcp-guardrail.md` §2 自愈剧本（引导用户完善 `env.local.json` 后重试），**不允许** AI 用 curl/PowerShell/fetch 等绕开 MCP。
 
@@ -75,6 +77,7 @@ skills/
     - `page-codegen`（会创建/覆盖文件）
     - `menu-sync` / `dict-sync` / `permission-sync`（会调用后端接口写数据）
     - `code-fix`（会修改源码）
+    - `env-config`（会创建/更新前端环境文件；默认必须先 dry-run）
 12. **误触发防护**：当用户消息同时匹配 2+ Skill 且非明确流水线意图时，必须先输出“检测到多个可能的 Skill，您的意图是？”并列出候选，而不是自行决定
 
 ---

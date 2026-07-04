@@ -40,6 +40,7 @@ const {
   handleGitLogExtract,
   handleAuditReportPush,
 } = require("./tools/projectTools");
+const { handleEnvScan, handleEnvApply } = require("./tools/envTools");
 
 const DESCRIPTORS = [
   // ── menu ───────────────────────────────────────────────────────────
@@ -323,6 +324,78 @@ const DESCRIPTORS = [
     },
     needsBackendConfig: false,
     handle: (args) => handleRouteCheck(args),
+  },
+  {
+    name: "wls_env_scan",
+    description:
+      "扫描前端项目环境配置形态与硬编码端点，识别 root .env.* / env/.env.* 两类项目，并输出标准化计划。纯本地只读工具，不读取后端配置、不需要 token。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile: {
+          type: "string",
+          description: '环境 Profile 名称，默认 "walsin"',
+        },
+        profileFile: {
+          type: "string",
+          description: "可选。自定义环境 Profile JSON 文件路径。",
+        },
+        profileData: {
+          type: "object",
+          description: "可选。直接传入自定义 Profile 数据，结构为 { name, title, envs }。",
+        },
+        projectType: {
+          type: "string",
+          enum: ["auto", "root-env", "env-dir"],
+          description: "项目环境文件形态，默认 auto 自动识别。",
+        },
+        prodPrefix: {
+          type: "string",
+          description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleEnvScan(args),
+  },
+  {
+    name: "wls_env_apply",
+    description:
+      "按标准 Profile 生成或更新前端环境文件，仅处理前端 baseURL/API 前缀配置。默认 dry-run；必须传 confirmApply: true 才会写入文件，并自动备份到 .wl-skills/reports/env-backups。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile: {
+          type: "string",
+          description: '环境 Profile 名称，默认 "walsin"',
+        },
+        profileFile: {
+          type: "string",
+          description: "可选。自定义环境 Profile JSON 文件路径。",
+        },
+        profileData: {
+          type: "object",
+          description: "可选。直接传入自定义 Profile 数据，结构为 { name, title, envs }。",
+        },
+        projectType: {
+          type: "string",
+          enum: ["auto", "root-env", "env-dir"],
+          description: "项目环境文件形态，默认 auto 自动识别。",
+        },
+        prodPrefix: {
+          type: "string",
+          description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
+        },
+        confirmApply: {
+          type: "boolean",
+          description: "正式写入确认开关。未传 true 时永远只做 dry-run。",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleEnvApply(args),
   },
   {
     name: "wls_validate_page",

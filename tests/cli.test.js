@@ -135,3 +135,54 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe("CLI env", () => {
+  it("env scan 只读扫描 env-dir 项目", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, "env");
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, ".env.sit"),
+      "VITE_API_BASE_URL=https://old.example.com/sit-api\n",
+      "utf8",
+    );
+
+    const res = runCli(["env", "scan"], { cwd: dir });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/env-dir/);
+    expect(res.stdout).toMatch(/VITE_API_BASE_URL/);
+    expect(fs.existsSync(path.join(dir, ".wl-skills"))).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("env apply 默认 dry-run，不写入环境文件", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, "env");
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(path.join(envDir, ".env.sit"), "VITE_ENV=sit\n", "utf8");
+
+    const res = runCli(["env", "apply"], { cwd: dir });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/dry-run/);
+    expect(fs.existsSync(path.join(envDir, ".env.production"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".wl-skills"))).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("env apply --apply 写入前端 env 文件并生成报告", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, "env");
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(path.join(envDir, ".env.sit"), "VITE_ENV=sit\n", "utf8");
+
+    const res = runCli(["env", "apply", "--apply"], { cwd: dir });
+    expect(res.status).toBe(0);
+    expect(fs.existsSync(path.join(envDir, ".env.production"))).toBe(true);
+    expect(
+      fs.readdirSync(path.join(dir, ".wl-skills", "reports")).some((name) =>
+        /^ENV_CONFIG_.*\.md$/.test(name),
+      ),
+    ).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});

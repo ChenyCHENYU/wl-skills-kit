@@ -48,6 +48,7 @@ const WRITE_SKILLS = [
   "core/business-doc-extract/SKILL.md",
   "core/template-extract/SKILL.md",
   "ops/code-fix/SKILL.md",
+  "ops/env-config/SKILL.md",
 ];
 
 const errors = [];

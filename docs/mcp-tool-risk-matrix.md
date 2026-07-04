@@ -1,8 +1,8 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.11.11
+> **版本基线**：wl-skills-kit v2.12.0
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
-> **定位**：统一说明 17 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
+> **定位**：统一说明 19 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | R0 只读感知 | 只读取本地文件、Git 信息或后端数据，不产生写入 | 可由 Agent 自动调用 |
 | R1 本地检查 | 只做本地扫描和诊断，不修改文件、不调用后端写接口 | 可由 Agent 自动调用，结果需展示 |
-| R2 本地产物 | 读取本地报告并生成导出文件或摘要 | 建议先 dry-run 或展示输出路径 |
+| R2 本地产物 | 读取本地报告并生成导出文件、摘要或本地配置文件 | 建议先 dry-run 或展示输出路径；写配置文件必须人工确认 |
 | R3 后端写入 | 会新增/更新菜单、字典、角色、授权或动作权限 | 必须人工确认，建议先 query/dry-run/报告预览 |
 | R4 外部通知 | 会向飞书等外部协作系统推送消息 | 必须人工确认，可配置缺失时静默跳过 |
 
@@ -27,6 +27,8 @@
 | `wls_git_log_extract` | 项目感知 | R0 | 否 | 是 | 无 |
 | `wls_validate_page` | 本地检查 | R1 | 否 | 是 | 无 |
 | `wls_doctor_ui` | 本地检查 | R1 | 否 | 是 | 无 |
+| `wls_env_scan` | 环境扫描 | R1 | 否 | 是 | 无 |
+| `wls_env_apply` | 环境配置 | R2 | 否 | 否 | 默认 dry-run；正式写入必须确认文件计划并传 `confirmApply: true` |
 | `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_query` | 字典查询 | R0 | 是 | 是 | 无 |
 | `wls_role_query` | 权限查询 | R0 | 是 | 是 | 无 |
@@ -54,6 +56,7 @@ wls_route_check
 wls_git_log_extract
 wls_validate_page
 wls_doctor_ui
+wls_env_scan
 wls_menu_query
 wls_dict_query
 wls_role_query
@@ -63,7 +66,7 @@ wls_action_query
 
 ### 3.2 必须人工确认
 
-以下 Tool 会写后端或推送外部消息，Agent 必须先输出计划并等待用户确认：
+以下 Tool 会写后端、写本地配置文件或推送外部消息，Agent 必须先输出计划并等待用户确认：
 
 ```text
 wls_menu_sync_from_report
@@ -73,6 +76,7 @@ wls_role_upsert
 wls_role_assign_menus
 wls_action_upsert
 wls_audit_report_push
+wls_env_apply
 ```
 
 确认信息至少包含：
@@ -120,12 +124,24 @@ wls_role_query
 → 权限码使用复扫
 ```
 
+### 前端环境配置
+
+```text
+wls_env_scan
+→ 展示 root-env / env-dir 识别结果、目标 Profile、硬编码 URL/API 前缀线索
+→ wls_env_apply（不传 confirmApply，仅 dry-run）
+→ 用户确认文件计划和 API 前缀
+→ wls_env_apply(confirmApply: true)
+→ pnpm lint / pnpm build 或项目约定验证
+```
+
 ---
 
 ## 5. 安全边界
 
 - `env.local.json` 只放本地环境配置，不应提交真实 token。
 - R3/R4 Tool 不允许在用户无明确确认时自动执行。
+- `wls_env_apply` 虽不调用后端，但会写本地前端 env 文件；未确认时只能 dry-run，不得传 `confirmApply: true`。
 - 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

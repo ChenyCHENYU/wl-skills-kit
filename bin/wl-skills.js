@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.11
+ * wl-skills-kit CLI v2.12.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -14,6 +14,7 @@
  *   doctor-ui 检查 @agile-team/wl-skills-ui 接入完整性
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
+ *   env       前端环境配置扫描 / 标准化写入（默认 dry-run）
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
  */
@@ -34,6 +35,11 @@ const { alignPage } = require("../lib/page-spec");
 
 // ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
 const { runSafeFix } = require("../lib/safe-fix");
+const {
+  scanProjectEnv,
+  applyEnvConfig,
+  formatEnvResult,
+} = require("../lib/env-config");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -55,6 +61,7 @@ const KNOWN_COMMANDS = new Set([
   "export",
   "mock-clean",
   "fix",
+  "env",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -67,6 +74,11 @@ const KNOWN_FLAGS = new Set([
   "--pre-commit",
   "--strict",
   "--typecheck",
+  "--profile",
+  "--profile-file",
+  "--project-type",
+  "--prod-prefix",
+  "--apply",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -76,6 +88,16 @@ const force = args.includes("--force");
 const preCommit = args.includes("--pre-commit");
 const strict = args.includes("--strict");
 const typeCheck = args.includes("--typecheck");
+
+function readOption(name, fallback = "") {
+  const flag = name.startsWith("--") ? name : "--" + name;
+  const arg = args.find((item) => item === flag || item.startsWith(flag + "="));
+  if (!arg) return fallback;
+  if (arg.includes("=")) return arg.slice(arg.indexOf("=") + 1);
+  const idx = args.indexOf(arg);
+  const value = args[idx + 1];
+  return value && !value.startsWith("-") ? value : fallback;
+}
 
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
 if (!showHelp) {
@@ -127,6 +149,7 @@ if (showHelp) {
     export     导出 reports/SYS_* 数据为 xlsx
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
     fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
+    env        前端环境配置扫描 / 标准化写入（scan/apply，默认 dry-run）
 
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
@@ -138,6 +161,11 @@ if (showHelp) {
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（R14 类型错误零容忍）
                      体积较大，CI / pre-push 必跑，pre-commit 不建议开启
+    --profile <name> env 使用的环境 Profile，默认 walsin
+    --profile-file   env 使用自定义 Profile JSON
+    --project-type   env 指定项目形态：auto/root-env/env-dir
+    --prod-prefix    env 覆盖生产 API 前缀，如 prod-api 或 prd-api
+    --apply          env apply 的正式写入确认开关
     --help           显示帮助
 
   示例:
@@ -157,6 +185,9 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit mock-clean --domain mdata  清理 mdata 域 mock
     pnpm dlx @agile-team/wl-skills-kit mock-clean --all           清理全部 mock
     pnpm dlx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
+    pnpm dlx @agile-team/wl-skills-kit env scan                   扫描前端环境配置
+    pnpm dlx @agile-team/wl-skills-kit env apply                  预览标准化写入计划
+    pnpm dlx @agile-team/wl-skills-kit env apply --apply          确认写入前端 env 文件
 
   保护路径（init / update 不覆盖已存在的）:
     .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -1850,6 +1881,54 @@ function runMockClean() {
 
 // ─── 命令: fix（确定性机械修复）──────────────────────────────────────────
 
+function buildEnvOptions() {
+  const options = {
+    profile: readOption("--profile", "walsin"),
+    projectType: readOption("--project-type", "auto"),
+  };
+  const profileFile = readOption("--profile-file");
+  const prodPrefix = readOption("--prod-prefix");
+  if (profileFile) options.profileFile = profileFile;
+  if (prodPrefix) options.prodPrefix = prodPrefix;
+  return options;
+}
+
+function asDryRunEnvResult(plan) {
+  return {
+    ...plan,
+    dryRun: true,
+    applied: [],
+    backupDir: "",
+    stamp: "scan",
+    reportPath: "",
+  };
+}
+
+function runEnv() {
+  const action = positional[1] || "scan";
+  if (!["scan", "apply"].includes(action)) {
+    console.error("");
+    console.error('  ✖ 未知 env 子命令: "' + action + '"');
+    console.error("  可用子命令: env scan / env apply");
+    console.error("");
+    process.exit(1);
+  }
+
+  const options = buildEnvOptions();
+  const shouldWrite = action === "apply" && args.includes("--apply") && !dryRun;
+  const result =
+    action === "scan"
+      ? asDryRunEnvResult(scanProjectEnv(TARGET_DIR, options))
+      : applyEnvConfig(TARGET_DIR, { ...options, dryRun: !shouldWrite });
+
+  console.log("");
+  console.log(formatEnvResult(result));
+  if (action === "apply" && !shouldWrite) {
+    console.log("提示：env apply 默认 dry-run；确认写入请加 --apply，若同时传 --dry-run 仍只预览。");
+  }
+  console.log("");
+}
+
 function runFix() {
   const scanPath =
     args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
@@ -1914,6 +1993,9 @@ switch (command) {
     break;
   case "fix":
     runFix();
+    break;
+  case "env":
+    runEnv();
     break;
   default:
     console.error(

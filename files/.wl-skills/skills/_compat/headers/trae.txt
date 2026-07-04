@@ -1,5 +1,5 @@
 ---
-description: "项目编码规范（14 条标准 + 11 个 Skill 自动调度，由 wl-skills-kit 自动生成）"
+description: "项目编码规范（14 条标准 + 12 个 Skill 自动调度，由 wl-skills-kit 自动生成）"
 globs: ["**/*.vue", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.scss"]
 alwaysApply: true
 ---
@@ -8,4 +8,3 @@ alwaysApply: true
 <!-- 源文件：.wl-skills/copilot-instructions-full.md，更新方式：npx @agile-team/wl-skills-kit@latest update -->
 
 ---
-

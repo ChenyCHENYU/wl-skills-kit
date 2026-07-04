@@ -12,10 +12,10 @@ const ROOT = path.resolve(__dirname, "..");
 describe("mcp/registry.js", () => {
   const reg = require(path.join(ROOT, "mcp", "registry.js"));
 
-  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 17", () => {
+  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 19", () => {
     expect(Array.isArray(reg.DESCRIPTORS)).toBe(true);
-    expect(reg.TOOLS.length).toBe(17);
-    expect(Object.keys(reg.HANDLERS).length).toBe(17);
+    expect(reg.TOOLS.length).toBe(19);
+    expect(Object.keys(reg.HANDLERS).length).toBe(19);
     expect(reg.DESCRIPTORS.length).toBe(reg.TOOLS.length);
   });
 
@@ -52,13 +52,13 @@ describe("mcp/registry.js", () => {
 });
 
 describe("Skill 计数（_registry.md 单一数据源）", () => {
-  it("✅ 启用 行数为 11", () => {
+  it("✅ 启用 行数为 12", () => {
     const content = fs.readFileSync(
       path.join(ROOT, "files/.wl-skills/skills/_registry.md"),
       "utf8",
     );
     const matches = content.match(/^\|\s*[\w-]+\s*\|\s*✅\s*启用\s*\|/gm) || [];
-    expect(matches.length).toBe(11);
+    expect(matches.length).toBe(12);
   });
 
   it("README.md 中的 N 个 AI Skill 与启用 Skill 数一致", () => {

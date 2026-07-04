@@ -185,7 +185,32 @@ mock/
 
 ---
 
-## 9. 场景：Git 提交 / 分支管理
+## 9. 场景：前端环境配置标准化 / 客户迁移
+
+**用户典型话术**：
+- "帮我把环境配置标准化"
+- "172 迁移到华新"
+- "baseURL / /api / sit-api / uat-api 要统一"
+- "这个项目要接新客户环境"
+
+**推荐流程**：
+
+```
+wls_env_scan                 ← 只读扫描，识别 root-env / env-dir
+  → wls_env_apply            ← dry-run 预览，不写文件
+  → 用户确认                 ← 确认 Profile、API 前缀、影响文件
+  → wls_env_apply(confirmApply: true)
+  → pnpm lint / pnpm build   ← 按项目实际脚本验证
+```
+
+**边界**：
+- 只处理前端 env 文件、前端代理/baseURL 相关线索。
+- 后端、Nginx、Docker、Java、配置中心不处理，后续放到 bd 能力。
+- 扫描到硬编码 URL 只列线索，不自动改业务代码。
+
+---
+
+## 10. 场景：Git 提交 / 分支管理
 
 **用户典型话术**："提交"、"发布"、"打 tag"
 
@@ -193,7 +218,7 @@ mock/
 
 ---
 
-## 10. 索引：Skill / MCP 工具速查
+## 11. 索引：Skill / MCP 工具速查
 
 ### Skills（详见 `_registry.md`）
 
@@ -205,6 +230,7 @@ mock/
 | page-codegen | 生成 Vue 页面三件套 + api.md + SYS_MENU_INFO.md |
 | convention-audit | 14 条规范审计 |
 | code-fix | 按审计报告自动修复 |
+| env-config | 前端环境配置标准化 / 客户迁移 |
 | menu-sync | 后端菜单同步（MCP）|
 | dict-sync | 后端字典同步（MCP）|
 | permission-sync | 角色 / 授权 / 动作（MCP）|
@@ -217,11 +243,12 @@ mock/
 | `wls_menu_query` / `wls_menu_upsert` / `wls_menu_sync_from_report` | 菜单 |
 | `wls_dict_query` / `wls_dict_upsert` | 字典 |
 | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` | 角色 / 授权 / 动作 |
+| `wls_env_scan` / `wls_env_apply` | 前端环境配置标准化 |
 | `wls_code_scan` / `wls_validate_page` / `wls_doctor_ui` / `wls_route_check` / `wls_git_log_extract` / `wls_audit_report_push` | 辅助 |
 
 ---
 
-## 11. 如何扩展本文件
+## 12. 如何扩展本文件
 
 新增场景请按此模板：
 

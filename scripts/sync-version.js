@@ -53,7 +53,7 @@ function countMcpTools() {
     const registry = require(path.join(ROOT, "mcp", "registry.js"));
     return Array.isArray(registry.TOOLS) ? registry.TOOLS.length : 0;
   } catch {
-    return 17; // 回落值（mcp/registry.js 不存在时）
+    return 19; // 回落值（mcp/registry.js 不存在时）
   }
 }
 const MCP_TOOL_COUNT = countMcpTools();

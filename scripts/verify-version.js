@@ -158,6 +158,7 @@ const REQUIRED_LIB_FILES = [
   "lib/vite-plugin-wl-skills.js",
   "lib/page-spec.js",
   "lib/safe-fix.js",
+  "lib/env-config.js",
 ];
 for (const rel of REQUIRED_LIB_FILES) {
   const fullPath = path.join(ROOT, rel);

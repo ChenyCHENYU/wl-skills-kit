@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.12.0] - 2026-07-04
+
+### Added
+
+- **前端环境配置标准化能力**：新增 `env-config` Skill，覆盖 4/5 套环境、客户迁移、172 地址迁移、baseURL 与 `/api` / `sit-api` / `uat-api` / `prod-api` / `prd-api` 梳理。能力边界限定为前端项目，不处理后端、Nginx、Docker、Java 或配置中心。
+- **`wl-skills env` CLI**：`env scan` 只读扫描，`env apply` 默认 dry-run，`env apply --apply` 才正式写入前端 env 文件；写入前自动备份到 `.wl-skills/reports/env-backups/`，并输出 `ENV_CONFIG_*.md` 报告。
+- **`wls_env_scan` / `wls_env_apply` MCP Tool**：纯本地工具，不需要 token；`wls_env_apply` 未传 `confirmApply: true` 时永远只预览，防止 Agent 误写环境文件。
+- **文档与路由更新**：`_registry.md`、`_best-practices.md`、`_pipeline.md`、README 与风险矩阵同步新增环境配置场景，Skill 数量更新为 12，MCP Tool 数量更新为 19。
+
 ## [2.11.11] - 2026-07-04
 
 ### Changed
