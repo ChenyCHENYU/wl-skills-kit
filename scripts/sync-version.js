@@ -86,7 +86,7 @@ const updates = [
   {
     file: "package.json",
     regex: /"description": ".*?"/,
-    replace: `"description": "AI Skill 模板包 v${version} — 14 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目"`,
+    replace: `"description": "AI Skill 模板包 v${version} — 14 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）"`,
   },
   {
     file: "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
