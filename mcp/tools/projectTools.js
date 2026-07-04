@@ -379,15 +379,16 @@ async function handleGitLogExtract(args) {
   return lines.join("\n");
 }
 
+function findEnvLocal(root) {
+  return [
+    path.join(root, ".wl-skills", "skills", "sync", "env.local.json"),
+    path.join(root, ".github", "skills", "sync", "env.local.json"),
+  ].find((envPath) => fs.existsSync(envPath));
+}
+
 function readEnvLocal(root) {
-  const envPath = path.join(
-    root,
-    ".github",
-    "skills",
-    "sync",
-    "env.local.json",
-  );
-  if (!fs.existsSync(envPath)) return null;
+  const envPath = findEnvLocal(root);
+  if (!envPath) return null;
   try {
     return JSON.parse(fs.readFileSync(envPath, "utf8"));
   } catch (e) {
@@ -400,14 +401,20 @@ function findLatestAuditReport(root, inputPath) {
     const full = safeResolve(root, inputPath);
     return fs.existsSync(full) ? full : null;
   }
-  const reportDir = path.join(root, ".github", "reports");
-  if (!fs.existsSync(reportDir)) return null;
-  const files = fs
-    .readdirSync(reportDir)
-    .filter((name) => /^AUDIT_.*\.md$|规范审查报告\.md$/.test(name))
-    .map((name) => path.join(reportDir, name))
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-  return files[0] || null;
+  const reportDirs = [
+    path.join(root, ".wl-skills", "reports"),
+    path.join(root, ".github", "reports"),
+  ];
+  for (const reportDir of reportDirs) {
+    if (!fs.existsSync(reportDir)) continue;
+    const files = fs
+      .readdirSync(reportDir)
+      .filter((name) => /^AUDIT_.*\.md$|规范审查报告\.md$/.test(name))
+      .map((name) => path.join(reportDir, name))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    if (files[0]) return files[0];
+  }
+  return null;
 }
 
 function postWebhook(webhook, payload) {
@@ -471,4 +478,9 @@ module.exports = {
   handleRouteCheck,
   handleGitLogExtract,
   handleAuditReportPush,
+  _internal: {
+    findEnvLocal,
+    readEnvLocal,
+    findLatestAuditReport,
+  },
 };

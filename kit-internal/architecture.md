@@ -137,7 +137,7 @@
 
 **做了什么**：
 
-- ADR-001 模块化规范 + 懒加载门控：copilot-instructions 619 行单文件 → standards/ 13 条 + index.md 任务门控
+- ADR-001 模块化规范 + 懒加载门控：copilot-instructions 619 行单文件 → standards/ 14 条 + index.md 任务门控
 - ADR-002 模板分层：page-codegen/templates/ 拆 universal / domains
 - ADR-003 报告分类 + 追加不覆盖：docs/ → reports/ 三类（系统数据 / 审计 / 提取建议）
 - ADR-004 Pre-flight 约定式输出：每个 Skill 触发后强制输出已读文件、工具链状态、cid 等

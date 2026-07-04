@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.11.10",
-  "description": "AI Skill 模板包 v2.11.10 — 14 条编码规范 + 11 个 AI Skill + 17 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
+  "version": "2.11.11",
+  "description": "AI Skill 模板包 v2.11.11 — 14 条编码规范 + 11 个 AI Skill + 17 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
   "main": "./bin/wl-skills.js",
   "packageManager": "pnpm@11.5.3",
   "bin": {
@@ -82,7 +82,7 @@
     "eslint-plugin-vue": "^10.9.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.6"
   },
   "config": {
     "commitizen": {

@@ -14,8 +14,8 @@
 
 参考 `kit-internal/CONTRIBUTING.md` 第三节"添加新 Skill"。简要步骤：
 
-1. 在 `files/.github/skills/<分类>/<skill-name>/` 创建 `SKILL.draft.md`
+1. 在 `files/.wl-skills/skills/<分类>/<skill-name>/` 创建 `SKILL.draft.md`
 2. frontmatter 中 `status: planned`
-3. 在 `files/.github/skills/_registry.md` 追加一行 `⏳ PLANNED` 路由记录
+3. 在 `files/.wl-skills/skills/_registry.md` 追加一行 `⏳ PLANNED` 路由记录
 4. 在本文件追加该 Skill 的设计要点（数据流 / API / 转正前任务清单）
 5. 设计完成后转正：将 `SKILL.draft.md` 改名为 `SKILL.md`，更新 frontmatter `status: active`，registry 改为 ✅

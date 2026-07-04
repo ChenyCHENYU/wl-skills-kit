@@ -10,7 +10,7 @@
 1. **解耦**：每个 AI 编辑器的配置文件**独立**，移除/新增任意编辑器不影响其他
 2. **零污染**：每个编辑器**只读自己的配置文件**，不会读到其他编辑器的内容
 3. **特化注入**：各编辑器的 frontmatter / 头部规范由对应模板决定（Cursor 需 `description+globs+alwaysApply`，Kiro 需 `inclusion`，Trae 需 `description`，Cline/Windsurf 无 frontmatter）
-4. **内容统一**：所有编辑器的"主体内容"来自 `copilot-instructions.md`，**单一数据源**修改一处全员同步
+4. **内容统一**：所有编辑器根配置使用同一个薄壳入口，完整内容统一指向 `.wl-skills/copilot-instructions-full.md`，**单一数据源**修改一处全员同步
 
 ---
 
@@ -40,13 +40,13 @@ _compat/
 ```
 bin/wl-skills.js (init/update)
     │
-    ├─ 读取 files/.github/copilot-instructions.md  → MAIN_BODY
+    ├─ 读取 files/.github/copilot-instructions.md  → ENTRY_BODY（薄壳入口）
     │
     ├─ 读取 _compat/editors.json                   → 编辑器列表
     │
     └─ 对每个 editor in editors.json:
          ├─ 读取 headers/{editor.headerFile}        → HEADER（含特化 frontmatter）
-         ├─ 拼接：HEADER + AUTO_HEADER_NOTE + MAIN_BODY
+         ├─ 拼接：HEADER + AUTO_HEADER_NOTE + ENTRY_BODY
          └─ 写入到业务项目：editor.outputPath
 ```
 
@@ -58,7 +58,7 @@ bin/wl-skills.js (init/update)
 | ------------------------------------- | ----------------------------- | --------------------------- |
 | 团队不用 Cursor，从 editors.json 删除 | `.cursorrules`、`.cursor/`    | `.github/`、CLAUDE.md、其他 |
 | 团队新增某 AI 编辑器（如 Augment）    | 加 headers/augment.txt + 注册 | 其他文件不动                |
-| `copilot-instructions.md` 内容更新    | 全部编辑器根配置同步更新       | headers/ 不变（只是模板）   |
+| `.wl-skills/copilot-instructions-full.md` 内容更新 | 全部编辑器根配置指向同一完整地图 | headers/ 不变（只是模板）   |
 
 ---
 

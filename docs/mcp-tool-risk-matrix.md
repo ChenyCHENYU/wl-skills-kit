@@ -1,6 +1,6 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.7.0  
+> **版本基线**：wl-skills-kit v2.11.11
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
 > **定位**：统一说明 17 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
@@ -36,7 +36,7 @@
 | `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 必须确认新增/更新项 |
 | `wls_dict_upsert` | 字典写入 | R3 | 是 | 否 | 必须确认模块和字典项 |
 | `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 必须确认角色 code 和名称 |
-| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，避免覆盖已有授权 |
+| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并传 `confirmFullReplace: true`，避免覆盖已有授权 |
 | `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 必须确认 parentId 和 permission 命名 |
 | `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 必须确认推送报告和目标 webhook |
 
@@ -126,6 +126,6 @@ wls_role_query
 
 - `env.local.json` 只放本地环境配置，不应提交真实 token。
 - R3/R4 Tool 不允许在用户无明确确认时自动执行。
-- 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合。
+- 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

@@ -46,7 +46,7 @@ const DESCRIPTORS = [
   {
     name: "wls_menu_query",
     description:
-      "查询当前应用的完整菜单树。自动从 .github/skills/sync/env.local.json 读取 domainId，" +
+      "查询当前应用的完整菜单树。自动从 .wl-skills/skills/sync/env.local.json 读取 domainId，" +
       "无需传参。在 wls_menu_upsert 前调用，用于判断哪些菜单需要新增、哪些需要更新。",
     inputSchema: { type: "object", properties: {}, required: [] },
     needsBackendConfig: true,
@@ -79,7 +79,7 @@ const DESCRIPTORS = [
   {
     name: "wls_menu_sync_from_report",
     description:
-      "读取 .github/reports/SYS_MENU_INFO*.md，按一级目录(type=M)优先、二级菜单(type=C)随后同步到后端菜单。" +
+      "读取 .wl-skills/reports/SYS_MENU_INFO*.md（兼容旧 .github/reports），按一级目录(type=M)优先、二级菜单(type=C)随后同步到后端菜单。" +
       "自动查询 domain 菜单树去重，复用或更新已存在菜单，避免把二级页面全部挂到根 parentMenuId。",
     inputSchema: {
       type: "object",
@@ -87,7 +87,7 @@ const DESCRIPTORS = [
         reportPath: {
           type: "string",
           description:
-            "可选。SYS_MENU_INFO*.md 路径；不传则使用 .github/reports 下最新报告。",
+            "可选。SYS_MENU_INFO*.md 路径；不传则使用 .wl-skills/reports 下最新报告，兼容旧 .github/reports。",
         },
         dryRun: {
           type: "boolean",
@@ -224,7 +224,7 @@ const DESCRIPTORS = [
     name: "wls_role_assign_menus",
     description:
       "给指定角色批量分配菜单权限。menuIds 传字符串数组，内部自动拼成逗号分隔字符串提交后端。" +
-      "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）。",
+      "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）；正式提交必须传 confirmFullReplace: true。",
     inputSchema: {
       type: "object",
       properties: {
@@ -236,6 +236,10 @@ const DESCRIPTORS = [
           type: "array",
           description: "该角色应拥有的全部菜单 id 数组",
           items: { type: "string" },
+        },
+        confirmFullReplace: {
+          type: "boolean",
+          description: "确认 menuIds 已包含该角色应保留的全部菜单/动作。未传 true 时工具会拒绝提交，避免误覆盖。",
         },
       },
       required: ["roleId", "menuIds"],
@@ -371,7 +375,7 @@ const DESCRIPTORS = [
         reportPath: {
           type: "string",
           description:
-            "审计报告路径，不传则自动选择 .github/reports 下最新 AUDIT_*.md 或规范审查报告.md",
+            "审计报告路径，不传则自动选择 .wl-skills/reports 下最新 AUDIT_*.md 或规范审查报告.md，兼容旧 .github/reports",
         },
       },
       required: [],

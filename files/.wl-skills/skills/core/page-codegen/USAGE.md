@@ -9,7 +9,7 @@
 
 基于《页面清单》+ `api.md`，**自动生成符合项目规范的 Vue 页面**（标准页面骨架：index.vue / data.ts / index.scss + api.md + mock 按需），并跑一遍内部规范自检（Pre-flight + 完成摘要）。
 
-生成出来的代码**满足 13 条 standards**，无需手工改语法/命名。
+生成出来的代码**满足 14 条 standards**，无需手工改语法/命名。
 
 ---
 
@@ -37,7 +37,7 @@ AI：[Pre-flight]
     将创建 7 个目录到 src/views/produce/aiflow/
     每个目录包含：data.ts / index.vue / index.scss / api.md（已存在则跳过）
     模板基线：templates/domains/produce/customer/
-    13 条 standards 自检通过项预估：
+    14 条 standards 自检通过项预估：
     ✓ AbstractPageQueryHook 正确继承
     ✓ BaseTable render-type="agGrid"
     ✓ TABLE_CID / 列级 cid 完整

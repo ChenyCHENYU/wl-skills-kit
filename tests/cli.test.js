@@ -69,6 +69,42 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("check 应识别 .wl-skills/skills/sync/env.local.json", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, ".wl-skills", "skills", "sync");
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, "env.local.json"),
+      JSON.stringify({ gatewayPath: "https://example.com/uat-api", token: "abc.def", sysAppNo: "app" }),
+      "utf8",
+    );
+
+    const res = runCli(["check"], { cwd: dir });
+    expect(res.stdout).toMatch(/MCP env\.local\.json/);
+    expect(res.stdout).toMatch(/已填写 gatewayPath\/token/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("check 应识别新版 token 占位值", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, ".wl-skills", "skills", "sync");
+    fs.mkdirSync(envDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(envDir, "env.local.json"),
+      JSON.stringify({
+        gatewayPath: "https://example.com/uat-api",
+        token: "请填入实际登录凭据（纯 JWT，不含 bearer 前缀）",
+        sysAppNo: "app",
+      }),
+      "utf8",
+    );
+
+    const res = runCli(["check"], { cwd: dir });
+    expect(res.stdout).toMatch(/MCP env\.local\.json/);
+    expect(res.stdout).toMatch(/存在但仍含占位值/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("--dry-run 单独使用（无命令）默认 init 但不实际写入", () => {
     const dir = makeIsolatedDir();
     const res = runCli(["--dry-run"], { cwd: dir });

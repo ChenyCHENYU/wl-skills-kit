@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.11.11] - 2026-07-04
+
+### Changed
+
+- **统一 `.wl-skills` 优先路径**：MCP 菜单同步、项目审计报告和 `wl-skills check` 均优先读取 `.wl-skills/reports` 与 `.wl-skills/skills/sync/env.local.json`，旧 `.github` 路径仅作向下兼容。
+- **角色授权安全护栏**：`wls_role_assign_menus` 新增 `confirmFullReplace: true` 显式确认要求，避免把全量覆盖接口误当增量接口使用。
+- **文档与模板收敛**：清理当前文档中的旧 `.github` 口径、13 条规范旧计数和 token 示例，补齐字典/授权同步的最新闭环说明。
+
+### Security
+
+- **依赖安全加固**：升级 `vitest` 并通过 pnpm overrides 固定 `vite`、`esbuild`、`tmp` 的安全版本，`pnpm audit --audit-level moderate` 无已知漏洞。
+
 ## [2.11.10] - 2026-07-04
 
 ### Fixed

@@ -32,7 +32,7 @@ description: "Use when: creating system menus for newly generated pages, batch r
 {
   "gatewayPath": "http://网关地址:端口",
   "sysAppNo": "应用编码（从已有菜单的sysAppNo字段获取，非明文）",
-  "token": "Bearer Token（不含bearer前缀）",
+  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）",
   "menu": {
     "parentMenuId": "父级菜单ID",
     "domainId": "应用域ID"

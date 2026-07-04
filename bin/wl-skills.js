@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.10
+ * wl-skills-kit CLI v2.11.11
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -941,21 +941,23 @@ function runCheck() {
     manifest ? "已安装 v" + manifest.version : "未安装",
   );
 
-  const envPath = path.join(
-    TARGET_DIR,
-    ".github",
-    "skills",
-    "sync",
-    "env.local.json",
-  );
+  const envPath = [
+    path.join(TARGET_DIR, ".wl-skills", "skills", "sync", "env.local.json"),
+    path.join(TARGET_DIR, ".github", "skills", "sync", "env.local.json"),
+  ].find((candidate) => fs.existsSync(candidate));
   let envOk = false;
   let envDetail = "缺失";
-  if (fs.existsSync(envPath)) {
+  if (envPath) {
     try {
       const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
       const gatewayOk =
         env.gatewayPath && !String(env.gatewayPath).includes("你的网关");
-      const tokenOk = env.token && !String(env.token).includes("Bearer Token");
+      const tokenText = String(env.token || "");
+      const tokenOk =
+        env.token &&
+        !tokenText.includes("Bearer Token") &&
+        !tokenText.includes("你的") &&
+        !tokenText.includes("请填入");
       envOk = Boolean(gatewayOk && tokenOk);
       envDetail = envOk ? "已填写 gatewayPath/token" : "存在但仍含占位值";
     } catch (e) {

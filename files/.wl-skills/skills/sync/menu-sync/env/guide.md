@@ -26,7 +26,7 @@ AI 优先读新路径，如不存在自动回落到兼容路径。
   },
 
   "dict": {
-    "moduleId": "7C909G0U2F8HI7E305LV0135LSJ3UBIO"
+    "sysOnlyCurrentApp": true
   }
 }
 ```
@@ -39,9 +39,11 @@ AI 优先读新路径，如不存在自动回落到兼容路径。
 |---|---|---|
 | `gatewayPath` | 后端网关地址，含协议和端口，**末尾不加斜杠** | `http://192.168.10.50:9000` |
 | `sysAppNo` | 应用编码（非明文，从已有菜单接口响应中获取） | `QjQuXy1kbKxZyjhS5N2` |
-| `token` | 当前登录用户的 Bearer Token，**不含 `bearer ` 前缀** | `eyJhbGci...` |
+| `token` | 当前登录用户的登录凭据，**只填纯 token/JWT，不含 `bearer ` 前缀** | `eyJhbGci...` |
 | `menu.parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
-| `dict.moduleId` | 字典所属模块 ID（字典管理后台获取） | `7C909G0U2F8HI7E305LV0135LSJ3UBIO` |
+| `dict.sysOnlyCurrentApp` | 字典查询/写入是否只看当前 `sysAppNo` 应用，建议保持 `true` | `true` |
+
+> 字典业务模块不再写死在 env 中。`wls_dict_upsert` 会通过入参 `module.id` 精确定位，或通过 `module.strSn + module.strName` 安全创建，避免切应用后污染错误模块。
 
 ---
 

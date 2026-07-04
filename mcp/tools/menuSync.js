@@ -150,14 +150,24 @@ async function resolveDomainId(config, opts) {
   };
 }
 
+function getReportDirs(root) {
+  return [
+    path.join(root, ".wl-skills", "reports"),
+    path.join(root, ".github", "reports"),
+  ];
+}
+
 function findLatestReport(root) {
-  const reportsDir = path.join(root, ".github", "reports");
-  if (!fs.existsSync(reportsDir)) return null;
-  return fs
-    .readdirSync(reportsDir)
-    .filter((name) => /^SYS_MENU_INFO.*\.md$/.test(name))
-    .map((name) => path.join(reportsDir, name))
-    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+  for (const reportsDir of getReportDirs(root)) {
+    if (!fs.existsSync(reportsDir)) continue;
+    const reports = fs
+      .readdirSync(reportsDir)
+      .filter((name) => /^SYS_MENU_INFO.*\.md$/.test(name))
+      .map((name) => path.join(reportsDir, name))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    if (reports[0]) return reports[0];
+  }
+  return null;
 }
 
 function resolveReportPath(inputPath) {
@@ -368,14 +378,14 @@ async function handleMenuSyncFromReport(args, config) {
   const rootParentId =
     (config.menu && config.menu.parentMenuId) || config.parentMenuId;
   if (!rootParentId || rootParentId.toString().includes("parentMenuId")) {
-    return "❌ 请先在 .github/skills/sync/env.local.json 填写 menu.parentMenuId";
+    return "❌ 请先在 .wl-skills/skills/sync/env.local.json 填写 menu.parentMenuId";
   }
   if (!config.sysAppNo)
-    return "❌ 请先在 .github/skills/sync/env.local.json 填写 sysAppNo";
+    return "❌ 请先在 .wl-skills/skills/sync/env.local.json 填写 sysAppNo";
 
   const reportPath = resolveReportPath(args && args.reportPath);
   if (!reportPath)
-    return "❌ 未找到 SYS_MENU_INFO*.md，请传 reportPath 或先生成 .github/reports/SYS_MENU_INFO.md";
+    return "❌ 未找到 SYS_MENU_INFO*.md，请传 reportPath 或先生成 .wl-skills/reports/SYS_MENU_INFO.md";
 
   const parsed = parseReport(fs.readFileSync(reportPath, "utf8"));
   if (parsed.dirs.length === 0 && parsed.pages.length === 0) {
@@ -511,6 +521,9 @@ module.exports = {
     normalizeTree,
     flattenMenus,
     findExisting,
+    getReportDirs,
+    findLatestReport,
+    resolveReportPath,
     locateAppDomain,
     resolveDomainId,
     parseReport,

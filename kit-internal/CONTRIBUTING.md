@@ -6,7 +6,7 @@
 
 ## 一、添加新规范条目
 
-1. 在 `files/.github/standards/` 下创建 `14-xxxx.md`（编号递增）
+1. 在 `files/.wl-skills/standards/` 下创建 `15-xxxx.md`（编号递增）
 2. 更新 `standards/index.md` 任务类型 → 规范子集映射
 3. 更新 `kit-internal/standards.MAINTAIN.md` 记录新增背景
 4. 评估是否需要在 `convention-audit/SKILL.md` 添加对应审计维度
@@ -22,7 +22,7 @@
 
 ## 二、添加新模板
 
-详见 `files/.github/skills/core/page-codegen/templates/domains/_CONTRIBUTING.md`，要点：
+详见 `files/.wl-skills/skills/core/page-codegen/templates/domains/_CONTRIBUTING.md`，要点：
 
 - **通用模板**（universal/）：必须 3+ 业务领域复用才能进入
 - **领域模板**（domains/{域}/）：单领域专属，门槛较低
@@ -35,14 +35,14 @@
 
 ## 三、添加新 Skill
 
-1. 在 `files/.github/skills/{core|sync|ops|domain}/{skill-name}/` 创建 `SKILL.md`（PLANNED 用 `SKILL.draft.md`）
+1. 在 `files/.wl-skills/skills/{core|sync|ops|domain}/{skill-name}/` 创建 `SKILL.md`（PLANNED 用 `SKILL.draft.md`）
 2. 必须包含：
    - YAML frontmatter（name + description + 触发词）
    - Pre-flight 声明部分
    - 核心流程（编号步骤）
    - 与其他 Skill 的关系
-3. 更新 `skills/_registry.md` 触发词表
-4. 更新 `files/.github/copilot-instructions.md` Skill 调度表
+3. 更新 `files/.wl-skills/skills/_registry.md` 触发词表
+4. 必要时更新 `files/.wl-skills/copilot-instructions-full.md` 的调度说明
 5. 添加 `kit-internal/skills/{skill-name}.MAINTAIN.md`
 6. CHANGELOG 记录
 

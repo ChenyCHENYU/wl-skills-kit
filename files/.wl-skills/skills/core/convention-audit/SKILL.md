@@ -107,7 +107,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 01 | 工具链就绪 | 静态扫描 | 缺少 `.prettierrc.js` / `eslint.config.ts` / `.husky/` → 🔴 |
 | 02 | 三文件分离 + 接口契约 | 静态 + AI 场景判断 | 应拆未拆 `data.ts` → 🔴（新增）/🟡（存量）；`api.md` 缺失见场景规则；`index.vue` 含业务逻辑 → 🔴/🟡；段落顺序乱 → 🟡 |
 | 03 | 注释规范 | 静态扫描 | 死代码注释 → 🟡；TODO 不规范 → 🟡；显而易见注释 → 🟢；文件头缺失 → 🟢 |
-| 04 | 基础编码（13 条） | ESLint + 静态扫描 | `var` / `for...in` / 字符串拼接 / `.then()` / `::v-deep` → 🟡 |
+| 04 | 基础编码（14 条） | ESLint + 静态扫描 | `var` / `for...in` / 字符串拼接 / `.then()` / `::v-deep` → 🟡 |
 | 05 | console 残留 | 静态扫描 | src/ 下无守卫的 console → 🟡 |
 | 06 | 安全规范 | 静态扫描 | `v-html` 无注释 / `import axios` / `eval` / `new Function` → 🔴 |
 | 07 | 配置管理 | 静态扫描 | 硬编码 `http://` IP → 🔴；API 路径散落 → 🟡 |

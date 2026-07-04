@@ -102,7 +102,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 01 | 工具链就绪 | `.wl-skills/standards/01-toolchain.md` |
 | 02 | 三文件分离 + 接口契约 | `.wl-skills/standards/02-code-structure.md` |
 | 03 | 注释规范 | `.wl-skills/standards/03-comments.md` |
-| 04 | 基础编码（13 条） | `.wl-skills/standards/04-coding-basics.md` |
+| 04 | 基础编码（14 条） | `.wl-skills/standards/04-coding-basics.md` |
 | 05 | console 残留 | `.wl-skills/standards/05-logging.md` |
 | 06 | 安全规范 | `.wl-skills/standards/06-security.md` |
 | 07 | 配置管理 | `.wl-skills/standards/07-config.md` |

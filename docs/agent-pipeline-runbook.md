@@ -1,6 +1,6 @@
 # Agent Pipeline 运行手册
 
-> **版本基线**：wl-skills-kit v2.7.0  
+> **版本基线**：wl-skills-kit v2.11.11
 > **定位**：给 AI 编辑器、团队成员和 CI 统一一套可追踪、可回退、可复扫的 Agent Pipeline 执行方法。
 
 ---
@@ -86,7 +86,7 @@ page-codegen 产出 SYS_* 报告
 建议每次复杂任务生成：
 
 ```text
-.github/reports/PIPELINE_RUN_YYYYMMDD_HHmm.md
+.wl-skills/reports/PIPELINE_RUN_YYYYMMDD_HHmm.md
 ```
 
 报告字段：
@@ -125,7 +125,7 @@ page-codegen 产出 SYS_* 报告
 涉及以下动作时，`是否需要用户确认` 必须为“是”：
 
 - 写源码文件
-- 修改 `.github/reports/` 基线
+- 修改 `.wl-skills/reports/` 基线
 - 调用后端写接口
 - 覆盖角色授权
 - 推送飞书/外部通知
@@ -169,7 +169,7 @@ git diff --check
 - **页面生成不满意**：保留 `api.md`，重跑 `page-codegen`。
 - **审计修复不满意**：回退源码 diff，保留审计报告。
 - **菜单/字典同步异常**：基于报告和后台查询结果人工校正，再重跑 query 类工具验证。
-- **权限授权异常**：优先重新确认全量 `menuIds`，再执行覆盖式授权。
+- **权限授权异常**：优先重新确认全量 `menuIds`，并显式传 `confirmFullReplace: true` 后再执行覆盖式授权。
 
 ---
 

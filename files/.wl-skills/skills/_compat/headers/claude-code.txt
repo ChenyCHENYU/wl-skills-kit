@@ -1,7 +1,6 @@
 # Claude Code 项目编码规范
 
-> 此文件由 `@agile-team/wl-skills-kit` 自动生成。源文件：`.github/copilot-instructions.md`
+> 此文件由 `@agile-team/wl-skills-kit` 自动生成。完整指令：`.wl-skills/copilot-instructions-full.md`
 > 请勿手动编辑本文件，更新时执行：`npx @agile-team/wl-skills-kit@latest update`
 
 ---
-

@@ -12,7 +12,7 @@
 | 01   | `01-toolchain.md`           | 工具链前置检测         | 🔴 阻断        |
 | 02   | `02-code-structure.md`      | 代码结构与顺序         | 🔴 必遵        |
 | 03   | `03-comments.md`            | 注释规范               | 🟡 建议        |
-| 04   | `04-coding-basics.md`       | 基础编码（13 条）      | 🔴 必遵        |
+| 04   | `04-coding-basics.md`       | 基础编码（14 条）      | 🔴 必遵        |
 | 05   | `05-logging.md`             | 日志输出               | 🔴 必遵        |
 | 06   | `06-security.md`            | 安全规范               | 🔴 必遵        |
 | 07   | `07-config.md`              | 配置管理               | 🔴 必遵        |

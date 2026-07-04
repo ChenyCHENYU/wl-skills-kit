@@ -8,6 +8,8 @@
  */
 import { describe, it, expect } from "vitest";
 import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +21,7 @@ const ROOT = path.resolve(__dirname, "..");
 const menuSync = require(path.join(ROOT, "mcp/tools/menuSync.js"));
 const dictSync = require(path.join(ROOT, "mcp/tools/dictSync.js"));
 const permSync = require(path.join(ROOT, "mcp/tools/permissionSync.js"));
+const projectTools = require(path.join(ROOT, "mcp/tools/projectTools.js"));
 
 const {
   cleanCell,
@@ -28,6 +31,8 @@ const {
   normalizeTree,
   flattenMenus,
   findExisting,
+  findLatestReport,
+  resolveReportPath,
   parseReport,
 } = menuSync._internal;
 
@@ -39,6 +44,10 @@ const {
   toSafeCodeSuffix,
   normalizeDetailItem,
 } = dictSync._internal;
+
+function makeTempRoot() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "wl-skills-mcp-test-"));
+}
 
 // ─────────────────────────────────────────────
 // menuSync 纯函数
@@ -204,6 +213,87 @@ describe("menuSync.parseReport", () => {
     const result = parseReport("# 无内容");
     expect(result.dirs).toHaveLength(0);
     expect(result.pages).toHaveLength(0);
+  });
+});
+
+describe("menuSync report discovery", () => {
+  it("默认优先使用 .wl-skills/reports，旧 .github/reports 只做兜底", () => {
+    const root = makeTempRoot();
+    try {
+      const newDir = path.join(root, ".wl-skills", "reports");
+      const oldDir = path.join(root, ".github", "reports");
+      fs.mkdirSync(newDir, { recursive: true });
+      fs.mkdirSync(oldDir, { recursive: true });
+      const newReport = path.join(newDir, "SYS_MENU_INFO.md");
+      const oldReport = path.join(oldDir, "SYS_MENU_INFO_newer.md");
+      fs.writeFileSync(newReport, "# new", "utf8");
+      fs.writeFileSync(oldReport, "# old", "utf8");
+      const now = Date.now() / 1000;
+      fs.utimesSync(newReport, now - 100, now - 100);
+      fs.utimesSync(oldReport, now, now);
+
+      expect(findLatestReport(root)).toBe(newReport);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolveReportPath 不传路径时使用 WL_PROJECT_ROOT 下的新 reports", () => {
+    const root = makeTempRoot();
+    const previous = process.env.WL_PROJECT_ROOT;
+    try {
+      const reportsDir = path.join(root, ".wl-skills", "reports");
+      fs.mkdirSync(reportsDir, { recursive: true });
+      const report = path.join(reportsDir, "SYS_MENU_INFO.md");
+      fs.writeFileSync(report, "# menu", "utf8");
+      process.env.WL_PROJECT_ROOT = root;
+
+      expect(resolveReportPath()).toBe(report);
+    } finally {
+      if (previous == null) delete process.env.WL_PROJECT_ROOT;
+      else process.env.WL_PROJECT_ROOT = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("projectTools path discovery", () => {
+  it("审计推送配置优先读取 .wl-skills/skills/sync/env.local.json", () => {
+    const root = makeTempRoot();
+    try {
+      const envDir = path.join(root, ".wl-skills", "skills", "sync");
+      fs.mkdirSync(envDir, { recursive: true });
+      const envPath = path.join(envDir, "env.local.json");
+      fs.writeFileSync(envPath, JSON.stringify({ feishu_webhook: "https://example.com/hook" }), "utf8");
+
+      expect(projectTools._internal.findEnvLocal(root)).toBe(envPath);
+      expect(projectTools._internal.readEnvLocal(root)).toMatchObject({
+        feishu_webhook: "https://example.com/hook",
+      });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("审计报告默认优先使用 .wl-skills/reports", () => {
+    const root = makeTempRoot();
+    try {
+      const newDir = path.join(root, ".wl-skills", "reports");
+      const oldDir = path.join(root, ".github", "reports");
+      fs.mkdirSync(newDir, { recursive: true });
+      fs.mkdirSync(oldDir, { recursive: true });
+      const newReport = path.join(newDir, "AUDIT_new.md");
+      const oldReport = path.join(oldDir, "AUDIT_old_newer.md");
+      fs.writeFileSync(newReport, "# new", "utf8");
+      fs.writeFileSync(oldReport, "# old", "utf8");
+      const now = Date.now() / 1000;
+      fs.utimesSync(newReport, now - 100, now - 100);
+      fs.utimesSync(oldReport, now, now);
+
+      expect(projectTools._internal.findLatestAuditReport(root)).toBe(newReport);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
@@ -385,5 +475,13 @@ describe("permissionSync.handleRoleAssignMenus — 参数校验", () => {
       cfg,
     );
     expect(r).toMatch(/menuIds 必须是非空/);
+  });
+  it("未确认全量覆盖时拒绝提交", async () => {
+    const r = await permSync.handleRoleAssignMenus(
+      { roleId: "abc", menuIds: ["m1"] },
+      cfg,
+    );
+    expect(r).toMatch(/全量覆盖/);
+    expect(r).toMatch(/confirmFullReplace/);
   });
 });

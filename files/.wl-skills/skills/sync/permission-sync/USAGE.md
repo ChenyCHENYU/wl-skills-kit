@@ -31,10 +31,10 @@ AI ： [触发 permission-sync]
 用户：给『档案普通人员』分配『客户档案』和『客户申请』两个菜单
 AI ： [触发 permission-sync]
      [Pre-flight] 模式 = role-assign
-     ⚠️ 注意：saveRoleMenus 是全量覆盖，原有菜单会被替换
+     ⚠️ 注意：saveRoleMenus 是全量覆盖，需先合并该角色应保留的全部菜单
      是否继续？(yes/no)
 用户：yes
-AI ： 调用 wls_role_assign_menus
+AI ： 调用 wls_role_assign_menus（confirmFullReplace: true）
      ✅ 角色授权成功
 ```
 
@@ -64,7 +64,7 @@ AI ： [触发 permission-sync]
 
 后端 `saveRoleMenus` 是**全量覆盖**接口。你传 `[A, B]`，原先 `[A, B, C]` 就会变成 `[A, B]`，C 丢失。
 
-**正确做法**：先查角色现有菜单 → 合并新菜单 → 一起传。
+**正确做法**：先查角色现有菜单 → 合并新菜单 → 一起传，并显式传 `confirmFullReplace: true`。否则 MCP 会拒绝提交，避免误覆盖。
 
 ### Q2：权限码写在 `data.ts` 哪里？不需要改模板吗？
 
@@ -100,7 +100,7 @@ AI ： [触发 permission-sync]
 {
   "gatewayPath": "http://你的网关:端口",
   "sysAppNo": "应用编码",
-  "token": "Bearer Token"
+  "token": "eyJhbGci..."
 }
 ```
 

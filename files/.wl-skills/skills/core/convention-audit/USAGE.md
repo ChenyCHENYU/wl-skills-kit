@@ -7,7 +7,7 @@
 
 ## 这个 Skill 解决什么问题
 
-对**指定文件/目录**或**全量项目**跑一遍 13 条 standards 检查，输出：
+对**指定文件/目录**或**全量项目**跑一遍 14 条 standards 检查，输出：
 
 1. **AI 自查报告**（reports/AUDIT*AI*\*.md）— 给 AI 看的，含修复建议
 2. **人读摘要报告**（reports/AUDIT*HUMAN*\*.md）— 给团队 review 用的，含通过率/Top 偏差
@@ -35,7 +35,7 @@
 你：审计 src/views/produce/aiflow/mmwr-customer-archive/ 这个页面
 AI：[Pre-flight]
     审计目标：1 个页面（4 个文件）
-    应用规范：13 条 standards
+    应用规范：14 条 standards
     输出：
     - reports/AUDIT_AI_mmwr-customer-archive_20260426.md
     - reports/AUDIT_HUMAN_mmwr-customer-archive_20260426.md

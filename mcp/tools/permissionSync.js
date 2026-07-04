@@ -120,16 +120,24 @@ async function handleRoleUpsert(args, config) {
  * wls_role_assign_menus 工具处理器
  * 给指定角色批量分配菜单权限
  *
- * @param {{ roleId: string, menuIds: string[] }} args - menuIds 用数组传入，内部拼成逗号字符串
+ * @param {{ roleId: string, menuIds: string[], confirmFullReplace?: boolean }} args
+ * menuIds 用数组传入，内部拼成逗号字符串。后端接口是全量覆盖，正式提交必须显式确认。
  */
 async function handleRoleAssignMenus(args, config) {
-  const { roleId, menuIds } = args || {}
+  const { roleId, menuIds, confirmFullReplace } = args || {}
 
   if (!roleId) {
     return '❌ 参数错误：roleId 必填'
   }
   if (!Array.isArray(menuIds) || menuIds.length === 0) {
     return '❌ 参数错误：menuIds 必须是非空字符串数组'
+  }
+  if (confirmFullReplace !== true) {
+    return [
+      '❌ 已阻止角色授权提交：saveRoleMenus 是全量覆盖接口',
+      '请先确认 menuIds 已包含该角色应保留的全部菜单/动作，而不只是本次新增项。',
+      '确认无误后重新调用，并传入 confirmFullReplace: true。',
+    ].join('\n')
   }
 
   const body = {

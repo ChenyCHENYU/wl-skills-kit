@@ -90,11 +90,13 @@ wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一
 1. 用 wls_dict_query 查线上已有
 2. 扫 data.ts 收集所有 logicValue（DICT_CODE）
 3. 差集 = 待新建 → 用户确认
-4. 逐个调 wls_dict_upsert（含 module + items）
+4. 逐个调 wls_dict_upsert（含 module + dict + items）
 5. 更新 .wl-skills/reports/SYS_DICT_INFO.md
 ```
 
-**配置依赖**：env.local.json → `dict.moduleId`
+**配置依赖**：env.local.json → `sysAppNo`。字典所属业务模块由 `module.id` 精确定位，或由 `module.strSn + module.strName` 安全创建；不要再依赖固定 `dict.moduleId`。
+
+**字典明细规则**：优先使用 `items[{ value, label }]`，其中 `value → strKey`、`label → strValue`；只有文档明确写了后端字段名时才直接传 `strKey/strValue`。已存在明细只追加缺失项，遇到 key/value 冲突不覆盖。
 
 ---
 
@@ -110,11 +112,11 @@ wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一
 | 子场景 | MCP 工具序列 |
 |---|---|
 | 创建角色 | `wls_role_query`（查重）→ `wls_role_upsert` |
-| 角色授权 | `wls_role_query` → `wls_assignable_menus_query` → `wls_role_assign_menus`（⚠️ **全量覆盖**，AI 需自动合并旧 menuIds + 新增）|
+| 角色授权 | `wls_role_query` → `wls_assignable_menus_query` → 合并全量 `menuIds` → `wls_role_assign_menus(confirmFullReplace: true)`（⚠️ **全量覆盖**）|
 | 挂动作 | `wls_menu_query` 找页面 id → `wls_action_query` 查重 → `wls_action_upsert` 批量新增 → 修改 `data.ts` 给按钮加 `permission: [xxx]` 字段 |
 
 **避坑**：
-- 角色分配是**全量覆盖**，传 `[A,B]` 会把原有 C 移除，必须先查再合并
+- 角色分配是**全量覆盖**，传 `[A,B]` 会把原有 C 移除，必须先查再合并；未传 `confirmFullReplace: true` 时 MCP 会拒绝提交
 - 权限码命名遵循项目既有风格（`资源_动作` 或 `模块:资源:动作`）
 
 ---
