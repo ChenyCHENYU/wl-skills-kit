@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.11.10] - 2026-07-04
+
+### Fixed
+
+- **业务字典 MCP 三层同步闭环**：`wls_dict_upsert` 改为业务模块 → 字典 → 字典明细的真实结构，补齐 `sysAppNo` 请求头、创建前查询、冲突保护、明细增量追加和 `value/label` 到 `strKey/strValue` 的稳定映射，避免把字典明细误建成模块污染左侧树
+
+### Changed
+
+- **字典规范前置统一**：原型、详设、page-spec、api.md 与 dict-sync 文档统一使用 `dictCode + dictName + items[{ value, label }]`，字典编码以线上/后端确认为准，不再强制命名风格；`strValueCode` 由 MCP 自动生成安全后缀
+
 ## [2.11.9] - 2026-07-03
 
 ### Added

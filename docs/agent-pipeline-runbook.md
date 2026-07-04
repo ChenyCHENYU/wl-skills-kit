@@ -77,6 +77,8 @@ page-codegen 产出 SYS_* 报告
 
 适用场景：页面已生成，需要同步后台菜单、字典、角色授权或动作权限。
 
+字典链路必须前置统一枚举模型：原型/详设/api.md 中都使用 `dictCode + dictName + items[{ value, label }]`。其中 `value` 入库为 `strKey`，`label` 入库为中文 `strValue`；`strValueCode` 由 MCP 按线上规则自动生成。不要把字典明细误建成业务模块，也不要让 AI 猜测字典编码命名风格。
+
 ---
 
 ## 3. Pipeline 运行报告

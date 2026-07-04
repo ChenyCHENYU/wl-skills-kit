@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.11.9
+ * wl-skills-kit CLI v2.11.10
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）

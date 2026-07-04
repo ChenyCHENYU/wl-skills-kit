@@ -8,7 +8,7 @@ const http = require('http')
  *
  * @param {string} urlPath - 接口路径（以 / 开头），拼接到 config.gatewayPath 后
  * @param {{ method?: string, body?: unknown }} options
- * @param {{ gatewayPath: string, token: string }} config
+ * @param {{ gatewayPath: string, token: string, sysAppNo?: string, sysOnlyCurrentApp?: boolean, dict?: object }} config
  * @returns {Promise<{ ok: boolean, data: any, error?: string, code?: number }>}
  */
 function wlsFetch(urlPath, options, config) {
@@ -33,6 +33,14 @@ function wlsFetch(urlPath, options, config) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.token}`,
     },
+  }
+
+  if (config.sysAppNo) {
+    reqOptions.headers.sysAppNo = config.sysAppNo
+  }
+
+  if (config.sysOnlyCurrentApp || (config.dict && config.dict.sysOnlyCurrentApp)) {
+    reqOptions.headers.sysOnlyCurrentApp = 'true'
   }
 
   if (bodyStr) {

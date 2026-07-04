@@ -31,7 +31,14 @@ const {
   parseReport,
 } = menuSync._internal;
 
-const { extractModules } = dictSync._internal;
+const {
+  extractModules,
+  extractDetailRecords,
+  findModule,
+  findDictInModule,
+  toSafeCodeSuffix,
+  normalizeDetailItem,
+} = dictSync._internal;
 
 // ─────────────────────────────────────────────
 // menuSync 纯函数
@@ -221,6 +228,81 @@ describe("dictSync.extractModules", () => {
   });
 });
 
+describe("dictSync.extractDetailRecords", () => {
+  it("page.records 结构", () => {
+    const data = { page: { records: [{ id: 1 }] } };
+    expect(extractDetailRecords(data)).toEqual([{ id: 1 }]);
+  });
+  it("数组直接返回", () => {
+    expect(extractDetailRecords([{ id: 1 }])).toEqual([{ id: 1 }]);
+  });
+  it("未知结构返回空数组", () => {
+    expect(extractDetailRecords({ other: "field" })).toEqual([]);
+  });
+});
+
+describe("dictSync.findModule / findDictInModule", () => {
+  const modules = [
+    {
+      id: "m1",
+      strSn: "mdmAuth",
+      name: "主数据系统授权",
+      children: [
+        { id: "d1", strSn: "mdmModelType", name: "模型类型" },
+      ],
+    },
+  ];
+
+  it("按模块 id / strSn / name 定位业务模块", () => {
+    expect(findModule(modules, { id: "m1" })?.id).toBe("m1");
+    expect(findModule(modules, { strSn: "mdmAuth" })?.id).toBe("m1");
+    expect(findModule(modules, { strName: "主数据系统授权" })?.id).toBe("m1");
+  });
+
+  it("在模块下按字典 id / strSn 定位字典", () => {
+    const moduleNode = modules[0];
+    expect(findDictInModule(moduleNode, { id: "d1" })?.id).toBe("d1");
+    expect(findDictInModule(moduleNode, { strSn: "mdmModelType" })?.id).toBe("d1");
+  });
+});
+
+describe("dictSync.normalizeDetailItem", () => {
+  it("推荐语义入参 value/label 映射为 strKey/strValue", () => {
+    const result = normalizeDetailItem({ value: "2", label: "基础数据模型" });
+    expect(result.ok).toBe(true);
+    expect(result.item).toMatchObject({
+      strKey: "2",
+      strValue: "基础数据模型",
+      strValueCode: "sysDict.dtl.strValue.2",
+    });
+  });
+
+  it("原始后端入参 strKey/strValue 保持原样", () => {
+    const result = normalizeDetailItem({ strKey: "男", strValue: "0" });
+    expect(result.ok).toBe(true);
+    expect(result.item).toMatchObject({
+      strKey: "男",
+      strValue: "0",
+      strValueCode: "sysDict.dtl.strValue.0",
+    });
+  });
+
+  it("缺少 value/label 返回错误", () => {
+    expect(normalizeDetailItem({ value: "1" }).ok).toBe(false);
+    expect(normalizeDetailItem({ label: "启用" }).ok).toBe(false);
+  });
+});
+
+describe("dictSync.toSafeCodeSuffix", () => {
+  it("优先使用不含中文的 strValue", () => {
+    expect(toSafeCodeSuffix("ABC 001", "fallback")).toBe("abc_001");
+  });
+
+  it("strValue 是中文时回退到 strKey", () => {
+    expect(toSafeCodeSuffix("基础数据模型", "2")).toBe("2");
+  });
+});
+
 // ─────────────────────────────────────────────
 // Handler 参数校验路径（无网络调用）
 // ─────────────────────────────────────────────
@@ -228,20 +310,52 @@ describe("dictSync.extractModules", () => {
 describe("dictSync.handleDictUpsert — 参数校验", () => {
   const cfg = { gatewayPath: "http://x", token: "tok", sysAppNo: "app" };
 
-  it("缺 module.strSn 返回错误", async () => {
+  it("缺 sysAppNo 返回错误", async () => {
     const r = await dictSync.handleDictUpsert(
-      { module: { strName: "测试" }, items: [] },
-      cfg,
+      {
+        module: { strSn: "mdmAuth", strName: "主数据系统授权" },
+        dict: { strSn: "mdmModelType", strName: "模型类型" },
+        items: [],
+      },
+      { gatewayPath: "http://x", token: "tok" },
     );
-    expect(r).toMatch(/strSn 必填/);
+    expect(r).toMatch(/sysAppNo/);
   });
 
-  it("缺 module.strName 返回错误", async () => {
+  it("缺 module 返回错误", async () => {
     const r = await dictSync.handleDictUpsert(
-      { module: { strSn: "CODE" }, items: [] },
+      { dict: { strSn: "mdmModelType", strName: "模型类型" }, items: [] },
       cfg,
     );
-    expect(r).toMatch(/strName 必填/);
+    expect(r).toMatch(/module 必须包含/);
+  });
+
+  it("缺 dict.strSn 返回错误", async () => {
+    const r = await dictSync.handleDictUpsert(
+      { module: { strSn: "mdmAuth", strName: "主数据系统授权" }, dict: { strName: "模型类型" }, items: [] },
+      cfg,
+    );
+    expect(r).toMatch(/dict\.strSn 必填/);
+  });
+
+  it("缺 dict.strName 返回错误", async () => {
+    const r = await dictSync.handleDictUpsert(
+      { module: { strSn: "mdmAuth", strName: "主数据系统授权" }, dict: { strSn: "mdmModelType" }, items: [] },
+      cfg,
+    );
+    expect(r).toMatch(/dict\.strName 必填/);
+  });
+
+  it("items 不是数组返回错误", async () => {
+    const r = await dictSync.handleDictUpsert(
+      {
+        module: { strSn: "mdmAuth", strName: "主数据系统授权" },
+        dict: { strSn: "mdmModelType", strName: "模型类型" },
+        items: null,
+      },
+      cfg,
+    );
+    expect(r).toMatch(/items 必须是数组/);
   });
 });
 

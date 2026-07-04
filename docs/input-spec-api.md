@@ -120,6 +120,33 @@ AI 会默认为每个页面生成以下标准接口，无需额外沟通：
 }
 ```
 
+### 字典枚举规范
+
+`api.md` 中涉及字典枚举时，统一使用前端/文档语义字段 `value` 和 `label`：
+
+| 字段 | 含义 | 入库映射 |
+|---|---|---|
+| `dictCode` | 字典编码，必须以生产/线上已有编码为准 | `/system/business/dict/save` 的 `strSn` |
+| `dictName` | 字典中文名 | `/system/business/dict/save` 的 `strName` |
+| `value` | 业务值/枚举值，如 `0`、`1`、`TYPE_001` | `/system/dictDtl/save` 的 `strKey` |
+| `label` | 中文显示名，如 `启用`、`基础数据模型` | `/system/dictDtl/save` 的 `strValue` |
+
+`label/strValue` 通常是中文，这是正常情况。`strValueCode` 不在 `api.md` 中人工维护；同步字典时由 MCP 按线上创建规则生成 `sysDict.dtl.strValue.<安全后缀>`，中文 label 会回退到 `value/strKey`，避免 code 含中文。
+
+```markdown
+## 字典枚举
+
+### mdmModelType（模型类型）
+
+| value | label |
+|---|---|
+| 2 | 基础数据模型 |
+| 1 | 参照数据模型 |
+| 0 | 主数据模型 |
+```
+
+> 字典编码不要由 AI 猜测命名风格。既有线上可能是 `mdmModelType`、`aq_miss_type`、`customer_type` 等不同风格，必须按线上/后端确认值原样记录。
+
 ### 失败响应
 
 ```json
@@ -186,7 +213,8 @@ AI 基于原型/详设，自动生成 `api.md` 初稿，内容包括：
 - [ ] 分页参数名（`current` / `size` 还是其他）
 - [ ] 特殊业务操作的 URL 和参数正确
 - [ ] 必填字段标注正确
-- [ ] 字典的 `value` 值（01/02/1/2 等）正确
+- [ ] 字典 `dictCode` 使用线上/后端确认值，未由 AI 猜测
+- [ ] 字典枚举使用 `value/label`，且 `value` 值（01/02/1/2 等）正确
 
 修正后将状态改为 `✅ 已确认` 或在注释中标注修改点。
 
@@ -250,6 +278,15 @@ export const API_CONFIG = {
 | customerName | string | 客户名称 | 是 | - |
 | customerType | string | 客户类型 | 是 | customer_type |
 | enableStatus | string | 启用状态 | 是 | enable_status |
+
+## 字典枚举
+
+### customer_type（客户类型）
+
+| value | label |
+|---|---|
+| 1 | 正式客户 |
+| 0 | 临时客户 |
 
 ## 分页查询（POST /list）
 

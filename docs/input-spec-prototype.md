@@ -48,7 +48,7 @@ AI 代码生成的链路：
 ### 查询区
 - [ ] 所有查询字段全部展开显示（不要收起或折叠）
 - [ ] 每个字段有清晰的中文标签文字（标签文字 = 字段名，不能只有输入框没有标签）
-- [ ] 下拉选择类字段旁边或注释中注明字典名称（如"状态：ORDER_STATUS"）
+- [ ] 下拉选择类字段旁边或注释中注明线上/后端确认的字典编码（如"状态：mdmModelStatus"）
 - [ ] 日期范围字段标注起止标签（如"开始日期 - 结束日期"）
 - [ ] 查询字段顺序就是最终期望的顺序（AI 会严格按原型顺序生成）
 
@@ -119,9 +119,9 @@ AI 无法区分主次，全部生成 `type: "default"`，实际应为：
 | 状态 | ...  |   ← 状态列没有标注用哪个字典
 ```
 
-AI 会推断一个 dictCode（如 `order_status`），但可能与实际不符，联调时字典值显示乱。
+AI 会推断一个 dictCode（如 `order_status`），但可能与实际线上编码不符，联调时字典值显示乱。
 
-**正确做法**：在注释或字段旁标注"字典：ORDER_STATUS"。
+**正确做法**：在注释或字段旁标注线上/后端确认的字典编码，例如"字典：mdmModelType"。如果原型里要给枚举项，也按 `value=label` 或 `value/label` 写清楚，例如 `0=主数据模型、1=参照数据模型`。
 
 ### ❌ 错误：Tab 切换只展示了一个 Tab 的内容
 
@@ -145,6 +145,15 @@ AI 会从中文标签推断英文字段名（camelCase），推断准确率约 8
 客户类型 → customerType（字典：customer_type）
 启用状态 → enableStatus（字典：enable_status）
 建立日期 → createDate（日期范围：createDateStart / createDateEnd）
+```
+
+字典枚举建议前置写清楚：
+
+```
+字典：mdmModelType（模型类型）
+0 = 主数据模型
+1 = 参照数据模型
+2 = 基础数据模型
 ```
 
 **方式 2**：切换为"详细设计文档"输入模式（见 [input-spec-detailed-design.md](input-spec-detailed-design.md)），精度更高。

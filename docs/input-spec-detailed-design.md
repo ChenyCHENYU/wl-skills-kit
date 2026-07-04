@@ -189,7 +189,17 @@
 2. 查看已有类似页面的 data.ts 中使用的 code
 3. 直接问后端"这个字段用的哪个字典"
 
-字典 code **全部用下划线小写**（如 `order_status`，不是 `orderStatus` 或 `ORDER_STATUS`）。
+字典 code **必须以生产/线上已有编码或后端确认为准**，不要让 AI 按命名风格猜测。线上可能同时存在 `mdmModelType`、`aq_miss_type`、`customer_type` 等风格，文档中应原样记录。
+
+如果详设中提供字典枚举，统一写成 `value/label`：
+
+| 字典code | 字典名称 | value | label |
+|---|---|---|---|
+| mdmModelType | 模型类型 | 2 | 基础数据模型 |
+| mdmModelType | 模型类型 | 1 | 参照数据模型 |
+| mdmModelType | 模型类型 | 0 | 主数据模型 |
+
+后续同步字典时，`value` 入库为 `strKey`，`label` 入库为 `strValue`。`label/strValue` 是中文属于正常情况，`strValueCode` 由 MCP 自动按线上规则生成，不需要人工维护。
 
 ---
 

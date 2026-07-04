@@ -103,8 +103,8 @@ const DESCRIPTORS = [
   {
     name: "wls_dict_query",
     description:
-      "查询当前应用的所有字典模块及字典项。在 wls_dict_upsert 前调用，" +
-      "用于判断哪些模块/字典项已存在。",
+      "查询当前 sysAppNo 应用下的业务字典树：业务模块 -> 字典 -> 字典明细入口。" +
+      "在 wls_dict_upsert 前调用，用于判断目标模块/字典是否已存在。",
     inputSchema: { type: "object", properties: {}, required: [] },
     needsBackendConfig: true,
     handle: (_args, config) => handleDictQuery(config),
@@ -112,38 +112,65 @@ const DESCRIPTORS = [
   {
     name: "wls_dict_upsert",
     description:
-      "新增或更新字典模块及其字典项。内部自动处理：" +
-      "若模块不存在则创建（data=null 后自动 re-query 获取 id），" +
-      "若已存在则直接取 id；字典项自动跳过已存在的 strSn。",
+      "精准补齐业务字典三层数据：业务模块 -> 字典 -> 字典明细。" +
+      "依赖 env.local.json 的 sysAppNo 请求头定位应用；先查后写。" +
+      "模块不存在时可创建，字典存在且同名时只追加缺失明细；编码/名称/明细冲突时停止或跳过，避免污染。",
     inputSchema: {
       type: "object",
       properties: {
         module: {
           type: "object",
           description:
-            'DictModuleSaveBody: strSn(必填), strName(必填), sortPriority("1"), strLevel(2)',
+            "业务字典模块。对应左侧一级模块，如 主数据系统授权/隐患排查治理。可用 id 精确定位；不存在且提供 strSn+strName 时自动创建。",
           properties: {
-            strSn: { type: "string", description: '模块标识符，如 "gender"' },
-            strName: { type: "string", description: '模块显示名，如 "性别"' },
+            id: { type: "string", description: "已有模块 ID；传 id 时若找不到不会自动创建" },
+            strSn: { type: "string", description: '模块编码，如 "mdmAuth"' },
+            strName: { type: "string", description: '模块名称，如 "主数据系统授权"' },
             sortPriority: {
               type: "string",
-              description: '排序，字符串类型，如 "1"',
+              description: '新建模块排序，字符串类型，如 "20"',
             },
             strLevel: { type: "number", description: "固定传 2" },
+          },
+          required: [],
+        },
+        dict: {
+          type: "object",
+          description:
+            "模块下的字典定义。对应 /system/business/dict/save，strSn 是业务代码，strName 是显示名。",
+          properties: {
+            id: { type: "string", description: "已有字典 ID；通常由工具查询树后自动获取" },
+            strSn: { type: "string", description: '字典编码，如 "mdmModelType" 或 "aq_miss_type"' },
+            strName: { type: "string", description: '字典名称，如 "模型类型" 或 "隐患缺失类型"' },
+            strLevel: { type: "number", description: "固定传 2" },
+            dtlValueRequired: { type: "boolean", description: "明细 strValue 是否必填，默认 false" },
+            dtlValue2Required: { type: "boolean", description: "明细 strValue2 是否必填，默认 false" },
+            dtlValue3Required: { type: "boolean", description: "明细 strValue3 是否必填，默认 false" },
+            dtlValue4Required: { type: "boolean", description: "明细 strValue4 是否必填，默认 false" },
           },
           required: ["strSn", "strName"],
         },
         items: {
           type: "array",
           description:
-            "DictItemSaveBody 数组（可选）。每项字段：" +
-            "strSn(必填), strName(必填), strLevel(2), " +
-            'dtlValue(""), dtlValueRequired(false), dtlValue2Required(false), ' +
-            "dtlValue3Required(false), dtlValue4Required(false)",
-          items: { type: "object" },
+            "字典明细数组（可选）。推荐传 value/label，工具会映射为后端 strKey=value、strValue=label；" +
+            "若明确知道后端字段，也可直接传 strKey/strValue 原样写入。",
+          items: {
+            type: "object",
+            properties: {
+              value: { type: ["string", "number"], description: "语义值，写入后端 strKey" },
+              label: { type: "string", description: "显示名称，写入后端 strValue" },
+              strKey: { type: ["string", "number"], description: "后端原始 strKey；传了则优先按原样写入" },
+              strValue: { type: ["string", "number"], description: "后端原始 strValue；传了则优先按原样写入" },
+              strValue2: { type: ["string", "number"], description: "可选扩展值 2" },
+              strValue3: { type: ["string", "number"], description: "可选扩展值 3" },
+              strValue4: { type: ["string", "number"], description: "可选扩展值 4" },
+              strValueCode: { type: "string", description: "可选；默认 sysDict.dtl.strValue.<安全后缀>，优先 strValue，中文时回退 strKey" },
+            },
+          },
         },
       },
-      required: ["module"],
+      required: ["module", "dict"],
     },
     needsBackendConfig: true,
     handle: (args, config) => handleDictUpsert(args, config),

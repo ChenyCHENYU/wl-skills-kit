@@ -88,7 +88,7 @@
 **注意事项**：
 - 顺序严格按原型/详设从左到右、从上到下排列
 - `dateRange` 类型的 `startName` / `endName` 是发给后端的实际字段名
-- `dict` 类型必须有 `dictCode`（全小写下划线，如 `customer_type`）
+- `dict` 类型必须有 `dictCode`，且以生产/线上已有编码或后端确认为准；不要强制改命名风格，也不要让 AI 猜
 
 ---
 
@@ -338,7 +338,7 @@
 ## 自检清单（提交 page-codegen 前）
 
 - [ ] `query` — 字段数量与原型/详设一致，顺序一致
-- [ ] `query` — 所有 `dict` 类型都有 `dictCode`（下划线格式）
+- [ ] `query` — 所有 `dict` 类型都有线上/后端确认的 `dictCode`
 - [ ] `query` — 所有 `dateRange` 类型都有 `startName` / `endName`
 - [ ] `toolbar` — 按钮数量与顺序与原型一致
 - [ ] `toolbar` — `type` 值与按钮颜色匹配（蓝=primary，红=danger，白框=plain）
