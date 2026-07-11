@@ -15,7 +15,7 @@ function runCli(args, opts = {}) {
     cwd: opts.cwd || os.tmpdir(),
     encoding: "utf8",
     env: { ...process.env, FORCE_COLOR: "0" },
-    timeout: 15000,
+    timeout: opts.timeout || 15000,
   });
 }
 
@@ -179,6 +179,35 @@ describe("CLI 参数防护（A1）", () => {
 });
 
 describe("CLI standard-env", () => {
+  it("update 自动清理退役 env-config 并安装新 Skill", () => {
+    const dir = makeIsolatedDir();
+    const oldSkillDir = path.join(dir, ".wl-skills", "skills", "ops", "env-config");
+    fs.mkdirSync(oldSkillDir, { recursive: true });
+    fs.writeFileSync(path.join(oldSkillDir, "SKILL.md"), "# old env skill\n");
+    fs.writeFileSync(path.join(oldSkillDir, "USAGE.md"), "# old env usage\n");
+    fs.writeFileSync(
+      path.join(dir, ".wl-skills-manifest.json"),
+      JSON.stringify({ version: "2.12.3", files: {} }),
+    );
+
+    const res = runCli(["update"], { cwd: dir, timeout: 60000 });
+    expect(res.status).toBe(0);
+    expect(fs.existsSync(oldSkillDir)).toBe(false);
+    expect(
+      fs.existsSync(
+        path.join(
+          dir,
+          ".wl-skills",
+          "skills",
+          "ops",
+          "standard-env-config",
+          "SKILL.md",
+        ),
+      ),
+    ).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("旧 env 命令停止写入并提示新入口", () => {
     const dir = makeIsolatedDir();
     const res = runCli(["env", "apply", "--apply"], { cwd: dir });

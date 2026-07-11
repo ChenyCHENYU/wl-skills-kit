@@ -21,6 +21,20 @@
 
 ## CLI 快速流程
 
+存量项目先更新 Skill。升级时会自动清理已退役的 `skills/ops/env-config/`：
+
+```bash
+pnpm dlx @agile-team/wl-skills-kit@latest update
+```
+
+AI 对话最短提示词：
+
+```text
+用标准环境配置能力检查并迁移当前项目，目标使用华新环境，先只生成计划，我确认后再修改并完整验证。
+```
+
+只有模块名冲突或目标不是华新时，才需要补充 `moduleName` 或自定义 Profile 文件路径。
+
 ```bash
 # 1. 只读扫描
 pnpm dlx @agile-team/wl-skills-kit standard-env scan

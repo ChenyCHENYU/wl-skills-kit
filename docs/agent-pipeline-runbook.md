@@ -1,6 +1,6 @@
 # Agent Pipeline 运行手册
 
-> **版本基线**：wl-skills-kit v2.12.3
+> **版本基线**：wl-skills-kit v2.12.4
 > **定位**：给 AI 编辑器、团队成员和 CI 统一一套可追踪、可回退、可复扫的 Agent Pipeline 执行方法。
 
 ---

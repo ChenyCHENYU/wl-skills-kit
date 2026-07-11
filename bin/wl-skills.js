@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.3
+ * wl-skills-kit CLI v2.12.4
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -345,6 +345,9 @@ const LEGACY_PATHS = [
   ".github/docs/SYS_MENU_INFO.md",
   ".github/skills/_compat/ai-model-matrix.md",
   ".github/skills/_compat/editor-setup.md",
+  // v2.12.4: 旧环境 Skill 已由独立 standard-env-config 替代
+  ".wl-skills/skills/ops/env-config/SKILL.md",
+  ".wl-skills/skills/ops/env-config/USAGE.md",
 ];
 
 // ─── v2.11 迁移：.github/ → .wl-skills/ 目录重构 ────────────────────────────

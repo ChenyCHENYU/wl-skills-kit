@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.12.4] - 2026-07-11
+
+### Fixed
+
+- **存量项目升级清理**：`update` 自动移除已退役的 `skills/ops/env-config/` 文件，避免编辑器同时发现新旧两个环境 Skill。
+- **使用入口补齐**：README 与 `standard-env-config/USAGE.md` 新增存量项目升级命令、最短自然语言提示词和自定义 Profile 表达。
+
 ## [2.12.3] - 2026-07-11
 
 ### Added
