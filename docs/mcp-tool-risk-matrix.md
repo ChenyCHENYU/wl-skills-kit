@@ -1,8 +1,8 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.12.2
+> **版本基线**：wl-skills-kit v2.12.3
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
-> **定位**：统一说明 19 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
+> **定位**：统一说明 20 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---
 
@@ -27,8 +27,9 @@
 | `wls_git_log_extract` | 项目感知 | R0 | 否 | 是 | 无 |
 | `wls_validate_page` | 本地检查 | R1 | 否 | 是 | 无 |
 | `wls_doctor_ui` | 本地检查 | R1 | 否 | 是 | 无 |
-| `wls_env_scan` | 环境扫描 | R1 | 否 | 是 | 无 |
-| `wls_env_apply` | 环境配置 | R2 | 否 | 否 | 默认 dry-run；正式写入必须确认文件计划并传 `confirmApply: true` |
+| `wls_standard_env_scan` | 环境扫描 | R1 | 否 | 是 | 无，只读识别项目形态和历史配置 |
+| `wls_standard_env_apply` | 环境迁移 | R2 | 否 | 否 | 默认只生成计划；正式写入必须确认 Profile、模块名、文件计划并传 `confirmApply: true` |
+| `wls_standard_env_verify` | 环境验证 | R1 | 否 | 是 | 静态验证可自动调用；五环境构建仅在依赖已安装时启用 |
 | `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_query` | 字典查询 | R0 | 是 | 是 | 无 |
 | `wls_role_query` | 权限查询 | R0 | 是 | 是 | 无 |
@@ -56,7 +57,8 @@ wls_route_check
 wls_git_log_extract
 wls_validate_page
 wls_doctor_ui
-wls_env_scan
+wls_standard_env_scan
+wls_standard_env_verify
 wls_menu_query
 wls_dict_query
 wls_role_query
@@ -76,7 +78,7 @@ wls_role_upsert
 wls_role_assign_menus
 wls_action_upsert
 wls_audit_report_push
-wls_env_apply
+wls_standard_env_apply
 ```
 
 确认信息至少包含：
@@ -124,15 +126,17 @@ wls_role_query
 → 权限码使用复扫
 ```
 
-### 前端环境配置
+### 标准环境配置
 
 ```text
-wls_env_scan
-→ 展示 root-env / env-dir 识别结果、目标 Profile、硬编码 URL/API 前缀线索
-→ wls_env_apply（不传 confirmApply，仅 dry-run）
-→ 用户确认文件计划和 API 前缀
-→ wls_env_apply(confirmApply: true)
-→ pnpm lint / pnpm build 或项目约定验证
+wls_standard_env_scan
+→ 展示项目形态、模块名证据和旧地址
+→ 显式选择华新或完整自定义五环境 Profile
+→ wls_standard_env_apply（不传 confirmApply，仅生成计划）
+→ 用户确认模块名、目标地址、本地联调参数和文件计划
+→ wls_standard_env_apply(confirmApply: true)
+→ wls_standard_env_verify(runBuild: true)
+→ 二次计划必须无文件变更
 ```
 
 ---
@@ -141,7 +145,8 @@ wls_env_scan
 
 - `env.local.json` 只放本地环境配置，不应提交真实 token。
 - R3/R4 Tool 不允许在用户无明确确认时自动执行。
-- `wls_env_apply` 虽不调用后端，但会写本地前端 env 文件与可识别的 Vite/运行时配置；未确认时只能 dry-run，不得传 `confirmApply: true`。
+- `wls_standard_env_apply` 不调用后端，但会事务式更新本地前端环境与 Vite 配置；未确认时不得传 `confirmApply: true`。
+- 华新 Profile 不得静默套用；非华新项目必须提供完整五环境 Profile，避免客户地址混用。
 - 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

@@ -48,8 +48,9 @@ const WRITE_SKILLS = [
   "core/business-doc-extract/SKILL.md",
   "core/template-extract/SKILL.md",
   "ops/code-fix/SKILL.md",
-  "ops/env-config/SKILL.md",
 ];
+
+const CONFIG_WRITE_SKILLS = ["ops/standard-env-config/SKILL.md"];
 
 const errors = [];
 const warnings = [];
@@ -98,7 +99,22 @@ for (const rel of WRITE_SKILLS) {
   }
 }
 
-// 4. registry.md 中列出的 SKILL.md 路径存在
+// 4. 工程配置写入能力独立于页面 standards，但必须具备完整安全闭环
+for (const rel of CONFIG_WRITE_SKILLS) {
+  const content = fileMust(rel);
+  if (!content) continue;
+
+  if (!/Pre-flight/i.test(content)) {
+    errors.push(`${rel}: 工程配置写入 Skill 必须包含 Pre-flight 声明`);
+  }
+  for (const marker of ["wls_standard_env_scan", "confirmApply", "wls_standard_env_verify"]) {
+    if (!content.includes(marker)) {
+      errors.push(`${rel}: 工程配置写入 Skill 缺少安全闭环 ${marker}`);
+    }
+  }
+}
+
+// 5. registry.md 中列出的 SKILL.md 路径存在
 const registry = fileMust("_registry.md") || "";
 const skillPathRe = /skills\/([\w\-/]+\/SKILL\.md)/g;
 let m;
@@ -113,7 +129,7 @@ while ((m = skillPathRe.exec(registry)) !== null) {
   }
 }
 
-// 5. files/ 下严禁出现 <C_Splitter>（组件已彻底删除，无任何例外）
+// 6. files/ 下严禁出现 <C_Splitter>（组件已彻底删除，无任何例外）
 const FILES_ROOT = path.join(ROOT, "files");
 function walkAll(dir, list = []) {
   if (!fs.existsSync(dir)) return list;
@@ -136,7 +152,7 @@ for (const fp of TARGETS) {
   }
 }
 
-// 6. 规则覆盖矩阵：标记「阻断」的 R*/S* 规则必须在执行器代码中真实存在
+// 7. 规则覆盖矩阵：标记「阻断」的 R*/S* 规则必须在执行器代码中真实存在
 //    防止 rule-coverage.md 与 ast-rules.js / page-spec.js 漂移
 (function checkRuleCoverage() {
   const coveragePath = path.join(ROOT, "kit-internal", "rule-coverage.md");
@@ -186,5 +202,5 @@ if (errors.length) {
 }
 
 console.log(
-  `\n✅ Skill Lint 通过：公共文件 ${REQUIRED_PUBLIC_FILES.length} 个、sync Skill ${SYNC_SKILLS.length} 个、write Skill ${WRITE_SKILLS.length} 个全部合规`,
+  `\n✅ Skill Lint 通过：公共文件 ${REQUIRED_PUBLIC_FILES.length} 个、sync Skill ${SYNC_SKILLS.length} 个、write Skill ${WRITE_SKILLS.length} 个、config Skill ${CONFIG_WRITE_SKILLS.length} 个全部合规`,
 );

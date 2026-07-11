@@ -15,7 +15,7 @@
 - **禁止**在 index.vue 写业务逻辑，**禁止**直接用 axios
 - **必须**用 BaseTable + `render-type="agGrid"` + 全局唯一 cid
 - code-fix 完成后**必须**自动 `wl-skills validate` 复扫（不可跳过）
-- 高风险 Skill（page-codegen / sync 类 / code-fix / env-config 写入）触发前**必须**二次确认
+- 高风险 Skill（page-codegen / sync 类 / code-fix / standard-env-config 写入）触发前**必须**二次确认
 - 匹配 2+ Skill 时**必须**询问用户意图
 
 ## 内容目录

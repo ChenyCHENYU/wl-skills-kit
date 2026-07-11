@@ -185,26 +185,29 @@ mock/
 
 ---
 
-## 9. 场景：前端环境配置标准化 / 客户迁移
+## 9. 场景：存量子应用标准环境配置
 
 **用户典型话术**：
 - "帮我把环境配置标准化"
-- "172 迁移到华新"
-- "baseURL / /api / sit-api / uat-api 要统一"
-- "这个项目要接新客户环境"
+- "172 和 9000 的老项目按新模板迁移"
+- "五套环境和三种本地联调方式统一"
+- "这个项目使用华新环境或其他客户 Profile"
 
 **推荐流程**：
 
-```
-wls_env_scan                 ← 只读扫描，识别 root-env / env-dir
-  → wls_env_apply            ← dry-run 预览，不写文件
-  → 用户确认                 ← 确认 Profile、API 前缀、影响文件
-  → wls_env_apply(confirmApply: true)
-  → pnpm lint / pnpm build   ← 按项目实际脚本验证
+```text
+wls_standard_env_scan
+  → 明确 Profile / moduleName / 本地地址
+  → wls_standard_env_apply                 ← 只输出计划
+  → 用户确认目标地址和文件计划
+  → wls_standard_env_apply(confirmApply: true)
+  → wls_standard_env_verify(runBuild: true)
+  → 二次 plan 必须无变更
 ```
 
 **边界**：
-- 只处理前端 env 文件、可识别的 Vite/运行时配置、前端代理/baseURL 相关线索。
+- 只处理 Vue/Vite 子应用的环境文件、模块化 Vite 配置、代理和运行时配置。
+- 华新 Profile 必须显式选择；其他项目必须完整提供五环境 Profile，不自动混用地址。
 - 后端、Nginx、Docker、Java、配置中心不处理，后续放到 bd 能力。
 - 扫描到硬编码 URL 只列线索，不自动改业务代码。
 
@@ -230,7 +233,7 @@ wls_env_scan                 ← 只读扫描，识别 root-env / env-dir
 | page-codegen | 生成 Vue 页面三件套 + api.md + SYS_MENU_INFO.md |
 | convention-audit | 14 条规范审计 |
 | code-fix | 按审计报告自动修复 |
-| env-config | 前端环境配置标准化 / 客户迁移 |
+| standard-env-config | 存量子应用标准环境迁移与验证 |
 | menu-sync | 后端菜单同步（MCP）|
 | dict-sync | 后端字典同步（MCP）|
 | permission-sync | 角色 / 授权 / 动作（MCP）|
@@ -243,7 +246,7 @@ wls_env_scan                 ← 只读扫描，识别 root-env / env-dir
 | `wls_menu_query` / `wls_menu_upsert` / `wls_menu_sync_from_report` | 菜单 |
 | `wls_dict_query` / `wls_dict_upsert` | 字典 |
 | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` | 角色 / 授权 / 动作 |
-| `wls_env_scan` / `wls_env_apply` | 前端环境配置标准化 |
+| `wls_standard_env_scan` / `wls_standard_env_apply` / `wls_standard_env_verify` | 标准环境配置迁移闭环 |
 | `wls_code_scan` / `wls_validate_page` / `wls_doctor_ui` / `wls_route_check` / `wls_git_log_extract` / `wls_audit_report_push` | 辅助 |
 
 ---

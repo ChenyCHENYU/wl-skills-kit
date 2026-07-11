@@ -1,6 +1,6 @@
 # Agent Pipeline 运行手册
 
-> **版本基线**：wl-skills-kit v2.12.2
+> **版本基线**：wl-skills-kit v2.12.3
 > **定位**：给 AI 编辑器、团队成员和 CI 统一一套可追踪、可回退、可复扫的 Agent Pipeline 执行方法。
 
 ---
@@ -79,17 +79,19 @@ page-codegen 产出 SYS_* 报告
 
 字典链路必须前置统一枚举模型：原型/详设/api.md 中都使用 `dictCode + dictName + items[{ value, label }]`。其中 `value` 入库为 `strKey`，`label` 入库为中文 `strValue`；`strValueCode` 由 MCP 按线上规则自动生成。不要把字典明细误建成业务模块，也不要让 AI 猜测字典编码命名风格。
 
-### 2.5 前端环境配置标准化
+### 2.5 存量子应用标准环境迁移
 
 ```text
-wls_env_scan
-→ wls_env_apply（dry-run）
-→ 用户确认 Profile、API 前缀和变更文件
-→ wls_env_apply(confirmApply: true)
-→ lint / build / 本地启动验证
+wls_standard_env_scan
+→ 明确完整 Profile、moduleName、本地联调参数
+→ wls_standard_env_apply（仅生成计划）
+→ 用户确认五套地址和文件计划
+→ wls_standard_env_apply(confirmApply: true)
+→ wls_standard_env_verify(runBuild: true)
+→ 二次计划确认 no-op
 ```
 
-适用场景：4/5 套前端环境初始化、旧 172 地址迁移、客户环境切换、baseURL 与 `/api` / `sit-api` / `uat-api` / `prod-api` 标准化。后端环境配置不在本链路内。
+适用场景：旧网关、旧 `172 + 9000` 或自定义 Vite 子应用迁移为单 `.env`、五环境、三开发模式和模块化配置。新项目直接从最新模板创建，后端环境配置不在本链路内。
 
 ---
 
@@ -164,12 +166,13 @@ wls_route_check({ path: "src/views" })
 wls_git_log_extract({ n: 20 })
 ```
 
-### 前端环境配置
+### 标准环境配置
 
 ```text
-wls_env_scan()
-wls_env_apply()                  # dry-run
-wls_env_apply({ confirmApply: true })
+wls_standard_env_scan()
+wls_standard_env_apply({ profile: "walsin", moduleName: "safe" })
+wls_standard_env_apply({ profile: "walsin", moduleName: "safe", confirmApply: true })
+wls_standard_env_verify({ profile: "walsin", runBuild: true })
 ```
 
 ### 发布前自检
@@ -191,7 +194,7 @@ git diff --check
 - **审计修复不满意**：回退源码 diff，保留审计报告。
 - **菜单/字典同步异常**：基于报告和后台查询结果人工校正，再重跑 query 类工具验证。
 - **权限授权异常**：优先重新确认全量 `menuIds`，并显式传 `confirmFullReplace: true` 后再执行覆盖式授权。
-- **环境配置写入异常**：使用 `.wl-skills/reports/env-backups/` 中的备份恢复，再重新 dry-run 确认 Profile。
+- **环境配置写入异常**：工具会在静态验证失败时自动回滚；需要人工恢复时使用 `.git/wl-skills/standard-env/` 或输出的系统临时备份，再重新生成计划。
 
 ---
 

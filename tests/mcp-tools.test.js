@@ -22,7 +22,7 @@ const menuSync = require(path.join(ROOT, "mcp/tools/menuSync.js"));
 const dictSync = require(path.join(ROOT, "mcp/tools/dictSync.js"));
 const permSync = require(path.join(ROOT, "mcp/tools/permissionSync.js"));
 const projectTools = require(path.join(ROOT, "mcp/tools/projectTools.js"));
-const envTools = require(path.join(ROOT, "mcp/tools/envTools.js"));
+const standardEnvTools = require(path.join(ROOT, "mcp/tools/standardEnvTools.js"));
 
 const {
   cleanCell,
@@ -298,40 +298,32 @@ describe("projectTools path discovery", () => {
   });
 });
 
-describe("envTools", () => {
-  it("handleEnvScan 只读扫描当前 WL_PROJECT_ROOT", async () => {
+describe("standardEnvTools", () => {
+  it("scan 对当前项目保持只读", async () => {
     const root = makeTempRoot();
     const previous = process.env.WL_PROJECT_ROOT;
     try {
-      fs.mkdirSync(path.join(root, "env"), { recursive: true });
-      fs.writeFileSync(path.join(root, "env", ".env.sit"), "VITE_ENV=sit\n", "utf8");
       process.env.WL_PROJECT_ROOT = root;
-
-      const text = await envTools.handleEnvScan({});
-      expect(text).toMatch(/env-dir/);
-      expect(text).toMatch(/VITE_ENV/);
-      expect(fs.existsSync(path.join(root, ".wl-skills"))).toBe(false);
+      const text = await standardEnvTools.handleStandardEnvScan();
+      expect(text).toMatch(/unsupported/);
+      expect(fs.readdirSync(root)).toEqual([]);
     } finally {
-      if (previous == null) delete process.env.WL_PROJECT_ROOT;
+      if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
       else process.env.WL_PROJECT_ROOT = previous;
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("handleEnvApply 未确认时保持 dry-run", async () => {
+  it("apply 未确认时只输出计划", async () => {
     const root = makeTempRoot();
     const previous = process.env.WL_PROJECT_ROOT;
     try {
-      fs.mkdirSync(path.join(root, "env"), { recursive: true });
-      fs.writeFileSync(path.join(root, "env", ".env.sit"), "VITE_ENV=sit\n", "utf8");
       process.env.WL_PROJECT_ROOT = root;
-
-      const text = await envTools.handleEnvApply({});
-      expect(text).toMatch(/dry-run/);
+      const text = await standardEnvTools.handleStandardEnvApply({ profile: "walsin" });
       expect(text).toMatch(/confirmApply/);
-      expect(fs.existsSync(path.join(root, "env", ".env.production"))).toBe(false);
+      expect(fs.readdirSync(root)).toEqual([]);
     } finally {
-      if (previous == null) delete process.env.WL_PROJECT_ROOT;
+      if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
       else process.env.WL_PROJECT_ROOT = previous;
       fs.rmSync(root, { recursive: true, force: true });
     }

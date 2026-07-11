@@ -40,7 +40,11 @@ const {
   handleGitLogExtract,
   handleAuditReportPush,
 } = require("./tools/projectTools");
-const { handleEnvScan, handleEnvApply } = require("./tools/envTools");
+const {
+  handleStandardEnvApply,
+  handleStandardEnvScan,
+  handleStandardEnvVerify,
+} = require("./tools/standardEnvTools");
 
 const DESCRIPTORS = [
   // ── menu ───────────────────────────────────────────────────────────
@@ -326,88 +330,76 @@ const DESCRIPTORS = [
     handle: (args) => handleRouteCheck(args),
   },
   {
-    name: "wls_env_scan",
+    name: "wls_standard_env_scan",
     description:
-      "扫描前端项目环境配置形态与硬编码端点，识别 root .env.* / env/.env.* 两类项目，并输出标准化计划。纯本地只读工具，不读取后端配置、不需要 token。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        profile: {
-          type: "string",
-          description: '环境 Profile 名称，默认 "walsin"',
-        },
-        profileFile: {
-          type: "string",
-          description: "可选。自定义环境 Profile JSON 文件路径。",
-        },
-        profileData: {
-          type: "object",
-          description:
-            "可选。直接传入自定义 Profile 数据，支持 { name, title, envs } 或 { appName, baseUrls, proxyPrefixes }。",
-        },
-        projectType: {
-          type: "string",
-          enum: ["auto", "root-env", "env-dir"],
-          description: "项目环境文件形态，默认 auto 自动识别。",
-        },
-        prodPrefix: {
-          type: "string",
-          description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
-        },
-        migrateViteConfig: {
-          type: "boolean",
-          description:
-            "是否迁移 vite.config / public/env-dev.json 中可识别的硬编码环境映射，默认 true；传 false 时只处理 env 文件。",
-        },
-      },
-      required: [],
-    },
+      "只读识别子应用是否符合标准环境配置，并分类旧网关、旧直连、自定义和已标准化项目。不会写文件，也不读取后端配置。",
+    inputSchema: { type: "object", properties: {}, required: [] },
     needsBackendConfig: false,
-    handle: (args) => handleEnvScan(args),
+    handle: () => handleStandardEnvScan(),
   },
   {
-    name: "wls_env_apply",
+    name: "wls_standard_env_apply",
     description:
-      "按标准 Profile 生成或更新前端环境文件，仅处理前端 baseURL/API 前缀配置。默认 dry-run；必须传 confirmApply: true 才会写入文件，并自动备份到 .wl-skills/reports/env-backups。",
+      "将已识别的存量 Vite 子应用迁移为单 .env、五环境、三开发模式和模块化配置。默认只输出计划，confirmApply: true 才写入并执行静态验证。",
     inputSchema: {
       type: "object",
       properties: {
         profile: {
           type: "string",
-          description: '环境 Profile 名称，默认 "walsin"',
+          enum: ["walsin"],
+          description: "内置目标环境，华新项目传 walsin。",
         },
         profileFile: {
           type: "string",
-          description: "可选。自定义环境 Profile JSON 文件路径。",
+          description: "自定义完整五环境 Profile JSON 路径。",
         },
         profileData: {
           type: "object",
-          description:
-            "可选。直接传入自定义 Profile 数据，支持 { name, title, envs } 或 { appName, baseUrls, proxyPrefixes }。",
+          description: "自定义完整五环境 Profile 对象。",
         },
-        projectType: {
+        moduleName: {
           type: "string",
-          enum: ["auto", "root-env", "env-dir"],
-          description: "项目环境文件形态，默认 auto 自动识别。",
+          description: "模块名；历史配置存在冲突时必须明确传入。",
         },
-        prodPrefix: {
+        localApi: { type: "string", description: "本地后端 URL。" },
+        localPublic: { type: "string", description: "本地 public URL。" },
+        localMode: {
           type: "string",
-          description: "可选。覆盖生产环境 API 前缀，如 prod-api 或 prd-api。",
+          enum: ["all", "module", "routes"],
+          description: "本地后端代理范围。",
         },
-        migrateViteConfig: {
-          type: "boolean",
-          description:
-            "是否迁移 vite.config / public/env-dev.json 中可识别的硬编码环境映射，默认 true；传 false 时只处理 env 文件。",
+        localRoutes: {
+          description: "routes 模式映射，可传 match=rewrite 字符串或对象数组。",
         },
         confirmApply: {
           type: "boolean",
-          description: "正式写入确认开关。未传 true 时永远只做 dry-run。",
+          description: "正式写入确认；未传 true 时只输出计划。",
         },
       },
       required: [],
     },
     needsBackendConfig: false,
-    handle: (args) => handleEnvApply(args),
+    handle: (args) => handleStandardEnvApply(args),
+  },
+  {
+    name: "wls_standard_env_verify",
+    description:
+      "验证标准环境配置结构、五环境、三开发模式、运行时配置和 Profile；可选执行五环境临时构建。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile: { type: "string", enum: ["walsin"] },
+        profileFile: { type: "string" },
+        profileData: { type: "object" },
+        runBuild: {
+          type: "boolean",
+          description: "是否在临时副本中执行五环境构建，默认 false。",
+        },
+      },
+      required: [],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleStandardEnvVerify(args),
   },
   {
     name: "wls_validate_page",

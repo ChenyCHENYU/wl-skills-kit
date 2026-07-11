@@ -25,6 +25,48 @@ function makeIsolatedDir() {
   return tmp;
 }
 
+function makeLegacyEnvProject() {
+  const dir = makeIsolatedDir();
+  fs.mkdirSync(path.join(dir, "public"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "src", "views", "safe"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "vite", "plugins"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    JSON.stringify({
+      name: "legacy-safe",
+      scripts: { dev: "vite --mode dev -- --module=safe" },
+      devDependencies: { vite: "4.4.9", typescript: "^4.5.4" },
+    }),
+  );
+  fs.writeFileSync(path.join(dir, ".env"), "ENV_MOCK=dev\n");
+  fs.writeFileSync(
+    path.join(dir, ".env.dev"),
+    "ENV=dev\nENV_ANY_REPORT_SECRET_KEY=test\nTOKEN_LOCALSTORAGE=true\n",
+  );
+  fs.writeFileSync(
+    path.join(dir, "public", "env-dev.json"),
+    JSON.stringify({ OPTION: { module: "safe" } }),
+  );
+  fs.writeFileSync(
+    path.join(dir, "vite.config.ts"),
+    [
+      'const webMap = { dev: "http://172.28.99.172:81" };',
+      'const webApiMap = { dev: "http://172.28.99.172:81" };',
+      'const baseApi = "/dev-api";',
+      'const proxy = { [baseApi]: { target: "http://172.28.99.172:9000", rewrite: (p) => p.replace(/^\\/dev-api/, "") } };',
+    ].join("\n"),
+  );
+  fs.writeFileSync(
+    path.join(dir, "vite", "plugins", "type.ts"),
+    'export interface PluginOption { env: "dev" }\n',
+  );
+  fs.writeFileSync(
+    path.join(dir, "vite", "plugins", "index.ts"),
+    "export default async function createVitePlugins() { return []; }\n",
+  );
+  return dir;
+}
+
 describe("CLI 参数防护（A1）", () => {
   it("--help 应正常退出（exit 0）并打印用法", () => {
     const res = runCli(["--help"]);
@@ -136,53 +178,51 @@ describe("CLI 参数防护（A1）", () => {
   });
 });
 
-describe("CLI env", () => {
-  it("env scan 只读扫描 env-dir 项目", () => {
+describe("CLI standard-env", () => {
+  it("旧 env 命令停止写入并提示新入口", () => {
     const dir = makeIsolatedDir();
-    const envDir = path.join(dir, "env");
-    fs.mkdirSync(envDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(envDir, ".env.sit"),
-      "VITE_API_BASE_URL=https://old.example.com/sit-api\n",
-      "utf8",
-    );
-
-    const res = runCli(["env", "scan"], { cwd: dir });
-    expect(res.status).toBe(0);
-    expect(res.stdout).toMatch(/env-dir/);
-    expect(res.stdout).toMatch(/VITE_API_BASE_URL/);
-    expect(fs.existsSync(path.join(dir, ".wl-skills"))).toBe(false);
-    fs.rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("env apply 默认 dry-run，不写入环境文件", () => {
-    const dir = makeIsolatedDir();
-    const envDir = path.join(dir, "env");
-    fs.mkdirSync(envDir, { recursive: true });
-    fs.writeFileSync(path.join(envDir, ".env.sit"), "VITE_ENV=sit\n", "utf8");
-
-    const res = runCli(["env", "apply"], { cwd: dir });
-    expect(res.status).toBe(0);
-    expect(res.stdout).toMatch(/dry-run/);
-    expect(fs.existsSync(path.join(envDir, ".env.production"))).toBe(false);
-    expect(fs.existsSync(path.join(dir, ".wl-skills"))).toBe(false);
-    fs.rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("env apply --apply 写入前端 env 文件并生成报告", () => {
-    const dir = makeIsolatedDir();
-    const envDir = path.join(dir, "env");
-    fs.mkdirSync(envDir, { recursive: true });
-    fs.writeFileSync(path.join(envDir, ".env.sit"), "VITE_ENV=sit\n", "utf8");
-
     const res = runCli(["env", "apply", "--apply"], { cwd: dir });
+    expect(res.status).not.toBe(0);
+    expect(res.stderr + res.stdout).toMatch(/standard-env/);
+    expect(fs.readdirSync(dir)).toEqual([]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("standard-env scan 只读识别旧直连项目", () => {
+    const dir = makeLegacyEnvProject();
+    const res = runCli(["standard-env", "scan"], { cwd: dir });
     expect(res.status).toBe(0);
-    expect(fs.existsSync(path.join(envDir, ".env.production"))).toBe(true);
-    expect(
-      fs.readdirSync(path.join(dir, ".wl-skills", "reports")).some((name) =>
-        /^ENV_CONFIG_.*\.md$/.test(name),
-      ),
-    ).toBe(true);
+    expect(res.stdout).toMatch(/legacy-direct/);
+    expect(fs.existsSync(path.join(dir, ".env.dev"))).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("standard-env plan 未选择 Profile 时阻断", () => {
+    const dir = makeLegacyEnvProject();
+    const res = runCli(["standard-env", "plan"], { cwd: dir });
+    expect(res.status).not.toBe(0);
+    expect(res.stdout).toMatch(/--profile walsin/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("standard-env apply 显式确认后迁移并验证", () => {
+    const dir = makeLegacyEnvProject();
+    const res = runCli(
+      [
+        "standard-env",
+        "apply",
+        "--profile",
+        "walsin",
+        "--module-name",
+        "safe",
+        "--confirm",
+      ],
+      { cwd: dir },
+    );
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/静态验证：通过/);
+    expect(fs.existsSync(path.join(dir, ".env.dev"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "vite", "config", "server.ts"))).toBe(true);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

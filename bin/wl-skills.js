@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.2
+ * wl-skills-kit CLI v2.12.3
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -14,7 +14,7 @@
  *   doctor-ui 检查 @agile-team/wl-skills-ui 接入完整性
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
- *   env       前端环境配置扫描 / 标准化写入（默认 dry-run）
+ *   standard-env 标准环境配置扫描、迁移与验证
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
  */
@@ -36,10 +36,13 @@ const { alignPage } = require("../lib/page-spec");
 // ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
 const { runSafeFix } = require("../lib/safe-fix");
 const {
-  scanProjectEnv,
-  applyEnvConfig,
-  formatEnvResult,
-} = require("../lib/env-config");
+  applyStandardEnv,
+  formatStandardEnvResult,
+  planStandardEnv,
+  scanStandardEnv,
+  verifyStandardEnv,
+} = require("../lib/standard-env");
+const { resolveProfile: resolveStandardEnvProfile } = require("../lib/standard-env/profiles");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -62,6 +65,7 @@ const KNOWN_COMMANDS = new Set([
   "mock-clean",
   "fix",
   "env",
+  "standard-env",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -80,6 +84,13 @@ const KNOWN_FLAGS = new Set([
   "--prod-prefix",
   "--no-migrate-vite",
   "--apply",
+  "--confirm",
+  "--module-name",
+  "--local-api",
+  "--local-public",
+  "--local-mode",
+  "--local-routes",
+  "--build",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -150,7 +161,8 @@ if (showHelp) {
     export     导出 reports/SYS_* 数据为 xlsx
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
     fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
-    env        前端环境配置扫描 / 标准化写入（scan/apply，默认 dry-run）
+    standard-env 标准环境配置（scan/plan/apply/verify）
+    env        旧环境命令，已停用并提示迁移
 
   选项:
     --dry-run        预览模式，不实际写入/删除任何文件
@@ -162,12 +174,15 @@ if (showHelp) {
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（R14 类型错误零容忍）
                      体积较大，CI / pre-push 必跑，pre-commit 不建议开启
-    --profile <name> env 使用的环境 Profile，默认 walsin
-    --profile-file   env 使用自定义 Profile JSON
-    --project-type   env 指定项目形态：auto/root-env/env-dir
-    --prod-prefix    env 覆盖生产 API 前缀，如 prod-api 或 prd-api
-    --no-migrate-vite env 仅处理 .env.*，不迁移 vite.config / public/env-dev.json
-    --apply          env apply 的正式写入确认开关
+    --profile <name> standard-env 使用的内置环境 Profile，如 walsin
+    --profile-file   standard-env 使用自定义完整五环境 Profile JSON
+    --module-name    模块标识；检测到历史冲突时必须明确指定
+    --local-api      本地后端地址，默认 http://localhost:10010
+    --local-public   本地 public 地址，默认 http://localhost:8002
+    --local-mode     本地后端代理范围：all/module/routes
+    --local-routes   routes 模式映射，格式 match=rewrite,...
+    --confirm        standard-env apply 正式写入确认
+    --build          standard-env verify 执行五环境临时构建
     --help           显示帮助
 
   示例:
@@ -187,10 +202,10 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit mock-clean --domain mdata  清理 mdata 域 mock
     pnpm dlx @agile-team/wl-skills-kit mock-clean --all           清理全部 mock
     pnpm dlx @agile-team/wl-skills-kit mock-clean --all --dry-run 预览将要清理的 mock 文件
-    pnpm dlx @agile-team/wl-skills-kit env scan                   扫描前端环境配置
-    pnpm dlx @agile-team/wl-skills-kit env apply                  预览标准化写入计划
-    pnpm dlx @agile-team/wl-skills-kit env apply --apply          确认写入前端 env / Vite 配置
-    pnpm dlx @agile-team/wl-skills-kit env apply --no-migrate-vite 仅预览 env 文件变更
+    pnpm dlx @agile-team/wl-skills-kit standard-env scan
+    pnpm dlx @agile-team/wl-skills-kit standard-env plan --profile walsin
+    pnpm dlx @agile-team/wl-skills-kit standard-env apply --profile walsin --confirm
+    pnpm dlx @agile-team/wl-skills-kit standard-env verify --profile walsin --build
 
   保护路径（init / update 不覆盖已存在的）:
     .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -1884,53 +1899,91 @@ function runMockClean() {
 
 // ─── 命令: fix（确定性机械修复）──────────────────────────────────────────
 
-function buildEnvOptions() {
-  const options = {
-    profile: readOption("--profile", "walsin"),
-    projectType: readOption("--project-type", "auto"),
-  };
-  const profileFile = readOption("--profile-file");
-  const prodPrefix = readOption("--prod-prefix");
-  if (profileFile) options.profileFile = profileFile;
-  if (prodPrefix) options.prodPrefix = prodPrefix;
-  if (args.includes("--no-migrate-vite")) options.migrateViteConfig = false;
+function runEnv() {
+  console.log("");
+  console.error("  ✖ env 旧标准化命令已停用，避免生成多份 .env.*");
+  console.error("  → 请使用 wl-skills standard-env scan/plan/apply/verify");
+  console.log("");
+  process.exitCode = 1;
+}
+
+function buildStandardEnvOptions() {
+  const options = {};
+  for (const [flag, key] of [
+    ["--profile", "profile"],
+    ["--profile-file", "profileFile"],
+    ["--module-name", "moduleName"],
+    ["--local-api", "localApi"],
+    ["--local-public", "localPublic"],
+    ["--local-mode", "localMode"],
+    ["--local-routes", "localRoutes"],
+  ]) {
+    const value = readOption(flag);
+    if (value) options[key] = value;
+  }
   return options;
 }
 
-function asDryRunEnvResult(plan) {
-  return {
-    ...plan,
-    dryRun: true,
-    applied: [],
-    backupDir: "",
-    stamp: "scan",
-    reportPath: "",
-  };
-}
-
-function runEnv() {
+function runStandardEnv() {
   const action = positional[1] || "scan";
-  if (!["scan", "apply"].includes(action)) {
+  if (!["scan", "plan", "apply", "verify"].includes(action)) {
     console.error("");
-    console.error('  ✖ 未知 env 子命令: "' + action + '"');
-    console.error("  可用子命令: env scan / env apply");
+    console.error(`  ✖ 未知 standard-env 子命令: "${action}"`);
+    console.error("  可用子命令: scan / plan / apply / verify");
     console.error("");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  const options = buildEnvOptions();
-  const shouldWrite = action === "apply" && args.includes("--apply") && !dryRun;
-  const result =
-    action === "scan"
-      ? asDryRunEnvResult(scanProjectEnv(TARGET_DIR, options))
-      : applyEnvConfig(TARGET_DIR, { ...options, dryRun: !shouldWrite });
+  const options = buildStandardEnvOptions();
+  let result;
+  try {
+    if (action === "scan") {
+      result = scanStandardEnv(TARGET_DIR);
+    } else if (action === "plan") {
+      result = planStandardEnv(TARGET_DIR, options);
+    } else if (action === "apply") {
+      result = applyStandardEnv(TARGET_DIR, {
+        ...options,
+        confirmApply: args.includes("--confirm") && !dryRun,
+      });
+    } else {
+      const profile =
+        options.profile || options.profileFile
+          ? resolveStandardEnvProfile(options, TARGET_DIR)
+          : undefined;
+      const validation = verifyStandardEnv(TARGET_DIR, {
+        profile,
+        runBuild: args.includes("--build"),
+      });
+      result = {
+        action: "verify",
+        root: TARGET_DIR,
+        status: validation.valid ? "standard" : "invalid",
+        inspection: validation.inspection,
+        profile,
+        moduleName: validation.inspection.module.resolved,
+        warnings: validation.warnings.map((item) => item.message),
+        errors: validation.errors.map((item) => item.message),
+        changes: [],
+        validation,
+      };
+    }
+  } catch (error) {
+    console.error("");
+    console.error("  ✖ 标准环境配置失败: " + error.message);
+    console.error("");
+    process.exitCode = 1;
+    return;
+  }
 
   console.log("");
-  console.log(formatEnvResult(result));
-  if (action === "apply" && !shouldWrite) {
-    console.log("提示：env apply 默认 dry-run；确认写入请加 --apply，若同时传 --dry-run 仍只预览。");
+  console.log(formatStandardEnvResult(result));
+  if (action === "apply" && !args.includes("--confirm")) {
+    console.log("提示：apply 默认只预览；确认写入必须加 --confirm。");
   }
   console.log("");
+  if (result.blocked || result.validation?.valid === false) process.exitCode = 1;
 }
 
 function runFix() {
@@ -2000,6 +2053,9 @@ switch (command) {
     break;
   case "env":
     runEnv();
+    break;
+  case "standard-env":
+    runStandardEnv();
     break;
   default:
     console.error(

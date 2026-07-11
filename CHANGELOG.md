@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.12.3] - 2026-07-11
+
+### Added
+
+- **标准环境配置独立能力**：新增 `standard-env-config` Skill、`standard-env` CLI，以及 `wls_standard_env_scan` / `apply` / `verify` 三个 MCP Tool，覆盖扫描、计划、事务迁移、静态验证、五环境构建和幂等检查。
+- **通用环境 Profile**：华新环境必须显式选择；其他域名、内网 IP、端口场景使用完整自定义五环境 Profile，避免静默混用客户地址。
+
+### Changed
+
+- **存量子应用统一结构**：将旧网关或 `172 + 9000` 项目迁移为单 `.env`、`dev/sit/uat/pre/prd` 五环境、三种开发模式和模块化 Vite 配置，同时保留可识别的 alias、插件与扩展代理。
+- **旧入口退役**：停止 `wl-skills env` 写入能力和 `wls_env_*` 公共注册，并移除旧实现，防止过时规则继续改造项目。
+- **真实项目验收**：使用 `wl-ui-safe` 完成迁移实验，五环境配置解析、静态验证、`dev/sit/uat/pre/prd` 全量构建与二次 no-op 均通过。
+
 ## [2.12.2] - 2026-07-04
 
 ### Changed
