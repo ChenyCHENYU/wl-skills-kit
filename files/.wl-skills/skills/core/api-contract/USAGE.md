@@ -67,13 +67,15 @@ AI：[Pre-flight]
 
 ## 输出物
 
-每个页面目录下生成 `api.md`，结构：
+每个页面目录下生成 `api.md`，有业务字典时同步维护模块 `dicts.ts`：
 
 1. **API_CONFIG**（粘贴到 data.ts 用）
 2. **实体定义**（字段名、类型、字典、必填）
 3. **接口清单**（list/getById/save/update/remove/export + 业务操作如 release/approve）
-4. **数据字典**（dictCode 列表）
+4. **数据字典**（完整 `dict-contract`：模块、字典、枚举、排序）
 5. **联调注意**
+
+字典闭环见 `.wl-skills/docs/dictionary-contract.md`。禁止只写 dictCode 而缺少枚举和排序契约。
 
 ---
 

@@ -24,7 +24,6 @@ export default defineConfigWithVueTs(
       "**/dist-ssr/**",
       "**/coverage/**",
       "files/**",
-      "mcp/**",
     ],
   },
 
@@ -144,6 +143,15 @@ export default defineConfigWithVueTs(
       "prefer-destructuring": [1, { object: true, array: false }],
       "no-duplicate-imports": "error",
       "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+
+  {
+    name: "app/mcp-ordered-side-effects",
+    files: ["mcp/**/*.js"],
+    rules: {
+      // sync 工具必须按业务顺序执行写请求；并发会破坏父子依赖、幂等检查和回查。
+      "no-await-in-loop": "off",
     },
   },
 

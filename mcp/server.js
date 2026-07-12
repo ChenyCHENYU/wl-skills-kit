@@ -18,6 +18,12 @@ const { loadConfig } = require("./config");
 const { TOOLS, HANDLERS } = require("./registry");
 
 const PKG = require("../package.json");
+const SUPPORTED_PROTOCOL_VERSIONS = [
+  "2025-11-25",
+  "2025-06-18",
+  "2025-03-26",
+  "2024-11-05",
+];
 
 // ─── JSON-RPC 协议层 ────────────────────────────────────────────────────
 
@@ -56,8 +62,15 @@ async function dispatchTool(id, toolName, toolArgs) {
   }
 
   try {
-    const text = await desc.handle(toolArgs, config);
-    sendResult(id, { content: [{ type: "text", text }] });
+    const handlerResult = await desc.handle(toolArgs, config);
+    const normalized = typeof handlerResult === "string"
+      ? { text: handlerResult }
+      : handlerResult;
+    sendResult(id, {
+      content: [{ type: "text", text: normalized.text }],
+      ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
+      ...(normalized.isError ? { isError: true } : {}),
+    });
   } catch (e) {
     sendResult(id, {
       content: [{ type: "text", text: `❌ 工具执行异常: ${e.message}` }],
@@ -68,51 +81,49 @@ async function dispatchTool(id, toolName, toolArgs) {
 
 // ─── 消息循环 ────────────────────────────────────────────────────────────
 
-function startServer() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    terminal: false,
+function parseMessage(line) {
+  const raw = line.trim();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    send({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32700, message: "Parse error" },
+    });
+    return null;
+  }
+}
+
+function initialize(id, params) {
+  const requestedVersion = params.protocolVersion;
+  const protocolVersion = SUPPORTED_PROTOCOL_VERSIONS.includes(requestedVersion)
+    ? requestedVersion
+    : SUPPORTED_PROTOCOL_VERSIONS[0];
+  sendResult(id, {
+    protocolVersion,
+    capabilities: { tools: {} },
+    serverInfo: { name: "wl-skills", version: PKG.version },
+    instructions: "写操作默认先预览；仅在用户确认后传对应 confirm 参数。字典支持项目级自动发现；缺少 dicts.ts 时先 bootstrap 本地契约，线上发布只读取 dicts.ts 并校验 planHash。",
   });
+}
 
+async function handleMessage(msg) {
+  const { id, method, params = {} } = msg;
+  if (id === undefined || id === null) return;
+  if (method === "initialize") return initialize(id, params);
+  if (method === "tools/list") return sendResult(id, { tools: TOOLS });
+  if (method === "tools/call") return dispatchTool(id, params.name, params.arguments || {});
+  if (method === "ping") return sendResult(id, {});
+  return sendError(id, -32601, `Method not found: ${method}`);
+}
+
+function startServer() {
+  const rl = readline.createInterface({ input: process.stdin, terminal: false });
   rl.on("line", async (line) => {
-    const raw = line.trim();
-    if (!raw) return;
-
-    let msg;
-    try {
-      msg = JSON.parse(raw);
-    } catch (e) {
-      send({
-        jsonrpc: "2.0",
-        id: null,
-        error: { code: -32700, message: "Parse error" },
-      });
-      return;
-    }
-
-    const { id, method, params = {} } = msg;
-    if (id === undefined || id === null) return; // notifications
-
-    switch (method) {
-      case "initialize":
-        sendResult(id, {
-          protocolVersion: "2024-11-05",
-          capabilities: { tools: {} },
-          serverInfo: { name: "wl-skills", version: PKG.version },
-        });
-        break;
-      case "tools/list":
-        sendResult(id, { tools: TOOLS });
-        break;
-      case "tools/call":
-        await dispatchTool(id, params.name, params.arguments || {});
-        break;
-      case "ping":
-        sendResult(id, {});
-        break;
-      default:
-        sendError(id, -32601, `Method not found: ${method}`);
-    }
+    const msg = parseMessage(line);
+    if (msg) await handleMessage(msg);
   });
 
   rl.on("close", () => {
@@ -146,4 +157,11 @@ function printBanner() {
   process.stderr.write(lines.join("\n") + "\n");
 }
 
-module.exports = { TOOLS, HANDLERS, dispatchTool, startServer };
+module.exports = {
+  TOOLS,
+  HANDLERS,
+  dispatchTool,
+  handleMessage,
+  parseMessage,
+  startServer,
+};

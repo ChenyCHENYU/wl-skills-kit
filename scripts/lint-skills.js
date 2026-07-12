@@ -152,8 +152,8 @@ for (const fp of TARGETS) {
   }
 }
 
-// 7. 规则覆盖矩阵：标记「阻断」的 R*/S* 规则必须在执行器代码中真实存在
-//    防止 rule-coverage.md 与 ast-rules.js / page-spec.js 漂移
+// 7. 规则覆盖矩阵：标记「阻断」的 R*/S*/D* 规则必须在执行器代码中真实存在
+//    防止 rule-coverage.md 与 ast-rules.js / page-spec.js / dict-contract.js 漂移
 (function checkRuleCoverage() {
   const coveragePath = path.join(ROOT, "kit-internal", "rule-coverage.md");
   if (!fs.existsSync(coveragePath)) {
@@ -167,9 +167,12 @@ for (const fp of TARGETS) {
   const specSrc = fs.existsSync(path.join(ROOT, "lib", "page-spec.js"))
     ? fs.readFileSync(path.join(ROOT, "lib", "page-spec.js"), "utf8")
     : "";
+  const dictSrc = fs.existsSync(path.join(ROOT, "lib", "dict-contract.js"))
+    ? fs.readFileSync(path.join(ROOT, "lib", "dict-contract.js"), "utf8")
+    : "";
 
-  // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S* 编号
-  const ruleRe = /\b([RS]\d{1,2})\b/g;
+  // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S*/D* 编号
+  const ruleRe = /\b([RSD]\d{1,2})\b/g;
   for (const line of coverage.split("\n")) {
     // 仅看表格数据行且阻断列为「是」
     if (!/^\|/.test(line) || !/\|\s*是\s*\|?\s*$/.test(line)) continue;
@@ -180,9 +183,10 @@ for (const fp of TARGETS) {
       const marker = 'rule: "' + rule + '"';
       const inAst = astSrc.includes(marker);
       const inSpec = specSrc.includes(marker);
-      if (!inAst && !inSpec) {
+      const inDict = dictSrc.includes(marker);
+      if (!inAst && !inSpec && !inDict) {
         errors.push(
-          `rule-coverage.md 标记「阻断」的 ${rule} 在 ast-rules.js / page-spec.js 中未找到 (${marker})`,
+          `rule-coverage.md 标记「阻断」的 ${rule} 在确定性执行器中未找到 (${marker})`,
         );
       }
     }

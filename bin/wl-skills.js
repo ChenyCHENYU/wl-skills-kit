@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.4
+ * wl-skills-kit CLI v2.12.5
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -32,6 +32,7 @@ const {
 
 // ─── page-spec 比对引擎（v2.11.1+，"约定 vs 代码"确定性核对）────────────
 const { alignPage } = require("../lib/page-spec");
+const { validateContractAlignment } = require("../lib/dict-contract");
 
 // ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
 const { runSafeFix } = require("../lib/safe-fix");
@@ -48,6 +49,8 @@ const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
 const MANIFEST_NAME = ".wl-skills-manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
+const LOCAL_SYNC_CONFIG = ".wl-skills/skills/sync/env.local.json";
+const EXAMPLE_SYNC_CONFIG = ".wl-skills/skills/sync/env.example.json";
 const PKG = require("../package.json");
 const args = process.argv.slice(2);
 
@@ -308,6 +311,28 @@ function writeManifest(data) {
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(data, null, 2), "utf8");
 }
 
+function ensureGitIgnoreEntry(root, entry) {
+  const gitignorePath = path.join(root, ".gitignore");
+  const existing = fs.existsSync(gitignorePath)
+    ? fs.readFileSync(gitignorePath, "utf8")
+    : "";
+  const lines = existing.split(/\r?\n/).map((line) => line.trim());
+  if (lines.includes(entry)) return false;
+  const prefix = existing && !existing.endsWith("\n") ? "\n" : "";
+  fs.appendFileSync(gitignorePath, prefix + entry + "\n", "utf8");
+  return true;
+}
+
+function ensureLocalSyncConfig(root) {
+  const localPath = path.join(root, LOCAL_SYNC_CONFIG);
+  const examplePath = path.join(root, EXAMPLE_SYNC_CONFIG);
+  ensureGitIgnoreEntry(root, LOCAL_SYNC_CONFIG);
+  if (fs.existsSync(localPath)) return "preserved";
+  if (!fs.existsSync(examplePath)) throw new Error("缺少同步配置模板: " + examplePath);
+  fs.copyFileSync(examplePath, localPath);
+  return "created";
+}
+
 // 受保护路径（clean 不删除）
 const PROTECTED_PREFIXES = ["src/components/", "src/types/", ".wl-skills/src/components/", ".wl-skills/src/types/"];
 function isProtected(relPath) {
@@ -502,6 +527,15 @@ function runInstall(incremental) {
       if (copyFileSafe(src, dest) === "created") created++;
       else updated++;
     }
+  }
+
+  // 本地凭据配置不进入 manifest：init 创建，update/clean 永不覆盖或删除。
+  if (!dryRun) {
+    const localConfigAction = ensureLocalSyncConfig(TARGET_DIR);
+    console.log(
+      "    本地配置: " + LOCAL_SYNC_CONFIG +
+      (localConfigAction === "created" ? "（已从 example 创建）" : "（已保留）"),
+    );
   }
 
   // ── Step 2: 动态生成编辑器配置文件 ────────────────────────────────
@@ -1170,6 +1204,40 @@ function findMockFiles() {
   return walkDir(mockDir, TARGET_DIR).filter((rel) => /\.(ts|js)$/.test(rel));
 }
 
+function addDictsUnder(root, result) {
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return;
+  for (const rel of walkDir(root, root)) {
+    if (path.basename(rel) === "dicts.ts") result.add(path.join(root, rel));
+  }
+}
+
+function findRelevantDictContracts(scanPath) {
+  const result = new Set();
+  const viewsRoot = path.join(TARGET_DIR, "src", "views");
+  let scanRoot = path.resolve(TARGET_DIR, scanPath);
+  if (fs.existsSync(scanRoot) && fs.statSync(scanRoot).isFile()) scanRoot = path.dirname(scanRoot);
+  addDictsUnder(scanRoot, result);
+  let cursor = scanRoot;
+  while (cursor.startsWith(viewsRoot) && cursor.length >= viewsRoot.length) {
+    const candidate = path.join(cursor, "dicts.ts");
+    if (fs.existsSync(candidate)) result.add(candidate);
+    if (cursor === viewsRoot) break;
+    cursor = path.dirname(cursor);
+  }
+  return Array.from(result).sort();
+}
+
+function appendDictionaryContractIssues(issues, scanPath) {
+  const files = findRelevantDictContracts(scanPath);
+  for (const file of files) {
+    const result = validateContractAlignment(path.dirname(file));
+    const dir = path.relative(TARGET_DIR, file).replace(/\\/g, "/");
+    for (const text of result.errors) issues.push({ level: "error", dir, text, rule: "D1" });
+    for (const text of result.warnings) issues.push({ level: "warn", dir, text, rule: "D1" });
+  }
+  return files.length;
+}
+
 function runValidate() {
   const scanPath =
     args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
@@ -1190,7 +1258,10 @@ function runValidate() {
 
   const allPages = scanPageDirs(scanPath);
   // 在 pre-commit 模式下，只保留包含 staged 文件的页面目录
-  const pages = preCommit
+  const hasDictionaryContractStaged = preCommit && Array.from(stagedSet).some(
+    (file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"),
+  );
+  const pages = preCommit && !hasDictionaryContractStaged
     ? allPages.filter((page) =>
         Array.from(stagedSet).some(
           (f) =>
@@ -1362,6 +1433,9 @@ function runValidate() {
     }
   }
 
+  // ── 模块字典契约 D1：api.md dict-contract → dicts.ts 汇总一致性 ─────
+  const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
+
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
   // 补充正则无法覆盖的 AST 语义规则（R1~R14），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
@@ -1401,6 +1475,7 @@ function runValidate() {
       pages.length +
       (astResult.pages ? "（AST 扫描 " + astResult.pages + "）" : "") +
       (specAlignedPages ? "（spec-align " + specAlignedPages + "）" : "") +
+      (dictContractCount ? "（字典契约 " + dictContractCount + "）" : "") +
       (typeCheck
         ? "（类型检查 " + (tcRan ? "已执行 " + tcErrors + " error" : "已跳过") + "）"
         : ""),
@@ -1518,6 +1593,7 @@ const AST_FIX_SUGGESTIONS = {
   S2: { fix: '\u8c03\u6574 columnsDef() \u8868\u683c\u5217\u987a\u5e8f/\u96c6\u5408\u4e0e page-spec.json columns \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   S3: { fix: '\u8c03\u6574 toolbarDef() \u6309\u94ae\u987a\u5e8f/\u989c\u8272\u4e0e page-spec.json toolbar \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+  D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
 };
 
 function printFixSuggestions(blockingIssues) {

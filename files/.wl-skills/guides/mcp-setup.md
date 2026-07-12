@@ -95,12 +95,12 @@
 
 ## 配置完成后
 
-确保已在 `.wl-skills/skills/sync/env.local.json` 中填写：
+`init` 会从 `env.example.json` 创建本地 `env.local.json` 并加入 `.gitignore`；确保已填写：
 
 ```json
 {
   "gatewayPath": "https://你的网关域名/api",
-  "token": "Bearer 你的Token",
+  "token": "eyJhbGci...（纯 JWT/Token，不含 bearer 前缀）",
   "menu": { "domainId": 1 },
   "dict": {}
 }

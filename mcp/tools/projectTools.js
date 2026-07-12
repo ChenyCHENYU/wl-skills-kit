@@ -391,7 +391,7 @@ function readEnvLocal(root) {
   if (!envPath) return null;
   try {
     return JSON.parse(fs.readFileSync(envPath, "utf8"));
-  } catch (e) {
+  } catch {
     return null;
   }
 }

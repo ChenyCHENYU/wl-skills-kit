@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -9,6 +9,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const CLI = path.join(ROOT, "bin", "wl-skills.js");
+
+// 全量并行回归时 Windows 子进程启动可能超过 Vitest 默认 5 秒。
+vi.setConfig({ testTimeout: 30000 });
 
 function makeDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "wl-skills-doctor-"));

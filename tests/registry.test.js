@@ -12,10 +12,10 @@ const ROOT = path.resolve(__dirname, "..");
 describe("mcp/registry.js", () => {
   const reg = require(path.join(ROOT, "mcp", "registry.js"));
 
-  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 20", () => {
+  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 21", () => {
     expect(Array.isArray(reg.DESCRIPTORS)).toBe(true);
-    expect(reg.TOOLS.length).toBe(20);
-    expect(Object.keys(reg.HANDLERS).length).toBe(20);
+    expect(reg.TOOLS.length).toBe(21);
+    expect(Object.keys(reg.HANDLERS).length).toBe(21);
     expect(reg.DESCRIPTORS.length).toBe(reg.TOOLS.length);
   });
 
@@ -27,7 +27,39 @@ describe("mcp/registry.js", () => {
       expect(t.description.length).toBeGreaterThan(0);
       expect(t.inputSchema).toBeTypeOf("object");
       expect(t.inputSchema.type).toBe("object");
+      expect(t.annotations).toMatchObject({
+        readOnlyHint: expect.any(Boolean),
+        destructiveHint: expect.any(Boolean),
+        idempotentHint: expect.any(Boolean),
+        openWorldHint: expect.any(Boolean),
+      });
     }
+  });
+
+  it("字典发布声明结构化输出和非破坏性幂等提示", () => {
+    const tool = reg.TOOLS.find((item) => item.name === "wls_dict_upsert");
+    expect(tool.inputSchema.anyOf).toHaveLength(2);
+    expect(tool.inputSchema.additionalProperties).toBe(false);
+    expect(tool.inputSchema.properties).not.toHaveProperty("module");
+    expect(tool.inputSchema.properties).not.toHaveProperty("dict");
+    expect(tool.inputSchema.properties).not.toHaveProperty("items");
+    expect(tool.outputSchema?.required).toEqual(["ok", "state"]);
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+  });
+
+  it("旧项目字典引导只写本地、幂等且不访问外部系统", () => {
+    const tool = reg.TOOLS.find((item) => item.name === "wls_dict_bootstrap");
+    expect(tool.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
   });
 
   it("Tool 名前缀均为 wls_", () => {

@@ -22,10 +22,14 @@
 
 ### {{DictCode1}}：{{DictName1}}
 
-| 值 | 标签 | 说明 | 状态 |
-|---|---|---|---|
-| {{Value1}} | {{Label1}} | {{Desc1}} | 待确认 / 已确认 |
-| {{Value2}} | {{Label2}} | {{Desc2}} | {{Status2}} |
+排序契约：`{{OrderField:STR_KEY}} {{OrderDirection:asc}}`
+
+| 值 | 标签 | 顺序 | 说明 | 状态 |
+|---|---|---:|---|---|
+| {{Value1}} | {{Label1}} | 1 | {{Desc1}} | 待确认 / 已确认 |
+| {{Value2}} | {{Label2}} | 2 | {{Desc2}} | {{Status2}} |
+
+> 顺序必须能由排序契约确定性产生；确认后同步到页面 api.md 的 dict-contract 和模块 dicts.ts。
 
 ---
 

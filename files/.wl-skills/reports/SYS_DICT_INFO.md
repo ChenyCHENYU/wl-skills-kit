@@ -1,15 +1,16 @@
 # SYS_DICT_INFO — 字典数据基线
 
-> **写入方**：`dict-sync pull` 模式从线上拉取后覆盖；`dict-sync push` 完成后追加新增字典
-> **读取方**：`dict-sync push / audit` 模式对比本地 vs 线上差异
+> **写入方**：`dict-sync pull` 从线上拉取后刷新；push 后应重新 pull，不手工追加
+> **读取方**：`dict-sync audit` 对比模块 `dicts.ts` 与线上差异
 > **格式约定**：每个字典码一个二级标题块，字典项以表格形式列出
+> **职责边界**：本文件只保存线上快照；待发布定义以 `src/views/<域>/<模块>/dicts.ts` 为唯一真值
 
 ---
 
 ## 字典码命名规范
 
 ```
-全大写 + 下划线分隔，例如：ORDER_STATUS / SALES_COMPANY / PRODUCT_NAME
+遵循线上系统和当前项目既有编码；禁止为统一外观擅自改名。常见风格包括 `ORDER_STATUS`、`mdmModelType`、`aq_miss_type`。
 ```
 
 data.ts 中引用方式：
@@ -47,4 +48,3 @@ data.ts 中引用方式：
 | 01         | 华北公司         | 1    |      |
 | 02         | 华南公司         | 2    |      |
 -->
-

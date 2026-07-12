@@ -44,6 +44,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ src/views/.../{页面}/index.scss
 ✅ src/views/.../{页面}/api.md
 ✅ src/views/.../{页面}/page-spec.json  → 约定真值（供 S1~S5 比对）
+✅ src/views/{域}/{模块}/dicts.ts       → 模块字典发布真值（页面有字典时）
 ✅ reports/SYS_MENU_INFO.md  → 已追加菜单条目
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
@@ -107,6 +108,14 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 └── page-spec.json  ← ★ 原型约定真值（查询/列/按钮/操作列 顺序+颜色），供 validate S1~S5 确定性比对
 ```
 
+页面使用字典时，在模块根目录额外维护 `dicts.ts`：
+
+```text
+src/views/[域]/[模块]/dicts.ts
+```
+
+先在页面 `api.md` 写完整 `dict-contract`，再合并到 `dicts.ts`；读取 `.wl-skills/docs/dictionary-contract.md`。不得仅在 `data.ts` 写 `logicValue` 而缺少字典定义。
+
 > **page-spec.json 是"精准实现"的真值锚点**：把 page-spec（查询字段顺序、列顺序、按钮顺序与颜色、操作列）固化到页面目录，`wl-skills validate` 据此比对 data.ts 实际实现，偏差即报（详见 `.wl-skills/docs/page-spec-schema.md`）。**不可省略**——没有它，"按约定实现"无法被验证，只能靠 AI 自觉。
 
 弹窗组件处理策略：
@@ -132,7 +141,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 4. 样式用 `@import "./index.scss"`
 5. API 用 `getAction` / `postAction` from `@jhlc/common-core/src/api/action`
 6. 字典字段用 `logicType: BusLogicDataType.dict, logicValue: "dictCode"`
-7. 同时生成 api.md（基于 api-contract Skill 模板）
+7. 同时生成 api.md（基于 api-contract Skill 模板）；有字典时写 dict-contract 并更新模块 dicts.ts
 8. 提供 pages.ts 注册片段
 9. 同时在 `mock/[业务域]/` 目录下生成对应的 mock 文件（`MockMethod[]` + mockjs，URL 和字段与 api.md 一致，URL 必须带 `/dev-api` 前缀）。业务域取 `src/views/` 下第一级目录名（如 `sale`、`mdata`）。mock 文件必须 `import { paginate, ok, pick, nowStr } from "../_utils"` 复用共享工具，不可自行重复定义
 10. **查询字段顺序**：`queryDef()` 中字段顺序必须与 page-spec `query` 数组顺序严格一致（即原型从左到右、从上到下）
@@ -156,6 +165,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 28. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
 29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wl-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
 30. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts 生成内容、与原型严格一致——这是 `validate` 做 S1~S5 比对的真值。生成后自检若出现 S2/S3/S4 error，说明 data.ts 与 spec 不一致，必须修正到 0 error。
+31. **字典契约闭环**：页面出现 `logicType: BusLogicDataType.dict` 时，api.md 必须包含完整 dict-contract，模块 dicts.ts 必须汇总该定义；`wl-skills validate` D1 未通过时禁止建议 dict-sync。
 
 ### 禁止事项（严格遵守）
 
@@ -943,6 +953,7 @@ import { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/f
 > **api.md 在页面代码之前生成**（Step 2: api-contract → Step 3: page-codegen）。
 > page-codegen 读取已生成的 api.md 中的 URL 和字段定义，确保 `API_CONFIG`、mock、data.ts 与接口约定一致。
 > 未来使用真实 API 设计文档时，api.md 由后端提供或 api-contract Skill 从设计文档提取，page-codegen 直接消费。
+> 页面含字典时，在生成 data.ts 前先完成 `api.md dict-contract → 模块 dicts.ts` 合并，生成结束后由 validate D1 复核。
 
 ---
 
@@ -1100,4 +1111,3 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 
 > **配置驱动模板页**（ResultQueryTemplate / FinishingAchievementTemplate 等）：见 templates/universal/TPL-DRIVEN.md，仅需生成 config 对象，不套用以上模板。
 > **领域模板查询**：完整路径以 `templates/_index.md` 注册表为准，新增领域模板见 `templates/domains/_CONTRIBUTING.md`。
-

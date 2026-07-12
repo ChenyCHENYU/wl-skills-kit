@@ -13,7 +13,7 @@
  * messages; we match on ASCII substrings guaranteed to appear alongside.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -24,6 +24,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const CLI = path.join(ROOT, "bin", "wl-skills.js");
+
+// 全量并行回归时 Windows 进程启动会明显变慢，避免 5s 默认值造成假失败。
+vi.setConfig({ testTimeout: 30000 });
 
 function makeProject() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "wl-validate-e2e-"));
@@ -158,6 +161,44 @@ describe("validate end-to-end integration", () => {
     const out = res.stdout + res.stderr;
     // R3 exempted: el-table should NOT appear in issue output (only in R3 message)
     expect(out).not.toMatch(/el-table/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("D1: api.md dictionary contract must be aggregated into module dicts.ts", () => {
+    const root = makeProject();
+    const moduleDir = path.join(root, "src", "views", "acme", "module");
+    writePage(root, "src/views/acme/module/page", COMPLIANT_INDEX, COMPLIANT_DATA);
+    const pageContract = {
+      schemaVersion: 1,
+      module: { code: "acme", name: "示例模块" },
+      dictionaries: [{
+        code: "status",
+        name: "状态",
+        order: { field: "STR_KEY", direction: "asc" },
+        items: [{ value: "0", label: "停用" }],
+        sources: [],
+      }],
+    };
+    fs.writeFileSync(
+      path.join(moduleDir, "dicts.ts"),
+      `export const MODULE_DICTIONARIES = ${JSON.stringify({
+        ...pageContract,
+        dictionaries: [{
+          ...pageContract.dictionaries[0],
+          items: [{ value: "0", label: "错误名称" }],
+          sources: ["page/api.md"],
+        }],
+      })} as const\n`,
+    );
+    fs.writeFileSync(
+      path.join(moduleDir, "page", "api.md"),
+      ["```dict-contract", JSON.stringify(pageContract), "```"].join("\n"),
+    );
+    const res = runValidate(root);
+    const out = res.stdout + res.stderr;
+    expect(out).toMatch(/dicts\.ts/);
+    expect(out).toMatch(/value=0/);
+    expect(res.status).not.toBe(0);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

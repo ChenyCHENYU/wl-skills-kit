@@ -14,6 +14,7 @@
 |---|---|---|---|
 | `R1~R14` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S5` | page-spec 比对 | `lib/page-spec.js` | ✅ 确定性 |
+| `D1` | 页面字典契约与模块发布清单比对 | `lib/dict-contract.js` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
 | `AI` | 仅 SKILL.md 约定 | 各 `SKILL.md` | ⚠️ 非确定性（靠 AI 自觉） |
 
@@ -48,6 +49,7 @@
 | page-codegen 15 | 按钮文字保真 | **S5** | warn | 否 |
 | page-codegen 21 | 默认 Mock First | regex | warn | 否 |
 | page-codegen 24 | 必须用 wl-skills-ui renderOps | regex | warn | 否 |
+| api-contract / dict-sync | api.md dict-contract 必须完整汇总到模块 dicts.ts，枚举与排序一致 | **D1** | error | 是 |
 
 ---
 

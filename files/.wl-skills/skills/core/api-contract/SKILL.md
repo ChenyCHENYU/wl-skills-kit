@@ -216,6 +216,8 @@ export const API_CONFIG = {
 
 每个页面目录下生成：
 
+若页面使用业务字典，同时读取 `.wl-skills/docs/dictionary-contract.md`，在 `api.md` 写入机器可解析的 `dict-contract`，并更新 `src/views/[域]/[模块]/dicts.ts`。`api.md` 是页面片段，`dicts.ts` 是模块发布真值；两者由 `wl-skills validate` D1 确定性核对。
+
 ````markdown
 # 接口约定 - [页面中文名]
 
@@ -318,9 +320,30 @@ GET /[服务缩写]/[资源名]/export?[查询参数]
 
 ## 数据字典
 
-| dictCode(logicValue) | 用途   | 出现位置                     |
-| -------------------- | ------ | ---------------------------- |
-| [dictCode]           | [说明] | queryDef / columnsDef / form |
+> 无字典时写“本页面不使用业务字典”。有字典时必须同时提供完整枚举和显式排序，不得只列 dictCode。
+
+```dict-contract
+{
+  "schemaVersion": 1,
+  "module": {
+    "code": "[moduleCode]",
+    "name": "[模块名称]"
+  },
+  "dictionaries": [
+    {
+      "code": "[dictCode]",
+      "name": "[字典名称]",
+      "order": { "field": "STR_KEY", "direction": "asc" },
+      "items": [
+        { "value": "0", "label": "[枚举名称]" }
+      ],
+      "sources": []
+    }
+  ]
+}
+```
+
+生成后把当前页面片段合并到模块根目录 `dicts.ts`。同 value/name/order 冲突时停止并列入待确认，不得猜测或覆盖。
 
 ---
 
@@ -333,6 +356,7 @@ GET /[服务缩写]/[资源名]/export?[查询参数]
 5. 分页参数前端传 `current` / `size`（基类自动处理），后端响应 `data.records` / `data.total`
 6. 枚举字段前端传 value，后端可返回 `[field]Label` 辅助展示，或前端自行通过 `logicValue` 字典翻译
 7. 业务代码 `.then(res => res)` 拿到的就是 `data` 字段（拦截器已剥外壳）
+8. 字典定义必须通过模块 `dicts.ts` 汇总和 D1 校验后才能进入 dict-sync
 ````
 
 ---

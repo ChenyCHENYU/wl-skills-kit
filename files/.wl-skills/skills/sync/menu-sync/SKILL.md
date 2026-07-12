@@ -40,8 +40,7 @@ description: "Use when: creating system menus for newly generated pages, batch r
 }
 ```
 
-> 向下兼容：如上述文件不存在，回落读取 `menu-sync/env/env.local.json`（旧版路径）。  
-> 字段说明及获取方式见 `env/guide.md`
+> 唯一运行配置是 `skills/sync/env.local.json`；模板为同目录 `env.example.json`。旧版分散配置仅在升级时人工合并一次，不再作为回退来源。字段说明见 `env/guide.md`。
 
 menu-sync 读取规则：`parentMenuId` 优先从 `menu.parentMenuId` 读取，回落到根级 `parentMenuId`。
 

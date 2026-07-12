@@ -4,12 +4,12 @@
 
 ---
 
-## 配置文件位置（优先使用新统一路径）
+## 配置文件位置
 
-**新路径（v2.1.5+ 推荐）**：`.wl-skills/skills/sync/env.local.json`  
-**兼容路径（老版）**：`.wl-skills/skills/sync/menu-sync/env/env.local.json`
+**唯一运行路径**：`.wl-skills/skills/sync/env.local.json`
+**模板路径**：`.wl-skills/skills/sync/env.example.json`
 
-AI 优先读新路径，如不存在自动回落到兼容路径。
+旧版分散配置不再作为运行时回退来源；首次升级时人工合并一次即可。
 
 ---
 
@@ -43,7 +43,7 @@ AI 优先读新路径，如不存在自动回落到兼容路径。
 | `menu.parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
 | `dict.sysOnlyCurrentApp` | 字典查询/写入是否只看当前 `sysAppNo` 应用，建议保持 `true` | `true` |
 
-> 字典业务模块不再写死在 env 中。`wls_dict_upsert` 会通过入参 `module.id` 精确定位，或通过 `module.strSn + module.strName` 安全创建，避免切应用后污染错误模块。
+> 字典业务模块不写死在 env 中。`wls_dict_upsert` 从当前项目各模块 `dicts.ts` 读取稳定的 `module.code/name`，并由 `sysAppNo` 限定目标应用；项目级预检会阻断跨模块重复和线上归属冲突。
 
 ---
 

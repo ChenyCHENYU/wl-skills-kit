@@ -23,7 +23,7 @@ const {
   handleMenuUpsert,
   handleMenuSyncFromReport,
 } = require("./tools/menuSync");
-const { handleDictQuery, handleDictUpsert } = require("./tools/dictSync");
+const { handleDictBootstrap, handleDictQuery, handleDictUpsert } = require("./tools/dictSync");
 const {
   handleRoleQuery,
   handleRoleUpsert,
@@ -115,67 +115,103 @@ const DESCRIPTORS = [
     handle: (_args, config) => handleDictQuery(config),
   },
   {
-    name: "wls_dict_upsert",
+    name: "wls_dict_bootstrap",
     description:
-      "精准补齐业务字典三层数据：业务模块 -> 字典 -> 字典明细。" +
-      "依赖 env.local.json 的 sysAppNo 请求头定位应用；先查后写。" +
-      "模块不存在时可创建，字典存在且同名时只追加缺失明细；编码/名称/明细冲突时停止或跳过，避免污染。",
+      "为尚无 dicts.ts 的项目扫描 api.md dict-contract，预览并生成标准模块字典契约。" +
+      "只写本地新文件、绝不覆盖，代码中的 logicValue/useDictOpts 仅作为待补资料清单，不会猜值或直接上传。",
     inputSchema: {
       type: "object",
       properties: {
-        module: {
-          type: "object",
-          description:
-            "业务字典模块。对应左侧一级模块，如 主数据系统授权/隐患排查治理。可用 id 精确定位；不存在且提供 strSn+strName 时自动创建。",
-          properties: {
-            id: { type: "string", description: "已有模块 ID；传 id 时若找不到不会自动创建" },
-            strSn: { type: "string", description: '模块编码，如 "mdmAuth"' },
-            strName: { type: "string", description: '模块名称，如 "主数据系统授权"' },
-            sortPriority: {
-              type: "string",
-              description: '新建模块排序，字符串类型，如 "20"',
-            },
-            strLevel: { type: "number", description: "固定传 2" },
-          },
-          required: [],
+        searchRoot: {
+          type: "string",
+          description: "扫描根目录，默认 src/views，必须位于当前项目内",
         },
-        dict: {
-          type: "object",
-          description:
-            "模块下的字典定义。对应 /system/business/dict/save，strSn 是业务代码，strName 是显示名。",
-          properties: {
-            id: { type: "string", description: "已有字典 ID；通常由工具查询树后自动获取" },
-            strSn: { type: "string", description: '字典编码，如 "mdmModelType" 或 "aq_miss_type"' },
-            strName: { type: "string", description: '字典名称，如 "模型类型" 或 "隐患缺失类型"' },
-            strLevel: { type: "number", description: "固定传 2" },
-            dtlValueRequired: { type: "boolean", description: "明细 strValue 是否必填，默认 false" },
-            dtlValue2Required: { type: "boolean", description: "明细 strValue2 是否必填，默认 false" },
-            dtlValue3Required: { type: "boolean", description: "明细 strValue3 是否必填，默认 false" },
-            dtlValue4Required: { type: "boolean", description: "明细 strValue4 是否必填，默认 false" },
-          },
-          required: ["strSn", "strName"],
+        confirmWrite: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才创建本地 dicts.ts",
+          default: false,
         },
-        items: {
-          type: "array",
-          description:
-            "字典明细数组（可选）。推荐传 value/label，工具会映射为后端 strKey=value、strValue=label；" +
-            "若明确知道后端字段，也可直接传 strKey/strValue 原样写入。",
-          items: {
-            type: "object",
-            properties: {
-              value: { type: ["string", "number"], description: "语义值，写入后端 strKey" },
-              label: { type: "string", description: "显示名称，写入后端 strValue" },
-              strKey: { type: ["string", "number"], description: "后端原始 strKey；传了则优先按原样写入" },
-              strValue: { type: ["string", "number"], description: "后端原始 strValue；传了则优先按原样写入" },
-              strValue2: { type: ["string", "number"], description: "可选扩展值 2" },
-              strValue3: { type: ["string", "number"], description: "可选扩展值 3" },
-              strValue4: { type: ["string", "number"], description: "可选扩展值 4" },
-              strValueCode: { type: "string", description: "可选；默认 sysDict.dtl.strValue.<安全后缀>，优先 strValue，中文时回退 strKey" },
-            },
-          },
+        planHash: {
+          type: "string",
+          description: "confirmWrite=true 时必填，必须等于最近一次预览返回值",
         },
       },
-      required: ["module", "dict"],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean" },
+        state: { type: "string" },
+        mode: { type: "string" },
+        planHash: { type: "string" },
+        targets: { type: "array", items: { type: "string" } },
+        created: { type: "array", items: { type: "string" } },
+        issues: { type: "array", items: { type: "object" } },
+        references: { type: "array", items: { type: "object" } },
+      },
+      required: ["ok", "state"],
+    },
+    needsBackendConfig: false,
+    handle: (args) => handleDictBootstrap(args),
+  },
+  {
+    name: "wls_dict_upsert",
+    description:
+      "自动发现并安全增量协调模块 dicts.ts：scope=project 扫描全部模块，scope=module 发布单模块。" +
+      "默认只预览；只新增缺失模块/字典/明细，任何冲突或漂移全局阻断，不覆盖、不删除。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sourcePath: {
+          type: "string",
+          description: "scope=module 时必填，如 src/views/mdata/model/dicts.ts",
+        },
+        scope: {
+          type: "string",
+          enum: ["module", "project"],
+          description: "module 发布一个文件；project 自动发现 searchRoot 下全部 dicts.ts",
+          default: "project",
+        },
+        searchRoot: {
+          type: "string",
+          description: "scope=project 的扫描根目录，默认 src/views",
+        },
+        dictCodes: {
+          type: "array",
+          description: "可选；仅同步 dicts.ts 中指定的字典编码",
+          items: { type: "string" },
+        },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才写后端并回查验证",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于当前线上和本地状态对应的预览哈希",
+        },
+      },
+      anyOf: [
+        { required: ["sourcePath"] },
+        { properties: { scope: { const: "project" } }, required: ["scope"] },
+      ],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean" },
+        state: { type: "string" },
+        mode: { type: "string" },
+        planHash: { type: "string" },
+        summary: { type: "object" },
+        actions: { type: "array", items: { type: "object" } },
+        issues: { type: "array", items: { type: "object" } },
+        warnings: { type: "array", items: { type: "object" } },
+        completed: { type: "array", items: { type: "object" } },
+      },
+      required: ["ok", "state"],
     },
     needsBackendConfig: true,
     handle: (args, config) => handleDictUpsert(args, config),
@@ -462,10 +498,58 @@ const DESCRIPTORS = [
   },
 ];
 
+const READ_ONLY_TOOLS = new Set([
+  "wls_code_scan",
+  "wls_route_check",
+  "wls_git_log_extract",
+  "wls_validate_page",
+  "wls_doctor_ui",
+  "wls_standard_env_scan",
+  "wls_standard_env_verify",
+  "wls_menu_query",
+  "wls_dict_query",
+  "wls_role_query",
+  "wls_assignable_menus_query",
+  "wls_action_query",
+]);
+const IDEMPOTENT_WRITE_TOOLS = new Set([
+  "wls_menu_sync_from_report",
+  "wls_menu_upsert",
+  "wls_dict_upsert",
+  "wls_dict_bootstrap",
+  "wls_role_upsert",
+  "wls_action_upsert",
+  "wls_standard_env_apply",
+]);
+const DESTRUCTIVE_TOOLS = new Set(["wls_role_assign_menus", "wls_standard_env_apply"]);
+const CLOSED_WORLD_TOOLS = new Set([
+  "wls_code_scan",
+  "wls_route_check",
+  "wls_git_log_extract",
+  "wls_validate_page",
+  "wls_doctor_ui",
+  "wls_standard_env_scan",
+  "wls_standard_env_apply",
+  "wls_standard_env_verify",
+  "wls_dict_bootstrap",
+]);
+
+function annotationsFor(name) {
+  const readOnly = READ_ONLY_TOOLS.has(name);
+  return {
+    readOnlyHint: readOnly,
+    destructiveHint: readOnly ? false : DESTRUCTIVE_TOOLS.has(name),
+    idempotentHint: readOnly || IDEMPOTENT_WRITE_TOOLS.has(name),
+    openWorldHint: !CLOSED_WORLD_TOOLS.has(name),
+  };
+}
+
 const TOOLS = DESCRIPTORS.map((d) => ({
   name: d.name,
   description: d.description,
   inputSchema: d.inputSchema,
+  annotations: annotationsFor(d.name),
+  ...(d.outputSchema ? { outputSchema: d.outputSchema } : {}),
 }));
 
 const HANDLERS = Object.create(null);
@@ -478,4 +562,4 @@ for (const d of DESCRIPTORS) {
   HANDLERS[d.name] = d;
 }
 
-module.exports = { DESCRIPTORS, TOOLS, HANDLERS };
+module.exports = { DESCRIPTORS, TOOLS, HANDLERS, annotationsFor };

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -9,6 +9,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const CLI = path.join(ROOT, "bin", "wl-skills.js");
+
+// init/update/clean 会启动真实 CLI；Windows 全量并行回归时允许合理的进程启动时间。
+vi.setConfig({ testTimeout: 30000 });
 
 function runCli(args, opts = {}) {
   return spawnSync("node", [CLI, ...args], {
@@ -156,6 +159,52 @@ describe("CLI 参数防护（A1）", () => {
     const after = fs.readdirSync(dir);
     expect(after.length).toBe(0);
     fs.rmdirSync(dir);
+  });
+
+  it("init 创建本地配置和 gitignore，但 manifest 只管理 example", () => {
+    const dir = makeIsolatedDir();
+    const res = runCli(["init"], { cwd: dir, timeout: 60000 });
+    expect(res.status).toBe(0);
+    const localRel = ".wl-skills/skills/sync/env.local.json";
+    const exampleRel = ".wl-skills/skills/sync/env.example.json";
+    expect(fs.existsSync(path.join(dir, localRel))).toBe(true);
+    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf8")).toContain(localRel);
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"));
+    expect(manifest.files[localRel]).toBeUndefined();
+    expect(manifest.files[exampleRel]).toBeTruthy();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("update 保留已填写的本地 token", () => {
+    const dir = makeIsolatedDir();
+    const envDir = path.join(dir, ".wl-skills", "skills", "sync");
+    fs.mkdirSync(envDir, { recursive: true });
+    const localPath = path.join(envDir, "env.local.json");
+    fs.writeFileSync(localPath, JSON.stringify({
+      gatewayPath: "https://internal.example/uat-api",
+      token: "keep-me",
+      sysAppNo: "mdata",
+    }));
+    fs.writeFileSync(
+      path.join(dir, ".wl-skills-manifest.json"),
+      JSON.stringify({ version: "2.12.3", files: {} }),
+    );
+    const res = runCli(["update"], { cwd: dir, timeout: 60000 });
+    expect(res.status).toBe(0);
+    expect(JSON.parse(fs.readFileSync(localPath, "utf8")).token).toBe("keep-me");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("clean 不删除本地凭据配置", () => {
+    const dir = makeIsolatedDir();
+    expect(runCli(["init"], { cwd: dir, timeout: 60000 }).status).toBe(0);
+    const localPath = path.join(dir, ".wl-skills", "skills", "sync", "env.local.json");
+    const config = JSON.parse(fs.readFileSync(localPath, "utf8"));
+    config.token = "keep-after-clean";
+    fs.writeFileSync(localPath, JSON.stringify(config));
+    expect(runCli(["clean"], { cwd: dir, timeout: 60000 }).status).toBe(0);
+    expect(JSON.parse(fs.readFileSync(localPath, "utf8")).token).toBe("keep-after-clean");
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("export 应从 .wl-skills/reports 导出 xlsx", () => {

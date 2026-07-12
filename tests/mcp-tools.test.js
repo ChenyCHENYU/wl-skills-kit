@@ -433,52 +433,17 @@ describe("dictSync.toSafeCodeSuffix", () => {
 describe("dictSync.handleDictUpsert — 参数校验", () => {
   const cfg = { gatewayPath: "http://x", token: "tok", sysAppNo: "app" };
 
-  it("缺 sysAppNo 返回错误", async () => {
+  it("拒绝 module/dict/items 旁路，必须从 dicts.ts 发布", async () => {
     const r = await dictSync.handleDictUpsert(
       {
         module: { strSn: "mdmAuth", strName: "主数据系统授权" },
         dict: { strSn: "mdmModelType", strName: "模型类型" },
         items: [],
       },
-      { gatewayPath: "http://x", token: "tok" },
-    );
-    expect(r).toMatch(/sysAppNo/);
-  });
-
-  it("缺 module 返回错误", async () => {
-    const r = await dictSync.handleDictUpsert(
-      { dict: { strSn: "mdmModelType", strName: "模型类型" }, items: [] },
       cfg,
     );
-    expect(r).toMatch(/module 必须包含/);
-  });
-
-  it("缺 dict.strSn 返回错误", async () => {
-    const r = await dictSync.handleDictUpsert(
-      { module: { strSn: "mdmAuth", strName: "主数据系统授权" }, dict: { strName: "模型类型" }, items: [] },
-      cfg,
-    );
-    expect(r).toMatch(/dict\.strSn 必填/);
-  });
-
-  it("缺 dict.strName 返回错误", async () => {
-    const r = await dictSync.handleDictUpsert(
-      { module: { strSn: "mdmAuth", strName: "主数据系统授权" }, dict: { strSn: "mdmModelType" }, items: [] },
-      cfg,
-    );
-    expect(r).toMatch(/dict\.strName 必填/);
-  });
-
-  it("items 不是数组返回错误", async () => {
-    const r = await dictSync.handleDictUpsert(
-      {
-        module: { strSn: "mdmAuth", strName: "主数据系统授权" },
-        dict: { strSn: "mdmModelType", strName: "模型类型" },
-        items: null,
-      },
-      cfg,
-    );
-    expect(r).toMatch(/items 必须是数组/);
+    expect(r).toMatchObject({ isError: true, structuredContent: { ok: false } });
+    expect(r.text).toMatch(/sourcePath/);
   });
 });
 

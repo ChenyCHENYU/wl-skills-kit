@@ -1,8 +1,8 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.12.4
+> **版本基线**：wl-skills-kit v2.12.5
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
-> **定位**：统一说明 20 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
+> **定位**：统一说明 21 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---
 
@@ -32,12 +32,13 @@
 | `wls_standard_env_verify` | 环境验证 | R1 | 否 | 是 | 静态验证可自动调用；五环境构建仅在依赖已安装时启用 |
 | `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_query` | 字典查询 | R0 | 是 | 是 | 无 |
+| `wls_dict_bootstrap` | 本地字典契约 | R2 | 否 | 否 | 默认只预览；创建本地 `dicts.ts` 必须携带预览 `planHash` 并传 `confirmWrite:true`，绝不覆盖已有文件 |
 | `wls_role_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_assignable_menus_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_action_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 必须确认报告路径、同步范围和 dry-run 结果 |
 | `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 必须确认新增/更新项 |
-| `wls_dict_upsert` | 字典写入 | R3 | 是 | 否 | 必须确认模块和字典项 |
+| `wls_dict_upsert` | 字典协调 | R3 | 是 | 否 | 默认只预览；确认项目级 safe-additive 计划后必须同时传 `confirmApply:true` 和有效 `planHash` |
 | `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 必须确认角色 code 和名称 |
 | `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并传 `confirmFullReplace: true`，避免覆盖已有授权 |
 | `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 必须确认 parentId 和 permission 命名 |
@@ -74,6 +75,7 @@ wls_action_query
 wls_menu_sync_from_report
 wls_menu_upsert
 wls_dict_upsert
+wls_dict_bootstrap
 wls_role_upsert
 wls_role_assign_menus
 wls_action_upsert
@@ -106,11 +108,12 @@ wls_menu_query
 ### 字典同步
 
 ```text
-wls_dict_query
-→ 读取/生成 SYS_DICT_INFO.md
-→ 展示将新增/跳过项
+wls_dict_bootstrap（仅无 dicts.ts 的旧项目）
+→ 校验页面 api.md dict-contract 与模块 dicts.ts（D1）
+→ wls_dict_upsert({scope:"project"}) 自动发现并预览 safe-additive 计划
 → 用户确认
-→ wls_dict_upsert
+→ wls_dict_upsert({scope:"project", confirmApply:true, planHash})
+→ 自动完成项目级回查
 → convention-audit 或页面复扫
 ```
 

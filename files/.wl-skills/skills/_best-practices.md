@@ -87,16 +87,17 @@ wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一
 **推荐流程**：
 
 ```
-1. 用 wls_dict_query 查线上已有
-2. 扫 data.ts 收集所有 logicValue（DICT_CODE）
-3. 差集 = 待新建 → 用户确认
-4. 逐个调 wls_dict_upsert（含 module + dict + items）
-5. 更新 .wl-skills/reports/SYS_DICT_INFO.md
+1. 无 `dicts.ts` 时先调 `wls_dict_bootstrap`，只从 api.md 契约预览并生成本地标准文件
+2. 运行 `wl-skills validate`，D1 必须通过
+3. 调 `wls_dict_upsert({scope:"project"})` 自动发现全部模块并只读预览
+4. 展示 safe-additive 动作、阻断项、警告和 `planHash`
+5. 用户确认后携带相同 `planHash` 和 `confirmApply:true`，自动项目级回查
+6. 更新 `.wl-skills/reports/SYS_DICT_INFO.md` 线上快照
 ```
 
-**配置依赖**：env.local.json → `sysAppNo`。字典所属业务模块由 `module.id` 精确定位，或由 `module.strSn + module.strName` 安全创建；不要再依赖固定 `dict.moduleId`。
+**配置依赖**：env.local.json → `sysAppNo`。模块和字典身份只取自各模块 `dicts.ts`，项目级扫描不会从目录名或代码引用猜测线上数据。
 
-**字典明细规则**：优先使用 `items[{ value, label }]`，其中 `value → strKey`、`label → strValue`；只有文档明确写了后端字段名时才直接传 `strKey/strValue`。已存在明细只追加缺失项，遇到 key/value 冲突不覆盖。
+**字典明细规则**：页面 api.md 使用语义字段 `value/label`，模块 dicts.ts 汇总并声明 `order.field/direction`；MCP 统一映射到后端。项目级策略只追加缺失项；任何名称、排序或明细漂移全局阻断，不覆盖、不删除。
 
 ---
 

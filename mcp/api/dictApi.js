@@ -51,15 +51,37 @@ function saveDictItem(body, config) {
 }
 
 /**
+ * 查询字典完整定义（含 orderField/orderRule）
+ * GET /system/business/dict/getById?id=xxx
+ */
+function getDictItem(dictId, config) {
+  return wlsFetch(`/system/business/dict/getById?id=${encodeURIComponent(dictId)}`, {}, config)
+}
+
+/**
+ * 更新字典定义。必须先 getById 读取完整对象，再合并待修改字段，避免覆盖既有配置。
+ * PUT /system/business/dict/update
+ */
+function updateDictItem(body, config) {
+  return wlsFetch('/system/business/dict/update', { method: 'PUT', body }, config)
+}
+
+/**
  * 查询字典明细
  * GET /system/dictDtl/list?size=20&dictId=xxx
  *
  * @param {string} dictId
  * @param {{ gatewayPath: string, token: string, sysAppNo?: string }} config
- * @param {number} [size]
+ * @param {{ size?: number, current?: number }} [page]
  */
-function queryDictDetails(dictId, config, size = 500) {
-  return wlsFetch(`/system/dictDtl/list?size=${encodeURIComponent(size)}&dictId=${encodeURIComponent(dictId)}`, {}, config)
+function queryDictDetails(dictId, config, page = {}) {
+  const size = page.size || 200
+  const current = page.current || 1
+  return wlsFetch(
+    `/system/dictDtl/list?current=${encodeURIComponent(current)}&size=${encodeURIComponent(size)}&dictId=${encodeURIComponent(dictId)}`,
+    {},
+    config,
+  )
 }
 
 /**
@@ -78,6 +100,8 @@ module.exports = {
   queryDictModules,
   saveDictModule,
   saveDictItem,
+  getDictItem,
+  updateDictItem,
   queryDictDetails,
   saveDictDetail,
 }
