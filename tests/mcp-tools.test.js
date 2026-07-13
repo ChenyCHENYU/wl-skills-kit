@@ -256,6 +256,22 @@ describe("menuSync report discovery", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("resolveReportPath 拒绝读取项目目录外的报告", () => {
+    const root = makeTempRoot();
+    const outside = path.join(os.tmpdir(), `SYS_MENU_INFO_OUTSIDE_${Date.now()}.md`);
+    const previous = process.env.WL_PROJECT_ROOT;
+    try {
+      fs.writeFileSync(outside, "# outside", "utf8");
+      process.env.WL_PROJECT_ROOT = root;
+      expect(resolveReportPath(outside)).toBeNull();
+    } finally {
+      if (previous == null) delete process.env.WL_PROJECT_ROOT;
+      else process.env.WL_PROJECT_ROOT = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { force: true });
+    }
+  });
 });
 
 describe("projectTools path discovery", () => {
@@ -452,11 +468,37 @@ describe("permissionSync.handleRoleUpsert — 参数校验", () => {
 
   it("items 为 null 返回错误", async () => {
     const r = await permSync.handleRoleUpsert({ items: null }, cfg);
-    expect(r).toMatch(/items 必须是非空数组/);
+    expect(r.text).toMatch(/items 必须是非空数组/);
   });
   it("items 为空数组返回错误", async () => {
     const r = await permSync.handleRoleUpsert({ items: [] }, cfg);
-    expect(r).toMatch(/items 必须是非空数组/);
+    expect(r.text).toMatch(/items 必须是非空数组/);
+  });
+  it("生产环境确认写入时在网络调用前阻断", async () => {
+    const r = await permSync.handleRoleUpsert({
+      items: [{ roleName: "测试", code: "test" }],
+      confirmApply: true,
+    }, { ...cfg, environment: "production" });
+    expect(r.text).toMatch(/默认禁止/);
+  });
+});
+
+describe("menuSync.handleMenuUpsert — 写入确认", () => {
+  const cfg = { gatewayPath: "http://x", token: "tok", sysAppNo: "app" };
+
+  it("空 items 在网络调用前阻断", async () => {
+    const r = await menuSync.handleMenuUpsert({
+      items: [],
+    }, cfg);
+    expect(r.text).toMatch(/items 必须是非空数组/);
+  });
+
+  it("生产环境即使确认也在网络调用前阻断", async () => {
+    const r = await menuSync.handleMenuUpsert({
+      items: [{ menuName: "测试菜单", path: "/test" }],
+      confirmApply: true,
+    }, { ...cfg, environment: "production" });
+    expect(r.text).toMatch(/默认禁止/);
   });
 });
 
@@ -465,21 +507,20 @@ describe("permissionSync.handleRoleAssignMenus — 参数校验", () => {
 
   it("缺 roleId 返回错误", async () => {
     const r = await permSync.handleRoleAssignMenus({}, cfg);
-    expect(r).toMatch(/roleId 必填/);
+    expect(r.text).toMatch(/roleId 必填/);
   });
   it("menuIds 为空数组返回错误", async () => {
     const r = await permSync.handleRoleAssignMenus(
       { roleId: "abc", menuIds: [] },
       cfg,
     );
-    expect(r).toMatch(/menuIds 必须是非空/);
+    expect(r.text).toMatch(/menuIds 必须是非空/);
   });
-  it("未确认全量覆盖时拒绝提交", async () => {
+  it("生产环境确认全量覆盖时在网络调用前阻断", async () => {
     const r = await permSync.handleRoleAssignMenus(
-      { roleId: "abc", menuIds: ["m1"] },
-      cfg,
+      { roleId: "abc", menuIds: ["m1"], confirmFullReplace: true },
+      { ...cfg, environment: "production" },
     );
-    expect(r).toMatch(/全量覆盖/);
-    expect(r).toMatch(/confirmFullReplace/);
+    expect(r.text).toMatch(/默认禁止/);
   });
 });

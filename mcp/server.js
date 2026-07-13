@@ -16,6 +16,7 @@
 const readline = require("readline");
 const { loadConfig } = require("./config");
 const { TOOLS, HANDLERS } = require("./registry");
+const { validateSchema } = require("./schema-validator");
 
 const PKG = require("../package.json");
 const SUPPORTED_PROTOCOL_VERSIONS = [
@@ -48,24 +49,33 @@ async function dispatchTool(id, toolName, toolArgs) {
     return;
   }
 
-  let config;
-  if (desc.needsBackendConfig) {
-    try {
-      config = loadConfig();
-    } catch (e) {
-      sendResult(id, {
-        content: [{ type: "text", text: `❌ 配置加载失败: ${e.message}` }],
-        isError: true,
-      });
-      return;
-    }
+  const inputValidation = validateSchema(desc.inputSchema, toolArgs);
+  if (!inputValidation.valid) {
+    sendError(id, -32602, `参数校验失败: ${inputValidation.errors.join("；")}`);
+    return;
+  }
+
+  const configResult = resolveToolConfig(desc);
+  if (configResult.error) {
+    sendResult(id, configResult.error);
+    return;
   }
 
   try {
-    const handlerResult = await desc.handle(toolArgs, config);
+    const handlerResult = await desc.handle(toolArgs, configResult.config);
     const normalized = typeof handlerResult === "string"
       ? { text: handlerResult }
       : handlerResult;
+    if (desc.outputSchema) {
+      const outputValidation = validateSchema(desc.outputSchema, normalized.structuredContent);
+      if (!outputValidation.valid) {
+        sendResult(id, {
+          content: [{ type: "text", text: `❌ 工具输出不符合契约: ${outputValidation.errors.join("；")}` }],
+          isError: true,
+        });
+        return;
+      }
+    }
     sendResult(id, {
       content: [{ type: "text", text: normalized.text }],
       ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
@@ -76,6 +86,20 @@ async function dispatchTool(id, toolName, toolArgs) {
       content: [{ type: "text", text: `❌ 工具执行异常: ${e.message}` }],
       isError: true,
     });
+  }
+}
+
+function resolveToolConfig(desc) {
+  if (!desc.needsBackendConfig) return { config: undefined };
+  try {
+    return { config: loadConfig() };
+  } catch (error) {
+    return {
+      error: {
+        content: [{ type: "text", text: `❌ 配置加载失败: ${error.message}` }],
+        isError: true,
+      },
+    };
   }
 }
 

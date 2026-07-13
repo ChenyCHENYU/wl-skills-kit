@@ -38,7 +38,7 @@ describe("mcp/registry.js", () => {
 
   it("字典发布声明结构化输出和非破坏性幂等提示", () => {
     const tool = reg.TOOLS.find((item) => item.name === "wls_dict_upsert");
-    expect(tool.inputSchema.anyOf).toHaveLength(2);
+    expect(tool.inputSchema.anyOf).toBeUndefined();
     expect(tool.inputSchema.additionalProperties).toBe(false);
     expect(tool.inputSchema.properties).not.toHaveProperty("module");
     expect(tool.inputSchema.properties).not.toHaveProperty("dict");
@@ -50,6 +50,27 @@ describe("mcp/registry.js", () => {
       idempotentHint: true,
       openWorldHint: true,
     });
+  });
+
+  it("菜单和权限写工具统一要求 planHash 并声明结构化输出", () => {
+    const names = [
+      "wls_menu_upsert",
+      "wls_menu_sync_from_report",
+      "wls_role_upsert",
+      "wls_role_assign_menus",
+      "wls_action_upsert",
+    ];
+    for (const name of names) {
+      const tool = reg.TOOLS.find((item) => item.name === name);
+      expect(tool.inputSchema.properties, name).toHaveProperty("planHash");
+      expect(tool.outputSchema?.required, name).toEqual(["ok", "state"]);
+    }
+  });
+
+  it("所有工具根参数均拒绝未声明字段", () => {
+    for (const tool of reg.TOOLS) {
+      expect(tool.inputSchema.additionalProperties, tool.name).toBe(false);
+    }
   });
 
   it("旧项目字典引导只写本地、幂等且不访问外部系统", () => {

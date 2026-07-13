@@ -62,6 +62,9 @@ function loadConfig() {
     sysAppNo: raw.sysAppNo || '',
     menu: raw.menu || {},
     dict: raw.dict || {},
+    network: raw.network || {},
+    environment: raw.environment || "",
+    allowProductionWrites: raw.allowProductionWrites === true,
   }
 }
 

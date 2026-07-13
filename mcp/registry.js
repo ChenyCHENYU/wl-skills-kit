@@ -46,6 +46,23 @@ const {
   handleStandardEnvVerify,
 } = require("./tools/standardEnvTools");
 
+const STRUCTURED_RESULT_SCHEMA = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
+    state: { type: "string" },
+    mode: { type: "string" },
+    planHash: { type: "string" },
+    currentPlanHash: { type: "string" },
+    count: { type: "number" },
+    items: { type: "array", items: { type: "object" } },
+    actions: { type: "array", items: { type: "object" } },
+    results: { type: "array", items: { type: "object" } },
+    menuIds: { type: "array", items: { type: "string" } },
+  },
+  required: ["ok", "state"],
+};
+
 const DESCRIPTORS = [
   // ── menu ───────────────────────────────────────────────────────────
   {
@@ -54,6 +71,7 @@ const DESCRIPTORS = [
       "查询当前应用的完整菜单树。自动从 .wl-skills/skills/sync/env.local.json 读取 domainId，" +
       "无需传参。在 wls_menu_upsert 前调用，用于判断哪些菜单需要新增、哪些需要更新。",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (_args, config) => handleMenuQuery(config),
   },
@@ -61,7 +79,7 @@ const DESCRIPTORS = [
     name: "wls_menu_upsert",
     description:
       "批量新增或更新菜单项。有 id 字段 → 更新；无 id 字段 → 新增。" +
-      "新增时响应自动包含服务端生成的 id，可链式用于创建子菜单。",
+      "默认只预览并返回 planHash；正式写入必须同时传 confirmApply: true 和相同 planHash。",
     inputSchema: {
       type: "object",
       properties: {
@@ -75,9 +93,20 @@ const DESCRIPTORS = [
             "component(type=C时传), permission(type=C时传)",
           items: { type: "object" },
         },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才写入菜单",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于当前线上状态对应的预览哈希",
+        },
       },
       required: ["items"],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleMenuUpsert(args, config),
   },
@@ -85,7 +114,7 @@ const DESCRIPTORS = [
     name: "wls_menu_sync_from_report",
     description:
       "读取 .wl-skills/reports/SYS_MENU_INFO*.md（兼容旧 .github/reports），按一级目录(type=M)优先、二级菜单(type=C)随后同步到后端菜单。" +
-      "自动查询 domain 菜单树去重，复用或更新已存在菜单，避免把二级页面全部挂到根 parentMenuId。",
+      "默认只预览并返回 planHash；正式写入必须携带相同 planHash，状态漂移时零写入。",
     inputSchema: {
       type: "object",
       properties: {
@@ -98,9 +127,20 @@ const DESCRIPTORS = [
           type: "boolean",
           description: "可选。true 时只解析和预览，不调用保存接口。",
         },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才按报告同步菜单",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于报告和当前线上菜单对应的预览哈希",
+        },
       },
       required: [],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleMenuSyncFromReport(args, config),
   },
@@ -192,10 +232,6 @@ const DESCRIPTORS = [
           description: "confirmApply=true 时必填；必须等于当前线上和本地状态对应的预览哈希",
         },
       },
-      anyOf: [
-        { required: ["sourcePath"] },
-        { properties: { scope: { const: "project" } }, required: ["scope"] },
-      ],
       additionalProperties: false,
     },
     outputSchema: {
@@ -228,14 +264,16 @@ const DESCRIPTORS = [
         size: { type: "number", description: "每页数量，默认 100" },
       },
       required: [],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleRoleQuery(args, config),
   },
   {
     name: "wls_role_upsert",
     description:
-      "批量新增角色（按 code 字段自动去重；已存在则跳过）。每项必填 roleName 和 code，可选 configDesc。" +
+      "批量新增角色（按 code 字段自动去重；已存在则跳过）。默认预览；正式写入必须同时传 confirmApply: true 和 planHash。" +
       "注意：角色仅新增不更新，因角色变更通常需要业务确认。",
     inputSchema: {
       type: "object",
@@ -246,9 +284,20 @@ const DESCRIPTORS = [
             "角色数组。字段：roleName(必填，显示名), code(必填，唯一标识), configDesc(可选，描述)",
           items: { type: "object" },
         },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才新增角色",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于当前角色列表对应的预览哈希",
+        },
       },
       required: ["items"],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleRoleUpsert(args, config),
   },
@@ -258,6 +307,7 @@ const DESCRIPTORS = [
       "查询全量可授权菜单列表（扁平结构，含菜单 id/menuName/permission）。" +
       "在 wls_role_assign_menus 前调用，AI 据此选出要分配给角色的 menuIds。",
     inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleAssignableMenusQuery(args, config),
   },
@@ -265,7 +315,7 @@ const DESCRIPTORS = [
     name: "wls_role_assign_menus",
     description:
       "给指定角色批量分配菜单权限。menuIds 传字符串数组，内部自动拼成逗号分隔字符串提交后端。" +
-      "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）；正式提交必须传 confirmFullReplace: true。",
+      "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）；正式提交必须同时传 confirmFullReplace: true 和预览 planHash。",
     inputSchema: {
       type: "object",
       properties: {
@@ -282,9 +332,15 @@ const DESCRIPTORS = [
           type: "boolean",
           description: "确认 menuIds 已包含该角色应保留的全部菜单/动作。未传 true 时工具会拒绝提交，避免误覆盖。",
         },
+        planHash: {
+          type: "string",
+          description: "confirmFullReplace=true 时必填；必须等于当前可授权菜单对应的预览哈希",
+        },
       },
       required: ["roleId", "menuIds"],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleRoleAssignMenus(args, config),
   },
@@ -298,14 +354,16 @@ const DESCRIPTORS = [
         menuId: { type: "string", description: "父菜单 id（页面菜单）" },
       },
       required: ["menuId"],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleActionQuery(args, config),
   },
   {
     name: "wls_action_upsert",
     description:
-      "在指定页面菜单下批量新增动作按钮（type=A），按 permission 字段自动去重。" +
+      "在指定页面菜单下批量新增动作按钮（type=A），按 permission 字段自动去重；正式写入必须同时传 confirmApply: true 和预览 planHash。" +
       "权限码命名规范：{资源camelCase}_{动作} 或 {模块}:{资源}:{动作}（与项目既有约定保持一致）。" +
       "常见动作：add/edit/remove/export/import/approve。",
     inputSchema: {
@@ -321,9 +379,20 @@ const DESCRIPTORS = [
             "动作数组。字段：menuName(必填，显示名), permission(必填，权限码), icon(可选，默认list), orderNum(可选，默认1), useCache(可选，默认1)",
           items: { type: "object" },
         },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览；明确确认后传 true 才新增动作",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于当前页面动作列表对应的预览哈希",
+        },
       },
       required: ["parentId", "items"],
+      additionalProperties: false,
     },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleActionUpsert(args, config),
   },
@@ -481,7 +550,7 @@ const DESCRIPTORS = [
   {
     name: "wls_audit_report_push",
     description:
-      "将最新审计报告推送到飞书机器人 webhook。未配置 env.local.json 的 feishu_webhook 时静默跳过，不影响其他流程。",
+      "将最新审计报告推送到飞书机器人 HTTPS webhook。默认只预览，confirmPush: true 才推送；未配置时静默跳过。",
     inputSchema: {
       type: "object",
       properties: {
@@ -489,6 +558,11 @@ const DESCRIPTORS = [
           type: "string",
           description:
             "审计报告路径，不传则自动选择 .wl-skills/reports 下最新 AUDIT_*.md 或规范审查报告.md，兼容旧 .github/reports",
+        },
+        confirmPush: {
+          type: "boolean",
+          description: "默认 false，仅预览；确认报告与 webhook 后传 true 才推送",
+          default: false,
         },
       },
       required: [],
@@ -542,6 +616,12 @@ function annotationsFor(name) {
     idempotentHint: readOnly || IDEMPOTENT_WRITE_TOOLS.has(name),
     openWorldHint: !CLOSED_WORLD_TOOLS.has(name),
   };
+}
+
+for (const descriptor of DESCRIPTORS) {
+  if (descriptor.inputSchema.additionalProperties === undefined) {
+    descriptor.inputSchema.additionalProperties = false;
+  }
 }
 
 const TOOLS = DESCRIPTORS.map((d) => ({

@@ -11,8 +11,8 @@
 | 维度 | 单一数据源 |
 |---|---|
 | 当前版本 / 描述 | `package.json` |
-| 完整能力盘点（Skill / MCP / CLI / Pipeline 状态） | `docs/全盘分析与智能体搭建指南.md` |
-| AI 全景架构演进 | `docs/ai全景分析.md` |
+| 完整能力盘点（Skill / MCP / CLI / Pipeline 状态） | `README.md` |
+| AI 全景架构演进 | `AI工作流演进与多智能体协作交流文档.md` |
 | Agent Pipeline 执行手册 | `docs/agent-pipeline-runbook.md` |
 | MCP Tool 风险矩阵 | `docs/mcp-tool-risk-matrix.md` |
 | Skill 路由表 / 触发词 | `files/.wl-skills/skills/_registry.md` |
@@ -30,6 +30,27 @@
 
 > 按时间倒序。每条 ADR 记录"做了什么决策、为什么、影响面"。
 > 实施细节 / 当前状态参见上方"单一数据源"。
+
+### ADR-010（Unreleased）— MCP 契约执行与 Skill 渐进披露
+
+**做了什么**：
+
+- MCP 描述符从“仅展示 Schema”升级为运行时入参/结构化出参校验，所有根参数默认闭合。
+- 后端写工具统一默认预览和显式确认，生产环境默认拒绝写入；字典协调增加规范化哈希、跨进程锁和只读请求有界重试。
+- `page-codegen` / `prototype-scan` 把场景化细节下沉到一级 references，Skill Lint 对主文件 500 行上限和引用存在性做确定性检查。
+- CI 覆盖最低 Node、当前 Node 与 Windows，Release 发布使用 npm Trusted Publisher。
+
+**为什么**：
+
+- 描述性安全规则如果没有执行器约束，会在 Agent 参数漂移、并发发布或生产误操作时失效。
+- 大型 Skill 每次全量加载会稀释核心约束；按场景加载能同时提高精度和 token 效率。
+
+**影响面**：
+
+- 业务项目：查询和默认预览兼容；正式菜单/角色/动作写入需要新增 `confirmApply: true`。
+- 维护者：新增 Tool 参数必须通过运行时 Schema；新增 Skill 细节优先进入 references，不得把主文件扩到 500 行以上。
+
+---
 
 ### ADR-009（v2.10.0，2026-05-31）— 双线解构：原型线 / 规范线隔离
 

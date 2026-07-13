@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.5
+ * wl-skills-kit CLI v2.12.6
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -438,96 +438,212 @@ function getEditorConfigs(raw) {
 
 // ─── 命令: init / update ────────────────────────────────────────────────
 
-function runInstall(incremental) {
-  const label = incremental ? "update" : "init";
+function printInstallHeader(label) {
   console.log("");
-  console.log("  wl-skills-kit v" + PKG.version + "  [" + label + "]");
+  console.log(`  wl-skills-kit v${PKG.version}  [${label}]`);
   console.log("  目标目录: " + TARGET_DIR);
   if (dryRun) console.log("  模式: --dry-run（预览）");
   if (force) console.log("  模式: --force（强制执行）");
   console.log("");
+}
 
+function ensureInstallInfrastructure() {
+  if (dryRun) return;
+  ensurePreCommitHook(TARGET_DIR);
+  ensurePrePushHook(TARGET_DIR);
+  ensureEslintConfig(TARGET_DIR);
+}
+
+function resolveInstallMode(oldManifest, incremental, label) {
+  if (!oldManifest || force) return { incremental, skip: false };
+  if (oldManifest.version === PKG.version) {
+    console.log(`  ✔ 当前项目已安装 v${PKG.version}，无需重复操作`);
+    console.log(`    如需强制重装：pnpm dlx @agile-team/wl-skills-kit@latest ${label} --force\n`);
+    return { incremental, skip: true };
+  }
+  if (incremental) return { incremental, skip: false };
+  console.log(`  ℹ 检测到已安装 v${oldManifest.version}，自动切换为增量更新模式\n`);
+  return { incremental: true, skip: false };
+}
+
+function updateInstallCounter(stats, action) {
+  stats[action]++;
+}
+
+function preserveInstalledReport(relPath, dest, stats) {
+  if (!isReportFile(relPath) || !fs.existsSync(dest)) return false;
+  updateInstallCounter(stats, "preserved");
+  if (dryRun) console.log(`  保留  ${relPath}  (reports/ 已存在)`);
+  return true;
+}
+
+function preserveUnchangedFile(context, dest, srcHash) {
+  if (!context.incremental || !fs.existsSync(dest)) return false;
+  if (srcHash !== fileMd5(dest)) return false;
+  updateInstallCounter(context.stats, "unchanged");
+  return true;
+}
+
+function installStaticFile(relPath, context) {
+  if (relPath === "eslint.config.wl-skills.cjs") return;
+  const src = path.join(FILES_DIR, relPath);
+  const dest = path.join(TARGET_DIR, relPath);
+  const srcHash = fileMd5(src);
+  context.manifest.files[relPath] = srcHash;
+  if (preserveInstalledReport(relPath, dest, context.stats)) return;
+  if (preserveUnchangedFile(context, dest, srcHash)) return;
+  if (!dryRun) {
+    updateInstallCounter(context.stats, copyFileSafe(src, dest));
+    return;
+  }
+  const action = fs.existsSync(dest) ? "updated" : "created";
+  console.log(`  ${action === "updated" ? "覆盖" : "新增"}  ${relPath}`);
+  updateInstallCounter(context.stats, action);
+}
+
+function installStaticFiles(context) {
+  if (dryRun) console.log("  [Step 1] files/ 静态文件:\n");
+  for (const relPath of walkDir(FILES_DIR, FILES_DIR)) {
+    installStaticFile(relPath, context);
+  }
+}
+
+function installEditorConfig(entry, context) {
+  const [relPath, content] = entry;
+  const dest = path.join(TARGET_DIR, relPath);
+  const hash = contentMd5(content);
+  context.manifest.files[relPath] = hash;
+  if (context.incremental && fs.existsSync(dest) && hash === fileMd5(dest)) {
+    updateInstallCounter(context.stats, "unchanged");
+    return;
+  }
+  if (!dryRun) {
+    updateInstallCounter(context.stats, writeFile(dest, content));
+    return;
+  }
+  const action = fs.existsSync(dest) ? "updated" : "created";
+  console.log(`  ${action === "updated" ? "覆盖" : "新增"}  [编辑器] ${relPath}`);
+  updateInstallCounter(context.stats, action);
+}
+
+function installEditorConfigs(context) {
+  const source = path.join(FILES_DIR, ".github", "copilot-instructions.md");
+  if (!fs.existsSync(source)) return;
+  if (dryRun) console.log("\n  [Step 2] 编辑器配置文件（从 copilot-instructions.md 生成）:\n");
+  const raw = fs.readFileSync(source, "utf8");
+  for (const entry of getEditorConfigs(raw)) installEditorConfig(entry, context);
+}
+
+function removeLegacyFile(filePath, label) {
+  if (dryRun) console.log(`  迁移清理  ${label}`);
+  else removeFileAndEmptyParents(filePath);
+}
+
+function migrateLegacyFiles(incremental) {
+  if (!incremental) return;
+  let migrated = 0;
+  if (dryRun) console.log("\n  [Step 3] 旧版遗留文件检查（迁移清理）:\n");
+  for (const relPath of LEGACY_PATHS) {
+    const fullPath = path.join(TARGET_DIR, relPath);
+    if (!fs.existsSync(fullPath)) continue;
+    removeLegacyFile(fullPath, `${relPath}  (旧版遗留，将被移除)`);
+    migrated++;
+  }
+  migrated += migrateLegacyDirectories();
+  if (!dryRun && migrated > 0) {
+    console.log(`    迁移: ${migrated} 个旧版文件已移除（路径已变更，见 CHANGELOG.md）`);
+  }
+  if (dryRun && migrated === 0) console.log("  （无旧版遗留文件）");
+}
+
+function migrateLegacyDirectories() {
+  let migrated = 0;
+  for (const prefix of LEGACY_DIR_PREFIXES) {
+    const legacyDir = path.join(TARGET_DIR, prefix);
+    if (!fs.existsSync(legacyDir)) continue;
+    for (const relPath of walkDir(legacyDir, legacyDir)) {
+      removeLegacyFile(path.join(legacyDir, relPath), `${prefix}${relPath}  (v2.11 目录重构)`);
+      migrated++;
+    }
+    removeLegacyDirectory(legacyDir);
+  }
+  return migrated;
+}
+
+function removeLegacyDirectory(legacyDir) {
+  if (dryRun || !fs.existsSync(legacyDir)) return;
+  try {
+    fs.rmSync(legacyDir, { recursive: true, force: true });
+  } catch {}
+}
+
+function projectHasUiPackage() {
+  const packagePath = path.join(TARGET_DIR, "package.json");
+  if (!fs.existsSync(packagePath)) return false;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    return Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]);
+  } catch {
+    return false;
+  }
+}
+
+function printInstallStats(context, oldManifest) {
+  const { stats, incremental } = context;
+  if (dryRun) return printDryRunInstallStats(stats, incremental);
+  console.log("  ✔ 完成!");
+  console.log(`    新增: ${stats.created} 个文件`);
+  console.log(`    ${incremental ? "更新" : "覆盖"}: ${stats.updated} 个文件`);
+  if (incremental) console.log(`    未变: ${stats.unchanged} 个文件`);
+  if (stats.preserved > 0) {
+    console.log(`    保留: ${stats.preserved} 个 reports/ 文件（团队累积数据不覆盖）`);
+  }
+  if (incremental && oldManifest && oldManifest.version !== PKG.version) {
+    console.log(`    版本: ${oldManifest.version} → ${PKG.version}`);
+  }
+  if (!incremental) console.log(`    总计: ${stats.created + stats.updated} 个文件`);
+}
+
+function printDryRunInstallStats(stats, incremental) {
+  const total = stats.created + stats.updated + stats.unchanged;
+  console.log("");
+  if (!incremental) {
+    console.log(`  共 ${total} 个文件（未实际写入）`);
+    return;
+  }
+  console.log(`  共 ${total} 个文件（新增 ${stats.created}，变更 ${stats.updated}，未变 ${stats.unchanged}）（未实际写入）`);
+}
+
+function printInstallBridge(hasUiPackage) {
+  console.log("");
+  console.log(
+    hasUiPackage
+      ? "  ℹ 检测到 @agile-team/wl-skills-ui：两包独立分工，可组合触发 UI 风格对齐流程。"
+      : "  ℹ 可选桥接：如需统一 UI 风格/老项目化妆层，可安装 @agile-team/wl-skills-ui。",
+  );
+  console.log("  ℹ 规范插件：建议执行 pnpm dlx @robot-admin/git-standards init 接入代码质量与提交规范。\n");
+}
+
+function runInstall(incremental) {
+  const label = incremental ? "update" : "init";
+  printInstallHeader(label);
   if (!fs.existsSync(FILES_DIR)) {
     console.error("  ✖ files/ 目录不存在，包可能已损坏");
     process.exit(1);
   }
-
   const oldManifest = readManifest();
-
-  // ── 约束基础设施：无论版本是否相同，都确保 pre-commit hook 和 eslint 配置就绪 ──
-  // 这样即使 early-return（同版本跳过文件复制），hook 也会被创建/更新
-  if (!dryRun) {
-    ensurePreCommitHook(TARGET_DIR);
-    ensurePrePushHook(TARGET_DIR);
-    ensureEslintConfig(TARGET_DIR);
-  }
-
-  // ── 版本去重：同版本跳过，不同版本自动增量更新 ──────────────────────
-  if (oldManifest && !force) {
-    if (oldManifest.version === PKG.version) {
-      console.log("  ✔ 当前项目已安装 v" + PKG.version + "，无需重复操作");
-      console.log(
-        "    如需强制重装：pnpm dlx @agile-team/wl-skills-kit@latest " +
-          label +
-          " --force",
-      );
-      console.log("");
-      return;
-    }
-    if (!incremental) {
-      // init 命令但已有旧版本 → 自动切换为增量更新，避免全量覆盖
-      console.log(
-        "  ℹ 检测到已安装 v" + oldManifest.version + "，自动切换为增量更新模式",
-      );
-      console.log("");
-      incremental = true;
-    }
-  }
-  const newManifest = { version: PKG.version, files: {} };
-  let created = 0,
-    updated = 0,
-    unchanged = 0,
-    preserved = 0;
+  ensureInstallInfrastructure();
+  const mode = resolveInstallMode(oldManifest, incremental, label);
+  if (mode.skip) return;
+  const context = {
+    incremental: mode.incremental,
+    manifest: { version: PKG.version, files: {} },
+    stats: { created: 0, updated: 0, unchanged: 0, preserved: 0 },
+  };
 
   // ── Step 1: 复制 files/ 静态文件 ───────────────────
-
-  const files = walkDir(FILES_DIR, FILES_DIR);
-  if (dryRun) console.log("  [Step 1] files/ 静态文件:\n");
-
-  for (const relPath of files) {
-    // eslint 模板由 ensureEslintConfig 单独处理，不通过 Step 1 复制
-    if (relPath === "eslint.config.wl-skills.cjs") continue;
-
-    const src = path.join(FILES_DIR, relPath);
-    const dest = path.join(TARGET_DIR, relPath);
-    const srcHash = fileMd5(src);
-    newManifest.files[relPath] = srcHash;
-
-    // reports/ 下的报告文件：已存在则跳过（保护团队累积数据）
-    if (isReportFile(relPath) && fs.existsSync(dest)) {
-      preserved++;
-      if (dryRun) console.log("  保留  " + relPath + "  (reports/ 已存在)");
-      continue;
-    }
-
-    // update 模式: 跳过内容相同的文件
-    if (incremental && fs.existsSync(dest)) {
-      if (srcHash === fileMd5(dest)) {
-        unchanged++;
-        continue;
-      }
-    }
-
-    if (dryRun) {
-      const exists = fs.existsSync(dest);
-      console.log("  " + (exists ? "覆盖" : "新增") + "  " + relPath);
-      if (exists) updated++;
-      else created++;
-    } else {
-      if (copyFileSafe(src, dest) === "created") created++;
-      else updated++;
-    }
-  }
+  installStaticFiles(context);
 
   // 本地凭据配置不进入 manifest：init 创建，update/clean 永不覆盖或删除。
   if (!dryRun) {
@@ -539,174 +655,23 @@ function runInstall(incremental) {
   }
 
   // ── Step 2: 动态生成编辑器配置文件 ────────────────────────────────
-
-  const INSTRUCTIONS_SRC = path.join(
-    FILES_DIR,
-    ".github",
-    "copilot-instructions.md",
-  );
-  if (fs.existsSync(INSTRUCTIONS_SRC)) {
-    const raw = fs.readFileSync(INSTRUCTIONS_SRC, "utf8");
-    const editorConfigs = getEditorConfigs(raw);
-
-    if (dryRun) {
-      console.log(
-        "\n  [Step 2] 编辑器配置文件（从 copilot-instructions.md 生成）:\n",
-      );
-    }
-
-    for (const [ecPath, ecContent] of editorConfigs) {
-      const ecDest = path.join(TARGET_DIR, ecPath);
-      const ecHash = contentMd5(ecContent);
-      newManifest.files[ecPath] = ecHash;
-
-      if (incremental && fs.existsSync(ecDest)) {
-        if (ecHash === fileMd5(ecDest)) {
-          unchanged++;
-          continue;
-        }
-      }
-
-      if (dryRun) {
-        const ecExists = fs.existsSync(ecDest);
-        console.log(
-          "  " + (ecExists ? "覆盖" : "新增") + "  [编辑器] " + ecPath,
-        );
-        if (ecExists) updated++;
-        else created++;
-      } else {
-        if (writeFile(ecDest, ecContent) === "created") created++;
-        else updated++;
-      }
-    }
-  }
+  installEditorConfigs(context);
 
   // ── Step 3: 迁移清理（仅 update，清理旧版遗留文件）──────────────────
-
-  if (incremental) {
-    let migrated = 0;
-    if (dryRun) console.log("\n  [Step 3] 旧版遗留文件检查（迁移清理）:\n");
-
-    // v2.1 旧版单文件清理
-    for (const legacyRel of LEGACY_PATHS) {
-      const legacyFull = path.join(TARGET_DIR, legacyRel);
-      if (fs.existsSync(legacyFull)) {
-        if (dryRun) {
-          console.log("  迁移清理  " + legacyRel + "  (旧版遗留，将被移除)");
-        } else {
-          removeFileAndEmptyParents(legacyFull);
-        }
-        migrated++;
-      }
-    }
-
-    // v2.11 目录重构迁移：.github/skills|standards|guides|reports/ → .wl-skills/
-    for (const prefix of LEGACY_DIR_PREFIXES) {
-      const legacyDir = path.join(TARGET_DIR, prefix);
-      if (!fs.existsSync(legacyDir)) continue;
-      const legacyFiles = walkDir(legacyDir, legacyDir);
-      for (const f of legacyFiles) {
-        const legacyFile = path.join(legacyDir, f);
-        if (dryRun) {
-          console.log("  迁移清理  " + prefix + f + "  (v2.11 目录重构)");
-        } else {
-          removeFileAndEmptyParents(legacyFile);
-        }
-        migrated++;
-      }
-      // 删除空目录
-      if (!dryRun && fs.existsSync(legacyDir)) {
-        try { fs.rmSync(legacyDir, { recursive: true, force: true }); } catch {}
-      }
-    }
-
-    if (!dryRun && migrated > 0) {
-      console.log(
-        "    迁移: " +
-          migrated +
-          " 个旧版文件已移除（路径已变更，见 CHANGELOG.md）",
-      );
-    }
-    if (dryRun && migrated === 0) {
-      console.log("  （无旧版遗留文件）");
-    }
-  }
+  migrateLegacyFiles(context.incremental);
 
   // ── Step 4: 写 manifest ────────────────────────────────────────────
 
-  if (!dryRun) writeManifest(newManifest);
+  if (!dryRun) writeManifest(context.manifest);
 
   // ── Step 5: 非耦合桥接提醒（不自动安装 wl-skills-ui）───────────────────────
 
-  const targetPkgPath = path.join(TARGET_DIR, "package.json");
-  let hasUiPackage = false;
-  if (fs.existsSync(targetPkgPath)) {
-    try {
-      const targetPkg = JSON.parse(fs.readFileSync(targetPkgPath, "utf8"));
-      const deps = { ...targetPkg.dependencies, ...targetPkg.devDependencies };
-      hasUiPackage = Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]);
-    } catch {
-      hasUiPackage = false;
-    }
-  }
+  const hasUiPackage = projectHasUiPackage();
 
   // ── 输出统计 ──────────────────────────────────────────────────────
 
-  const total = created + updated + unchanged;
-  if (dryRun) {
-    console.log("");
-    if (incremental) {
-      console.log(
-        "  共 " +
-          total +
-          " 个文件（新增 " +
-          created +
-          "，变更 " +
-          updated +
-          "，未变 " +
-          unchanged +
-          "）（未实际写入）",
-      );
-    } else {
-      console.log("  共 " + total + " 个文件（未实际写入）");
-    }
-  } else {
-    console.log("  ✔ 完成!");
-    if (incremental) {
-      console.log("    新增: " + created + " 个文件");
-      console.log("    更新: " + updated + " 个文件");
-      console.log("    未变: " + unchanged + " 个文件");
-      if (preserved > 0)
-        console.log(
-          "    保留: " + preserved + " 个 reports/ 文件（团队累积数据不覆盖）",
-        );
-      if (oldManifest && oldManifest.version !== PKG.version) {
-        console.log("    版本: " + oldManifest.version + " → " + PKG.version);
-      }
-    } else {
-      console.log("    新增: " + created + " 个文件");
-      console.log("    覆盖: " + updated + " 个文件");
-      if (preserved > 0)
-        console.log(
-          "    保留: " + preserved + " 个 reports/ 文件（团队累积数据不覆盖）",
-        );
-      console.log("    总计: " + (created + updated) + " 个文件");
-    }
-  }
-  console.log("");
-  if (hasUiPackage) {
-    console.log(
-      "  ℹ 检测到 @agile-team/wl-skills-ui：两包独立分工，可组合触发 UI 风格对齐流程。",
-    );
-  } else {
-    console.log(
-      "  ℹ 可选桥接：如需统一 UI 风格/老项目化妆层，可安装 @agile-team/wl-skills-ui。",
-    );
-  }
-  console.log(
-    "  ℹ 规范插件：建议执行 pnpm dlx @robot-admin/git-standards init 接入代码质量与提交规范。",
-  );
-  console.log("");
+  printInstallStats(context, oldManifest);
+  printInstallBridge(hasUiPackage);
 
 }
 
@@ -725,6 +690,54 @@ function runInstall(incremental) {
  * hook 使用包管理器动态解析，避免硬编码 node_modules 路径在 pnpm 下失效。
  * 包含存在性守卫：kit 未安装时优雅跳过，不阻断提交。
  */
+function stripLegacyPreCommitBlock(existing, marker) {
+  const filtered = [];
+  let skipMode = false;
+  for (const line of existing.split("\n")) {
+    if (line.includes(marker) || line.includes("wl-skills-kit 自动")) {
+      skipMode = true;
+      continue;
+    }
+    if (skipMode && (line.includes("exit 1") || line.trim() === "fi")) {
+      skipMode = false;
+      continue;
+    }
+    if (!skipMode) filtered.push(line);
+  }
+  while (filtered.length > 0 && filtered[filtered.length - 1].trim() === "") {
+    filtered.pop();
+  }
+  return filtered.join("\n").trimEnd();
+}
+
+function writeExecutable(filePath, content) {
+  fs.writeFileSync(filePath, content, "utf8");
+  try {
+    fs.chmodSync(filePath, 0o755);
+  } catch {}
+}
+
+function refreshPreCommitHook(filePath, existing, marker, hookContent) {
+  const base = stripLegacyPreCommitBlock(existing, marker);
+  const latest = hookContent.replace("#!/usr/bin/env sh\n", "");
+  writeExecutable(filePath, `${base}\n\n${latest}`);
+  console.log("  ✔ 已刷新 .husky/pre-commit 为最新格式（v2，含存在性守卫）\n");
+}
+
+function appendPreCommitHook(filePath, existing, hookContent) {
+  const addition = hookContent.replace("#!/usr/bin/env sh\n", "");
+  writeExecutable(filePath, `${existing.trimEnd()}\n\n${addition}`);
+  console.log("  ✔ 已在 .husky/pre-commit 追加 wl-skills validate（提交前规范检测）");
+  console.log("    → kit 未安装时自动跳过，不阻断提交\n");
+}
+
+function createPreCommitHook(filePath, hookContent) {
+  writeExecutable(filePath, hookContent);
+  console.log("  ✔ 已创建 .husky/pre-commit（提交前自动运行 wl-skills validate）");
+  console.log("    → 每次 git commit 时自动检测页面规范，error 级别阻断提交");
+  console.log("    → kit 未安装时自动跳过，不阻断提交\n");
+}
+
 function ensurePreCommitHook(targetDir) {
   const huskyDir = path.join(targetDir, ".husky");
 
@@ -755,56 +768,16 @@ function ensurePreCommitHook(targetDir) {
   const preCommitFile = path.join(huskyDir, "pre-commit");
 
   if (!fs.existsSync(preCommitFile)) {
-    fs.writeFileSync(preCommitFile, hookContent, "utf8");
-    try { fs.chmodSync(preCommitFile, 0o755); } catch {}
-    console.log("  ✔ 已创建 .husky/pre-commit（提交前自动运行 wl-skills validate）");
-    console.log("    → 每次 git commit 时自动检测页面规范，error 级别阻断提交");
-    console.log("    → kit 未安装时自动跳过，不阻断提交");
-    console.log("");
-  } else {
-    const existing = fs.readFileSync(preCommitFile, "utf8");
-
-    // 已有最新版本标记 → 跳过
-    if (existing.includes(HOOK_VERSION_TAG)) return;
-
-    // 有旧 marker 但格式过旧 → 替换整段 wl-skills 块为最新格式
-    if (existing.includes(VALIDATE_MARKER)) {
-      // 删除旧的 wl-skills 块（从 VALIDATE_MARKER 前的注释行到对应的 fi）
-      const lines = existing.split("\n");
-      const filtered = [];
-      let skipMode = false;
-      for (const line of lines) {
-        if (line.includes(VALIDATE_MARKER) || line.includes("wl-skills-kit 自动")) {
-          skipMode = true;
-          continue;
-        }
-        if (skipMode && (line.includes("exit 1") || line.trim() === "fi")) {
-          skipMode = false;
-          continue;
-        }
-        if (!skipMode) filtered.push(line);
-      }
-      // 去尾部空行
-      while (filtered.length > 0 && filtered[filtered.length - 1].trim() === "") {
-        filtered.pop();
-      }
-      // 追加最新格式
-      const updated = filtered.join("\n").trimEnd() + "\n\n" + hookContent.replace("#!/usr/bin/env sh\n", "");
-      fs.writeFileSync(preCommitFile, updated, "utf8");
-      try { fs.chmodSync(preCommitFile, 0o755); } catch {}
-      console.log("  ✔ 已刷新 .husky/pre-commit 为最新格式（v2，含存在性守卫）");
-      console.log("");
-      return;
-    }
-
-    // 无 marker → 追加
-    const addition = "\n" + hookContent.replace("#!/usr/bin/env sh\n", "");
-    fs.writeFileSync(preCommitFile, existing.trimEnd() + "\n" + addition, "utf8");
-    try { fs.chmodSync(preCommitFile, 0o755); } catch {}
-    console.log("  ✔ 已在 .husky/pre-commit 追加 wl-skills validate（提交前规范检测）");
-    console.log("    → kit 未安装时自动跳过，不阻断提交");
-    console.log("");
+    createPreCommitHook(preCommitFile, hookContent);
+    return;
   }
+  const existing = fs.readFileSync(preCommitFile, "utf8");
+  if (existing.includes(HOOK_VERSION_TAG)) return;
+  if (existing.includes(VALIDATE_MARKER)) {
+    refreshPreCommitHook(preCommitFile, existing, VALIDATE_MARKER, hookContent);
+    return;
+  }
+  appendPreCommitHook(preCommitFile, existing, hookContent);
 }
 
 /**
@@ -878,6 +851,50 @@ function ensureEslintConfig(targetDir) {
   console.log("");
 }
 
+function shouldKeepManagedFile(relPath) {
+  if (isProtected(relPath)) return true;
+  if (!keepReports) return false;
+  return [".wl-skills/reports/", ".github/reports/"].some((prefix) =>
+    relPath.startsWith(prefix),
+  );
+}
+
+function previewClean(toRemove, toKeep) {
+  console.log("  将要删除（" + toRemove.length + " 个文件）:\n");
+  for (const file of toRemove) {
+    const exists = fs.existsSync(path.join(TARGET_DIR, file));
+    console.log("  " + (exists ? "删除" : "跳过(不存在)") + "  " + file);
+  }
+  console.log("\n  保留（" + toKeep.length + " 个文件）:\n");
+  for (const file of toKeep) console.log("  保留  " + file);
+}
+
+function removeManagedFiles(toRemove) {
+  let removed = 0;
+  let skipped = 0;
+  for (const file of toRemove) {
+    const fullPath = path.join(TARGET_DIR, file);
+    if (!fs.existsSync(fullPath)) {
+      skipped++;
+      continue;
+    }
+    removeFileAndEmptyParents(fullPath);
+    removed++;
+  }
+  if (fs.existsSync(MANIFEST_PATH)) fs.unlinkSync(MANIFEST_PATH);
+  return { removed, skipped };
+}
+
+function printCleanResult(result, kept) {
+  console.log("  ✔ 清理完成!");
+  console.log("    删除: " + result.removed + " 个文件");
+  if (result.skipped > 0) console.log("    跳过: " + result.skipped + " 个（已不存在）");
+  const suffix = keepReports
+    ? "src/components/ + src/types/ + .wl-skills/reports/"
+    : "src/components/ + src/types/";
+  console.log(`    保留: ${kept} 个文件（${suffix}）`);
+}
+
 function runClean() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [clean]");
@@ -894,58 +911,13 @@ function runClean() {
   }
 
   const allFiles = Object.keys(manifest.files);
-  const toRemove = allFiles.filter((f) => {
-    if (isProtected(f)) return false;
-    if (keepReports && (f.startsWith(".wl-skills/reports/") || f.startsWith(".github/reports/"))) return false;
-    return true;
-  });
-  const toKeep = allFiles.filter((f) => {
-    if (isProtected(f)) return true;
-    if (keepReports && (f.startsWith(".wl-skills/reports/") || f.startsWith(".github/reports/"))) return true;
-    return false;
-  });
+  const toRemove = allFiles.filter((file) => !shouldKeepManagedFile(file));
+  const toKeep = allFiles.filter(shouldKeepManagedFile);
 
   if (dryRun) {
-    console.log("  将要删除（" + toRemove.length + " 个文件）:\n");
-    for (const f of toRemove) {
-      const exists = fs.existsSync(path.join(TARGET_DIR, f));
-      console.log("  " + (exists ? "删除" : "跳过(不存在)") + "  " + f);
-    }
-    console.log("\n  保留（" + toKeep.length + " 个文件）:\n");
-    for (const f of toKeep) {
-      console.log("  保留  " + f);
-    }
+    previewClean(toRemove, toKeep);
   } else {
-    let removed = 0,
-      skipped = 0;
-    for (const f of toRemove) {
-      const fullPath = path.join(TARGET_DIR, f);
-      if (fs.existsSync(fullPath)) {
-        removeFileAndEmptyParents(fullPath);
-        removed++;
-      } else {
-        skipped++;
-      }
-    }
-    // 删除 manifest 自身
-    if (fs.existsSync(MANIFEST_PATH)) fs.unlinkSync(MANIFEST_PATH);
-
-    console.log("  ✔ 清理完成!");
-    console.log("    删除: " + removed + " 个文件");
-    if (skipped > 0) console.log("    跳过: " + skipped + " 个（已不存在）");
-    if (keepReports) {
-      console.log(
-        "    保留: " +
-          toKeep.length +
-          " 个文件（src/components/ + src/types/ + .wl-skills/reports/）",
-      );
-    } else {
-      console.log(
-        "    保留: " +
-          toKeep.length +
-          " 个文件（src/components/ + src/types/）",
-      );
-    }
+    printCleanResult(removeManagedFiles(toRemove), toKeep.length);
   }
   console.log("");
 }
@@ -975,84 +947,65 @@ function statusIcon(ok) {
   return ok ? "✔" : "✖";
 }
 
-function runCheck() {
-  console.log("");
-  console.log("  wl-skills-kit v" + PKG.version + "  [check]");
-  console.log("  目标目录: " + TARGET_DIR);
-  console.log("");
+function createCheck(name, ok, detail) {
+  return { name, ok: Boolean(ok), detail };
+}
 
-  const checks = [];
-  function add(name, ok, detail) {
-    checks.push({ name, ok, detail });
-  }
+function checkNodeRuntime() {
+  const major = Number(process.versions.node.split(".")[0]);
+  return createCheck("Node 版本", major >= 22, `${process.versions.node}（要求 >=22）`);
+}
 
-  const nodeMajor = Number(process.versions.node.split(".")[0]);
-  add("Node 版本", nodeMajor >= 16, process.versions.node + "（要求 >=16）");
-
-  // 工具链检测：支持多种可能的文件名
-  const prettierExists =
-    fs.existsSync(path.join(TARGET_DIR, ".prettierrc.js")) ||
-    fs.existsSync(path.join(TARGET_DIR, ".prettierrc")) ||
-    fs.existsSync(path.join(TARGET_DIR, ".prettierrc.cjs"));
-  add(".prettierrc", prettierExists, prettierExists ? "存在" : "缺失");
-
-  const eslintExists =
-    fs.existsSync(path.join(TARGET_DIR, "eslint.config.ts")) ||
-    fs.existsSync(path.join(TARGET_DIR, "eslint.config.mjs")) ||
-    fs.existsSync(path.join(TARGET_DIR, "eslint.config.cjs")) ||
-    fs.existsSync(path.join(TARGET_DIR, "eslint.config.js"));
-  add("eslint.config", eslintExists, eslintExists ? "存在" : "缺失");
-
-  // husky 目录检测
-  const huskyExists = fs.existsSync(path.join(TARGET_DIR, ".husky"));
-  add(".husky", huskyExists, huskyExists ? "存在" : "缺失");
-
-  // pre-commit hook 内容检测（不只检查目录存在）
-  const preCommitPath = path.join(TARGET_DIR, ".husky", "pre-commit");
-  let preCommitHasValidate = false;
-  if (fs.existsSync(preCommitPath)) {
-    const hookContent = fs.readFileSync(preCommitPath, "utf8");
-    preCommitHasValidate = hookContent.includes("wl-skills validate --pre-commit");
-  }
-  add(
-    ".husky/pre-commit (wl-skills validate)",
-    preCommitHasValidate,
-    preCommitHasValidate ? "已配置规范检测" : huskyExists ? "存在但未配置 wl-skills validate" : "不存在",
+function checkProjectConfig(name, candidates) {
+  const exists = candidates.some((relPath) =>
+    fs.existsSync(path.join(TARGET_DIR, relPath)),
   );
+  return createCheck(name, exists, exists ? "存在" : "缺失");
+}
 
-  const manifest = readManifest();
-  add(
-    MANIFEST_NAME,
-    Boolean(manifest),
-    manifest ? "已安装 v" + manifest.version : "未安装",
+function checkPreCommitHook(huskyExists) {
+  const hookPath = path.join(TARGET_DIR, ".husky", "pre-commit");
+  const configured = fs.existsSync(hookPath)
+    ? fs.readFileSync(hookPath, "utf8").includes("wl-skills validate --pre-commit")
+    : false;
+  const detail = configured
+    ? "已配置规范检测"
+    : huskyExists
+      ? "存在但未配置 wl-skills validate"
+      : "不存在";
+  return createCheck(".husky/pre-commit (wl-skills validate)", configured, detail);
+}
+
+function syncEnvironmentPath() {
+  return [
+    ".wl-skills/skills/sync/env.local.json",
+    ".github/skills/sync/env.local.json",
+  ].map((relPath) => path.join(TARGET_DIR, relPath))
+    .find((filePath) => fs.existsSync(filePath));
+}
+
+function hasConfiguredToken(env) {
+  const value = String(env.token || "");
+  return Boolean(env.token) && !["Bearer Token", "你的", "请填入"].some((text) =>
+    value.includes(text),
   );
+}
 
-  const envPath = [
-    path.join(TARGET_DIR, ".wl-skills", "skills", "sync", "env.local.json"),
-    path.join(TARGET_DIR, ".github", "skills", "sync", "env.local.json"),
-  ].find((candidate) => fs.existsSync(candidate));
-  let envOk = false;
-  let envDetail = "缺失";
-  if (envPath) {
-    try {
-      const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
-      const gatewayOk =
-        env.gatewayPath && !String(env.gatewayPath).includes("你的网关");
-      const tokenText = String(env.token || "");
-      const tokenOk =
-        env.token &&
-        !tokenText.includes("Bearer Token") &&
-        !tokenText.includes("你的") &&
-        !tokenText.includes("请填入");
-      envOk = Boolean(gatewayOk && tokenOk);
-      envDetail = envOk ? "已填写 gatewayPath/token" : "存在但仍含占位值";
-    } catch (e) {
-      envDetail = "JSON 解析失败：" + e.message;
-    }
+function checkSyncEnvironment() {
+  const envPath = syncEnvironmentPath();
+  if (!envPath) return createCheck("MCP env.local.json", false, "缺失");
+  try {
+    const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
+    const gatewayOk = Boolean(env.gatewayPath) && !String(env.gatewayPath).includes("你的网关");
+    const ok = gatewayOk && hasConfiguredToken(env);
+    return createCheck("MCP env.local.json", ok, ok ? "已填写 gatewayPath/token" : "存在但仍含占位值");
+  } catch (error) {
+    return createCheck("MCP env.local.json", false, "JSON 解析失败：" + error.message);
   }
-  add("MCP env.local.json", envOk, envDetail);
+}
 
-  const mcpServer = path.join(
+function checkMcpServer() {
+  const installed = path.join(
     TARGET_DIR,
     "node_modules",
     "@agile-team",
@@ -1060,12 +1013,32 @@ function runCheck() {
     "mcp",
     "server.js",
   );
-  add(
-    "MCP server",
-    fs.existsSync(mcpServer) ||
-      fs.existsSync(path.join(__dirname, "..", "mcp", "server.js")),
-    "server.js 可发现",
-  );
+  const bundled = path.join(__dirname, "..", "mcp", "server.js");
+  return createCheck("MCP server", [installed, bundled].some(fs.existsSync), "server.js 可发现");
+}
+
+function collectEnvironmentChecks() {
+  const huskyExists = fs.existsSync(path.join(TARGET_DIR, ".husky"));
+  const manifest = readManifest();
+  return [
+    checkNodeRuntime(),
+    checkProjectConfig(".prettierrc", [".prettierrc.js", ".prettierrc", ".prettierrc.cjs"]),
+    checkProjectConfig("eslint.config", ["eslint.config.ts", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.js"]),
+    createCheck(".husky", huskyExists, huskyExists ? "存在" : "缺失"),
+    checkPreCommitHook(huskyExists),
+    createCheck(MANIFEST_NAME, manifest, manifest ? `已安装 v${manifest.version}` : "未安装"),
+    checkSyncEnvironment(),
+    checkMcpServer(),
+  ];
+}
+
+function runCheck() {
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [check]");
+  console.log("  目标目录: " + TARGET_DIR);
+  console.log("");
+
+  const checks = collectEnvironmentChecks();
 
   for (const item of checks) {
     console.log(
@@ -1138,10 +1111,7 @@ function runDiff() {
   printGroup("旧版残留（update 会迁移清理）", removed);
 }
 
-function scanPageDirs(scanRel) {
-  const scanDir = path.join(TARGET_DIR, scanRel || "src/views");
-  if (!fs.existsSync(scanDir)) return [];
-  const files = walkDir(scanDir, TARGET_DIR);
+function groupFilesByDirectory(files) {
   const dirs = new Map();
   for (const rel of files) {
     const dir = path.dirname(rel).replace(/\\/g, "/");
@@ -1149,51 +1119,58 @@ function scanPageDirs(scanRel) {
     if (!dirs.has(dir)) dirs.set(dir, new Set());
     dirs.get(dir).add(name);
   }
+  return dirs;
+}
+
+function readPageSource(dir, name) {
+  const filePath = path.join(TARGET_DIR, dir, name);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function inspectPageDirectory(dir, names) {
+  const indexContent = readPageSource(dir, "index.vue");
+  const dataContent = readPageSource(dir, "data.ts");
+  return {
+    dir,
+    hasDataTs: names.has("data.ts"),
+    hasIndexScss: names.has("index.scss"),
+    hasApiMd: names.has("api.md"),
+    apiConfigCount: (dataContent.match(/API_CONFIG/g) || []).length,
+    baseTableCount: (indexContent.match(/<BaseTable\b/g) || []).length,
+    agGridCount: (indexContent.match(/render-type=["']agGrid["']/g) || [])
+      .length,
+    cidBindCount: (indexContent.match(/\bcid=|:cid=/g) || []).length,
+    hasDefineColumns: /defineColumns\s*\(/.test(dataContent),
+    hasRenderOps: /renderOps\s*\(/.test(dataContent),
+    hasOperationsArray: /operations\s*:/.test(dataContent),
+    hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
+      dataContent,
+    ),
+    hasCSplitterTag: /<C_Splitter\b/.test(indexContent),
+    hasCSplitterImport: [indexContent, dataContent].some((content) =>
+      /from\s+["'][^"']*C_Splitter[^"']*["']/.test(content),
+    ),
+    staleSplitterComments: [indexContent, dataContent].reduce(
+      (count, content) =>
+        count +
+        (content.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) || [])
+          .length,
+      0,
+    ),
+    apiUrls: Array.from(
+      dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
+    ).map((match) => match[1]),
+  };
+}
+
+function scanPageDirs(scanRel) {
+  const scanDir = path.join(TARGET_DIR, scanRel || "src/views");
+  if (!fs.existsSync(scanDir)) return [];
+  const dirs = groupFilesByDirectory(walkDir(scanDir, TARGET_DIR));
   const pages = [];
   for (const [dir, names] of dirs.entries()) {
     if (!names.has("index.vue")) continue;
-    const indexPath = path.join(TARGET_DIR, dir, "index.vue");
-    const indexContent = fs.existsSync(indexPath)
-      ? fs.readFileSync(indexPath, "utf8")
-      : "";
-    const dataPath = path.join(TARGET_DIR, dir, "data.ts");
-    const dataContent = fs.existsSync(dataPath)
-      ? fs.readFileSync(dataPath, "utf8")
-      : "";
-    let apiConfigCount = 0;
-    if (dataContent)
-      apiConfigCount = (dataContent.match(/API_CONFIG/g) || []).length;
-    pages.push({
-      dir,
-      hasDataTs: names.has("data.ts"),
-      hasIndexScss: names.has("index.scss"),
-      hasApiMd: names.has("api.md"),
-      apiConfigCount,
-      baseTableCount: (indexContent.match(/<BaseTable\b/g) || []).length,
-      agGridCount: (indexContent.match(/render-type=["']agGrid["']/g) || [])
-        .length,
-      cidBindCount: (indexContent.match(/\bcid=|:cid=/g) || []).length,
-      hasDefineColumns: /defineColumns\s*\(/.test(dataContent),
-      hasRenderOps: /renderOps\s*\(/.test(dataContent),
-      hasOperationsArray: /operations\s*:/.test(dataContent),
-      hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
-        dataContent,
-      ),
-      hasCSplitterTag: /<C_Splitter\b/.test(indexContent),
-      hasCSplitterImport:
-        /from\s+["'][^"']*C_Splitter[^"']*["']/.test(indexContent) ||
-        /from\s+["'][^"']*C_Splitter[^"']*["']/.test(dataContent),
-      staleSplitterComments: (
-        (indexContent.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) || [])
-          .concat(
-            dataContent.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) ||
-              [],
-          )
-      ).length,
-      apiUrls: Array.from(
-        dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
-      ).map((m) => m[1]),
-    });
+    pages.push(inspectPageDirectory(dir, names));
   }
   return pages.sort((a, b) => a.dir.localeCompare(b.dir));
 }
@@ -1238,44 +1215,253 @@ function appendDictionaryContractIssues(issues, scanPath) {
   return files.length;
 }
 
-function runValidate() {
-  const scanPath =
-    args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
-
-  // --pre-commit 模式：获取 staged 文件列表，用于过滤
-  let stagedSet = null;
-  if (preCommit) {
-    const staged = getStagedFiles(TARGET_DIR);
-    if (staged.length === 0) {
-      console.log("");
-      console.log("  wl-skills-kit v" + PKG.version + "  [validate --pre-commit]");
-      console.log("  ⚠ 无 staged 的 .vue/.ts 文件，跳过检测");
-      console.log("");
-      return;
-    }
-    stagedSet = new Set(staged.map((f) => f.replace(/\\/g, "/")));
+function getValidationStagedSet() {
+  if (!preCommit) return null;
+  const staged = getStagedFiles(TARGET_DIR);
+  if (staged.length > 0) {
+    return new Set(staged.map((file) => file.replace(/\\/g, "/")));
   }
+  console.log("");
+  console.log("  wl-skills-kit v" + PKG.version + "  [validate --pre-commit]");
+  console.log("  ⚠ 无 staged 的 .vue/.ts 文件，跳过检测");
+  console.log("");
+  return undefined;
+}
 
-  const allPages = scanPageDirs(scanPath);
-  // 在 pre-commit 模式下，只保留包含 staged 文件的页面目录
-  const hasDictionaryContractStaged = preCommit && Array.from(stagedSet).some(
+function selectValidationPages(allPages, stagedSet) {
+  if (!preCommit || !stagedSet) return allPages;
+  const stagedFiles = Array.from(stagedSet);
+  const contractStaged = stagedFiles.some(
     (file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"),
   );
-  const pages = preCommit && !hasDictionaryContractStaged
-    ? allPages.filter((page) =>
-        Array.from(stagedSet).some(
-          (f) =>
-            f.startsWith(page.dir + "/") ||
-            f === page.dir + "/index.vue" ||
-            f === page.dir + "/data.ts",
-        ),
-      )
-    : allPages;
+  if (contractStaged) return allPages;
+  return allPages.filter((page) =>
+    stagedFiles.some((file) => file.startsWith(page.dir + "/")),
+  );
+}
 
+function appendMockArchitectureIssues(issues, mockFiles) {
+  const mockDir = path.join(TARGET_DIR, "mock");
+  const hasMockDir = fs.existsSync(mockDir);
+  const hasUtils = ["_utils.ts", "_utils.js"].some((name) =>
+    fs.existsSync(path.join(mockDir, name)),
+  );
+  if (hasMockDir && mockFiles.length > 0 && !hasUtils) {
+    issues.push({
+      level: "warn",
+      dir: "mock/",
+      text: "缺少 mock/_utils.ts 共享工具文件（建议 wl-skills init 补充）",
+    });
+  }
+  appendMockPlacementIssues(issues, mockFiles);
+  appendMockUtilityIssues(issues, mockFiles, hasUtils);
+}
+
+function appendMockPlacementIssues(issues, mockFiles) {
+  for (const rel of mockFiles) {
+    const parts = rel.replace(/\\/g, "/").replace(/^mock\//, "").split("/");
+    const basename = parts[parts.length - 1];
+    if (parts.length !== 1 || basename.startsWith("_")) continue;
+    issues.push({
+      level: "info",
+      dir: "mock/",
+      text: `${basename} 直接放在 mock/ 根目录，建议按业务域分子目录（如 mock/sale/${basename}）`,
+    });
+  }
+}
+
+function appendMockUtilityIssues(issues, mockFiles, hasUtils) {
+  if (!hasUtils) return;
+  for (const rel of mockFiles) {
+    if (path.basename(rel).startsWith("_")) continue;
+    const content = fs.readFileSync(path.join(TARGET_DIR, rel), "utf8");
+    if (/_utils/.test(content)) continue;
+    issues.push({
+      level: "info",
+      dir: rel,
+      text: "未引用 mock/_utils 共享工具，建议统一使用 pageResult/ok/paginate",
+    });
+  }
+}
+
+function appendPageFileIssues(issues, page) {
+  if (!page.hasDataTs) {
+    issues.push({ level: "warn", dir: page.dir, text: "缺 data.ts（需结合页面复杂度判断）" });
+  }
+  if (!page.hasIndexScss) {
+    issues.push({ level: "warn", dir: page.dir, text: "缺 index.scss" });
+  }
+  if (page.apiConfigCount > 0 && !page.hasApiMd) {
+    issues.push({ level: "warn", dir: page.dir, text: "检测到 API_CONFIG 但缺 api.md" });
+  }
+}
+
+function appendPageTableIssues(issues, page) {
+  if (page.baseTableCount > 0 && page.agGridCount < page.baseTableCount) {
+    issues.push({ level: "error", dir: page.dir, text: 'BaseTable 必须显式 render-type="agGrid"' });
+  }
+  if (page.baseTableCount > 0 && page.cidBindCount < page.baseTableCount) {
+    issues.push({ level: "error", dir: page.dir, text: "BaseTable 必须配置全局唯一 cid / :cid" });
+  }
+  if (page.hasDataTs && page.baseTableCount > 0 && !page.hasDefineColumns) {
+    issues.push({ level: "error", dir: page.dir, text: "表格列必须使用 wl-skills-ui defineColumns()" });
+  }
+  appendRenderOpsIssue(issues, page);
+}
+
+function appendRenderOpsIssue(issues, page) {
+  const dataContent = page.hasDataTs ? readPageSource(page.dir, "data.ts") : "";
+  if (page.baseTableCount > 0 && !page.hasRenderOps && /操作|_action/.test(dataContent)) {
+    issues.push({ level: "warn", dir: page.dir, text: "疑似存在操作列但未使用 renderOps()" });
+  }
+}
+
+function appendPageBehaviorIssues(issues, page) {
+  const checks = [
+    [page.hasOperationsArray, "error", "操作列禁止 operations 数组，必须使用 defaultSlot + renderOps()"],
+    [page.hasEmptyOnClick, "error", "存在空 onClick: () => {}"],
+    [page.hasCSplitterTag, "error", "禁用 <C_Splitter>：请改用 jh-drag-col（左右）/ jh-drag-row（上下），详 standards/14-layout-containers.md"],
+    [page.hasCSplitterImport, "error", "禁止 import C_Splitter：该组件已废弃（onMounted 冻 vnode 致响应式失效），详 standards/14"],
+  ];
+  for (const [matched, level, text] of checks) {
+    if (matched) issues.push({ level, dir: page.dir, text });
+  }
+  if (page.staleSplitterComments > 0) {
+    issues.push({ level: "info", dir: page.dir, text: `发现 ${page.staleSplitterComments} 处提及 C_Splitter 的过时注释，建议清理` });
+  }
+}
+
+function appendPageMockIssues(issues, page, mockFiles, mockContent) {
+  if (page.apiConfigCount > 0 && mockFiles.length === 0) {
+    issues.push({ level: "warn", dir: page.dir, text: "检测到 API_CONFIG 但项目 mock/ 目录无 mock 文件" });
+  }
+  for (const url of page.apiUrls.filter((item) => item.startsWith("/"))) {
+    const mockUrl = `/dev-api${url}`;
+    if (!mockContent || mockContent.includes(mockUrl)) continue;
+    issues.push({ level: "warn", dir: page.dir, text: "mock 中未发现端点 " + mockUrl });
+  }
+}
+
+function appendAllPageIssues(issues, pages, mockFiles, mockContent) {
+  for (const page of pages) {
+    appendPageFileIssues(issues, page);
+    appendPageTableIssues(issues, page);
+    appendPageBehaviorIssues(issues, page);
+    appendPageMockIssues(issues, page, mockFiles, mockContent);
+  }
+}
+
+function appendSpecIssues(issues, pages) {
+  let alignedPages = 0;
+  for (const page of pages) {
+    const result = alignPage(path.join(TARGET_DIR, page.dir), page.dir);
+    if (result.hasSpec) alignedPages++;
+    issues.push(...result.issues);
+  }
+  return alignedPages;
+}
+
+function appendTypeCheckIssues(issues) {
+  if (!typeCheck) return { ran: false, errors: 0 };
+  const result = runTypeCheck(TARGET_DIR);
+  issues.push(...result.issues);
+  return { ran: result.ran, errors: result.errorCount || 0 };
+}
+
+function printValidationIssues(issues) {
+  for (const issue of issues) {
+    const icons = { error: "✖", info: "ℹ", warn: "⚠" };
+    console.log("  " + (icons[issue.level] || "⚠") + " " + issue.dir + " — " + issue.text);
+  }
+  if (issues.length === 0) console.log("  ✔ 页面文件完整性检查通过");
   console.log("");
-  console.log("  wl-skills-kit v" + PKG.version + "  [" + command + "]" + (preCommit ? "  [pre-commit]" : ""));
-  console.log("  扫描目录: " + scanPath + (preCommit ? "（仅 staged 文件）" : ""));
+}
+
+function finishValidation(issues, errors, warns) {
+  const blocking = issues.filter(
+    (issue) => issue.level === "error" || (strict && issue.level === "warn"),
+  );
+  if (blocking.length > 0) printFixSuggestions(blocking);
+  if (preCommit) return finishPreCommitValidation(issues, errors, warns);
+  if (strict) return finishStrictValidation(errors, warns);
+  if (errors > 0 || warns > 0) process.exitCode = 1;
+}
+
+function finishPreCommitValidation(issues, errors, warns) {
+  const failCount = strict ? errors + warns : errors;
+  if (failCount === 0) {
+    console.log(`  ✔ pre-commit 检查通过（${issues.length} 个提示项不阻断提交）\n`);
+    return;
+  }
+  const warnText = strict && warns > 0 ? ` + ${warns} 个 warn（strict 模式）` : "";
+  console.log(`  ✖ pre-commit 检查发现 ${errors} 个 error${warnText}，提交已阻断`);
+  console.log("  → 请修复后重新 git add + git commit");
+  console.log("  → 如需 AI 辅助修复，请触发：规范审计 → 自动修复 → 复扫验证\n");
+  process.exitCode = 1;
+}
+
+function finishStrictValidation(errors, warns) {
+  if (errors === 0 && warns === 0) {
+    console.log("  ✔ strict 模式检查全部通过\n");
+    return;
+  }
+  console.log(`  ✖ strict 模式检查发现 ${errors} error / ${warns} warn，CI 已阻断`);
+  console.log("  → --strict 模式下 warn 也会失败，请修复\n");
+  process.exitCode = 1;
+}
+
+function validationScanPath() {
+  return args.find((arg) => !arg.startsWith("-") && arg !== command) || "src/views";
+}
+
+function printValidationHeader(scanPath) {
+  const mode = preCommit ? "  [pre-commit]" : "";
+  const scope = preCommit ? "（仅 staged 文件）" : "";
   console.log("");
+  console.log(`  wl-skills-kit v${PKG.version}  [${command}]${mode}`);
+  console.log(`  扫描目录: ${scanPath}${scope}\n`);
+}
+
+function runValidationAst(issues, scanPath, stagedSet) {
+  const stagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
+  const result = runAstRules(TARGET_DIR, scanPath, { stagedFiles });
+  issues.push(...result.issues);
+  return result;
+}
+
+function validationTypeSummary(result) {
+  if (!typeCheck) return "";
+  return result.ran
+    ? `（类型检查 已执行 ${result.errors} error）`
+    : "（类型检查 已跳过）";
+}
+
+function printValidationSummary(context) {
+  const parts = [
+    context.astPages ? `（AST 扫描 ${context.astPages}）` : "",
+    context.specPages ? `（spec-align ${context.specPages}）` : "",
+    context.dictContracts ? `（字典契约 ${context.dictContracts}）` : "",
+    validationTypeSummary(context.typeCheckResult),
+  ];
+  console.log(`  页面目录: ${context.pages}${parts.join("")}`);
+  console.log(`  提示项: ${context.issues}\n`);
+}
+
+function countValidationIssues(issues, level) {
+  if (level === "warn") {
+    return issues.filter((issue) => !issue.level || issue.level === "warn").length;
+  }
+  return issues.filter((issue) => issue.level === level).length;
+}
+
+function runValidate() {
+  const scanPath = validationScanPath();
+  const stagedSet = getValidationStagedSet();
+  if (preCommit && stagedSet === undefined) return;
+  const allPages = scanPageDirs(scanPath);
+  const pages = selectValidationPages(allPages, stagedSet);
+
+  printValidationHeader(scanPath);
 
   if (pages.length === 0) {
     console.log("  ⚠ 未发现包含 index.vue 的页面目录");
@@ -1290,148 +1476,8 @@ function runValidate() {
     .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
     .join("\n");
 
-  // ── Mock 架构质量检查 ──────────────────────────────────────────────
-  const mockDir = path.join(TARGET_DIR, "mock");
-  const hasMockDir = fs.existsSync(mockDir);
-  const hasUtilsTs =
-    hasMockDir &&
-    (fs.existsSync(path.join(mockDir, "_utils.ts")) ||
-      fs.existsSync(path.join(mockDir, "_utils.js")));
-  if (hasMockDir && mockFiles.length > 0 && !hasUtilsTs) {
-    issues.push({
-      level: "warn",
-      dir: "mock/",
-      text: "缺少 mock/_utils.ts 共享工具文件（建议 wl-skills init 补充）",
-    });
-  }
-  // 检查 mock 文件是否按域分目录（非 _utils 的 ts/js 文件不应直接放在 mock/ 根）
-  for (const rel of mockFiles) {
-    const parts = rel
-      .replace(/\\/g, "/")
-      .replace(/^mock\//, "")
-      .split("/");
-    const basename = parts[parts.length - 1];
-    if (parts.length === 1 && !basename.startsWith("_")) {
-      issues.push({
-        level: "info",
-        dir: "mock/",
-        text:
-          basename +
-          " 直接放在 mock/ 根目录，建议按业务域分子目录（如 mock/sale/" +
-          basename +
-          "）",
-      });
-    }
-  }
-  // 检查 mock 模块文件是否 import _utils
-  for (const rel of mockFiles) {
-    const basename = path.basename(rel);
-    if (basename.startsWith("_")) continue;
-    const content = fs.readFileSync(path.join(TARGET_DIR, rel), "utf8");
-    if (hasUtilsTs && !/_utils/.test(content)) {
-      issues.push({
-        level: "info",
-        dir: rel,
-        text: "未引用 mock/_utils 共享工具，建议统一使用 pageResult/ok/paginate",
-      });
-    }
-  }
-
-  for (const page of pages) {
-    if (!page.hasDataTs)
-      issues.push({
-        level: "warn",
-        dir: page.dir,
-        text: "缺 data.ts（需结合页面复杂度判断）",
-      });
-    if (!page.hasIndexScss)
-      issues.push({ level: "warn", dir: page.dir, text: "缺 index.scss" });
-    if (page.apiConfigCount > 0 && !page.hasApiMd)
-      issues.push({
-        level: "warn",
-        dir: page.dir,
-        text: "检测到 API_CONFIG 但缺 api.md",
-      });
-    if (page.baseTableCount > 0 && page.agGridCount < page.baseTableCount)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: 'BaseTable 必须显式 render-type="agGrid"',
-      });
-    if (page.baseTableCount > 0 && page.cidBindCount < page.baseTableCount)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "BaseTable 必须配置全局唯一 cid / :cid",
-      });
-    if (page.hasDataTs && page.baseTableCount > 0 && !page.hasDefineColumns)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "表格列必须使用 wl-skills-ui defineColumns()",
-      });
-    if (page.hasOperationsArray)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "操作列禁止 operations 数组，必须使用 defaultSlot + renderOps()",
-      });
-    if (
-      page.hasDataTs &&
-      page.baseTableCount > 0 &&
-      !page.hasRenderOps &&
-      /操作|_action/.test(
-        fs.readFileSync(path.join(TARGET_DIR, page.dir, "data.ts"), "utf8"),
-      )
-    )
-      issues.push({
-        level: "warn",
-        dir: page.dir,
-        text: "疑似存在操作列但未使用 renderOps()",
-      });
-    if (page.hasEmptyOnClick)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "存在空 onClick: () => {}",
-      });
-    if (page.hasCSplitterTag)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "禁用 <C_Splitter>：请改用 jh-drag-col（左右）/ jh-drag-row（上下），详 standards/14-layout-containers.md",
-      });
-    if (page.hasCSplitterImport)
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        text: "禁止 import C_Splitter：该组件已废弃（onMounted 冻 vnode 致响应式失效），详 standards/14",
-      });
-    if (page.staleSplitterComments > 0)
-      issues.push({
-        level: "info",
-        dir: page.dir,
-        text:
-          "发现 " +
-          page.staleSplitterComments +
-          " 处提及 C_Splitter 的过时注释，建议清理",
-      });
-    if (page.apiConfigCount > 0 && mockFiles.length === 0)
-      issues.push({
-        level: "warn",
-        dir: page.dir,
-        text: "检测到 API_CONFIG 但项目 mock/ 目录无 mock 文件",
-      });
-    for (const url of page.apiUrls.filter((item) => item.startsWith("/"))) {
-      const mockUrl = `/dev-api${url}`;
-      if (mockContent && !mockContent.includes(mockUrl))
-        issues.push({
-          level: "warn",
-          dir: page.dir,
-          text: "mock 中未发现端点 " + mockUrl,
-        });
-    }
-  }
+  appendMockArchitectureIssues(issues, mockFiles);
+  appendAllPageIssues(issues, pages, mockFiles, mockContent);
 
   // ── 模块字典契约 D1：api.md dict-contract → dicts.ts 汇总一致性 ─────
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
@@ -1439,102 +1485,31 @@ function runValidate() {
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
   // 补充正则无法覆盖的 AST 语义规则（R1~R14），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
-  const astStagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
-  const astResult = runAstRules(TARGET_DIR, scanPath, {
-    stagedFiles: astStagedFiles,
-  });
-  // 合并 AST 结果（降级和正常都 push）
-  issues.push(...astResult.issues);
+  const astResult = runValidationAst(issues, scanPath, stagedSet);
 
   // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
   // 页面目录存在 page-spec.json 时，比对 data.ts 实际实现与原型约定真值。
   // 无 page-spec.json 的页面静默跳过，不影响其他检查。
-  let specAlignedPages = 0;
-  for (const page of pages) {
-    const absDir = path.join(TARGET_DIR, page.dir);
-    const { issues: specIssues, hasSpec } = alignPage(absDir, page.dir);
-    if (hasSpec) specAlignedPages++;
-    issues.push(...specIssues);
-  }
+  const specAlignedPages = appendSpecIssues(issues, pages);
 
   // ── 类型检查 R14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
   // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
   // 无 tsconfig / 无 checker → 优雅降级为 warn，不阻断。
-  let tcRan = false;
-  let tcErrors = 0;
-  if (typeCheck) {
-    const tc = runTypeCheck(TARGET_DIR);
-    tcRan = tc.ran;
-    tcErrors = tc.errorCount || 0;
-    issues.push(...tc.issues);
-  }
+  const typeCheckResult = appendTypeCheckIssues(issues);
 
   // ── 输出 ───────────────────────────────────────────────────────────
-  console.log(
-    "  页面目录: " +
-      pages.length +
-      (astResult.pages ? "（AST 扫描 " + astResult.pages + "）" : "") +
-      (specAlignedPages ? "（spec-align " + specAlignedPages + "）" : "") +
-      (dictContractCount ? "（字典契约 " + dictContractCount + "）" : "") +
-      (typeCheck
-        ? "（类型检查 " + (tcRan ? "已执行 " + tcErrors + " error" : "已跳过") + "）"
-        : ""),
-  );
-  console.log("  提示项: " + issues.length);
-  console.log("");
-  const errors = issues.filter((issue) => issue.level === "error").length;
-  const warns = issues.filter(
-    (issue) => issue.level === "warn" || issue.level === undefined,
-  ).length;
-  for (const issue of issues) {
-    const icon =
-      issue.level === "error" ? "✖" : issue.level === "info" ? "ℹ" : "⚠";
-    console.log("  " + icon + " " + issue.dir + " — " + issue.text);
-  }
-  if (issues.length === 0) console.log("  \u2714 \u9875\u9762\u6587\u4ef6\u5b8c\u6574\u6027\u68c0\u67e5\u901a\u8fc7");
-  console.log("");
-
-  // ── \u4fee\u590d\u5efa\u8bae\u8f93\u51fa\uff08P0 \u6539\u8fdb\uff1a\u963b\u65ad\u65f6\u544a\u8bc9\u5f00\u53d1\u8005\u600e\u4e48\u4fee\uff09─────────────────────
-  const blockingIssues = issues.filter((i) => i.level === "error" || (strict && i.level === "warn"));
-  if (blockingIssues.length > 0) {
-    printFixSuggestions(blockingIssues);
-  }
-
-  if (preCommit) {
-    // pre-commit \u6a21\u5f0f\uff1aerror \u963b\u65ad\u63d0\u4ea4
-    // --pre-commit --strict \u7ec4\u5408\uff1aerror + warn \u90fd\u963b\u65ad
-    const failCount = strict ? errors + warns : errors;
-    if (failCount > 0) {
-      console.log(
-        "  \u2716 pre-commit \u68c0\u67e5\u53d1\u73b0 " +
-        errors + " \u4e2a error" +
-        (strict && warns > 0 ? " + " + warns + " \u4e2a warn\uff08strict \u6a21\u5f0f\uff09" : "") +
-        "\uff0c\u63d0\u4ea4\u5df2\u963b\u65ad",
-      );
-      console.log("  \u2192 \u8bf7\u4fee\u590d\u540e\u91cd\u65b0 git add + git commit");
-      console.log("  \u2192 \u5982\u9700 AI \u8f85\u52a9\u4fee\u590d\uff0c\u8bf7\u89e6\u53d1\uff1a\u89c4\u8303\u5ba1\u8ba1 \u2192 \u81ea\u52a8\u4fee\u590d \u2192 \u590d\u626b\u9a8c\u8bc1");
-      console.log("");
-      process.exitCode = 1;
-    } else {
-      console.log("  \u2714 pre-commit \u68c0\u67e5\u901a\u8fc7\uff08" + issues.length + " \u4e2a\u63d0\u793a\u9879\u4e0d\u963b\u65ad\u63d0\u4ea4\uff09");
-      console.log("");
-    }
-  } else if (strict) {
-    // --strict \u6a21\u5f0f\uff08CI \u7528\uff09\uff1aerror \u548c warn \u5bfc\u81f4\u5931\u8d25\uff0cinfo \u4e0d\u8ba1\u5165
-    if (errors > 0 || warns > 0) {
-      console.log(
-        "  \u2716 strict \u6a21\u5f0f\u68c0\u67e5\u53d1\u73b0 " + errors + " error / " + warns + " warn\uff0cCI \u5df2\u963b\u65ad",
-      );
-      console.log("  \u2192 --strict \u6a21\u5f0f\u4e0b warn \u4e5f\u4f1a\u5931\u8d25\uff0c\u8bf7\u4fee\u590d");
-      process.exitCode = 1;
-    } else {
-      console.log("  \u2714 strict \u6a21\u5f0f\u68c0\u67e5\u5168\u90e8\u901a\u8fc7");
-    }
-    console.log("");
-  } else {
-    // \u666e\u901a\u6a21\u5f0f\uff1a\u53ea\u6709 error \u6216 warn \u624d exit 1\uff0cinfo \u4ec5\u63d0\u793a
-    if (errors > 0 || warns > 0) process.exitCode = 1;
-  }
+  printValidationSummary({
+    pages: pages.length,
+    astPages: astResult.pages,
+    specPages: specAlignedPages,
+    dictContracts: dictContractCount,
+    typeCheckResult,
+    issues: issues.length,
+  });
+  const errors = countValidationIssues(issues, "error");
+  const warns = countValidationIssues(issues, "warn");
+  printValidationIssues(issues);
+  finishValidation(issues, errors, warns);
 }
 
 // ── \u4fee\u590d\u5efa\u8bae\u6620\u5c04\u8868\uff08P0\uff1a\u8ba9\u5f00\u53d1\u8005\u77e5\u9053\u600e\u4e48\u4fee\uff09──────────────────────────────
@@ -1596,8 +1571,7 @@ const AST_FIX_SUGGESTIONS = {
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
 };
 
-function printFixSuggestions(blockingIssues) {
-  // \u6309\u89c4\u5219\u5206\u7ec4\u53bb\u91cd
+function groupIssuesByRule(blockingIssues) {
   const ruleGroups = new Map();
   for (const issue of blockingIssues) {
     const key = issue.rule || guessRuleFromText(issue.text);
@@ -1605,6 +1579,28 @@ function printFixSuggestions(blockingIssues) {
     if (!ruleGroups.has(key)) ruleGroups.set(key, []);
     ruleGroups.get(key).push(issue);
   }
+  return ruleGroups;
+}
+
+function printRuleSuggestion(rule, ruleIssues) {
+  const suggestion = AST_FIX_SUGGESTIONS[rule] || findRegexSuggestion(ruleIssues[0].text);
+  const count = ruleIssues.length;
+  if (!suggestion) {
+    console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09 [\u2753\u672a\u77e5\u89c4\u5219]");
+    console.log("  \u2502    \u2192 \u8bf7\u67e5\u770b .wl-skills/standards/ \u76f8\u5173\u89c4\u8303\u6216\u89e6\u53d1\u89c4\u8303\u5ba1\u8ba1");
+    console.log("  \u2502");
+    return false;
+  }
+  const autoTag = suggestion.auto ? " [\u2705\u53ef\u81ea\u52a8\u4fee]" : " [\u270b\u9700\u4eba\u5de5]";
+  console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09" + autoTag);
+  console.log("  \u2502    \u2192 " + suggestion.fix);
+  console.log("  \u2502    \u53c2\u8003: .wl-skills/" + suggestion.ref);
+  console.log("  \u2502");
+  return suggestion.auto;
+}
+
+function printFixSuggestions(blockingIssues) {
+  const ruleGroups = groupIssuesByRule(blockingIssues);
 
   if (ruleGroups.size === 0) return;
 
@@ -1614,21 +1610,7 @@ function printFixSuggestions(blockingIssues) {
 
   let hasAutoFix = false;
   for (const [rule, ruleIssues] of ruleGroups.entries()) {
-    const suggestion = AST_FIX_SUGGESTIONS[rule] || findRegexSuggestion(ruleIssues[0].text);
-    const count = ruleIssues.length;
-    if (!suggestion) {
-      // 免底：未知规则的阻断项也要展示，避免用户看不到任何提示
-      console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09 [\u2753\u672a\u77e5\u89c4\u5219]");
-      console.log("  \u2502    \u2192 \u8bf7\u67e5\u770b .wl-skills/standards/ \u76f8\u5173\u89c4\u8303\u6216\u89e6\u53d1\u89c4\u8303\u5ba1\u8ba1");
-      console.log("  \u2502");
-      continue;
-    }
-    const autoTag = suggestion.auto ? " [\u2705\u53ef\u81ea\u52a8\u4fee]" : " [\u270b\u9700\u4eba\u5de5]";
-    if (suggestion.auto) hasAutoFix = true;
-    console.log("  \u2502  " + rule + "\uff08" + count + " \u5904\uff09" + autoTag);
-    console.log("  \u2502    \u2192 " + suggestion.fix);
-    console.log("  \u2502    \u53c2\u8003: .wl-skills/" + suggestion.ref);
-    console.log("  \u2502");
+    hasAutoFix = printRuleSuggestion(rule, ruleIssues) || hasAutoFix;
   }
 
   console.log("  \u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524");
@@ -1665,145 +1647,127 @@ function readJsonSafe(filePath) {
   }
 }
 
+function collectDoctorFiles() {
+  return fs.existsSync(TARGET_DIR) ? walkDir(TARGET_DIR, TARGET_DIR) : [];
+}
+
+function collectDoctorSource(files) {
+  return files
+    .filter((rel) => /\.(ts|vue|scss|html)$/.test(rel))
+    .filter((rel) => !rel.startsWith("node_modules/"))
+    .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
+    .join("\n");
+}
+
+function createUiIntegrationChecks(deps, source) {
+  const uiVersion = deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"];
+  return [
+    createCheck("@agile-team/wl-skills-ui", uiVersion, uiVersion || "未安装"),
+    createCheck("@element-plus/icons-vue", deps["@element-plus/icons-vue"], deps["@element-plus/icons-vue"] || "未安装"),
+    createCheck("design tokens", /@agile-team\/w[lk]-skills-ui\/design\/tokens|dist\/tokens\.css/.test(source), "需引入 design tokens"),
+    createCheck("styles preset", /@agile-team\/w[lk]-skills-ui\/styles/.test(source), "需引入 styles 或 skin preset"),
+    createCheck("installCommonPreset", /installCommonPreset\s*\(/.test(source), "需在入口或业务 preset 中调用"),
+    createCheck("defineColumns", /defineColumns\s*\(/.test(source), "页面列定义需使用 defineColumns"),
+    createCheck("renderOps", /renderOps\s*\(/.test(source), "操作列需使用 renderOps"),
+  ];
+}
+
+function isSplitterScanCandidate(rel) {
+  if (!/\.(ts|vue|scss|js|tsx|md|mdc)$/.test(rel)) return false;
+  return !["node_modules/", "dist/", ".git/"].some((prefix) =>
+    rel.startsWith(prefix),
+  );
+}
+
+function isSplitterExemptFile(rel) {
+  const exact = rel === "components.d.ts" || rel.endsWith("/components.d.ts");
+  const generated = /\.d\.ts$/.test(rel);
+  const ownComponent = rel.includes("/C_Splitter/");
+  const standard = /standards\/14[-_]/.test(rel);
+  return exact || generated || ownComponent || standard;
+}
+
+function scanSplitterFile(rel, codeHits, docHits) {
+  if (isSplitterExemptFile(rel)) return;
+  let content;
+  try {
+    content = fs.readFileSync(path.join(TARGET_DIR, rel), "utf8");
+  } catch {
+    return;
+  }
+  if (!/C_Splitter/.test(content)) return;
+  const lines = content.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index++) {
+    appendSplitterLineHit(rel, lines, index, codeHits, docHits);
+  }
+}
+
+function appendSplitterLineHit(rel, lines, index, codeHits, docHits) {
+  const line = lines[index];
+  if (!/C_Splitter/.test(line)) return;
+  const context = [lines[index - 1] || "", line, lines[index + 1] || ""].join("\n");
+  const exemptions = /已废弃|DEPRECATED|严禁|禁用|禁止|废弃|不再需要|已迁移|deprecated/i;
+  if (exemptions.test(context)) return;
+  const hit = { rel, line: index + 1, text: line.trim().slice(0, 100) };
+  const target = /\.(vue|ts|scss|js|tsx)$/.test(rel) ? codeHits : docHits;
+  target.push(hit);
+}
+
+function scanSplitterHits(files) {
+  const codeHits = [];
+  const docHits = [];
+  for (const rel of files.filter(isSplitterScanCandidate)) {
+    scanSplitterFile(rel, codeHits, docHits);
+  }
+  return { codeHits, docHits };
+}
+
+function appendSplitterChecks(checks, hits) {
+  const codeCount = hits.codeHits.length;
+  const docCount = hits.docHits.length;
+  checks.push(createCheck(
+    "C_Splitter 业务代码残留",
+    codeCount === 0,
+    codeCount === 0 ? "无" : `${codeCount} 处（详见下方明细，需改 jh-drag-col/-row）`,
+  ));
+  checks.push({
+    name: "C_Splitter 文档/规则残留",
+    ok: true,
+    warn: docCount > 0,
+    detail: docCount === 0 ? "无" : `${docCount} 处（详见下方明细，仅警告）`,
+  });
+}
+
+function printDoctorChecks(checks, hits) {
+  for (const item of checks) {
+    const icon = item.warn ? "⚠" : statusIcon(item.ok);
+    console.log(`  ${icon} ${item.name} — ${item.detail}`);
+  }
+  if (hits.codeHits.length === 0 && hits.docHits.length === 0) return;
+  console.log("\n  ── C_Splitter 残留明细 ──");
+  for (const hit of hits.codeHits.slice(0, 30)) {
+    console.log(`  ✖ ${hit.rel}:${hit.line}  ${hit.text}`);
+  }
+  for (const hit of hits.docHits.slice(0, 30)) {
+    console.log(`  ⚠ ${hit.rel}:${hit.line}  ${hit.text}`);
+  }
+  const overflow = hits.codeHits.length + hits.docHits.length - 60;
+  if (overflow > 0) console.log(`  … 另有 ${overflow} 处未列出`);
+}
+
 function runDoctorUi() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [doctor-ui]");
   console.log("  目标目录: " + TARGET_DIR);
   console.log("");
 
-  const checks = [];
-  function add(name, ok, detail) {
-    checks.push({ name, ok, detail });
-  }
-
   const pkg = readJsonSafe(path.join(TARGET_DIR, "package.json"));
   const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
-  add(
-    "@agile-team/wl-skills-ui",
-    Boolean(deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"]),
-    deps["@agile-team/wl-skills-ui"] || deps["@agile-team/wk-skills-ui"] || "未安装",
-  );
-  add(
-    "@element-plus/icons-vue",
-    Boolean(deps["@element-plus/icons-vue"]),
-    deps["@element-plus/icons-vue"] || "未安装",
-  );
-
-  const files = fs.existsSync(TARGET_DIR)
-    ? walkDir(TARGET_DIR, TARGET_DIR)
-    : [];
-  const sourceFiles = files.filter(
-    (rel) =>
-      /\.(ts|vue|scss|html)$/.test(rel) && !rel.startsWith("node_modules/"),
-  );
-  const readAll = (pattern) =>
-    sourceFiles
-      .filter((rel) => pattern.test(rel))
-      .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
-      .join("\n");
-  const allSource = readAll(/.*/);
-
-  add(
-    "design tokens",
-    /@agile-team\/w[lk]-skills-ui\/design\/tokens|dist\/tokens\.css/.test(
-      allSource,
-    ),
-    "需引入 design tokens",
-  );
-  add(
-    "styles preset",
-    /@agile-team\/w[lk]-skills-ui\/styles/.test(allSource),
-    "需引入 styles 或 skin preset",
-  );
-  add(
-    "installCommonPreset",
-    /installCommonPreset\s*\(/.test(allSource),
-    "需在入口或业务 preset 中调用",
-  );
-  add(
-    "defineColumns",
-    /defineColumns\s*\(/.test(allSource),
-    "页面列定义需使用 defineColumns",
-  );
-  add("renderOps", /renderOps\s*\(/.test(allSource), "操作列需使用 renderOps");
-
-  // —— C_Splitter 残留扫描（standards/14 一致性）——
-  // 业务代码（.vue / .scss / .ts）禁止任何 C_Splitter；文档/规则（.md / .mdc）只允许"废弃说明"句式
-  const EXEMPT_KEYWORDS =
-    /已废弃|DEPRECATED|严禁|禁用|禁止|废弃|不再需要|已迁移|deprecated/i;
-  const splitterFiles = files.filter(
-    (rel) =>
-      /\.(ts|vue|scss|js|tsx|md|mdc)$/.test(rel) &&
-      !rel.startsWith("node_modules/") &&
-      !rel.startsWith("dist/") &&
-      !rel.startsWith(".git/"),
-  );
-  const codeHits = [];
-  const docHits = [];
-  for (const rel of splitterFiles) {
-    if (
-      rel.includes("/C_Splitter/") ||
-      rel.endsWith("/C_Splitter/index.vue") ||
-      rel.endsWith("/C_Splitter/index.scss") ||
-      /standards\/14[-_]/.test(rel) ||
-      /\.d\.ts$/.test(rel) ||
-      rel === "components.d.ts" ||
-      rel.endsWith("/components.d.ts")
-    )
-      continue; // 组件自身 + standards/14 + 自动生成产物豁免
-    const full = path.join(TARGET_DIR, rel);
-    let content;
-    try {
-      content = fs.readFileSync(full, "utf8");
-    } catch {
-      continue;
-    }
-    if (!/C_Splitter/.test(content)) continue;
-    const lines = content.split(/\r?\n/);
-    lines.forEach((line, idx) => {
-      if (!/C_Splitter/.test(line)) return;
-      // 取上下文 ±1 行做豁免判断
-      const ctx = [lines[idx - 1] || "", line, lines[idx + 1] || ""].join("\n");
-      if (EXEMPT_KEYWORDS.test(ctx)) return;
-      const item = { rel, line: idx + 1, text: line.trim().slice(0, 100) };
-      if (/\.(vue|ts|scss|js|tsx)$/.test(rel)) codeHits.push(item);
-      else docHits.push(item);
-    });
-  }
-  add(
-    "C_Splitter 业务代码残留",
-    codeHits.length === 0,
-    codeHits.length === 0
-      ? "无"
-      : codeHits.length + " 处（详见下方明细，需改 jh-drag-col/-row）",
-  );
-  // 文档/规则残留只 warn，不参与 exitCode
-  const docOk = docHits.length === 0;
-  checks.push({
-    name: "C_Splitter 文档/规则残留",
-    ok: true,
-    warn: !docOk,
-    detail: docOk
-      ? "无"
-      : docHits.length + " 处（详见下方明细，仅警告）",
-  });
-
-  for (const item of checks) {
-    const icon = item.warn ? "⚠" : statusIcon(item.ok);
-    console.log(
-      "  " + icon + " " + item.name + " — " + item.detail,
-    );
-  }
-  if (codeHits.length || docHits.length) {
-    console.log("");
-    console.log("  ── C_Splitter 残留明细 ──");
-    for (const h of codeHits.slice(0, 30))
-      console.log("  ✖ " + h.rel + ":" + h.line + "  " + h.text);
-    for (const h of docHits.slice(0, 30))
-      console.log("  ⚠ " + h.rel + ":" + h.line + "  " + h.text);
-    const overflow = codeHits.length + docHits.length - 60;
-    if (overflow > 0) console.log("  … 另有 " + overflow + " 处未列出");
-  }
+  const files = collectDoctorFiles();
+  const checks = createUiIntegrationChecks(deps, collectDoctorSource(files));
+  const hits = scanSplitterHits(files);
+  appendSplitterChecks(checks, hits);
+  printDoctorChecks(checks, hits);
   const failed = checks.filter((item) => !item.ok).length;
   console.log("");
   console.log(
@@ -1897,6 +1861,37 @@ async function runExport() {
 
 // ─── mock-clean ──────────────────────────────────────────────────────────
 
+function mockCleanOptions() {
+  const domainArg = args.find((arg) => arg.startsWith("--domain"));
+  if (!domainArg) return { domain: "", cleanAll: args.includes("--all") };
+  const domain = domainArg.includes("=")
+    ? domainArg.split("=")[1]
+    : args[args.indexOf(domainArg) + 1] || "";
+  return { domain, cleanAll: args.includes("--all") };
+}
+
+function mockCleanTargets(mockDir, options) {
+  if (!options.cleanAll) {
+    const domainDir = path.join(mockDir, options.domain);
+    return fs.existsSync(domainDir) ? [domainDir] : [];
+  }
+  return fs
+    .readdirSync(mockDir, { withFileTypes: true })
+    .filter((entry) => !entry.name.startsWith("_"))
+    .map((entry) => path.join(mockDir, entry.name));
+}
+
+function removeMockTargets(targets) {
+  for (const target of targets) {
+    const rel = path.relative(TARGET_DIR, target);
+    if (dryRun) console.log("  [dry-run] 将删除: " + rel);
+    else {
+      fs.rmSync(target, { recursive: true, force: true });
+      console.log("  ✔ 已删除: " + rel);
+    }
+  }
+}
+
 function runMockClean() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [mock-clean]");
@@ -1909,20 +1904,9 @@ function runMockClean() {
     return;
   }
 
-  const domainArg = args.find((a) => a.startsWith("--domain"));
-  const cleanAll = args.includes("--all");
-  let domain = "";
-  if (domainArg) {
-    // 支持 --domain=xxx 和 --domain xxx
-    if (domainArg.includes("=")) {
-      domain = domainArg.split("=")[1];
-    } else {
-      const idx = args.indexOf(domainArg);
-      domain = args[idx + 1] || "";
-    }
-  }
+  const options = mockCleanOptions();
 
-  if (!domain && !cleanAll) {
+  if (!options.domain && !options.cleanAll) {
     console.error("  ✖ 请指定 --domain <name> 或 --all");
     console.error("  示例: wl-skills mock-clean --domain mdata");
     console.error("        wl-skills mock-clean --all");
@@ -1930,24 +1914,10 @@ function runMockClean() {
     process.exit(1);
   }
 
-  // 收集要删除的文件/目录
-  const toRemove = [];
-  if (cleanAll) {
-    // 删除 mock/ 下除 _utils.ts/_utils.js 之外的所有文件和子目录
-    const entries = fs.readdirSync(mockDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.name.startsWith("_")) continue; // 保留 _utils.ts 等
-      toRemove.push(path.join(mockDir, entry.name));
-    }
-  } else {
-    // 删除指定域目录
-    const domainDir = path.join(mockDir, domain);
-    if (!fs.existsSync(domainDir)) {
-      console.log('  ⚠ mock/' + domain + '/ 不存在');
-      console.log("");
-      return;
-    }
-    toRemove.push(domainDir);
+  const toRemove = mockCleanTargets(mockDir, options);
+  if (!options.cleanAll && toRemove.length === 0) {
+    console.log(`  ⚠ mock/${options.domain}/ 不存在\n`);
+    return;
   }
 
   if (toRemove.length === 0) {
@@ -1956,15 +1926,7 @@ function runMockClean() {
     return;
   }
 
-  for (const target of toRemove) {
-    const rel = path.relative(TARGET_DIR, target);
-    if (dryRun) {
-      console.log("  [dry-run] 将删除: " + rel);
-    } else {
-      fs.rmSync(target, { recursive: true, force: true });
-      console.log("  ✔ 已删除: " + rel);
-    }
-  }
+  removeMockTargets(toRemove);
 
   console.log("");
   if (!dryRun) {
@@ -2003,9 +1965,48 @@ function buildStandardEnvOptions() {
   return options;
 }
 
+function verifyStandardEnvAction(options) {
+  const profile = options.profile || options.profileFile
+    ? resolveStandardEnvProfile(options, TARGET_DIR)
+    : undefined;
+  const validation = verifyStandardEnv(TARGET_DIR, {
+    profile,
+    runBuild: args.includes("--build"),
+  });
+  return {
+    action: "verify",
+    root: TARGET_DIR,
+    status: validation.valid ? "standard" : "invalid",
+    inspection: validation.inspection,
+    profile,
+    moduleName: validation.inspection.module.resolved,
+    warnings: validation.warnings.map((item) => item.message),
+    errors: validation.errors.map((item) => item.message),
+    changes: [],
+    validation,
+  };
+}
+
+function executeStandardEnvAction(action, options) {
+  const actions = {
+    scan: () => scanStandardEnv(TARGET_DIR),
+    plan: () => planStandardEnv(TARGET_DIR, options),
+    apply: () => applyStandardEnv(TARGET_DIR, {
+      ...options,
+      confirmApply: args.includes("--confirm") && !dryRun,
+    }),
+    verify: () => verifyStandardEnvAction(options),
+  };
+  return actions[action]();
+}
+
+function isStandardEnvAction(action) {
+  return ["scan", "plan", "apply", "verify"].includes(action);
+}
+
 function runStandardEnv() {
   const action = positional[1] || "scan";
-  if (!["scan", "plan", "apply", "verify"].includes(action)) {
+  if (!isStandardEnvAction(action)) {
     console.error("");
     console.error(`  ✖ 未知 standard-env 子命令: "${action}"`);
     console.error("  可用子命令: scan / plan / apply / verify");
@@ -2017,37 +2018,7 @@ function runStandardEnv() {
   const options = buildStandardEnvOptions();
   let result;
   try {
-    if (action === "scan") {
-      result = scanStandardEnv(TARGET_DIR);
-    } else if (action === "plan") {
-      result = planStandardEnv(TARGET_DIR, options);
-    } else if (action === "apply") {
-      result = applyStandardEnv(TARGET_DIR, {
-        ...options,
-        confirmApply: args.includes("--confirm") && !dryRun,
-      });
-    } else {
-      const profile =
-        options.profile || options.profileFile
-          ? resolveStandardEnvProfile(options, TARGET_DIR)
-          : undefined;
-      const validation = verifyStandardEnv(TARGET_DIR, {
-        profile,
-        runBuild: args.includes("--build"),
-      });
-      result = {
-        action: "verify",
-        root: TARGET_DIR,
-        status: validation.valid ? "standard" : "invalid",
-        inspection: validation.inspection,
-        profile,
-        moduleName: validation.inspection.module.resolved,
-        warnings: validation.warnings.map((item) => item.message),
-        errors: validation.errors.map((item) => item.message),
-        changes: [],
-        validation,
-      };
-    }
+    result = executeStandardEnvAction(action, options);
   } catch (error) {
     console.error("");
     console.error("  ✖ 标准环境配置失败: " + error.message);

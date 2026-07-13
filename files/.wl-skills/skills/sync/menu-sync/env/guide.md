@@ -20,6 +20,8 @@
   "gatewayPath": "http://192.168.10.50:9000",
   "sysAppNo": "QjQuXy1kbKxZyjhS5N2",
   "token": "eyJhbGci...",
+  "environment": "uat",
+  "allowProductionWrites": false,
 
   "menu": {
     "parentMenuId": "1803456789012345678"
@@ -40,6 +42,8 @@
 | `gatewayPath` | 后端网关地址，含协议和端口，**末尾不加斜杠** | `http://192.168.10.50:9000` |
 | `sysAppNo` | 应用编码（非明文，从已有菜单接口响应中获取） | `QjQuXy1kbKxZyjhS5N2` |
 | `token` | 当前登录用户的登录凭据，**只填纯 token/JWT，不含 `bearer ` 前缀** | `eyJhbGci...` |
+| `environment` | 环境标识；生产填写 `production`，用于启用写保护 | `uat` |
+| `allowProductionWrites` | 生产写入审批后的本地显式开关，默认必须为 `false` | `false` |
 | `menu.parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
 | `dict.sysOnlyCurrentApp` | 字典查询/写入是否只看当前 `sysAppNo` 应用，建议保持 `true` | `true` |
 

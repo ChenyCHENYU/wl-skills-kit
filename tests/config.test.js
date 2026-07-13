@@ -24,11 +24,21 @@ afterEach(() => {
 
 describe("MCP local config", () => {
   it("加载并规范化合法配置", () => {
-    writeConfig({ gatewayPath: "https://example.com/uat-api///", token: "abc.def", sysAppNo: "mdata" });
+    writeConfig({
+      gatewayPath: "https://example.com/uat-api///",
+      token: "abc.def",
+      sysAppNo: "mdata",
+      environment: "uat",
+      allowProductionWrites: false,
+      network: { timeoutMs: 12000 },
+    });
     expect(loadConfig()).toMatchObject({
       gatewayPath: "https://example.com/uat-api",
       token: "abc.def",
       sysAppNo: "mdata",
+      environment: "uat",
+      allowProductionWrites: false,
+      network: { timeoutMs: 12000 },
     });
   });
 

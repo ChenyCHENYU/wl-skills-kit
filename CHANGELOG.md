@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+## [2.12.6] - 2026-07-13
+
+### Added
+
+- **MCP 运行时契约**：所有 Tool 根参数启用闭合 JSON Schema 校验，非法类型和未声明参数在读取凭据、执行 Handler 前阻断；字典结构化输出同步校验。
+- **可靠性底座**：字典 `planHash` 改为递归规范化 JSON，并加入跨进程文件锁；网络 GET 支持有界退避重试，POST/PUT 等写请求永不自动重试。
+- **工程门禁**：运行时最低版本提升到仍受支持的 Node.js 22；新增 Linux Node 22/24、Windows Node 24 CI 和 GitHub Release → npm Trusted Publisher 发布流程。
+
+### Changed
+
+- **写操作一致性**：菜单、角色、动作与角色授权统一采用“读取线上 → 预览 `planHash` → 确认 → 重读校验 → 写入”；状态漂移零写入，生产环境默认阻断后端写入。
+- **Skill 渐进披露**：`page-codegen` 主文件由千行级收敛为约 250 行，`prototype-scan` 收敛到 500 行内，场景化实现移至一级 references 并加入静态存在性与行数门禁。
+- **复杂度清零**：拆分 CLI、页面校验、AST、标准环境和 MCP 同步职责，ESLint 固定 `0 error / 0 warning`，后续不允许新增告警。
+
+### Fixed
+
+- **默认全量字典参数**：修正 `wls_dict_upsert` 无参项目级预览与此前 inputSchema 冲突的问题。
+- **路径与外部请求边界**：菜单报告拒绝项目外路径和符号链接越界；审计 webhook 仅接受合法 HTTPS 地址并增加超时。
+
 ## [2.12.5] - 2026-07-12
 
 ### Added

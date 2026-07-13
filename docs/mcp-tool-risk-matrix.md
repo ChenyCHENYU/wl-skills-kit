@@ -1,6 +1,6 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.12.5
+> **版本基线**：wl-skills-kit v2.12.6
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
 > **定位**：统一说明 21 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
@@ -36,13 +36,13 @@
 | `wls_role_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_assignable_menus_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_action_query` | 权限查询 | R0 | 是 | 是 | 无 |
-| `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 必须确认报告路径、同步范围和 dry-run 结果 |
-| `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 必须确认新增/更新项 |
+| `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
+| `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
 | `wls_dict_upsert` | 字典协调 | R3 | 是 | 否 | 默认只预览；确认项目级 safe-additive 计划后必须同时传 `confirmApply:true` 和有效 `planHash` |
-| `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 必须确认角色 code 和名称 |
-| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并传 `confirmFullReplace: true`，避免覆盖已有授权 |
-| `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 必须确认 parentId 和 permission 命名 |
-| `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 必须确认推送报告和目标 webhook |
+| `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
+| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并同时传 `confirmFullReplace:true` 和预览 `planHash` |
+| `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
+| `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 默认预览；确认推送报告和目标 webhook 后传 `confirmPush:true` |
 
 ---
 
@@ -99,9 +99,9 @@ wls_standard_env_apply
 ```text
 wls_menu_query
 → 读取/生成 SYS_MENU_INFO.md
-→ wls_menu_sync_from_report(dryRun: true)
+→ wls_menu_sync_from_report（默认预览）
 → 用户确认
-→ wls_menu_sync_from_report(dryRun: false)
+→ wls_menu_sync_from_report(confirmApply: true, planHash)
 → wls_route_check
 ```
 
@@ -124,8 +124,9 @@ wls_role_query
 → wls_assignable_menus_query
 → wls_action_query
 → 生成 SYS_PERMISSION_INFO.md
+→ 各写工具先预览并记录各自 planHash
 → 用户确认
-→ wls_role_upsert / wls_action_upsert / wls_role_assign_menus
+→ wls_role_upsert(confirmApply: true, planHash) / wls_action_upsert(confirmApply: true, planHash) / wls_role_assign_menus(confirmFullReplace: true, planHash)
 → 权限码使用复扫
 ```
 
@@ -150,6 +151,7 @@ wls_standard_env_scan
 - R3/R4 Tool 不允许在用户无明确确认时自动执行。
 - `wls_standard_env_apply` 不调用后端，但会事务式更新本地前端环境与 Vite 配置；未确认时不得传 `confirmApply: true`。
 - 华新 Profile 不得静默套用；非华新项目必须提供完整五环境 Profile，避免客户地址混用。
-- 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true`。
+- 菜单、角色、动作和角色授权执行前都会重读线上；必须携带最近一次预览 `planHash`，漂移后旧计划自动失效。
+- 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true` 与预览 `planHash`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

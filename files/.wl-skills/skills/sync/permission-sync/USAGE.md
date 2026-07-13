@@ -6,7 +6,7 @@
 
 ## 一句话理解
 
-**permission-sync = 角色管理 + 角色授权 + 挂动作 + 加 v-permission**
+**permission-sync = 角色管理 + 角色授权 + 挂动作 + 加 permission 字段**
 
 整条链路覆盖"页面建好后，怎么让指定角色的人能看见、能点按钮"的全过程。
 
@@ -21,7 +21,7 @@
 AI ： [触发 permission-sync]
      [Pre-flight] 模式 = role-manage
      调用 wls_role_query 检查 → code=test_qa 不存在
-     调用 wls_role_upsert
+     调用 wls_role_upsert 预览并取得 planHash，确认后以 confirmApply: true + planHash 正式执行
      ✅ 创建成功
 ```
 
@@ -34,7 +34,7 @@ AI ： [触发 permission-sync]
      ⚠️ 注意：saveRoleMenus 是全量覆盖，需先合并该角色应保留的全部菜单
      是否继续？(yes/no)
 用户：yes
-AI ： 调用 wls_role_assign_menus（confirmFullReplace: true）
+AI ： 先预览取得 planHash，再调用 wls_role_assign_menus（confirmFullReplace: true + planHash）
      ✅ 角色授权成功
 ```
 
@@ -45,7 +45,7 @@ AI ： 调用 wls_role_assign_menus（confirmFullReplace: true）
 AI ： [触发 permission-sync]
      [Pre-flight] 模式 = action-attach
      1. wls_action_query 查询已有动作 → 无
-     2. wls_action_upsert 注册到后端：customer_add / customer_edit / customer_remove
+     2. wls_action_upsert 预览并取得 planHash，确认后以 confirmApply: true + planHash 注册：customer_add / customer_edit / customer_remove
      3. 在 src/views/customer/list/data.ts 找到工具栏按钮配置，
         给每个对应按钮的 ActionButtonDesc 添加 permission 字段：
         { name: 'add', label: '新增', permission: ['customer_add'], ... }
@@ -64,7 +64,7 @@ AI ： [触发 permission-sync]
 
 后端 `saveRoleMenus` 是**全量覆盖**接口。你传 `[A, B]`，原先 `[A, B, C]` 就会变成 `[A, B]`，C 丢失。
 
-**正确做法**：先查角色现有菜单 → 合并新菜单 → 一起传，并显式传 `confirmFullReplace: true`。否则 MCP 会拒绝提交，避免误覆盖。
+**正确做法**：先查角色现有菜单 → 合并新菜单 → 预览取得 `planHash` → 一起传，并显式传 `confirmFullReplace: true` 与该哈希。否则 MCP 会拒绝提交，避免误覆盖。
 
 ### Q2：权限码写在 `data.ts` 哪里？不需要改模板吗？
 

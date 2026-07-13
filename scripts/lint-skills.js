@@ -15,6 +15,7 @@
  *  8. files/ 下任意 .vue / .ts 严禁出现 <C_Splitter> 或 import C_Splitter
  *     （组件已彻底删除，无任何例外，参见 standards/14-layout-containers.md）
  *  9. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 R/S 规则必须在执行器中真实存在
+ * 10. SKILL.md 主文件不超过 500 行，且声明的一级 references 必须存在
  *
  * 用法：
  *   node scripts/lint-skills.js          # 全量校验
@@ -152,8 +153,47 @@ for (const fp of TARGETS) {
   }
 }
 
-// 7. 规则覆盖矩阵：标记「阻断」的 R*/S*/D* 规则必须在执行器代码中真实存在
+// 7. Skill 渐进披露：主文件保持精简，references 只允许引用实际存在的一级文件
+const SKILL_FILES = walkAll(SKILLS).filter((fp) => path.basename(fp) === "SKILL.md");
+for (const skillPath of SKILL_FILES) {
+  const rel = path.relative(SKILLS, skillPath).replace(/\\/g, "/");
+  const content = fs.readFileSync(skillPath, "utf8");
+  const lineCount = content.split(/\r?\n/).length;
+  if (lineCount > 500) {
+    errors.push(`${rel}: 主文件 ${lineCount} 行，超过 500 行；请把场景化细节移入 references/`);
+  }
+  const references = new Set(content.match(/references\/[\w./-]+\.md/g) || []);
+  for (const reference of references) {
+    if (reference.includes("../")) {
+      errors.push(`${rel}: reference 不得跨目录: ${reference}`);
+      continue;
+    }
+    if (!fs.existsSync(path.join(path.dirname(skillPath), reference))) {
+      errors.push(`${rel}: 引用了不存在的文件 ${reference}`);
+    }
+  }
+}
+
+// 8. 规则覆盖矩阵：标记「阻断」的 R*/S*/D* 规则必须在执行器代码中真实存在
 //    防止 rule-coverage.md 与 ast-rules.js / page-spec.js / dict-contract.js 漂移
+function readOptionalSource(rel) {
+  const filePath = path.join(ROOT, rel);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function rulesInCoverageLine(line) {
+  if (!/^\|/.test(line) || !/\|\s*是\s*\|?\s*$/.test(line)) return [];
+  return [...new Set([...line.matchAll(/\b([RSD]\d{1,2})\b/g)].map((match) => match[1]))];
+}
+
+function assertRuleImplemented(rule, sources) {
+  const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const objectMarker = new RegExp(`rule\\s*:\\s*["']${escaped}["']`);
+  const helperMarker = new RegExp(`pushIssue\\([^;\\n]*["']${escaped}["']`);
+  if (sources.some((source) => objectMarker.test(source) || helperMarker.test(source))) return;
+  errors.push(`rule-coverage.md 标记「阻断」的 ${rule} 在确定性执行器中未找到`);
+}
+
 (function checkRuleCoverage() {
   const coveragePath = path.join(ROOT, "kit-internal", "rule-coverage.md");
   if (!fs.existsSync(coveragePath)) {
@@ -161,35 +201,12 @@ for (const fp of TARGETS) {
     return;
   }
   const coverage = fs.readFileSync(coveragePath, "utf8");
-  const astSrc = fs.existsSync(path.join(ROOT, "lib", "ast-rules.js"))
-    ? fs.readFileSync(path.join(ROOT, "lib", "ast-rules.js"), "utf8")
-    : "";
-  const specSrc = fs.existsSync(path.join(ROOT, "lib", "page-spec.js"))
-    ? fs.readFileSync(path.join(ROOT, "lib", "page-spec.js"), "utf8")
-    : "";
-  const dictSrc = fs.existsSync(path.join(ROOT, "lib", "dict-contract.js"))
-    ? fs.readFileSync(path.join(ROOT, "lib", "dict-contract.js"), "utf8")
-    : "";
+  const sources = ["lib/ast-rules.js", "lib/page-spec.js", "lib/dict-contract.js"]
+    .map(readOptionalSource);
 
   // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S*/D* 编号
-  const ruleRe = /\b([RSD]\d{1,2})\b/g;
   for (const line of coverage.split("\n")) {
-    // 仅看表格数据行且阻断列为「是」
-    if (!/^\|/.test(line) || !/\|\s*是\s*\|?\s*$/.test(line)) continue;
-    const matched = new Set();
-    let m;
-    while ((m = ruleRe.exec(line)) !== null) matched.add(m[1]);
-    for (const rule of matched) {
-      const marker = 'rule: "' + rule + '"';
-      const inAst = astSrc.includes(marker);
-      const inSpec = specSrc.includes(marker);
-      const inDict = dictSrc.includes(marker);
-      if (!inAst && !inSpec && !inDict) {
-        errors.push(
-          `rule-coverage.md 标记「阻断」的 ${rule} 在确定性执行器中未找到 (${marker})`,
-        );
-      }
-    }
+    for (const rule of rulesInCoverageLine(line)) assertRuleImplemented(rule, sources);
   }
 })();
 

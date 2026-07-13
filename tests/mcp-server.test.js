@@ -50,7 +50,7 @@ describe("MCP stdio server", () => {
     expect(response.result.instructions).toMatch(/dicts\.ts/);
   });
 
-  it("tools/list 暴露风险 annotations 和字典 outputSchema", async () => {
+  it("tools/list 暴露风险 annotations 和写工具 outputSchema", async () => {
     const server = startServer();
     const response = await server.call(2, "tools/list");
     const dict = response.result.tools.find((tool) => tool.name === "wls_dict_upsert");
@@ -60,5 +60,31 @@ describe("MCP stdio server", () => {
       idempotentHint: true,
     });
     expect(dict.outputSchema.required).toContain("state");
+    const menu = response.result.tools.find((tool) => tool.name === "wls_menu_upsert");
+    expect(menu.inputSchema.properties).toHaveProperty("planHash");
+    expect(menu.outputSchema.required).toContain("state");
+  });
+
+  it("在加载后端配置前拒绝类型错误和未声明参数", async () => {
+    const server = startServer();
+    const response = await server.call(3, "tools/call", {
+      name: "wls_role_query",
+      arguments: { current: "1", extra: true },
+    });
+    expect(response.error).toMatchObject({ code: -32602 });
+    expect(response.error.message).toMatch(/current.*number/);
+    expect(response.error.message).toMatch(/extra.*未声明/);
+    expect(response.result).toBeUndefined();
+  });
+
+  it("全量字典预览允许使用默认空参数", async () => {
+    const server = startServer();
+    const response = await server.call(4, "tools/call", {
+      name: "wls_dict_upsert",
+      arguments: {},
+    });
+    expect(response.error).toBeUndefined();
+    expect(response.result.isError).toBe(true);
+    expect(response.result.content[0].text).toMatch(/配置加载失败/);
   });
 });

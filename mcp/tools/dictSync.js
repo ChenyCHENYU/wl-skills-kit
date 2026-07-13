@@ -1,6 +1,8 @@
 'use strict'
 
 const path = require('path')
+const { withFileLock } = require('../../lib/process-lock')
+const { writeBlockReason } = require('../write-guard')
 const {
   applyBootstrap,
   buildLocalRegistry,
@@ -567,7 +569,7 @@ function bootstrapRequiredResult(bootstrap) {
 
 async function withProjectLock(key, action) {
   const previous = projectLocks.get(key) || Promise.resolve()
-  const current = previous.catch(() => {}).then(action)
+  const current = previous.catch(() => {}).then(() => withFileLock(key, action))
   projectLocks.set(key, current)
   try {
     return await current
@@ -677,6 +679,8 @@ async function handleDictUpsert(args = {}, config) {
   if (validationError) return errorResult(validationError)
   const normalizedArgs = { ...args, scope }
   if (args.confirmApply !== true) return previewReconcile(normalizedArgs, config)
+  const blocked = writeBlockReason(config)
+  if (blocked) return errorResult(blocked, { state: 'blocked', mode: 'apply' })
   const projectRoot = path.resolve(process.env.WL_PROJECT_ROOT || process.cwd())
   const lockKey = `${config && config.sysAppNo || '-'}:${projectRoot}`
   return withProjectLock(lockKey, () => applyReconcile(normalizedArgs, config))

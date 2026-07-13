@@ -89,9 +89,9 @@ export default defineConfigWithVueTs(
 
       //! 代码复杂度
       // 项目代码（src/views）的硬阻断由 R13 执行器兜底（阈值 10，error）；
-      // 此处仅作 kit 自身开发代码的提示（warn），避免基础设施级大函数误伤发布门禁。
+      // kit 基础设施同样遵守复杂度上限；必须按职责拆分，不允许以 warning 累积质量债。
       "max-depth": ["error", 4],
-      complexity: ["warn", 10],
+      complexity: ["error", 10],
 
       //! 异步代码规范
       "no-await-in-loop": "error",

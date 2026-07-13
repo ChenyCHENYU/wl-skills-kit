@@ -9,7 +9,7 @@
 GET /sale/customerArchive/getById?id={id}
 ```
 
-Response 结构同 [customer-apply-change/api.md](../customer-apply-change/api.md)，
+Response 结构参考 [客户档案 api.md](../mmwr-customer-archive/api.md) 的详情接口，
 额外包含 `verificationInfo` 字段：
 
 ```json

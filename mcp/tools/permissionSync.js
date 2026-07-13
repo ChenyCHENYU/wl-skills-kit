@@ -1,4 +1,4 @@
-'use strict'
+"use strict";
 
 const {
   queryRoleList,
@@ -6,317 +6,261 @@ const {
   queryAssignableMenus,
   saveRoleMenus,
   queryMenuChildren,
-} = require('../api/roleApi')
-const { saveMenu } = require('../api/menuApi')
+} = require("../api/roleApi");
+const { saveMenu } = require("../api/menuApi");
+const { writeBlockReason } = require("../write-guard");
+const { createPlanHash } = require("../../lib/plan-hash");
+const {
+  blockedResult,
+  completedResult,
+  previewResult,
+  toolResult,
+  validatePlanHash,
+} = require("../tool-result");
 
-/* ──────────────────────────────────────────────────────────────────────
- * 角色管理
- * ──────────────────────────────────────────────────────────────────── */
-
-/**
- * wls_role_query 工具处理器
- * 查询角色列表（仅返回字段精简后的角色摘要）
- */
-async function handleRoleQuery(args, config) {
-  const result = await queryRoleList(args || {}, config)
-
-  if (!result.ok) {
-    return `❌ 查询角色失败: ${result.error} (code: ${result.code})`
-  }
-
-  const page = result.data && result.data.page
-  const records = (page && page.records) || []
-
-  if (records.length === 0) {
-    return '✅ 角色查询成功，当前应用暂无角色数据'
-  }
-
-  // 仅保留关键字段，减少 token 浪费
-  const slim = records.map((r) => ({
-    id: r.id,
-    roleName: r.roleName,
-    code: r.code,
-    sysAppNo: r.sysAppNo,
-    roleDesc: r.roleDesc,
-  }))
-
-  return [
-    `✅ 角色查询成功，当前页 ${records.length} 条 / 共 ${page.total} 条（current=${page.current}, pages=${page.pages}）`,
-    '',
-    JSON.stringify(slim, null, 2),
-  ].join('\n')
+function pageRecords(result) {
+  return result.data?.page?.records || result.data?.records || (Array.isArray(result.data) ? result.data : []);
 }
-
-/**
- * wls_role_upsert 工具处理器
- * 批量新增角色（仅新增，不更新；以 code 字段去重）
- *
- * @param {{ items: Array<{ roleName: string, code: string, configDesc?: string }> }} args
- */
-async function handleRoleUpsert(args, config) {
-  const { items } = args || {}
-
-  if (!Array.isArray(items) || items.length === 0) {
-    return '❌ 参数错误：items 必须是非空数组'
-  }
-
-  // 先查全量角色，按 code 去重
-  const queryResult = await queryRoleList({ size: 999 }, config)
-  if (!queryResult.ok) {
-    return `❌ 查询现有角色失败: ${queryResult.error}`
-  }
-  const existingCodes = new Set(
-    ((queryResult.data && queryResult.data.page && queryResult.data.page.records) || [])
-      .map((r) => r.code)
-  )
-
-  const results = []
-
-  for (const item of items) {
-    if (!item.roleName || !item.code) {
-      results.push({
-        roleName: item.roleName || '(未命名)',
-        code: item.code || '(无)',
-        status: '❌ roleName 与 code 必填',
-      })
-      continue
-    }
-
-    if (existingCodes.has(item.code)) {
-      results.push({
-        roleName: item.roleName,
-        code: item.code,
-        status: '⏭ 已存在（跳过）',
-      })
-      continue
-    }
-
-    const body = {
-      roleName: item.roleName,
-      code: item.code,
-      configDesc: item.configDesc || '',
-    }
-
-    const r = await saveRole(body, config)
-    results.push({
-      roleName: item.roleName,
-      code: item.code,
-      status: r.ok ? '✅ 创建成功' : `❌ 失败: ${r.error}`,
-    })
-  }
-
-  return formatTable(
-    results,
-    ['roleName', 'code', 'status'],
-    ['角色名', 'code', '状态']
-  )
-}
-
-/* ──────────────────────────────────────────────────────────────────────
- * 角色授权（给角色挂菜单）
- * ──────────────────────────────────────────────────────────────────── */
-
-/**
- * wls_role_assign_menus 工具处理器
- * 给指定角色批量分配菜单权限
- *
- * @param {{ roleId: string, menuIds: string[], confirmFullReplace?: boolean }} args
- * menuIds 用数组传入，内部拼成逗号字符串。后端接口是全量覆盖，正式提交必须显式确认。
- */
-async function handleRoleAssignMenus(args, config) {
-  const { roleId, menuIds, confirmFullReplace } = args || {}
-
-  if (!roleId) {
-    return '❌ 参数错误：roleId 必填'
-  }
-  if (!Array.isArray(menuIds) || menuIds.length === 0) {
-    return '❌ 参数错误：menuIds 必须是非空字符串数组'
-  }
-  if (confirmFullReplace !== true) {
-    return [
-      '❌ 已阻止角色授权提交：saveRoleMenus 是全量覆盖接口',
-      '请先确认 menuIds 已包含该角色应保留的全部菜单/动作，而不只是本次新增项。',
-      '确认无误后重新调用，并传入 confirmFullReplace: true。',
-    ].join('\n')
-  }
-
-  const body = {
-    roleId,
-    menuIds: menuIds.join(','),
-  }
-
-  const r = await saveRoleMenus(body, config)
-  if (!r.ok) {
-    return `❌ 角色授权失败: ${r.error} (code: ${r.code})`
-  }
-
-  return `✅ 角色授权成功（roleId=${roleId}，已分配 ${menuIds.length} 个菜单/动作）`
-}
-
-/**
- * wls_assignable_menus_query 工具处理器
- * 查询全量可授权菜单（扁平/树形由后端决定）
- */
-async function handleAssignableMenusQuery(_args, config) {
-  const r = await queryAssignableMenus(config)
-  if (!r.ok) {
-    return `❌ 查询可授权菜单失败: ${r.error} (code: ${r.code})`
-  }
-  // data 可能是 { records: [...] } 或数组
-  const records = (r.data && r.data.records) || (Array.isArray(r.data) ? r.data : [])
-  if (records.length === 0) {
-    return '✅ 查询成功，当前无可授权菜单'
-  }
-  return [
-    `✅ 可授权菜单查询成功，共 ${records.length} 条`,
-    '',
-    JSON.stringify(records, null, 2),
-  ].join('\n')
-}
-
-/* ──────────────────────────────────────────────────────────────────────
- * 挂动作（给页面菜单加 type=A 的动作按钮）
- * ──────────────────────────────────────────────────────────────────── */
-
-/**
- * wls_action_query 工具处理器
- * 查询指定页面菜单下的动作子项（type=A）
- *
- * @param {{ menuId: string }} args
- */
-async function handleActionQuery(args, config) {
-  const { menuId } = args || {}
-  if (!menuId) {
-    return '❌ 参数错误：menuId 必填（页面菜单 id）'
-  }
-
-  const r = await queryMenuChildren(menuId, config)
-  if (!r.ok) {
-    return `❌ 查询子菜单失败: ${r.error} (code: ${r.code})`
-  }
-
-  const records = (r.data && r.data.records) || []
-  // 仅保留 type=A（动作）
-  const actions = records.filter((m) => m.type === 'A')
-
-  if (actions.length === 0) {
-    return `✅ 查询成功，菜单 ${menuId} 下暂无动作（type=A）`
-  }
-
-  const slim = actions.map((a) => ({
-    id: a.id,
-    menuName: a.menuName,
-    permission: a.permission,
-    orderNum: a.orderNum,
-    icon: a.icon,
-  }))
-
-  return [
-    `✅ 动作查询成功，共 ${actions.length} 条`,
-    '',
-    JSON.stringify(slim, null, 2),
-  ].join('\n')
-}
-
-/**
- * wls_action_upsert 工具处理器
- * 在指定页面菜单下批量新增动作（type=A），按 permission 去重
- *
- * @param {{ parentId: string, items: Array<object> }} args
- *   items 元素：{ menuName, permission, icon?, orderNum?, useCache? }
- */
-async function handleActionUpsert(args, config) {
-  const { parentId, items } = args || {}
-
-  if (!parentId) {
-    return '❌ 参数错误：parentId 必填（页面菜单 id）'
-  }
-  if (!Array.isArray(items) || items.length === 0) {
-    return '❌ 参数错误：items 必须是非空数组'
-  }
-
-  // 先查父菜单下已有动作，按 permission 去重
-  const queryResult = await queryMenuChildren(parentId, config)
-  if (!queryResult.ok) {
-    return `❌ 查询现有动作失败: ${queryResult.error}`
-  }
-  const existing = ((queryResult.data && queryResult.data.records) || [])
-    .filter((m) => m.type === 'A')
-  const existingPerms = new Set(existing.map((m) => m.permission))
-
-  const results = []
-
-  for (const item of items) {
-    if (!item.menuName || !item.permission) {
-      results.push({
-        menuName: item.menuName || '(未命名)',
-        permission: item.permission || '(无)',
-        status: '❌ menuName 与 permission 必填',
-      })
-      continue
-    }
-
-    if (existingPerms.has(item.permission)) {
-      results.push({
-        menuName: item.menuName,
-        permission: item.permission,
-        status: '⏭ 已存在（跳过）',
-      })
-      continue
-    }
-
-    const body = {
-      parentId,
-      type: 'A',
-      menuName: item.menuName,
-      permission: item.permission,
-      icon: item.icon || 'list',
-      orderNum: item.orderNum != null ? item.orderNum : 1,
-      useCache: item.useCache != null ? item.useCache : 1,
-      sysAppNo: config.sysAppNo,
-      intIsActive: 1,
-    }
-
-    const r = await saveMenu(body, config)
-    if (r.ok) {
-      const saved = r.data
-      results.push({
-        menuName: item.menuName,
-        permission: item.permission,
-        status: `✅ 创建成功 (id=${saved ? saved.id : '?'})`,
-      })
-    } else {
-      results.push({
-        menuName: item.menuName,
-        permission: item.permission,
-        status: `❌ 失败: ${r.error}`,
-      })
-    }
-  }
-
-  return formatTable(
-    results,
-    ['menuName', 'permission', 'status'],
-    ['动作名', '权限码', '状态']
-  )
-}
-
-/* ──────────────────────────────────────────────────────────────────────
- * 工具函数
- * ──────────────────────────────────────────────────────────────────── */
 
 function formatTable(rows, keys, headers) {
-  const successCount = rows.filter((r) => r.status.startsWith('✅')).length
-  const skipCount = rows.filter((r) => r.status.startsWith('⏭')).length
-  const failCount = rows.length - successCount - skipCount
+  const successCount = rows.filter((row) => row.status.startsWith("✅")).length;
+  const skipCount = rows.filter((row) => row.status.startsWith("⏭")).length;
+  const lines = [
+    `操作完成：成功 ${successCount} 条，跳过 ${skipCount} 条，失败 ${rows.length - successCount - skipCount} 条`, "",
+    `| ${headers.join(" | ")} |`, `|${headers.map(() => "---").join("|")}|`,
+  ];
+  for (const row of rows) lines.push(`| ${keys.map((key) => row[key]).join(" | ")} |`);
+  return lines.join("\n");
+}
 
-  let out = `操作完成：成功 ${successCount} 条，跳过 ${skipCount} 条，失败 ${failCount} 条\n\n`
-  out += '| ' + headers.join(' | ') + ' |\n'
-  out += '|' + headers.map(() => '---').join('|') + '|\n'
-  for (const r of rows) {
-    out += '| ' + keys.map((k) => r[k]).join(' | ') + ' |\n'
+function slimRole(role) {
+  return { id: role.id, roleName: role.roleName, code: role.code, sysAppNo: role.sysAppNo, roleDesc: role.roleDesc };
+}
+
+async function handleRoleQuery(args = {}, config) {
+  const result = await queryRoleList(args, config);
+  if (!result.ok) return blockedResult(`查询角色失败: ${result.error} (code: ${result.code})`, "query-failed", { mode: "query" });
+  const page = result.data?.page || {};
+  const roles = pageRecords(result).map(slimRole);
+  const text = roles.length === 0
+    ? "✅ 角色查询成功，当前应用暂无角色数据"
+    : `✅ 角色查询成功，当前页 ${roles.length} 条 / 共 ${page.total} 条（current=${page.current}, pages=${page.pages}）\n\n${JSON.stringify(roles, null, 2)}`;
+  return toolResult(text, { ok: true, state: "completed", mode: "query", count: roles.length, items: roles });
+}
+
+function validateRoleItems(items) {
+  if (!Array.isArray(items) || items.length === 0) throw new Error("参数错误：items 必须是非空数组");
+  const invalid = items.find((item) => !item.roleName || !item.code);
+  if (invalid) throw new Error("roleName 与 code 必填");
+}
+
+function roleActions(items, existingCodes) {
+  return items.map((item) => ({
+    action: existingCodes.has(item.code) ? "skip" : "create",
+    roleName: item.roleName,
+    code: item.code,
+    body: { roleName: item.roleName, code: item.code, configDesc: item.configDesc || "" },
+  }));
+}
+
+async function buildRolePlan(args, config) {
+  validateRoleItems(args.items);
+  const query = await queryRoleList({ size: 999 }, config);
+  if (!query.ok) throw new Error(`查询现有角色失败: ${query.error}`);
+  const remoteRoles = pageRecords(query);
+  const actions = roleActions(args.items, new Set(remoteRoles.map((role) => role.code)));
+  const value = { schemaVersion: 1, sysAppNo: config.sysAppNo || "", items: args.items, remoteRoles };
+  return { ...value, actions, planHash: createPlanHash("role-upsert", value) };
+}
+
+function formatRolePreview(plan) {
+  const rows = plan.actions.map((action) => ({
+    roleName: action.roleName, code: action.code,
+    status: action.action === "skip" ? "⏭ 已存在（跳过）" : "待创建",
+  }));
+  return `${formatTable(rows, ["roleName", "code", "status"], ["角色名", "code", "状态"])}\n\nplanHash: ${plan.planHash}\n确认后携带相同 planHash 并传 confirmApply: true。`;
+}
+
+async function executeRolePlan(plan, config) {
+  const results = [];
+  for (const action of plan.actions) {
+    if (action.action === "skip") {
+      results.push({ roleName: action.roleName, code: action.code, status: "⏭ 已存在（跳过）", ok: true });
+      continue;
+    }
+    const saved = await saveRole(action.body, config);
+    results.push({ roleName: action.roleName, code: action.code,
+      status: saved.ok ? "✅ 创建成功" : `❌ 失败: ${saved.error}`, ok: saved.ok });
   }
-  return out
+  return results;
+}
+
+async function handleRoleUpsert(args = {}, config) {
+  try {
+    validateRoleItems(args.items);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: "preview" });
+  }
+  const earlyBlock = args.confirmApply === true ? writeBlockReason(config) : "";
+  if (earlyBlock) return blockedResult(earlyBlock, "blocked", { mode: "apply" });
+  let plan;
+  try {
+    plan = await buildRolePlan(args, config);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: args.confirmApply === true ? "apply" : "preview" });
+  }
+  if (args.confirmApply !== true) return previewResult(formatRolePreview(plan), plan, { actions: plan.actions });
+  const stale = validatePlanHash(args, plan);
+  if (stale) return stale;
+  const results = await executeRolePlan(plan, config);
+  const text = formatTable(results, ["roleName", "code", "status"], ["角色名", "code", "状态"]);
+  const response = completedResult(text, { planHash: plan.planHash, results });
+  return results.every((item) => item.ok) ? response : partialResult(response);
+}
+
+function partialResult(result) {
+  return { ...result, isError: true, structuredContent: { ...result.structuredContent, ok: false, state: "partial" } };
+}
+
+function validateRoleAssignment(args) {
+  if (!args.roleId) throw new Error("参数错误：roleId 必填");
+  if (!Array.isArray(args.menuIds) || args.menuIds.length === 0) {
+    throw new Error("参数错误：menuIds 必须是非空字符串数组");
+  }
+}
+
+async function buildRoleAssignmentPlan(args, config) {
+  validateRoleAssignment(args);
+  const query = await queryAssignableMenus(config);
+  if (!query.ok) throw new Error(`查询可授权菜单失败: ${query.error}`);
+  const value = { schemaVersion: 1, sysAppNo: config.sysAppNo || "", roleId: args.roleId,
+    menuIds: [...args.menuIds].sort(), assignableMenus: query.data };
+  return { ...value, planHash: createPlanHash("role-menu-assignment", value) };
+}
+
+async function handleRoleAssignMenus(args = {}, config) {
+  try {
+    validateRoleAssignment(args);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: "preview" });
+  }
+  const earlyBlock = args.confirmFullReplace === true ? writeBlockReason(config) : "";
+  if (earlyBlock) return blockedResult(earlyBlock, "blocked", { mode: "apply" });
+  let plan;
+  try {
+    plan = await buildRoleAssignmentPlan(args, config);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: args.confirmFullReplace === true ? "apply" : "preview" });
+  }
+  const preview = `角色授权全量覆盖预览：roleId=${args.roleId}，菜单/动作 ${args.menuIds.length} 个\nplanHash: ${plan.planHash}\n确认 menuIds 为完整保留集合后，携带 planHash 并传 confirmFullReplace: true。`;
+  if (args.confirmFullReplace !== true) return previewResult(preview, plan, { menuIds: args.menuIds });
+  const stale = validatePlanHash(args, plan);
+  if (stale) return stale;
+  const saved = await saveRoleMenus({ roleId: args.roleId, menuIds: args.menuIds.join(",") }, config);
+  if (!saved.ok) return blockedResult(`角色授权失败: ${saved.error} (code: ${saved.code})`, "apply-failed", { mode: "apply" });
+  return completedResult(`✅ 角色授权成功（roleId=${args.roleId}，已分配 ${args.menuIds.length} 个菜单/动作）`, { planHash: plan.planHash });
+}
+
+async function handleAssignableMenusQuery(_args, config) {
+  const result = await queryAssignableMenus(config);
+  if (!result.ok) return blockedResult(`查询可授权菜单失败: ${result.error} (code: ${result.code})`, "query-failed", { mode: "query" });
+  const records = pageRecords(result);
+  const text = records.length === 0
+    ? "✅ 查询成功，当前无可授权菜单"
+    : `✅ 可授权菜单查询成功，共 ${records.length} 条\n\n${JSON.stringify(records, null, 2)}`;
+  return toolResult(text, { ok: true, state: "completed", mode: "query", count: records.length, items: records });
+}
+
+function slimAction(action) {
+  return { id: action.id, menuName: action.menuName, permission: action.permission, orderNum: action.orderNum, icon: action.icon };
+}
+
+async function queryActions(menuId, config) {
+  const result = await queryMenuChildren(menuId, config);
+  if (!result.ok) throw new Error(`查询子菜单失败: ${result.error} (code: ${result.code})`);
+  return pageRecords(result).filter((item) => item.type === "A");
+}
+
+async function handleActionQuery(args = {}, config) {
+  if (!args.menuId) return blockedResult("参数错误：menuId 必填（页面菜单 id）", "blocked", { mode: "query" });
+  try {
+    const actions = (await queryActions(args.menuId, config)).map(slimAction);
+    const text = actions.length === 0
+      ? `✅ 查询成功，菜单 ${args.menuId} 下暂无动作（type=A）`
+      : `✅ 动作查询成功，共 ${actions.length} 条\n\n${JSON.stringify(actions, null, 2)}`;
+    return toolResult(text, { ok: true, state: "completed", mode: "query", count: actions.length, items: actions });
+  } catch (error) {
+    return blockedResult(error.message, "query-failed", { mode: "query" });
+  }
+}
+
+function validateActionItems(args) {
+  if (!args.parentId) throw new Error("参数错误：parentId 必填（页面菜单 id）");
+  if (!Array.isArray(args.items) || args.items.length === 0) throw new Error("参数错误：items 必须是非空数组");
+  if (args.items.some((item) => !item.menuName || !item.permission)) throw new Error("menuName 与 permission 必填");
+}
+
+function actionBody(item, parentId, config) {
+  return { parentId, type: "A", menuName: item.menuName, permission: item.permission,
+    icon: item.icon || "list", orderNum: item.orderNum == null ? 1 : item.orderNum,
+    useCache: item.useCache == null ? 1 : item.useCache, sysAppNo: config.sysAppNo, intIsActive: 1 };
+}
+
+async function buildActionPlan(args, config) {
+  validateActionItems(args);
+  const remoteActions = await queryActions(args.parentId, config);
+  const existing = new Set(remoteActions.map((item) => item.permission));
+  const actions = args.items.map((item) => ({ action: existing.has(item.permission) ? "skip" : "create",
+    menuName: item.menuName, permission: item.permission, body: actionBody(item, args.parentId, config) }));
+  const value = { schemaVersion: 1, sysAppNo: config.sysAppNo || "", parentId: args.parentId, items: args.items, remoteActions };
+  return { ...value, actions, planHash: createPlanHash("action-upsert", value) };
+}
+
+function actionRows(actions, preview) {
+  return actions.map((action) => ({ menuName: action.menuName, permission: action.permission,
+    status: action.action === "skip" ? "⏭ 已存在（跳过）" : preview ? "待创建" : "" }));
+}
+
+async function executeActionPlan(plan, config) {
+  const results = [];
+  for (const action of plan.actions) {
+    if (action.action === "skip") {
+      results.push({ menuName: action.menuName, permission: action.permission, status: "⏭ 已存在（跳过）", ok: true });
+      continue;
+    }
+    const saved = await saveMenu(action.body, config);
+    const id = saved.data?.id || "?";
+    results.push({ menuName: action.menuName, permission: action.permission,
+      status: saved.ok ? `✅ 创建成功 (id=${id})` : `❌ 失败: ${saved.error}`, ok: saved.ok });
+  }
+  return results;
+}
+
+async function handleActionUpsert(args = {}, config) {
+  try {
+    validateActionItems(args);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: "preview" });
+  }
+  const earlyBlock = args.confirmApply === true ? writeBlockReason(config) : "";
+  if (earlyBlock) return blockedResult(earlyBlock, "blocked", { mode: "apply" });
+  let plan;
+  try {
+    plan = await buildActionPlan(args, config);
+  } catch (error) {
+    return blockedResult(error.message, "blocked", { mode: args.confirmApply === true ? "apply" : "preview" });
+  }
+  if (args.confirmApply !== true) {
+    const rows = actionRows(plan.actions, true);
+    const text = `${formatTable(rows, ["menuName", "permission", "status"], ["动作名", "权限码", "状态"])}\n\nplanHash: ${plan.planHash}\n确认后携带相同 planHash 并传 confirmApply: true。`;
+    return previewResult(text, plan, { actions: plan.actions });
+  }
+  const stale = validatePlanHash(args, plan);
+  if (stale) return stale;
+  const results = await executeActionPlan(plan, config);
+  const text = formatTable(results, ["menuName", "permission", "status"], ["动作名", "权限码", "状态"]);
+  const response = completedResult(text, { planHash: plan.planHash, results });
+  return results.every((item) => item.ok) ? response : partialResult(response);
 }
 
 module.exports = {
@@ -326,4 +270,5 @@ module.exports = {
   handleAssignableMenusQuery,
   handleActionQuery,
   handleActionUpsert,
-}
+  _internal: { buildActionPlan, buildRoleAssignmentPlan, buildRolePlan },
+};

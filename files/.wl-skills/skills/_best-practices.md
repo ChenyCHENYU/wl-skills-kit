@@ -62,7 +62,7 @@ prototype-scan
 
 ```
 wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一二级有序创建
-  └─ 首次先传 dryRun: true 预览，确认无误再正式执行
+  └─ 默认只预览，确认无误后传 confirmApply: true
 ```
 
 **前置**：
@@ -112,9 +112,9 @@ wls_menu_sync_from_report  ← MCP 工具，自动读报告 + 查菜单树 + 一
 
 | 子场景 | MCP 工具序列 |
 |---|---|
-| 创建角色 | `wls_role_query`（查重）→ `wls_role_upsert` |
+| 创建角色 | `wls_role_query`（查重）→ `wls_role_upsert` 预览 → `wls_role_upsert(confirmApply: true)` |
 | 角色授权 | `wls_role_query` → `wls_assignable_menus_query` → 合并全量 `menuIds` → `wls_role_assign_menus(confirmFullReplace: true)`（⚠️ **全量覆盖**）|
-| 挂动作 | `wls_menu_query` 找页面 id → `wls_action_query` 查重 → `wls_action_upsert` 批量新增 → 修改 `data.ts` 给按钮加 `permission: [xxx]` 字段 |
+| 挂动作 | `wls_menu_query` 找页面 id → `wls_action_query` 查重 → `wls_action_upsert` 预览 → `wls_action_upsert(confirmApply: true)` → 修改 `data.ts` 给按钮加 `permission: [xxx]` 字段 |
 
 **避坑**：
 - 角色分配是**全量覆盖**，传 `[A,B]` 会把原有 C 移除，必须先查再合并；未传 `confirmFullReplace: true` 时 MCP 会拒绝提交

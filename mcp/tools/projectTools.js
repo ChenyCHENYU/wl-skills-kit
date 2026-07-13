@@ -131,6 +131,121 @@ function findMockFiles(root) {
   return walkFiles(mockDir, root).filter((rel) => /\.(ts|js)$/.test(rel));
 }
 
+function readTextIfPresent(filePath) {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+}
+
+function addPageFileIssues(page, issues) {
+  if (!page.hasDataTs) issues.push([page.dir, "warn", "缺 data.ts"]);
+  if (!page.hasIndexScss) issues.push([page.dir, "warn", "缺 index.scss"]);
+  if (page.apiConfigCount > 0 && !page.hasApiMd) {
+    issues.push([page.dir, "warn", "检测到 API_CONFIG 但缺 api.md"]);
+  }
+}
+
+function addTableIssues(page, indexContent, dataContent, issues) {
+  const baseTableCount = (indexContent.match(/<BaseTable\b/g) || []).length;
+  const agGridCount = (
+    indexContent.match(/render-type=["']agGrid["']/g) || []
+  ).length;
+  const cidCount = (indexContent.match(/\bcid=|:cid=/g) || []).length;
+  if (baseTableCount > 0 && agGridCount < baseTableCount) {
+    issues.push([page.dir, "error", 'BaseTable 必须 render-type="agGrid"']);
+  }
+  if (baseTableCount > 0 && cidCount < baseTableCount) {
+    issues.push([page.dir, "error", "BaseTable 必须配置 cid/:cid"]);
+  }
+  addColumnDefinitionIssue(page, baseTableCount, dataContent, issues);
+}
+
+function addColumnDefinitionIssue(page, baseTableCount, dataContent, issues) {
+  if (baseTableCount > 0 && dataContent && !/defineColumns\s*\(/.test(dataContent)) {
+    issues.push([page.dir, "error", "列定义必须使用 defineColumns()"]);
+  }
+}
+
+function addPageBehaviorIssues(page, dataContent, mockFiles, issues) {
+  if (/operations\s*:/.test(dataContent)) {
+    issues.push([page.dir, "error", "禁止 operations 数组，必须使用 renderOps()"]);
+  }
+  if (/onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(dataContent)) {
+    issues.push([page.dir, "error", "存在空 onClick"]);
+  }
+  if (page.apiConfigCount > 0 && mockFiles.length === 0) {
+    issues.push([page.dir, "warn", "检测到 API_CONFIG 但无 mock 文件"]);
+  }
+}
+
+function addMockEndpointIssues(page, dataContent, mockContent, issues) {
+  const urls = Array.from(
+    dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
+  ).map((match) => match[1]);
+  for (const url of urls.filter((item) => item.startsWith("/"))) {
+    const mockUrl = `/dev-api${url}`;
+    if (mockContent && !mockContent.includes(mockUrl)) {
+      issues.push([page.dir, "warn", `mock 未发现端点 ${mockUrl}`]);
+    }
+  }
+}
+
+function addLocalPageIssues(root, pages, mockFiles, mockContent, issues) {
+  for (const page of pages) {
+    const pageDir = path.join(root, page.dir);
+    const indexContent = readTextIfPresent(path.join(pageDir, "index.vue"));
+    const dataContent = readTextIfPresent(path.join(pageDir, "data.ts"));
+    addPageFileIssues(page, issues);
+    addTableIssues(page, indexContent, dataContent, issues);
+    addPageBehaviorIssues(page, dataContent, mockFiles, issues);
+    addMockEndpointIssues(page, dataContent, mockContent, issues);
+  }
+}
+
+function addAstIssues(root, scanPath, issues) {
+  const result = runAstRules(root, scanPath);
+  if (result.astAvailable === false) {
+    issues.push([scanPath, "warn", "AST 引擎不可用，跳过语义级规则（R1~R14）"]);
+    return;
+  }
+  for (const issue of result.issues) {
+    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
+  }
+}
+
+function addPageSpecIssues(root, pages, issues) {
+  for (const page of pages) {
+    const result = alignPage(path.join(root, page.dir), page.dir);
+    for (const issue of result.issues) {
+      issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
+    }
+  }
+}
+
+function addTypeCheckIssues(root, enabled, issues) {
+  if (!enabled) return;
+  for (const issue of runTypeCheck(root).issues) {
+    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
+  }
+}
+
+function formatValidationResult(scanPath, pages, issues) {
+  const count = (level) => issues.filter((item) => item[1] === level).length;
+  const lines = [
+    `✅ 页面校验完成：${scanPath}`,
+    "",
+    `- 页面目录：${pages.length}`,
+    `- error：${count("error")}`,
+    `- warn：${count("warn")}`,
+    `- info：${count("info")}`,
+    "",
+  ];
+  if (issues.length === 0) return lines.concat("✔ 未发现偏差").join("\n");
+  lines.push("| 页面目录 | 级别 | 问题 |", "|---|---|---|");
+  for (const [dir, level, text] of issues) {
+    lines.push(`| ${dir} | ${level} | ${text} |`);
+  }
+  return lines.join("\n");
+}
+
 async function handleValidatePage(args) {
   const root = getProjectRoot();
   const scanPath = args && args.path ? args.path : "src/views";
@@ -140,104 +255,11 @@ async function handleValidatePage(args) {
     .map((rel) => fs.readFileSync(path.join(root, rel), "utf8"))
     .join("\n");
   const issues = [];
-
-  for (const page of pages) {
-    const indexPath = path.join(root, page.dir, "index.vue");
-    const dataPath = path.join(root, page.dir, "data.ts");
-    const indexContent = fs.existsSync(indexPath)
-      ? fs.readFileSync(indexPath, "utf8")
-      : "";
-    const dataContent = fs.existsSync(dataPath)
-      ? fs.readFileSync(dataPath, "utf8")
-      : "";
-    const baseTableCount = (indexContent.match(/<BaseTable\b/g) || []).length;
-    const agGridCount = (
-      indexContent.match(/render-type=["']agGrid["']/g) || []
-    ).length;
-    const cidCount = (indexContent.match(/\bcid=|:cid=/g) || []).length;
-
-    if (!page.hasDataTs) issues.push([page.dir, "warn", "缺 data.ts"]);
-    if (!page.hasIndexScss) issues.push([page.dir, "warn", "缺 index.scss"]);
-    if (page.apiConfigCount > 0 && !page.hasApiMd)
-      issues.push([page.dir, "warn", "检测到 API_CONFIG 但缺 api.md"]);
-    if (baseTableCount > 0 && agGridCount < baseTableCount)
-      issues.push([page.dir, "error", 'BaseTable 必须 render-type="agGrid"']);
-    if (baseTableCount > 0 && cidCount < baseTableCount)
-      issues.push([page.dir, "error", "BaseTable 必须配置 cid/:cid"]);
-    if (
-      baseTableCount > 0 &&
-      dataContent &&
-      !/defineColumns\s*\(/.test(dataContent)
-    )
-      issues.push([page.dir, "error", "列定义必须使用 defineColumns()"]);
-    if (/operations\s*:/.test(dataContent))
-      issues.push([
-        page.dir,
-        "error",
-        "禁止 operations 数组，必须使用 renderOps()",
-      ]);
-    if (/onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(dataContent))
-      issues.push([page.dir, "error", "存在空 onClick"]);
-    if (page.apiConfigCount > 0 && mockFiles.length === 0)
-      issues.push([page.dir, "warn", "检测到 API_CONFIG 但无 mock 文件"]);
-    const apiUrls = Array.from(
-      dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
-    ).map((m) => m[1]);
-    for (const url of apiUrls.filter((item) => item.startsWith("/"))) {
-      const mockUrl = `/dev-api${url}`;
-      if (mockContent && !mockContent.includes(mockUrl))
-        issues.push([page.dir, "warn", `mock 未发现端点 ${mockUrl}`]);
-    }
-  }
-
-  // ── AST 语义级规则检测（v2.10.0+）─────────────────────────────────
-  const astResult = runAstRules(root, scanPath);
-  if (astResult.astAvailable === false) {
-    issues.push([
-      scanPath,
-      "warn",
-      "AST 引擎不可用，跳过语义级规则（R1~R14）",
-    ]);
-  } else {
-    for (const iss of astResult.issues) {
-      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
-    }
-  }
-
-  // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
-  for (const page of pages) {
-    const absDir = path.join(root, page.dir);
-    const { issues: specIssues } = alignPage(absDir, page.dir);
-    for (const iss of specIssues) {
-      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
-    }
-  }
-
-  // ── 类型检查 R14（v2.11.2+，仅当 typecheck:true 触发）─────────────────
-  if (args && args.typecheck) {
-    const tc = runTypeCheck(root);
-    for (const iss of tc.issues) {
-      issues.push([iss.dir, iss.level, `[${iss.rule}] ${iss.text}`]);
-    }
-  }
-
-  const errors = issues.filter((item) => item[1] === "error").length;
-  const lines = [
-    `✅ 页面校验完成：${scanPath}`,
-    "",
-    `- 页面目录：${pages.length}`,
-    `- error：${errors}`,
-    `- warn：${issues.length - errors - issues.filter(i => i[1] === "info").length}`,
-    `- info：${issues.filter(i => i[1] === "info").length}`,
-    "",
-  ];
-  if (issues.length === 0) lines.push("✔ 未发现偏差");
-  else {
-    lines.push("| 页面目录 | 级别 | 问题 |", "|---|---|---|");
-    for (const [dir, level, text] of issues)
-      lines.push(`| ${dir} | ${level} | ${text} |`);
-  }
-  return lines.join("\n");
+  addLocalPageIssues(root, pages, mockFiles, mockContent, issues);
+  addAstIssues(root, scanPath, issues);
+  addPageSpecIssues(root, pages, issues);
+  addTypeCheckIssues(root, args && args.typecheck, issues);
+  return formatValidationResult(scanPath, pages, issues);
 }
 
 async function handleDoctorUi() {
@@ -310,6 +332,15 @@ function findRouteFile(root, inputPath) {
   return null;
 }
 
+function routeIncludesPage(routeContent, pageDir) {
+  const viewRel = pageDir.replace(/^src\/views\//, "");
+  const segments = viewRel.split("/").filter(Boolean);
+  const lastSegment = segments[segments.length - 1] || viewRel;
+  return [viewRel, pageDir, lastSegment].some((value) =>
+    routeContent.includes(value),
+  );
+}
+
 async function handleRouteCheck(args) {
   const root = getProjectRoot();
   const scanPath = args && args.path ? args.path : "src/views";
@@ -319,16 +350,10 @@ async function handleRouteCheck(args) {
   }
   const routeContent = fs.readFileSync(routeFile, "utf8").replace(/\\/g, "/");
   const pages = findPageDirs(root, scanPath);
-  const rows = [];
-  for (const page of pages) {
-    const viewRel = page.dir.replace(/^src\/views\//, "");
-    const lastSegment = viewRel.split("/").filter(Boolean).pop() || viewRel;
-    const registered =
-      routeContent.includes(viewRel) ||
-      routeContent.includes(page.dir) ||
-      routeContent.includes(lastSegment);
-    rows.push({ dir: page.dir, registered });
-  }
+  const rows = pages.map((page) => ({
+    dir: page.dir,
+    registered: routeIncludesPage(routeContent, page.dir),
+  }));
   const miss = rows.filter((r) => !r.registered);
   const relRoute = normalizePath(path.relative(root, routeFile));
   const lines = [
@@ -419,9 +444,20 @@ function findLatestAuditReport(root, inputPath) {
 
 function postWebhook(webhook, payload) {
   return new Promise((resolve) => {
+    let target;
+    try {
+      target = new URL(webhook);
+    } catch {
+      resolve({ ok: false, error: "webhook URL 无效" });
+      return;
+    }
+    if (target.protocol !== "https:") {
+      resolve({ ok: false, error: "webhook 仅允许 HTTPS" });
+      return;
+    }
     const body = JSON.stringify(payload);
     const req = https.request(
-      webhook,
+      target,
       {
         method: "POST",
         headers: {
@@ -442,6 +478,7 @@ function postWebhook(webhook, payload) {
       },
     );
     req.on("error", (e) => resolve({ ok: false, error: e.message }));
+    req.setTimeout(10000, () => req.destroy(new Error("webhook 请求超时（10000ms）")));
     req.write(body);
     req.end();
   });
@@ -449,14 +486,12 @@ function postWebhook(webhook, payload) {
 
 async function handleAuditReportPush(args) {
   const root = getProjectRoot();
-  const env = readEnvLocal(root);
-  const webhook = env && env.feishu_webhook;
-  if (
-    !webhook ||
-    String(webhook).includes("你的") ||
-    String(webhook).includes("webhook")
-  ) {
+  const webhook = configuredWebhook(root);
+  if (!webhook) {
     return "ℹ️ 未配置 env.local.json 的 feishu_webhook，已跳过审计报告推送";
+  }
+  if (!args || args.confirmPush !== true) {
+    return "审计报告推送预览：已配置 HTTPS webhook，本次零推送。确认目标和报告后传 confirmPush: true。";
   }
   const report = findLatestAuditReport(root, args && args.reportPath);
   if (!report) return "⚠️ 未找到可推送的审计报告";
@@ -471,6 +506,18 @@ async function handleAuditReportPush(args) {
   return `✅ 审计报告已推送：${rel}`;
 }
 
+function configuredWebhook(root) {
+  const env = readEnvLocal(root);
+  const webhook = env && env.feishu_webhook;
+  if (!webhook) return "";
+  const value = String(webhook);
+  try {
+    return new URL(value).protocol === "https:" ? value : "";
+  } catch {
+    return "";
+  }
+}
+
 module.exports = {
   handleCodeScan,
   handleValidatePage,
@@ -482,5 +529,6 @@ module.exports = {
     findEnvLocal,
     readEnvLocal,
     findLatestAuditReport,
+    configuredWebhook,
   },
 };

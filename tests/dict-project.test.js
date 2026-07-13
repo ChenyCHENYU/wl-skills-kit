@@ -10,6 +10,8 @@ const {
   buildLocalRegistry,
   discoverDictFiles,
   planBootstrap,
+  hashValue,
+  stableStringify,
 } = require("../lib/dict-project");
 const { formatModuleContract } = require("../lib/dict-contract");
 const dictSync = require("../mcp/tools/dictSync");
@@ -51,6 +53,14 @@ afterEach(() => {
 });
 
 describe("project dictionary discovery", () => {
+  it("planHash 对对象键顺序不敏感并对数组顺序敏感", () => {
+    expect(stableStringify({ b: 2, a: { d: 4, c: 3 } })).toBe(
+      stableStringify({ a: { c: 3, d: 4 }, b: 2 }),
+    );
+    expect(hashValue({ b: 2, a: 1 })).toBe(hashValue({ a: 1, b: 2 }));
+    expect(hashValue(["0", "1", "2"])).not.toBe(hashValue(["1", "0", "2"]));
+  });
+
   it("确定性发现多个模块并建立唯一所有权索引", () => {
     const root = createRoot();
     writeContract(root, "model", contract("model", "modelType"));

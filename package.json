@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.12.5",
-  "description": "AI Skill 模板包 v2.12.5 — 14 条编码规范 + 12 个 AI Skill + 21 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
+  "version": "2.12.6",
+  "description": "AI Skill 模板包 v2.12.6 — 14 条编码规范 + 12 个 AI Skill + 21 个 MCP Tool，一条命令导入 Vue 3 项目（.wl-skills/ 统一隔离架构）",
   "main": "./bin/wl-skills.js",
   "packageManager": "pnpm@11.5.3",
   "bin": {
@@ -28,7 +28,7 @@
     "kiro",
     "agents"
   ],
-  "author": "JHLC Frontend Team",
+  "author": "CHENY <ycyplus@gmail.com>",
   "license": "UNLICENSED",
   "publishConfig": {
     "access": "public"
@@ -38,13 +38,13 @@
     "url": "git+https://github.com/ChenyCHENYU/wl-skills-kit.git"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "standards:init": "pnpm dlx @robot-admin/git-standards init",
     "prepare": "husky",
     "cz": "git-cz",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:skills": "node scripts/lint-skills.js",
     "test": "vitest run",
     "version:verify": "node scripts/verify-version.js",

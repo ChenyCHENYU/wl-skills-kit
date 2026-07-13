@@ -104,8 +104,8 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 
 ```
 工具：wls_menu_sync_from_report
-入参：{ dryRun?: boolean, reportPath?: string }   // 不传 reportPath 自动用最新 SYS_MENU_INFO*.md
-第一次执行：先传 dryRun: true 预览，确认无误后再正式执行（去掉 dryRun）
+入参：{ confirmApply?: boolean, dryRun?: boolean, reportPath?: string, planHash?: string }   // 不传 reportPath 自动用最新 SYS_MENU_INFO*.md
+第一次执行不传确认参数，读取线上并返回预览 `planHash`；确认后传 `confirmApply: true` 和相同 `planHash`。执行前线上漂移会使旧哈希失效并保持零写入。
 ```
 
 ### 手动拆分流程（仅当一步式不满足时）
@@ -124,7 +124,8 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 
 ```
 工具：wls_menu_upsert
-入参：{ items: [<下面的对象>...] }
+入参：{ items: [<下面的对象>...], confirmApply?: boolean, planHash?: string }
+第一次执行默认预览；确认 parentId、路径和新增/更新项后，原样携带 `items`，并传 `confirmApply: true` 和预览 `planHash`
 ```
 
 **`items[]` 单条对象模板（仅作为 MCP 入参参考，禁止 AI 自行 fetch）**：
