@@ -1,6 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [2.13.1] - 2026-07-20
+
+### 变更
+
+- **彻底移除废弃组件 C_Splitter 及全部相关引用**：物理组件早在前序版本已删除，本次清理残留的检测逻辑、守门规则和废弃说明文档，避免误导新接入团队。
+  - 删除 `bin/wl-skills.js` 中 validate 的 `<C_Splitter>` / `import C_Splitter` 检测项、doctor-ui 的残留扫描块、修复建议映射
+  - 删除 `scripts/lint-skills.js` 中 C_Splitter 守门规则（保留 `walkAll` 工具函数供其他检查使用）
+  - 删除 `lib/safe-fix.js` 中 F3 C_Splitter 修复说明
+  - 重写 `standards/14-layout-containers.md` 为纯 `jh-drag-col` / `jh-drag-row` 正面用法规范（移除全部废弃根因解析和迁移对照表）
+  - 清理 `standards/13`、`standards/index`、`TPL-DETAIL-TABS`、`TPL-TREE-LIST`、`page-codegen/SKILL`、`convention-audit/SKILL`、`guides/architecture`、`rule-coverage`、`ARCHITECTURE-PLAN`、`README` 共 11 个文档中的 C_Splitter 引用
+  - 清理 CHANGELOG 中 v2.9.0/v2.9.1/v2.9.2/v2.9.3 共 4 个版本的历史条目
+  - 重写 `tests/doctor-ui.test.js` 为 wl-skills-ui 接入检查测试（原 C_Splitter 残留扫描测试已无意义）
+  - 全仓零残留，204 个测试全部通过
 
 ## [2.13.0] - 2026-07-18
 
