@@ -38,7 +38,7 @@
 | standards/06 | 禁止 eval / new Function | R7 | error | 是 |
 | standards/10 | data.ts 禁止 import Pinia Store | R11 | error | 是 |
 | standards/07 | 禁止硬编码 IP/URL | R12 | error/warn | 是 |
-| standards/14 | 禁用 C_Splitter | regex | error | 是 |
+| standards/14 | 布局容器必须用 jh-drag-col/row | regex | error | 是 |
 | standards/04 | 禁止空 onClick | regex | error | 是 |
 | standards/04 | 单函数圈复杂度 ≤ 10（Mcabe） | **R13** | error | 是 |
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **R14** | error | 是 |

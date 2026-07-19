@@ -180,7 +180,7 @@ standards/
 ├── 11-form-validation.md 表单与校验规范（🔴 必遵）
 ├── 12-base-table.md    BaseTable + AGGrid cid 命名规范（🔴 必遵）
 ├── 13-platform-components.md  平台组件对照表（🔴 必遵 + 阻断）
-└── 14-layout-containers.md    布局容器（禁用 C_Splitter）（🔴 必遵 + 阻断）
+└── 14-layout-containers.md    布局容器 jh-drag-col/row（🔴 必遵 + 阻断）
 ```
 
 **懒加载门控设计**：

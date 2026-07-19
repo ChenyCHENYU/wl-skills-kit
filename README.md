@@ -131,7 +131,6 @@ wl-skills contract compare --left contracts/mdm-task.json \
 - **新增 page-spec 落盘 + spec-align 确定性比对（S1~S5）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 的 `queryDef/columnsDef/toolbarDef` 与之逐项比对——查询字段顺序、表格列顺序、工具栏按钮顺序与颜色、操作列按钮集合、label 文字保真。过去只靠 AI 自觉的 6 条"精准实现"约定，现在变成可阻断的硬卡控
 - **新增 `wl-skills fix` 确定性机械修复**：对幂等、零语义判断的偏差（BaseTable 补 `render-type`、`::v-deep`→`:deep()`、行尾空白、文件末尾换行）做确定性自动修复，AI 只处理需语义判断的部分；`--dry-run` 预览
 - **新增「规则 → 执行器」覆盖矩阵治理**：`kit-internal/rule-coverage.md` 登记每条约定由谁兜底（R*/S*/regex/AI），`lint:skills` 校验标记「阻断」的规则必须有真实执行器，杜绝"文档约定"退化为纯文档
-- **C_Splitter 彻底删除**：废弃组件（onMounted 冻 vnode 致响应式失效）从包内移除，`lint:skills` 全量禁止任何引用，无例外
 - **修复 v2.11 目录迁移遗留**：`lint-skills.js` / `verify-version.js` / `sync-version.js` 的 `.github/` 路径全部修正为 `.wl-skills/`，CI 自检链路恢复可用
 
 **v2.8.0**：Mock 架构体系固化 + `mock-clean` CLI 命令。

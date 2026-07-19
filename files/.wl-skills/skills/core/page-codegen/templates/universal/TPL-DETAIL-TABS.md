@@ -3,7 +3,7 @@
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
 
 > 适用场景：编辑/维护页面，上半区为多 Tab 表单（基本信息/客户信息/其他信息），下半区为子项表格。
-> **布局核心**：`jh-drag-row :topHeight="..."` 垂直分割上下区域（严禁 `C_Splitter`，详 standards/14-layout-containers.md）。
+> **布局核心**：`jh-drag-row :topHeight="..."` 垂直分割上下区域（详 standards/14-layout-containers.md）。
 > **参考标杆**：`src/views/sale/.wl-skills/templates/add-.wl-skills/templates/`、`src/views/sale/.wl-skills/templates/domestic-trade-order-mainten/`
 
 #### index.vue
@@ -107,7 +107,6 @@
 
 <script setup lang="ts">
 import { onMounted } from "vue";
-// ⚠️ 不再需要 import C_Splitter——jh-drag-row 是 @jhlc/common-core 全局注册组件
 import {
   form,
   rules,

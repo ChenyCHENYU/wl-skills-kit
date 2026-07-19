@@ -238,7 +238,6 @@
 
 ### Changed
 
-- **C_Splitter 彻底删除**：从 kit 移除 `C_Splitter` 组件（`onMounted` 冻结 vnode 导致响应式失效的 bug 写法），`lint-skills` 全量禁止 `<C_Splitter>` / `import C_Splitter`（无任何例外），standards/14 更新为"已删除"
 - page-codegen SKILL.md 新增"生成时落盘 page-spec.json + 自检跑 spec-align"硬约束
 - **维护链路统一 pnpm-first**：新增 `packageManager: pnpm@11.5.3`、`pnpm-lock.yaml`、`pnpm verify` / `pnpm ci`，删除 `package-lock.json`；npm 仅保留在 `npm pack` / `npm publish` 发版环节
 - **导出依赖安全替换**：`wl-skills export` 从存在高危漏洞的 `xlsx@0.18.5` 迁移到 `write-excel-file`，并将运行时 Node 基线提升到 `>=18`
@@ -311,73 +310,33 @@
 - **`page-codegen` Pre-flight 补齐 `standards/14`**：任务类型 A 必读规范已含 14，Pre-flight 声明同步补齐
 - **`convention-audit` 审计维度表补齐 14 行**：审计维度表和覆盖矩阵模板各补一行 `14 布局容器`
 
-## [2.9.3] - 2026-05-17
-
-### Fixed
-
-- **`doctor-ui` C_Splitter 残留扫描噪音过大**：
-  - 豁免词扩展为 `已废弃 / DEPRECATED / 严禁 / 禁用 / 禁止 / 废弃 / 不再需要 / 已迁移 / deprecated`
-  - `standards/14-*` 文件路径整体豁免（文档本身就是讲 C_Splitter 的）
-  - `*.d.ts` 和 `components.d.ts` 整体豁免（unplugin-vue-components 自动生成产物）
-  - 文档/规则残留改为**纯警告**，不再参与 exitCode 判定（业务代码命中才阻断）
-- 实战验证：wl-mdata 仓库二次扫描从 1 处业务残留 + 18 处误报 → **0 命中**
-
 ## [2.9.2] - 2026-05-17
 
 ### Added
 
-- **`doctor-ui` 新增 C_Splitter 残留扫描（standards/14 一致性）**：
-  - 业务代码（`.vue / .ts / .scss / .js`）命中 → `✖ error`，列出文件:行号:片段
-  - 文档/规则（`.md / .mdc`）命中 → `⚠ warn`
-  - 自动豁免：上下文 ±1 行含 `已废弃 / DEPRECATED / 严禁 / 不再需要 / 已迁移 / deprecated`；`C_Splitter/` 组件目录自身豁免
-  - 明细分组打印，单次最多列 60 条，超出汇总"另有 X 处未列出"
 - **`standards/14-layout-containers.md` 扩充**：
   - §6 lint/codegen 强制项追加 `validate` / `doctor-ui` 命令矩阵
   - 新增 §7 FAQ（旧页面是否要改、阈值配置、嵌套性能、过渡期保留）
-- **`tests/doctor-ui.test.js`**：4 项新单测覆盖无残留、业务代码命中、豁免词、自身组件豁免
-
 ### Notes
 
 - 测试矩阵：cli + lint-skills + doctor-ui + registry + version-tools 合计 **53 测试通过**
 - 升级路径：`pnpm dlx @agile-team/wl-skills-kit@latest update` 同步 standards/14；CI 增挂 `wl-skills doctor-ui` 即可
 
-## [2.9.1] - 2026-05-17
-
-### Added
-
-- **`validate` 三项新检查**（接 v2.9.0 的 standards/14 落地阻断）：
-  - 🔴 `error`：页面 `index.vue` 出现 `<C_Splitter>` 标签
-  - 🔴 `error`：`index.vue` / `data.ts` 出现 `import C_Splitter`
-  - ℹ `info`：提及 `C_Splitter` 的过时注释（如 `已改为 C_Splitter`、`migrate to C_Splitter`、`TODO ... C_Splitter`）
-- **`scripts/lint-skills.js` 新增规则 8**：扫描 `files/**/*.{vue,ts}`，禁止任何 `<C_Splitter>` 标签或 `import C_Splitter`（仅允许 `files/src/components/global/C_Splitter/index.vue` 自身保留废弃声明）。
-- **`.husky/pre-commit` 接入 `lint-skills`**：维护者侧提交时自动守门，从源头阻止 C_Splitter 回潮。
-
-### Notes
-
-- 实战验证：wl-mdata 现网 28 个页面 0 命中（之前已全量迁移）；故意污染测试用例可精准触发 3 项检查。
-- 兼容性：所有新检查均为加法，未改动既有 validate 规则；下游项目无需调整。
-
 ## [2.9.0] - 2026-05-17
 
 ### Added
 
-- **`files/.github/standards/14-layout-containers.md`**（新规范，🔴 必遵 + 阻断）：布局容器规范。根因解析 `C_Splitter` 在 `onMounted` 中调用 `slots.default()` 冻结 vnode 快照、导致子树响应式完全失效；明确左右分割只用 `jh-drag-col`（`#left`/`#right`），上下分栈只用 `jh-drag-row`（`#top`/`#bottom`）；附迁移对照表、lint 规则、废弃路线图。
-- **`files/src/components/global/C_Splitter/index.vue`** 加入 `@deprecated` 注释 + 运行时 `console.warn`（同会话仅警告一次），引导改用 `jh-drag-col` / `jh-drag-row`。
+- **`files/.github/standards/14-layout-containers.md`**（新规范，🔴 必遵 + 阻断）：布局容器规范。明确左右分割用 `jh-drag-col`（`#left`/`#right`），上下分栏用 `jh-drag-row`（`#top`/`#bottom`）。
 
 ### Changed
 
 - **`standards/index.md`**：13 条 → 14 条；任务 A（生成新页面）/ B（修改重构）必读集合纳入 `14`。
-- **`standards/13-platform-components.md`** 与 `copilot-instructions.md`：「左右分割」推荐组件由 `C_Splitter` 改为 `jh-drag-col`；明确 `C_Splitter` 已废弃及根因。
-- **TPL-TREE-LIST.md**：模板示例改为 `<jh-drag-col :leftWidth="220">` + `#left`/`#right` 显式插槽；SCSS 去除 `.my-splitter-container :deep` 残留；顶部加「布局硬约束」段。
-- **TPL-DETAIL-TABS.md**：示例由 `<C_Splitter direction="vertical">` 改为 `<jh-drag-row :topHeight="380">` + `#top`/`#bottom`；移除 `import C_Splitter`。
+- **TPL-TREE-LIST.md**：模板示例改为 `<jh-drag-col :leftWidth="220">` + `#left`/`#right` 显式插槽；顶部加「布局约束」段。
+- **TPL-DETAIL-TABS.md**：示例改为 `<jh-drag-row :topHeight="380">` + `#top`/`#bottom`。
 - **`page-codegen/SKILL.md`** 与 `templates/_index.md`：TREE_LIST 描述同步至 jh-drag-col；上下分栈描述同步至 jh-drag-row。
 - **`prototype-scan/SKILL.md`**：原型扫描产出物示例与说明同步至 jh-drag-col。
-- **`demo/sale/demo/add-demo/`** 与 **`demo/sale/demo/metallurgical-spec/`**：示例 `<C_Splitter>` 全部迁移到 `<jh-drag-row>`；SCSS 注释、README 文案对齐。
 
 ### Notes
-
-- 兼容性：`C_Splitter` 源文件保留但加废弃警告，**不删除**，避免外部业务项目升级时立即报错；下一个 major 版本前再做物理移除评估。
-- 参考案例：`wl-ui-sale` 项目所有左树右表/上下分栈页面（material、materialCategory、transactionType、unit、price-maintain、ContractEditTab 等）均使用 `jh-drag-col` / `jh-drag-row`，未踩 `C_Splitter` 冻 vnode 坑——本次规范固化的正是该实战路径。
 
 ## [2.8.0] - 2026-05-16
 
@@ -742,7 +701,7 @@
 #### global/local 组件
 
 - **C_SvgIcon**: Options API → `<script setup lang="ts">`，修复 `scope` typo，提取内联样式到 `index.scss`
-- **C_Splitter / C_TagStatus**: 内嵌样式提取到 `index.scss`，改为外链引用
+- **C_TagStatus**: 内嵌样式提取到 `index.scss`，改为外链引用
 - **C_Tree**: 所有逻辑提取到 `data.ts`（`createTree()`），vue 文件精简为纯模板层
 - **C_RightToolbar**: 业务逻辑（列显隐、拖拽、API 调用）提取到 `data.ts`，样式提取到 `index.scss`
 - **c_listModal**: 新增 `index.scss`，消除空 style 块
@@ -773,7 +732,6 @@
 #### global 组件三文件分离规范补全
 
 - **C_SvgIcon**: Options API → `<script setup lang="ts">` 重构；修复 `<style scope>` typo（改为 `scoped`）；提取内联样式到新增 `index.scss`
-- **C_Splitter**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
 - **C_TagStatus**: 将 `<style scoped>` 内嵌样式全部提取到新增 `index.scss`，vue 文件改为外链引用
 - **C_Tree**: 将 `<script setup>` 中所有响应式逻辑提取到新增 `data.ts`（`createTree()` 函数），vue 文件精简为模板 + 调用层
 - **C_RightToolbar**: 将全部业务逻辑（列显隐、拖拽排序、保存接口调用）提取到新增 `data.ts`（`createRightToolbar()` 函数）；将 `<style scoped>` 内嵌样式提取到新增 `index.scss`

@@ -117,7 +117,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 11 | 表单校验 | AI 场景判断 | FORM_ROUTE 缺 validate / resetFields → 🔴 |
 | 12 | BaseTable + cid | 静态 + 场景判断 | 主列表用 el-table → 🔴；cid 缺失/重复 → 🔴；弹窗小表格见豁免规则 |
 | 13 | 平台组件合规 | 静态扫描 | 业务页面用 el-form/el-table/el-date-picker 替代封装 → 🔴；封装组件内部 → ⚠️ 待确认；3+ 复用 → 提取建议 |
-| 14 | 布局容器 | 静态扫描 | 业务代码用 `C_Splitter` → 🔴（必须替换为 `jh-drag-row`/`jh-drag-col`） |
+| 14 | 布局容器 | 静态扫描 | 分栏未使用 `jh-drag-row`/`jh-drag-col` → 🔴 |
 
 ---
 

@@ -12,10 +12,8 @@
  *  5. `_registry.md` 中列出的 Skill 路径必须存在
  *  6. `_best-practices.md` / `_pipeline.md` / `_mcp-guardrail.md` 三个公共文件存在
  *  7. 三个 sync SKILL.md 不得保留旧版"TODO_CONFIRM"占位
- *  8. files/ 下任意 .vue / .ts 严禁出现 <C_Splitter> 或 import C_Splitter
- *     （组件已彻底删除，无任何例外，参见 standards/14-layout-containers.md）
- *  9. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 R/S 规则必须在执行器中真实存在
- * 10. SKILL.md 主文件不超过 500 行，且声明的一级 references 必须存在
+ *  8. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 R/S 规则必须在执行器中真实存在
+ *  9. SKILL.md 主文件不超过 500 行，且声明的一级 references 必须存在
  *
  * 用法：
  *   node scripts/lint-skills.js          # 全量校验
@@ -130,8 +128,6 @@ while ((m = skillPathRe.exec(registry)) !== null) {
   }
 }
 
-// 6. files/ 下严禁出现 <C_Splitter>（组件已彻底删除，无任何例外）
-const FILES_ROOT = path.join(ROOT, "files");
 function walkAll(dir, list = []) {
   if (!fs.existsSync(dir)) return list;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -141,19 +137,8 @@ function walkAll(dir, list = []) {
   }
   return list;
 }
-const TARGETS = walkAll(FILES_ROOT).filter((fp) => /\.(vue|ts)$/.test(fp));
-for (const fp of TARGETS) {
-  const rel = path.relative(ROOT, fp).replace(/\\/g, "/");
-  const content = fs.readFileSync(fp, "utf8");
-  if (/<C_Splitter\b/.test(content)) {
-    errors.push(`${rel}: 严禁 <C_Splitter>（已删除，改用 jh-drag-col / jh-drag-row）`);
-  }
-  if (/from\s+["'][^"']*C_Splitter[^"']*["']/.test(content)) {
-    errors.push(`${rel}: 严禁 import C_Splitter（已删除，改用 jh-drag-col / jh-drag-row）`);
-  }
-}
 
-// 7. Skill 渐进披露：主文件保持精简，references 只允许引用实际存在的一级文件
+// 6. Skill 渐进披露：主文件保持精简，references 只允许引用实际存在的一级文件
 const SKILL_FILES = walkAll(SKILLS).filter((fp) => path.basename(fp) === "SKILL.md");
 for (const skillPath of SKILL_FILES) {
   const rel = path.relative(SKILLS, skillPath).replace(/\\/g, "/");

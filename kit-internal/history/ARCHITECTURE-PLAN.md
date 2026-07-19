@@ -172,7 +172,7 @@
 │   │       │   ├── TPL-LIST.md          标准列表页（BaseQuery+BaseToolbar+BaseTable+分页）
 │   │       │   ├── TPL-FORM-ROUTE.md    复杂表单独立路由页（多Tab/多子表/手动validate）
 │   │       │   ├── TPL-MASTER-DETAIL.md 主从表页（jh-drag-row上下分栏）
-│   │       │   ├── TPL-TREE-LIST.md     左树右列表页（C_Splitter布局）
+│   │       │   ├── TPL-TREE-LIST.md     左树右列表页（jh-drag-col布局）
 │   │       │   ├── TPL-DETAIL-TABS.md   详情Tab页（上方表单+下方Tab子表）
 │   │       │   ├── TPL-CHANGE-HISTORY.md 变更历史比对页（时间线+字段差异）
 │   │       │   ├── TPL-RECORD-FORM.md   录入型实绩页（无分页，查询+内联表单）

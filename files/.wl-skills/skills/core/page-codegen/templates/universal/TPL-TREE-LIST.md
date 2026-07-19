@@ -1,7 +1,7 @@
 # TREE_LIST：树形+列表
 
 > 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
-> **布局硬约束**：严禁使用 `C_Splitter`（冻vnode导致响应式完全失效），必须用 `jh-drag-col`（详 standards/14-layout-containers.md）。
+> **布局约束**：必须用 `jh-drag-col`（详 standards/14-layout-containers.md）。
 
 #### index.vue
 

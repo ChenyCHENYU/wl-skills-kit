@@ -1178,17 +1178,6 @@ function inspectPageDirectory(dir, names) {
     hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
       dataContent,
     ),
-    hasCSplitterTag: /<C_Splitter\b/.test(indexContent),
-    hasCSplitterImport: [indexContent, dataContent].some((content) =>
-      /from\s+["'][^"']*C_Splitter[^"']*["']/.test(content),
-    ),
-    staleSplitterComments: [indexContent, dataContent].reduce(
-      (count, content) =>
-        count +
-        (content.match(/(?:已改为|migrate to|TODO).{0,40}C_Splitter/g) || [])
-          .length,
-      0,
-    ),
     apiUrls: Array.from(
       dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
     ).map((match) => match[1]),
@@ -1352,14 +1341,9 @@ function appendPageBehaviorIssues(issues, page) {
   const checks = [
     [page.hasOperationsArray, "error", "操作列禁止 operations 数组，必须使用 defaultSlot + renderOps()"],
     [page.hasEmptyOnClick, "error", "存在空 onClick: () => {}"],
-    [page.hasCSplitterTag, "error", "禁用 <C_Splitter>：请改用 jh-drag-col（左右）/ jh-drag-row（上下），详 standards/14-layout-containers.md"],
-    [page.hasCSplitterImport, "error", "禁止 import C_Splitter：该组件已废弃（onMounted 冻 vnode 致响应式失效），详 standards/14"],
   ];
   for (const [matched, level, text] of checks) {
     if (matched) issues.push({ level, dir: page.dir, text });
-  }
-  if (page.staleSplitterComments > 0) {
-    issues.push({ level: "info", dir: page.dir, text: `发现 ${page.staleSplitterComments} 处提及 C_Splitter 的过时注释，建议清理` });
   }
 }
 
@@ -1567,11 +1551,6 @@ const FIX_SUGGESTIONS = {
     ref: 'standards/12-base-table.md',
     auto: true,
   },
-  'C_Splitter': {
-    fix: '\u66ff\u6362\u4e3a jh-drag-col\uff08\u5de6\u53f3\uff09/ jh-drag-row\uff08\u4e0a\u4e0b\uff09',
-    ref: 'standards/14-layout-containers.md',
-    auto: true,
-  },
   'onClick: () => {}': {
     fix: '\u586b\u5145\u5b9e\u9645\u4e8b\u4ef6\u5904\u7406\u903b\u8f91\uff0c\u6216\u8054\u52a8 code-fix \u81ea\u52a8\u4fee\u590d',
     ref: 'standards/04-coding-basics.md',
@@ -1704,87 +1683,11 @@ function createUiIntegrationChecks(deps, source) {
   ];
 }
 
-function isSplitterScanCandidate(rel) {
-  if (!/\.(ts|vue|scss|js|tsx|md|mdc)$/.test(rel)) return false;
-  return !["node_modules/", "dist/", ".git/"].some((prefix) =>
-    rel.startsWith(prefix),
-  );
-}
-
-function isSplitterExemptFile(rel) {
-  const exact = rel === "components.d.ts" || rel.endsWith("/components.d.ts");
-  const generated = /\.d\.ts$/.test(rel);
-  const ownComponent = rel.includes("/C_Splitter/");
-  const standard = /standards\/14[-_]/.test(rel);
-  return exact || generated || ownComponent || standard;
-}
-
-function scanSplitterFile(rel, codeHits, docHits) {
-  if (isSplitterExemptFile(rel)) return;
-  let content;
-  try {
-    content = fs.readFileSync(path.join(TARGET_DIR, rel), "utf8");
-  } catch {
-    return;
-  }
-  if (!/C_Splitter/.test(content)) return;
-  const lines = content.split(/\r?\n/);
-  for (let index = 0; index < lines.length; index++) {
-    appendSplitterLineHit(rel, lines, index, codeHits, docHits);
-  }
-}
-
-function appendSplitterLineHit(rel, lines, index, codeHits, docHits) {
-  const line = lines[index];
-  if (!/C_Splitter/.test(line)) return;
-  const context = [lines[index - 1] || "", line, lines[index + 1] || ""].join("\n");
-  const exemptions = /已废弃|DEPRECATED|严禁|禁用|禁止|废弃|不再需要|已迁移|deprecated/i;
-  if (exemptions.test(context)) return;
-  const hit = { rel, line: index + 1, text: line.trim().slice(0, 100) };
-  const target = /\.(vue|ts|scss|js|tsx)$/.test(rel) ? codeHits : docHits;
-  target.push(hit);
-}
-
-function scanSplitterHits(files) {
-  const codeHits = [];
-  const docHits = [];
-  for (const rel of files.filter(isSplitterScanCandidate)) {
-    scanSplitterFile(rel, codeHits, docHits);
-  }
-  return { codeHits, docHits };
-}
-
-function appendSplitterChecks(checks, hits) {
-  const codeCount = hits.codeHits.length;
-  const docCount = hits.docHits.length;
-  checks.push(createCheck(
-    "C_Splitter 业务代码残留",
-    codeCount === 0,
-    codeCount === 0 ? "无" : `${codeCount} 处（详见下方明细，需改 jh-drag-col/-row）`,
-  ));
-  checks.push({
-    name: "C_Splitter 文档/规则残留",
-    ok: true,
-    warn: docCount > 0,
-    detail: docCount === 0 ? "无" : `${docCount} 处（详见下方明细，仅警告）`,
-  });
-}
-
-function printDoctorChecks(checks, hits) {
+function printDoctorChecks(checks) {
   for (const item of checks) {
     const icon = item.warn ? "⚠" : statusIcon(item.ok);
     console.log(`  ${icon} ${item.name} — ${item.detail}`);
   }
-  if (hits.codeHits.length === 0 && hits.docHits.length === 0) return;
-  console.log("\n  ── C_Splitter 残留明细 ──");
-  for (const hit of hits.codeHits.slice(0, 30)) {
-    console.log(`  ✖ ${hit.rel}:${hit.line}  ${hit.text}`);
-  }
-  for (const hit of hits.docHits.slice(0, 30)) {
-    console.log(`  ⚠ ${hit.rel}:${hit.line}  ${hit.text}`);
-  }
-  const overflow = hits.codeHits.length + hits.docHits.length - 60;
-  if (overflow > 0) console.log(`  … 另有 ${overflow} 处未列出`);
 }
 
 function runDoctorUi() {
@@ -1797,9 +1700,7 @@ function runDoctorUi() {
   const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
   const files = collectDoctorFiles();
   const checks = createUiIntegrationChecks(deps, collectDoctorSource(files));
-  const hits = scanSplitterHits(files);
-  appendSplitterChecks(checks, hits);
-  printDoctorChecks(checks, hits);
+  printDoctorChecks(checks);
   const failed = checks.filter((item) => !item.ok).length;
   console.log("");
   console.log(

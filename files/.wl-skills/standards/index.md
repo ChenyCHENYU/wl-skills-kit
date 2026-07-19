@@ -22,7 +22,7 @@
 | 11   | `11-form-validation.md`     | 表单与校验             | 🔴 必遵        |
 | 12   | `12-base-table.md`          | BaseTable + AGGrid cid | 🔴 必遵        |
 | 13   | `13-platform-components.md` | 平台组件合规（核心）   | 🔴 必遵 + 阻断 |
-| 14   | `14-layout-containers.md`   | 布局容器（禁用 C_Splitter） | 🔴 必遵 + 阻断 |
+| 14   | `14-layout-containers.md`   | 布局容器（jh-drag-col/row） | 🔴 必遵 + 阻断 |
 
 ---
 
