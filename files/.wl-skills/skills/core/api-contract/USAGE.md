@@ -7,10 +7,12 @@
 
 ## 这个 Skill 解决什么问题
 
-为每个页面生成一份 `api.md`，**作为前后端联调的契约**：
+建立一份可机械校验的 `wl-api-contract.json`，并为页面渲染 `api.md`：
 
 - 前端：`data.ts` 里的 `API_CONFIG` URL、查询字段直接来源于此
-- 后端：拿 api.md 即可写 Controller + Service + Entity，字段名一致零联调成本
+- 后端：独立建立同 profile 契约；有双方产物时严格比较 method/path/model/permission
+
+不安装 design 或 bd 也能使用。只有需求文档时先 `contract init`，补齐字段、业务操作和未决问题后标记 `confirmed`；有后端 manifest 时直接作为接口事实源，不重复推断。
 
 ---
 
@@ -71,7 +73,7 @@ AI：[Pre-flight]
 
 1. **API_CONFIG**（粘贴到 data.ts 用）
 2. **实体定义**（字段名、类型、字典、必填）
-3. **接口清单**（list/getById/save/update/remove/export + 业务操作如 release/approve）
+3. **接口清单**（queryPage/getById/{id}/save/updateById/deleteById/{id} + 业务操作）
 4. **数据字典**（完整 `dict-contract`：模块、字典、枚举、排序）
 5. **联调注意**
 
@@ -81,11 +83,11 @@ AI：[Pre-flight]
 
 ## 团队协作流程
 
-1. 前端基于 prototype-scan 输出生成 api.md（标 🟡 待确认）
+1. 前端基于需求或 page-spec 建立 `wl-api-contract.json`（draft）
 2. **发后端 review**（钉钉/IM 直接发文件路径）
-3. 后端确认字段，标 🟢 已确认
-4. 后端按 api.md 出接口，前端按 api.md 写 data.ts
-5. 联调时若有变更，更新 api.md 并标 🔴 有变更，双方同步修改
+3. 后端独立建立或确认契约，双方执行 `contract compare --strict`（资源、传输、操作、模型、API_CONFIG、completion）
+4. 一致后标记 confirmed，分别生成/实现代码
+5. 联调变化先修改契约并重新 compare，不直接分叉修改代码
 
 ---
 
@@ -106,7 +108,7 @@ AI：[Pre-flight]
 A：是。便于 PR review 时一眼看到改了哪个页面的契约。
 
 **Q：可以跳过 api.md 直接 codegen 吗？**
-A：技术上可以，AI 会用通用模板字段，但**联调时必踩坑**。建议至少写到"实体定义"段落。
+A：不能把未确认接口当作生产输入。可以先建立 draft JSON 契约做并行骨架，但字段、操作、API_CONFIG 与未决问题必须写入机器契约；`contractStatus=confirmed` 且 strict compare 通过后才能宣称联调闭环。
 
 **Q：业务操作（如 release / approve）需要写吗？**
 A：写。`page-codegen` 会读取 api.md 中的业务操作列表，自动在 toolbar 里加按钮。

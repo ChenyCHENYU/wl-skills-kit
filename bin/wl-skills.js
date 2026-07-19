@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.12.6
+ * wl-skills-kit CLI v2.13.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -44,6 +44,14 @@ const {
   verifyStandardEnv,
 } = require("../lib/standard-env");
 const { resolveProfile: resolveStandardEnvProfile } = require("../lib/standard-env/profiles");
+const {
+  DEFAULT_PROFILE: DEFAULT_DELIVERY_PROFILE,
+  buildStandaloneContract,
+  compareApiContracts,
+  readApiContract,
+  renderApiMarkdown,
+  validateApiContract,
+} = require("../lib/api-contract");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -69,6 +77,7 @@ const KNOWN_COMMANDS = new Set([
   "fix",
   "env",
   "standard-env",
+  "contract",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -94,6 +103,20 @@ const KNOWN_FLAGS = new Set([
   "--local-mode",
   "--local-routes",
   "--build",
+  "--input",
+  "--output",
+  "--left",
+  "--right",
+  "--service",
+  "--resource",
+  "--module",
+  "--contract-id",
+  "--permission-prefix",
+  "--entity",
+  "--description",
+  "--external-id",
+  "--source-mode",
+  "--json",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -165,6 +188,7 @@ if (showHelp) {
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
     fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
     standard-env 标准环境配置（scan/plan/apply/verify）
+    contract   独立 API 契约（init/validate/compare/render/profile），不依赖 design 或 bd
     env        旧环境命令，已停用并提示迁移
 
   选项:
@@ -186,6 +210,11 @@ if (showHelp) {
     --local-routes   routes 模式映射，格式 match=rewrite,...
     --confirm        standard-env apply 正式写入确认
     --build          standard-env verify 执行五环境临时构建
+    --input <file>   contract validate/render 的输入 JSON
+    --output <file>  contract init/render 输出路径
+    --left/--right   contract compare 的前后端契约
+    --confirm        contract init/render 确认写入；默认只预览
+    --json           contract 命令输出机器可读结果
     --help           显示帮助
 
   示例:
@@ -209,6 +238,9 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit standard-env plan --profile walsin
     pnpm dlx @agile-team/wl-skills-kit standard-env apply --profile walsin --confirm
     pnpm dlx @agile-team/wl-skills-kit standard-env verify --profile walsin --build
+    pnpm dlx @agile-team/wl-skills-kit contract init --contract-id task --service mdm --resource task --module task --permission-prefix mdm_task
+    pnpm dlx @agile-team/wl-skills-kit contract validate --input wl-api-contract.json --strict --json
+    pnpm dlx @agile-team/wl-skills-kit contract compare --left frontend-contract.json --right backend-contract.json --strict
 
   保护路径（init / update 不覆盖已存在的）:
     .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -1354,7 +1386,7 @@ function appendAllPageIssues(issues, pages, mockFiles, mockContent) {
 function appendSpecIssues(issues, pages) {
   let alignedPages = 0;
   for (const page of pages) {
-    const result = alignPage(path.join(TARGET_DIR, page.dir), page.dir);
+    const result = alignPage(path.join(TARGET_DIR, page.dir), page.dir, { strict });
     if (result.hasSpec) alignedPages++;
     issues.push(...result.issues);
   }
@@ -1424,7 +1456,7 @@ function printValidationHeader(scanPath) {
 
 function runValidationAst(issues, scanPath, stagedSet) {
   const stagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
-  const result = runAstRules(TARGET_DIR, scanPath, { stagedFiles });
+  const result = runAstRules(TARGET_DIR, scanPath, { stagedFiles, strict });
   issues.push(...result.issues);
   return result;
 }
@@ -2066,6 +2098,153 @@ function runFix() {
   console.log("");
 }
 
+function loadDeliveryProfile() {
+  const profileFile = readOption("profile-file");
+  if (!profileFile) {
+    const profileName = readOption("profile", DEFAULT_DELIVERY_PROFILE.profileId);
+    if (profileName !== DEFAULT_DELIVERY_PROFILE.profileId) {
+      throw new Error(`未知内置交付 profile：${profileName}；自定义 profile 请使用 --profile-file`);
+    }
+    return DEFAULT_DELIVERY_PROFILE;
+  }
+  const resolved = path.resolve(TARGET_DIR, profileFile);
+  const profile = JSON.parse(fs.readFileSync(resolved, "utf8"));
+  if (!profile.profileId || !profile.protocolVersion || !profile.transport?.operations) {
+    throw new Error("自定义交付 profile 缺少 profileId/protocolVersion/transport.operations");
+  }
+  return profile;
+}
+
+function printContractResult(result) {
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  printContractItems(result.errors, "✖", console.error);
+  printContractItems(result.warnings, "⚠", console.warn);
+  console.log(`  ${result.ok ? "✔" : "✖"} errors=${result.summary?.errors || 0}, warnings=${result.summary?.warnings || 0}`);
+}
+
+function printContractItems(items, symbol, logger) {
+  for (const item of items || []) logger(`  ${symbol} ${item.code} ${item.location}: ${item.message}`);
+}
+
+function resolveContractOutput(requested) {
+  const output = path.resolve(TARGET_DIR, requested);
+  const relative = path.relative(TARGET_DIR, output);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("输出路径必须位于当前项目内");
+  }
+  return output;
+}
+
+function writeContractOutput(requested, content) {
+  const output = resolveContractOutput(requested);
+  if (fs.existsSync(output) && !force) {
+    throw new Error(`输出已存在：${requested}；确认覆盖请加 --force`);
+  }
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  if (fs.existsSync(output)) {
+    const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+    fs.copyFileSync(output, `${output}.bak.${stamp}`);
+  }
+  const temp = `${output}.tmp-${process.pid}`;
+  fs.writeFileSync(temp, content, "utf8");
+  if (fs.existsSync(output)) fs.rmSync(output, { force: true });
+  fs.renameSync(temp, output);
+  return path.relative(TARGET_DIR, output).replace(/\\/g, "/");
+}
+
+function runContractInit(profile) {
+  const contract = buildStandaloneContract({
+    profile,
+    contractId: readOption("contract-id"),
+    service: readOption("service"),
+    resource: readOption("resource"),
+    module: readOption("module"),
+    permissionPrefix: readOption("permission-prefix"),
+    entity: readOption("entity"),
+    description: readOption("description"),
+    externalId: readOption("external-id"),
+    sourceMode: readOption("source-mode", "requirements"),
+  });
+  const output = readOption("output", "wl-api-contract.json");
+  if (!args.includes("--confirm") || dryRun) {
+    const result = { ok: true, preview: true, output, contract };
+    if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`  预览：将创建 ${output}`);
+      console.log("  默认不写入；确认后执行同一命令并加 --confirm");
+    }
+    return;
+  }
+  const written = writeContractOutput(output, `${JSON.stringify(contract, null, 2)}\n`);
+  console.log(`  ✔ 已创建独立 API 契约：${written}`);
+}
+
+function reportContractValidation(result) {
+  printContractResult(result);
+  if (!result.ok) process.exitCode = 1;
+}
+
+function runContractValidate(profile) {
+  const input = readOption("input") || positional[2];
+  if (!input) throw new Error("contract validate 缺少 --input <file>");
+  reportContractValidation(validateApiContract(
+    readApiContract(path.resolve(TARGET_DIR, input)),
+    { profile, strict },
+  ));
+}
+
+function runContractCompare(profile) {
+  const left = readOption("left");
+  const right = readOption("right");
+  if (!left || !right) throw new Error("contract compare 需要 --left <file> --right <file>");
+  reportContractValidation(compareApiContracts(
+    readApiContract(path.resolve(TARGET_DIR, left)),
+    readApiContract(path.resolve(TARGET_DIR, right)),
+    { profile, strict },
+  ));
+}
+
+function runContractRender(profile) {
+  const input = readOption("input");
+  if (!input) throw new Error("contract render 缺少 --input <file>");
+  const contract = readApiContract(path.resolve(TARGET_DIR, input));
+  const validation = validateApiContract(contract, { profile, strict });
+  if (!validation.ok) {
+    reportContractValidation(validation);
+    return;
+  }
+  const output = readOption("output", "api.md");
+  if (!args.includes("--confirm") || dryRun) {
+    console.log(`  预览：将从 ${input} 渲染 ${output}；确认写入请加 --confirm`);
+    return;
+  }
+  console.log(`  ✔ 已生成：${writeContractOutput(output, renderApiMarkdown(contract))}`);
+}
+
+function runContractAction(action, profile) {
+  const actions = {
+    profile: () => console.log(JSON.stringify(profile, null, 2)),
+    init: () => runContractInit(profile),
+    validate: () => runContractValidate(profile),
+    compare: () => runContractCompare(profile),
+    render: () => runContractRender(profile),
+  };
+  if (!actions[action]) throw new Error(`未知 contract 子命令：${action}`);
+  actions[action]();
+}
+
+function runContract() {
+  try {
+    runContractAction(positional[1] || "profile", loadDeliveryProfile());
+  } catch (error) {
+    console.error(`  ✖ API 契约失败：${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
 switch (command) {
   case "init":
     runInstall(false);
@@ -2106,6 +2285,9 @@ switch (command) {
     break;
   case "standard-env":
     runStandardEnv();
+    break;
+  case "contract":
+    runContract();
     break;
   default:
     console.error(

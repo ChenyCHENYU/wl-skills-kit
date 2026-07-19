@@ -5,12 +5,23 @@ description: "Use when: designing API contracts between frontend and backend bas
 
 # Skill: 接口约定（api-contract）
 
-基于《页面清单》为每个页面生成 `api.md` 文件，放在**页面目录下**（和 index.vue 同级）。
+基于已评审需求、页面清单或后端 manifest 建立 `wl-api-contract.json`，再确定性渲染每页 `api.md`。本 Skill 可独立运行，不要求安装 wl-skills-design 或 wl-skills-bd。
 
 **双重作用：**
 
 1. **前端** — data.ts 中 `API_CONFIG` 的 URL 和字段名直接基于 api.md
-2. **后端** — 拿到 api.md 直接出接口（Controller + Service + Entity），字段名一致，联调零成本
+2. **后端** — 读取同协议契约或在其项目独立建立契约，并通过严格 compare 对齐
+
+输入优先级：已确认后端 `wl-api-contract` → 当前前端已确认契约 → 已评审需求。没有上游产物时不得阻断，但所有推断必须进入 `openQuestions`，确认前状态保持 `draft`。
+
+默认使用内置 `jh4j3-openapi3@1.0`；自定义 profile 允许存在，但偏差必须显式。机器契约命令：
+
+```bash
+wl-skills contract init ...                  # 默认只预览
+wl-skills contract validate --input wl-api-contract.json --strict
+wl-skills contract compare --left frontend.json --right backend.json --strict
+wl-skills contract render --input wl-api-contract.json --output api.md --confirm
+```
 
 ---
 
@@ -24,22 +35,22 @@ description: "Use when: designing API contracts between frontend and backend bas
 
 | 服务缩写 | 含义     | 示例                                 |
 | -------- | -------- | ------------------------------------ |
-| pm       | 生产管理 | `/pm/omptMillPlanOrder/list`         |
+| pm       | 生产管理 | `/pm/omptMillPlanOrder/queryPage`    |
 | mmwr     | 精整作业 | `/mmwr/mmwrTechFinish/queryTechList` |
-| mmsm     | 炼钢管理 | `/mmsm/mmsmRsltLadleUse/list`        |
-| sale     | 销售管理 | `/sale/saleOrder/list`               |
-| hrms     | 人力资源 | `/hrms/hrmsEmployee/list`            |
-| base     | 基础数据 | `/base/cmUserGroup/list`             |
+| mmsm     | 炼钢管理 | `/mmsm/mmsmRsltLadleUse/queryPage`   |
+| sale     | 销售管理 | `/sale/saleOrder/queryPage`          |
+| hrms     | 人力资源 | `/hrms/hrmsEmployee/queryPage`       |
+| base     | 基础数据 | `/base/cmUserGroup/queryPage`        |
 
 ### 标准操作集
 
 | 操作     | 方法 | URL 后缀          | 说明                                                  |
 | -------- | ---- | ----------------- | ----------------------------------------------------- |
-| 分页列表 | POST | `/list`           | 基类 `super({ url: { list } })` 自动调用              |
-| 单条查询 | GET  | `/getById?id=xxx` | `getAction(API_CONFIG.getById, { id })`               |
-| 新增     | POST | `/save`           | `postAction(API_CONFIG.save, formData)`               |
-| 编辑     | POST | `/update`         | `postAction(API_CONFIG.update, formData)`             |
-| 删除     | POST | `/remove`         | 基类 `super({ url: { remove } })` + `this.remove(id)` |
+| 分页列表 | POST | `/queryPage`       | `postAction(API_CONFIG.list, query)`                   |
+| 单条查询 | GET  | `/getById/{id}`    | `getAction(resolveApiPath(API_CONFIG.getById, id), {})`|
+| 新增     | POST | `/save`            | `postAction(API_CONFIG.save, formData)`                |
+| 编辑     | PUT  | `/updateById`      | `putAction(API_CONFIG.update, formData)`               |
+| 删除     | DELETE | `/deleteById/{id}` | `deleteAction(resolveApiPath(API_CONFIG.remove, id), {})` |
 | 导出     | GET  | `/export`         | `getAction(API_CONFIG.export, params)`                |
 
 ### 业务操作命名规范
@@ -199,15 +210,17 @@ api.md 中的接口 URL 直接对应 data.ts 中的 `API_CONFIG`：
 
 ```typescript
 export const API_CONFIG = {
-  list: "/pm/omptMillPlanOrder/list",
-  remove: "/pm/omptMillPlanOrder/remove",
-  getById: "/pm/omptMillPlanOrder/getById",
+  list: "/pm/omptMillPlanOrder/queryPage",
+  remove: "/pm/omptMillPlanOrder/deleteById/{id}",
+  getById: "/pm/omptMillPlanOrder/getById/{id}",
   save: "/pm/omptMillPlanOrder/save",
-  update: "/pm/omptMillPlanOrder/update",
+  update: "/pm/omptMillPlanOrder/updateById",
   export: "/pm/omptMillPlanOrder/export",
   // 按需增加业务操作
   release: "/pm/omptMillPlanOrder/release",
 } as const;
+export const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 ```
 
 ---
@@ -232,11 +245,11 @@ export const API_CONFIG = {
 
 ```typescript
 export const API_CONFIG = {
-  list: "/[服务缩写]/[资源名]/list",
-  remove: "/[服务缩写]/[资源名]/remove",
-  getById: "/[服务缩写]/[资源名]/getById",
+  list: "/[服务缩写]/[资源名]/queryPage",
+  remove: "/[服务缩写]/[资源名]/deleteById/{id}",
+  getById: "/[服务缩写]/[资源名]/getById/{id}",
   save: "/[服务缩写]/[资源名]/save",
-  update: "/[服务缩写]/[资源名]/update",
+  update: "/[服务缩写]/[资源名]/updateById",
   export: "/[服务缩写]/[资源名]/export",
 } as const;
 ```
@@ -264,7 +277,7 @@ export const API_CONFIG = {
 ### 1. 分页查询
 
 ```
-POST /[服务缩写]/[资源名]/list
+POST /[服务缩写]/[资源名]/queryPage
 ```
 
 | 字段          | 类型   | 必填 | 说明                                |
@@ -281,7 +294,7 @@ POST /[服务缩写]/[资源名]/list
 ### 2. 详情查询
 
 ```
-GET /[服务缩写]/[资源名]/getById?id=xxx
+GET /[服务缩写]/[资源名]/getById/{id}
 ```
 
 **响应 data：** 单个 Entity；外壳 `{ code: 2000, message, data: {...} }`
@@ -297,7 +310,7 @@ POST /[服务缩写]/[资源名]/save
 ### 4. 编辑
 
 ```
-POST /[服务缩写]/[资源名]/update
+PUT /[服务缩写]/[资源名]/updateById
 ```
 
 **请求：** 同新增 + `id`（必填）
@@ -305,10 +318,10 @@ POST /[服务缩写]/[资源名]/update
 ### 5. 删除
 
 ```
-POST /[服务缩写]/[资源名]/remove
+DELETE /[服务缩写]/[资源名]/deleteById/{id}
 ```
 
-**请求：** `{ "ids": ["xxx"] }` 或 `{ "id": "xxx" }`
+**请求：** 主键放在路径；批量删除必须另行声明 `batchDelete` 自定义操作，不得复用单删契约。
 
 ### 6. 导出（如需要）
 

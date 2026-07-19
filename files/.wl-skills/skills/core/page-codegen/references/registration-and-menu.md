@@ -86,8 +86,8 @@ export default list;
 
 | 字段 | 来源 | 规则 |
 |------|------|------|
-| 菜单路径 | page-spec.kebabName | kebab-case → camelCase（`mmwr-customer-archive` → `mmwrCustomerArchive`） |
-| 菜单名称 | page-spec.pageName | 直接使用中文名 |
+| 菜单路径 | page-spec.name | kebab-case → camelCase（`mmwr-customer-archive` → `mmwrCustomerArchive`） |
+| 菜单名称 | page-spec.page | 直接使用中文名 |
 | 组件路径 | pages.ts 注册路径 | `[module]/[subModule]/[kebab-目录名]/index.vue` |
 | 权限标识 | module + 菜单路径 | `[module]:[pageCamel]:list` |
 | 是否隐藏 | page-spec.features.hiddenMenu | `true` → 是，`false` → 否 |

@@ -16,7 +16,7 @@ import { AbstractPageQueryHook } from "@jhlc/common-core";
 class MyPageHook extends AbstractPageQueryHook {
   constructor() {
     super({
-      url: { list: "/api/list", remove: "/api/remove" },
+      url: { list: "/api/queryPage", remove: "/api/deleteById/{id}" },
       // page 默认值: { size: 20, current: 1 }
     });
   }
@@ -86,11 +86,11 @@ class MyPageHook extends AbstractPageQueryHook {
 import { AbstractPageQueryHook } from "@jhlc/common-core";
 
 const API_CONFIG = {
-  list: "/mmsm/mmsmRsltLadleUse/list",
-  get: "/mmsm/mmsmRsltLadleUse/getById",
+  list: "/mmsm/mmsmRsltLadleUse/queryPage",
+  get: "/mmsm/mmsmRsltLadleUse/getById/{id}",
   save: "/mmsm/mmsmRsltLadleUse/save",
-  update: "/mmsm/mmsmRsltLadleUse/update",
-  remove: "/mmsm/mmsmRsltLadleUse/remove"
+  update: "/mmsm/mmsmRsltLadleUse/updateById",
+  remove: "/mmsm/mmsmRsltLadleUse/deleteById/{id}"
 };
 ```
 
@@ -168,11 +168,11 @@ import { TableColumnDesc } from "@jhlc/common-core/.wl-skills/src/components/tab
 import { ActionButtonDesc } from "@jhlc/common-core/.wl-skills/src/components/toolbar/type";
 
 const API_CONFIG = {
-  list: "/mmsm/mmsmRsltLadleUse/list",
-  get: "/mmsm/mmsmRsltLadleUse/getById",
+  list: "/mmsm/mmsmRsltLadleUse/queryPage",
+  get: "/mmsm/mmsmRsltLadleUse/getById/{id}",
   save: "/mmsm/mmsmRsltLadleUse/save",
-  update: "/mmsm/mmsmRsltLadleUse/update",
-  remove: "/mmsm/mmsmRsltLadleUse/remove",
+  update: "/mmsm/mmsmRsltLadleUse/updateById",
+  remove: "/mmsm/mmsmRsltLadleUse/deleteById/{id}",
   exportExcel: "/mmsm/mmsmRsltLadleUse/export"
 };
 
@@ -316,7 +316,7 @@ export const createPage = () => new LadleUseQueryHook();
    // api/batch-operations.ts
    export async function batchProcess(ids: string[]) {
      const details = await Promise.all(
-       ids.map((id) => request.get(`/detail/${id}`))
+       ids.map((id) => request.get(`/getById/${encodeURIComponent(id)}`))
      );
      return await request.post("/batch", { data: details });
    }

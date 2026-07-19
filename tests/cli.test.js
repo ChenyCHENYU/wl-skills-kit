@@ -227,6 +227,37 @@ describe("CLI 参数防护（A1）", () => {
   });
 });
 
+describe("CLI 独立 API 契约", () => {
+  it("init 默认预览，confirm 后写入并可严格验证和渲染", () => {
+    const dir = makeIsolatedDir();
+    const common = [
+      "contract", "init",
+      "--contract-id", "mdm-task",
+      "--service", "mdm",
+      "--resource", "mdmTask",
+      "--module", "task",
+      "--permission-prefix", "mdm_task",
+      "--output", "contracts/task.json",
+    ];
+    const preview = runCli(common, { cwd: dir });
+    expect(preview.status).toBe(0);
+    expect(fs.existsSync(path.join(dir, "contracts", "task.json"))).toBe(false);
+    const apply = runCli([...common, "--confirm"], { cwd: dir });
+    expect(apply.status).toBe(0);
+    const file = path.join(dir, "contracts", "task.json");
+    const value = JSON.parse(fs.readFileSync(file, "utf8"));
+    value.completion.contractStatus = "confirmed";
+    fs.writeFileSync(file, JSON.stringify(value, null, 2));
+    const validate = runCli(["contract", "validate", "--input", "contracts/task.json", "--strict", "--json"], { cwd: dir });
+    expect(validate.status).toBe(0);
+    expect(JSON.parse(validate.stdout).ok).toBe(true);
+    const render = runCli(["contract", "render", "--input", "contracts/task.json", "--output", "contracts/api.md", "--strict", "--confirm"], { cwd: dir });
+    expect(render.status).toBe(0);
+    expect(fs.readFileSync(path.join(dir, "contracts", "api.md"), "utf8")).toMatch(/wl-api-contract/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
 describe("CLI standard-env", () => {
   it("update 自动清理退役 env-config 并安装新 Skill", () => {
     const dir = makeIsolatedDir();

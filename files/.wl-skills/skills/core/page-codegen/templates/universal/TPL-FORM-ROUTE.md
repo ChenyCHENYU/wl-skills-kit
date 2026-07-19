@@ -9,15 +9,18 @@
 #### data.ts
 
 ```typescript
-import { getAction, postAction } from "@jhlc/common-core/src/api/action";
+import { getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage } from "element-plus";
 import { useRouter } from "vue-router";  // ✅ 仅用于 router.back()
 
 export const API_CONFIG = {
-  getById: "/[服务缩写]/[资源名]/getById",
+  getById: "/[服务缩写]/[资源名]/getById/{id}",
   save: "/[服务缩写]/[资源名]/save",
+  update: "/[服务缩写]/[资源名]/updateById",
   submit: "/[服务缩写]/[资源名]/submit"
 } as const;
+const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 export function use[PageName]Form(tabsRef: any) {
   const router = useRouter();
@@ -30,7 +33,7 @@ export function use[PageName]Form(tabsRef: any) {
     isEdit.value = true;
     currentId.value = id;
     try {
-      const res = await getAction(API_CONFIG.getById, { id });
+      const res = await getAction(resolveApiPath(API_CONFIG.getById, id), {});
       if (res?.data) tabsRef.value?.loadData(res.data);
     } finally {
       loading.value = false;
@@ -44,13 +47,14 @@ export function use[PageName]Form(tabsRef: any) {
     try {
       const formData = tabsRef.value?.collectFormData();
       const payload = isEdit.value ? { ...formData, id: currentId.value } : formData;
-      const res = await postAction(API_CONFIG.save, payload);
-      if (res?.code === 200) {
-        ElMessage.success("保存成功");
-        if (!isEdit.value && res.data?.id) {
-          currentId.value = res.data.id;
-          isEdit.value = true;
-        }
+      const res = isEdit.value
+        ? await putAction(API_CONFIG.update, payload)
+        : await postAction(API_CONFIG.save, payload);
+      ElMessage.success("保存成功");
+      const savedId = typeof res === "string" ? res : res?.id;
+      if (!isEdit.value && savedId) {
+        currentId.value = savedId;
+        isEdit.value = true;
       }
     } finally {
       loading.value = false;
@@ -125,10 +129,12 @@ import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 export const DETAIL_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 
 export const API_CONFIG = {
-  getById: "/sale/[业务名]/getById",
+  getById: "/sale/[业务名]/getById/{id}",
   save: "/sale/[业务名]/save"
   // ...其他业务操作
 } as const;
+const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 export const OPTS = {
   // 下拉选项集合
@@ -185,7 +191,7 @@ export function use[PageName]Detail() {
   async function loadDetail(id: string) {
     loading.value = true;
     try {
-      const res = await getAction(API_CONFIG.getById, { id });
+      const res = await getAction(resolveApiPath(API_CONFIG.getById, id), {});
       if (res?.data) Object.assign(form, res.data);
     } finally {
       loading.value = false;
@@ -195,8 +201,8 @@ export function use[PageName]Detail() {
   async function handleSave() {
     loading.value = true;
     try {
-      const res = await postAction(API_CONFIG.save, { ...form });
-      if (res?.code === 200) ElMessage.success("保存成功");
+      await postAction(API_CONFIG.save, { ...form });
+      ElMessage.success("保存成功");
     } finally {
       loading.value = false;
     }

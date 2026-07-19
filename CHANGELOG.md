@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-07-18
+
+### 新增
+
+- 新增独立 `wl-api-contract` 协议、schema、`jh4j3-openapi3@1.0` profile 和 `contract init/validate/compare/render/profile` CLI；无需 design/bd 也能从已评审需求闭环。
+- R9 支持解析机器契约块，严格模式校验 method/path/model/permission/revision 与确认状态。
+- compare 覆盖资源核心字段、transport、全部标准/扩展操作、models、API_CONFIG、path 参数语义与 completion；可选 design `externalId` 缺失不阻断独立闭环，双方值冲突时阻断。
+- page-spec 完整校验 formSections、subTables、features、稳定 pageId、profile、协议、API 契约和 openQuestions，并兼容旧 pageName/pattern/field 别名。
+
+### 变更与修复
+
+- 标准 CRUD 与 bd 统一为 `POST queryPage`、`GET getById/{id}`、`POST save`、`PUT updateById`、`DELETE deleteById/{id}`。
+- 未知页面类型、dictCode 和交互不再静默降级或生成提示占位，统一进入 openQuestions 并在严格模式阻断。
+- Mock 从强制默认改为 Contract First 下的可选并行开发能力。
+- Vitest 全局测试超时提高到 20 秒；CLI 黑盒用例固定单 worker 顺序执行，消除 Windows Node 24 下断言全通过后仍出现 `onTaskUpdate` RPC 超时的假失败。
+
+---
+
 ## [2.12.6] - 2026-07-13
 
 ### Added

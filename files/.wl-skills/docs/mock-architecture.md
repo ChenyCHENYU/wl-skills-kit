@@ -4,6 +4,8 @@
 > **技术依赖**：`vite-plugin-mock` + `mockjs`
 > **源码参考**：wl-mdata 项目实践（v2.7.x 基线）
 
+Mock 不是另一套接口：方法、路径、请求模型和响应外壳必须逐项镜像 `api.md` 中的 `wl-api-contract`。未确认契约时可以生成草稿 Mock，但不得据此宣称联调完成。
+
 ---
 
 ## 一、设计目标
@@ -140,7 +142,7 @@ let STORE: any[] = Array.from({ length: 50 }, genRecord);
 export default [
   // ── 列表（分页）──
   {
-    url: "/dev-api/[服务]/[资源]/list",
+    url: "/dev-api/[服务]/[资源]/queryPage",
     method: "get",
     response: ({ query }: any) => paginate(STORE, query),
   },
@@ -157,8 +159,8 @@ export default [
 
   // ── 编辑 ──
   {
-    url: "/dev-api/[服务]/[资源]/update",
-    method: "post",
+    url: "/dev-api/[服务]/[资源]/updateById",
+    method: "put",
     response: ({ body }: any) => {
       const idx = STORE.findIndex((r) => r.id === body?.id);
       if (idx >= 0) Object.assign(STORE[idx], body, { updateTime: nowStr() });
@@ -168,21 +170,18 @@ export default [
 
   // ── 删除 ──
   {
-    url: "/dev-api/[服务]/[资源]/remove",
-    method: "post",
-    response: ({ body }: any) => {
-      const ids = Array.isArray(body?.ids) ? body.ids : [body?.id];
-      ids.forEach((id: string) => {
-        const idx = STORE.findIndex((r) => r.id === id);
-        if (idx >= 0) STORE.splice(idx, 1);
-      });
+    url: "/dev-api/[服务]/[资源]/deleteById/:id",
+    method: "delete",
+    response: ({ query }: any) => {
+      const idx = STORE.findIndex((r) => r.id === query?.id);
+      if (idx >= 0) STORE.splice(idx, 1);
       return ok(null);
     },
   },
 
   // ── 详情 ──
   {
-    url: "/dev-api/[服务]/[资源]/getById",
+    url: "/dev-api/[服务]/[资源]/getById/:id",
     method: "get",
     response: ({ query }: any) => ok(STORE.find((r) => r.id === query?.id) || null),
   },

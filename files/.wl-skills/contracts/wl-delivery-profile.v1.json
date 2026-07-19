@@ -1,0 +1,30 @@
+{
+  "protocolVersion": "1.0",
+  "profileId": "jh4j3-openapi3",
+  "independentUse": true,
+  "transport": {
+    "basePathPattern": "/{service}/{resource}",
+    "operations": {
+      "page": { "method": "POST", "path": "queryPage" },
+      "detail": { "method": "GET", "path": "getById/{id}" },
+      "create": { "method": "POST", "path": "save" },
+      "update": { "method": "PUT", "path": "updateById" },
+      "remove": { "method": "DELETE", "path": "deleteById/{id}" }
+    },
+    "responseEnvelope": { "successCode": 2000, "codeField": "code", "messageField": "message", "dataField": "data" },
+    "pagination": { "requestCurrent": "current", "requestSize": "size", "responseRecords": "data.records", "responseTotal": "data.total" },
+    "concurrency": { "field": "revision", "requiredOnUpdate": true },
+    "permissionPattern": "{module}:{resource}:{operation}"
+  },
+  "traceMapping": {
+    "frontendPageExternalId": "design-model screen.id",
+    "backendEntityExternalId": "design-model table.id",
+    "fieldExternalId": "design-model field.id",
+    "required": false
+  },
+  "extensionPolicy": {
+    "customOperationsAllowed": true,
+    "customProfilesAllowed": true,
+    "deviationsMustBeExplicit": true
+  }
+}

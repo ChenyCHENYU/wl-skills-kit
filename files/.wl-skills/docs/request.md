@@ -2,6 +2,8 @@
 
 > 基于 axios 封装的统一请求工具，自动处理响应数据解包、错误拦截、token 注入等
 
+> 本文中的 `/api/*` 仅用于说明请求工具。业务 CRUD 代码必须以 `api.md` 内的 `wl-api-contract` 为准；默认 `jh4j3-openapi3` profile 使用 `queryPage`、`getById/{id}`、`save`、`PUT updateById`、`DELETE deleteById/{id}`，不得从示例路径反推接口。
+
 ## 导入方式
 
 ```typescript
@@ -937,4 +939,3 @@ export function createPage() {
 - [AbstractPageQueryHook 页面开发最佳实践](./page-query-hook-best-practices.md)
 
 ---
-

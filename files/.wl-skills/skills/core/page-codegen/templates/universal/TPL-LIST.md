@@ -13,19 +13,22 @@ import {
   TableColumnDesc,
   BusLogicDataType
 } from "@/types/page";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { deleteAction } from "@jhlc/common-core/src/api/action";
 import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
 export const API_CONFIG = {
-  list: "/[服务缩写]/[资源名]/list",
-  remove: "/[服务缩写]/[资源名]/remove",
-  getById: "/[服务缩写]/[资源名]/getById",
+  list: "/[服务缩写]/[资源名]/queryPage",
+  remove: "/[服务缩写]/[资源名]/deleteById/{id}",
+  getById: "/[服务缩写]/[资源名]/getById/{id}",
   save: "/[服务缩写]/[资源名]/save",
-  update: "/[服务缩写]/[资源名]/update",
+  update: "/[服务缩写]/[资源名]/updateById",
   export: "/[服务缩写]/[资源名]/export"
 } as const;
+export const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 /** 静态下拉选项（无字典 code 时在前端定义） */
 const OPTS = {
@@ -38,7 +41,7 @@ const OPTS = {
 export function createPage(editModalRef?: any) {
   let Page = new (class extends AbstractPageQueryHook {
     constructor() {
-      super({ url: { list: API_CONFIG.list, remove: API_CONFIG.remove } });
+      super({ url: { list: API_CONFIG.list } });
     }
 
     queryDef(): BaseQueryItemDesc<any>[] {
@@ -91,11 +94,7 @@ export function createPage(editModalRef?: any) {
           plain: true,
           onClick: () => editModalRef?.value?.open()
         },
-        {
-          label: "导出",
-          plain: true,
-          onClick: () => ElMessage.info("导出逻辑待业务确认")
-        }
+        // 其他按钮仅在 wl-api-contract 已确认对应 operation 时生成，禁止占位处理
       ];
     }
 
@@ -134,10 +133,17 @@ export function createPage(editModalRef?: any) {
           defaultSlot: ({ row }: any) =>
             renderOps([
               { type: "edit", onClick: () => editModalRef?.value?.open(row.id) },
-              { type: "del", onClick: () => this.remove(row.id) }
+              { type: "del", onClick: () => this.deleteById(row.id) }
             ])
         }
       ] as any) as TableColumnDesc<any>[];
+    }
+
+    async deleteById(id: string) {
+      await ElMessageBox.confirm("确认删除该记录吗？", "提示", { type: "warning" });
+      await deleteAction(resolveApiPath(API_CONFIG.remove, id), {});
+      ElMessage.success("删除成功");
+      await this.select();
     }
   })();
 
@@ -235,13 +241,13 @@ function pageList(query: any) {
 
 export default [
   {
-    url: "/dev-api/[服务缩写]/[资源名]/list",
+    url: "/dev-api/[服务缩写]/[资源名]/queryPage",
     method: "get",
     response: ({ query }: any) => pageList(query),
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/remove",
-    method: "post",
+    url: "/dev-api/[服务缩写]/[资源名]/deleteById/:id",
+    method: "delete",
     response: ({ body, query }: any) => {
       const id = body?.id || query?.id;
       const ids = body?.ids || (id ? [id] : []);
@@ -262,8 +268,8 @@ export default [
     },
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/update",
-    method: "post",
+    url: "/dev-api/[服务缩写]/[资源名]/updateById",
+    method: "put",
     response: ({ body }: any) => {
       const index = dataPool.findIndex((item) => item.id === String(body?.id));
       if (index >= 0) Object.assign(dataPool[index], body);
@@ -271,7 +277,7 @@ export default [
     },
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/getById",
+    url: "/dev-api/[服务缩写]/[资源名]/getById/:id",
     method: "get",
     response: ({ query }: any) => ({
       code: 2000,

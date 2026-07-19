@@ -28,12 +28,12 @@
 
 | 服务缩写 | 含义 | 示例 |
 |---|---|---|
-| `pm` | 生产管理 | `/pm/omptMillPlanOrder/list` |
-| `mmwr` | 精整作业 | `/mmwr/mmwrCustomerArchive/list` |
-| `sale` | 销售管理 | `/sale/saleOrder/list` |
-| `hrms` | 人力资源 | `/hrms/hrmsEmployee/list` |
-| `base` | 基础数据 | `/base/cmUserGroup/list` |
-| `mmsm` | 炼钢管理 | `/mmsm/mmsmRsltLadleUse/list` |
+| `pm` | 生产管理 | `/pm/omptMillPlanOrder/queryPage` |
+| `mmwr` | 精整作业 | `/mmwr/mmwrCustomerArchive/queryPage` |
+| `sale` | 销售管理 | `/sale/saleOrder/queryPage` |
+| `hrms` | 人力资源 | `/hrms/hrmsEmployee/queryPage` |
+| `base` | 基础数据 | `/base/cmUserGroup/queryPage` |
+| `mmsm` | 炼钢管理 | `/mmsm/mmsmRsltLadleUse/queryPage` |
 
 **关于资源名**：
 - 使用实体类名（去掉末尾的 `Entity` / `DO`，保留业务名）
@@ -48,11 +48,11 @@ AI 会默认为每个页面生成以下标准接口，无需额外沟通：
 
 | 操作 | 方法 | URL | 请求体 |
 |------|------|-----|--------|
-| 分页列表 | POST | `/list` | `{ current, size, ...查询条件 }` |
-| 单条查询 | GET | `/getById` | `?id=xxx` |
+| 分页列表 | POST | `/queryPage` | `{ current, size, ...查询条件 }` |
+| 单条查询 | GET | `/getById/{id}` | 主键路径参数 |
 | 新增 | POST | `/save` | 实体字段（不含 id） |
-| 编辑 | POST | `/update` | 实体字段（含 id） |
-| 删除 | POST | `/remove` | `{ id }` |
+| 编辑 | PUT | `/updateById` | 实体字段（含 id、revision） |
+| 删除 | DELETE | `/deleteById/{id}` | 主键路径参数 |
 | 导出 | GET | `/export` | `?...查询条件` |
 
 > 如后端实际 URL 与上述规范不同（历史项目），请在 `api.md` 确认时注明实际 URL。
@@ -71,7 +71,7 @@ AI 会默认为每个页面生成以下标准接口，无需额外沟通：
 }
 ```
 
-### 分页列表响应（`/list` 接口）
+### 分页列表响应（`/queryPage` 接口）
 
 ```json
 {
@@ -261,11 +261,11 @@ AI 基于原型/详设，自动生成 `api.md` 初稿，内容包括：
 
 \`\`\`typescript
 export const API_CONFIG = {
-  list:     "/[服务缩写]/[资源名]/list",
-  getById:  "/[服务缩写]/[资源名]/getById",
+  list:     "/[服务缩写]/[资源名]/queryPage",
+  getById:  "/[服务缩写]/[资源名]/getById/{id}",
   save:     "/[服务缩写]/[资源名]/save",
-  update:   "/[服务缩写]/[资源名]/update",
-  remove:   "/[服务缩写]/[资源名]/remove",
+  update:   "/[服务缩写]/[资源名]/updateById",
+  remove:   "/[服务缩写]/[资源名]/deleteById/{id}",
   export:   "/[服务缩写]/[资源名]/export",
 } as const;
 \`\`\`
@@ -288,13 +288,13 @@ export const API_CONFIG = {
 | 1 | 正式客户 |
 | 0 | 临时客户 |
 
-## 分页查询（POST /list）
+## 分页查询（POST /queryPage）
 
 请求参数：`{ current: 1, size: 20, customerName?: string, customerType?: string }`  
 响应：标准分页格式，`records` 包含实体字段
 
-## 单条查询（GET /getById）
+## 单条查询（GET /getById/{id}）
 
-请求：`?id=xxx`  
+请求：路径参数 `{id}`
 响应：实体完整字段（含表单字段）
 ```

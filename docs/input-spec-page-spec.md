@@ -13,7 +13,7 @@
 `page-spec` 是 AI 代码生成链路中的"中间语言"：
 
 ```
-原型/详设 → prototype-scan → page-spec JSON → page-codegen → 代码
+已评审需求/原型/详设 → page-spec JSON → validate --strict → page-codegen → 构建验证
 ```
 
 - **面向机器**（page-codegen 读取），但**人类可读**
@@ -28,17 +28,24 @@
 
 ```jsonc
 {
-  "pageName": "客户档案",             // 必填：页面中文名
-  "kebabName": "customer-archive",    // 必填：目录名（kebab-case，小写+连字符）
-  "pattern": "LIST",                  // 必填：页面交互模式（见下方枚举）
-  "path": "views/mmwr/customer/khda/customer-archive/",  // 必填：完整视图路径
+  "schemaVersion": 1,
+  "pageId": "SCREEN_CUSTOMER_ARCHIVE", // 当前项目稳定唯一；design 可选映射
+  "page": "客户档案",                 // 必填：页面中文名
+  "mode": "LIST",                     // 必填：页面交互模式（见下方枚举）
+  "dir": "src/views/mmwr/customer/khda/customer-archive/",
+  "profileId": "jh4j3-openapi3",
+  "protocolVersion": "1.0",
+  "apiContract": "contracts/customer-archive.json",
+  "openQuestions": [],
   "pagesTs": ["customer-archive", "客户档案"],  // 必填：pages.ts 注册项 [路由名, 中文名]
   "platformComponents": ["BaseQuery", "BaseTable", "jh-pagination"],  // 必填：用到的平台组件
   "newComponents": []                 // 必填：需新建的业务组件（空数组=不需要）
 }
 ```
 
-#### `pattern` 枚举值
+#### `mode` 枚举值
+
+旧版 `pageName/pattern/path/field` 仍会被校验器归一化，但新产物统一使用 `page/mode/dir/name`，避免两套结构继续漂移。
 
 | 值 | 含义 | 典型场景 |
 |---|---|---|
@@ -55,14 +62,14 @@
 ```jsonc
 "query": [
   // 文本输入
-  { "field": "customerName", "label": "客户名称", "type": "input" },
+  { "name": "customerName", "label": "客户名称", "type": "input" },
 
   // 字典下拉
-  { "field": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type" },
+  { "name": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type" },
 
   // 日期范围（必须有 startName 和 endName）
   {
-    "field": "createDate",
+    "name": "createDate",
     "label": "建立日期",
     "type": "dateRange",
     "startName": "createDateStart",
@@ -70,16 +77,16 @@
   },
 
   // 单个日期
-  { "field": "planDate", "label": "计划日期", "type": "date" },
+  { "name": "planDate", "label": "计划日期", "type": "date" },
 
   // 数字输入
-  { "field": "qty", "label": "数量", "type": "number" },
+  { "name": "qty", "label": "数量", "type": "number" },
 
   // 自定义下拉（非字典，选项固定）
-  { "field": "category", "label": "分类", "type": "select", "options": [{ "label": "A类", "value": "A" }] },
+  { "name": "category", "label": "分类", "type": "select", "options": [{ "label": "A类", "value": "A" }] },
 
   // 树形选择（部门/组织）
-  { "field": "deptId", "label": "所属部门", "type": "treeSelect" }
+  { "name": "deptId", "label": "所属部门", "type": "treeSelect" }
 ]
 ```
 
@@ -130,19 +137,19 @@
 ```jsonc
 "columns": [
   // 普通文本列
-  { "field": "customerCode", "label": "客户编码", "width": 120 },
+  { "name": "customerCode", "label": "客户编码", "width": 120 },
 
   // 字典列（值自动渲染为字典标签）
-  { "field": "customerType", "label": "客户类型", "width": 120, "dict": "customer_type" },
+  { "name": "customerType", "label": "客户类型", "width": 120, "dict": "customer_type" },
 
   // 可点击列（蓝色链接，点击跳转或打开详情）
-  { "field": "customerName", "label": "客户名称", "width": 180, "clickable": true },
+  { "name": "customerName", "label": "客户名称", "width": 180, "clickable": true },
 
   // 日期列
-  { "field": "createDate", "label": "建立日期", "width": 120 },
+  { "name": "createDate", "label": "建立日期", "width": 120 },
 
   // 数字列（右对齐）
-  { "field": "qty", "label": "数量", "width": 80 }
+  { "name": "qty", "label": "数量", "width": 80 }
 ]
 ```
 
@@ -181,8 +188,8 @@
     "editable": true,          // 是否可增删行（有新增/删除按钮）
     "inlineEdit": false,       // 是否行内编辑（单元格可直接编辑）
     "columns": [
-      { "field": "salesType", "label": "销售别", "width": 80, "dict": "sales_type" },
-      { "field": "remark", "label": "备注", "width": 200 }
+      { "name": "salesType", "label": "销售别", "width": 80, "dict": "sales_type" },
+      { "name": "remark", "label": "备注", "width": 200 }
     ],
     "operations": [
       { "label": "删除", "action": "removeRow" }
@@ -210,16 +217,16 @@
     "name": "basicInfo",       // 区块的 camelCase 标识
     "label": "基本信息",        // 区块的中文标题
     "fields": [
-      { "field": "customerName", "label": "客户名称", "type": "input", "required": true },
-      { "field": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type", "required": true },
-      { "field": "remark", "label": "备注", "type": "textarea", "required": false }
+      { "name": "customerName", "label": "客户名称", "type": "input", "required": true },
+      { "name": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type", "required": true },
+      { "name": "remark", "label": "备注", "type": "textarea", "required": false }
     ]
   },
   {
     "name": "statusInfo",
     "label": "状态信息",
     "fields": [
-      { "field": "createTime", "label": "创建时间", "type": "text", "required": false, "readonly": true }
+      { "name": "createTime", "label": "创建时间", "type": "text", "required": false, "readonly": true }
     ]
   }
 ]
@@ -255,10 +262,10 @@
 ```jsonc
 "viewColumns": {
   "management": [
-    { "field": "xxx", "label": "管理字段" }
+    { "name": "xxx", "label": "管理字段" }
   ],
   "usage": [
-    { "field": "yyy", "label": "使用字段" }
+    { "name": "yyy", "label": "使用字段" }
   ]
 }
 ```
@@ -289,29 +296,34 @@
 
 ```json
 {
-  "pageName": "客户档案",
-  "kebabName": "customer-archive",
-  "pattern": "LIST",
-  "path": "views/mmwr/customer/khda/customer-archive/",
+  "schemaVersion": 1,
+  "pageId": "SCREEN_CUSTOMER_ARCHIVE",
+  "page": "客户档案",
+  "mode": "LIST",
+  "dir": "src/views/mmwr/customer/khda/customer-archive/",
+  "profileId": "jh4j3-openapi3",
+  "protocolVersion": "1.0",
+  "apiContract": "contracts/customer-archive.json",
+  "openQuestions": [],
   "pagesTs": ["customer-archive", "客户档案"],
   "platformComponents": ["BaseQuery", "BaseTable", "jh-pagination"],
   "newComponents": [],
   "query": [
-    { "field": "customerName", "label": "客户名称", "type": "input" },
-    { "field": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type" },
-    { "field": "enableStatus", "label": "启用状态", "type": "dict", "dictCode": "enable_status" },
-    { "field": "createDate", "label": "建立日期", "type": "dateRange", "startName": "createDateStart", "endName": "createDateEnd" }
+    { "name": "customerName", "label": "客户名称", "type": "input" },
+    { "name": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type" },
+    { "name": "enableStatus", "label": "启用状态", "type": "dict", "dictCode": "enable_status" },
+    { "name": "createDate", "label": "建立日期", "type": "dateRange", "startName": "createDateStart", "endName": "createDateEnd" }
   ],
   "toolbar": [
     { "label": "新增", "type": "primary", "action": "openModal" },
     { "label": "导出", "type": "plain", "action": "export" }
   ],
   "columns": [
-    { "field": "customerCode", "label": "客户编码", "width": 120, "clickable": true },
-    { "field": "customerName", "label": "客户名称", "width": 200 },
-    { "field": "customerType", "label": "客户类型", "width": 120, "dict": "customer_type" },
-    { "field": "enableStatus", "label": "启用状态", "width": 100, "dict": "enable_status" },
-    { "field": "createDate", "label": "建立日期", "width": 120 }
+    { "name": "customerCode", "label": "客户编码", "width": 120, "clickable": true },
+    { "name": "customerName", "label": "客户名称", "width": 200 },
+    { "name": "customerType", "label": "客户类型", "width": 120, "dict": "customer_type" },
+    { "name": "enableStatus", "label": "启用状态", "width": 100, "dict": "enable_status" },
+    { "name": "createDate", "label": "建立日期", "width": 120 }
   ],
   "operations": [
     { "label": "编辑", "action": "edit" },
@@ -365,7 +377,7 @@
 
 ```
 用户：以下是 page-spec，请直接生成代码：
-{ "pageName": "xxx", ... }
+{ "page": "xxx", ... }
 ```
 
 page-codegen 接受手写 page-spec 作为直接输入，不需要经过 prototype-scan。

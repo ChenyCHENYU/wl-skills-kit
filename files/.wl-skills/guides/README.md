@@ -6,6 +6,7 @@
 | ----------------- | ---------------------------------------------- |
 | `usage.md`        | 全套 Skill 使用说明（团队成员上手必读）        |
 | `architecture.md` | 整体架构设计与决策记录（含菜单同步等设计内容） |
+| `delivery-compatibility.md` | 独立闭环、统一交付 profile 与前后端严格握手 |
 
 > 与 `kit-internal/`（仅 wl-skills-kit 仓库可见的维护文档）严格区分：
 >

@@ -153,10 +153,10 @@ src/views/[域]/[模块]/dicts.ts
 16. **可点击列（蓝色链接列）**：原型中蓝色凸显的列（如客户编码、申请编码等编码/编号类字段）必须实现为可点击链接，使用 `defaultSlot` + `h()` 渲染蓝色链接样式，点击后查看详情（调 `getById` 后展示或路由跳转）
 17. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
 18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
-19. **未知交互兜底**：当原型未提供交互细节、且无法从通用模式推断时，`onClick` 中使用 `ElMessage.info("需业务确认交互逻辑")` 作为占位
+19. **未知交互阻断**：原型/需求未提供交互细节且无法由已确认契约确定时，写入 `openQuestions` 并停止生成该操作；禁止用提示消息伪装已实现功能
 20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/_utils.ts` 是否存在（若不存在则从 kit 种子文件补充）
-21. **默认 Mock First**：新生成页面默认必须走 `vite-plugin-mock`。必须生成 `mock/[业务域]/[模块].ts`（import `../_utils` 共享工具），并确保 `API_CONFIG` 中每个 URL 都有对应 mock 端点；只有当用户明确要求关闭 mock 或 `.env.dev` 中 `ENV_MOCK=false` 时，才允许直接联调真实接口。
-22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/list`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/list`），这样关闭 mock 后无需修改业务代码。
+21. **Contract First，Mock 可选**：先通过 `wl-api-contract` 建立真实 method/path/request/response。需求明确需要前端并行开发时再生成 `mock/[业务域]/[模块].ts`；mock 必须复用同一契约，关闭后不得修改业务 URL。
+22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/queryPage`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/queryPage`），这样关闭 mock 后无需修改业务代码。
 23. **页面初始数据必须由 mock 提供**：列表页 `onMounted(() => select())` 后必须能显示模拟数据，不允许生成空白页等待后端接口；`list` 端点返回 `{ code: 2000, data: { records, total, size, current } }`。
 24. **必须使用 wl-skills-ui runtime 风格**：当项目安装了 `@agile-team/wl-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
 25. **wl-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wl-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wl-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
@@ -183,7 +183,7 @@ src/views/[域]/[模块]/dicts.ts
 12. **❌ 禁止表单页无滚动**：独立路由表单页内容超出视口时必须可滚动，`.app-page-container` 须设 `overflow-y: auto`（**不要加 `height: 100%`，全局已有 `height: calc(100vh - 100px)`，叠加会导致双滚动条**）
 13. **❌ 禁止内联 style 散落**：所有页面/组件样式统一写在 `index.scss` 中（便于复用和移动），不可在 template 中大量使用内联 `style="..."`
 14. **❌ 禁止生成无 mock 的页面**：只写 `API_CONFIG` 但不写 `mock/[业务域]/*.ts` 属于生成失败。mock 文件必须按域分目录、import `_utils` 共享工具（详见 `.wl-skills/docs/mock-architecture.md`）。
-15. **❌ 禁止生成空 onClick**：`onClick: () => {}` 属于生成失败；未知逻辑也必须用 `ElMessage.info(...)` 明示。
+15. **❌ 禁止生成空或占位 onClick**：`onClick: () => {}` 和仅提示“待确认”的处理都属于生成失败；未知逻辑必须阻断并进入 openQuestions。
 16. **❌ 禁止忽略 wl-skills-ui**：项目已安装 `@agile-team/wl-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
 17. **❌ 禁止 BaseTable 非 AGGrid**：业务列表中 `<BaseTable>` 未写 `render-type="agGrid"` 或缺少 `cid/:cid` 属于生成失败。
 18. **❌ 禁止列缺 cid**：AGGrid 表格的数据列/操作列缺少列级 `cid` 属于生成失败。

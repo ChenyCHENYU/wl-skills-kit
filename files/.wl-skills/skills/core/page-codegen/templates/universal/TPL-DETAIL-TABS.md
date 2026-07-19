@@ -138,8 +138,8 @@ onMounted(() => initPage());
 
 ```typescript
 import { ref, reactive } from "vue";
-import { getAction, postAction } from "@jhlc/common-core/src/api/action";
-import { ElMessage } from "element-plus";
+import { deleteAction, getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
+import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import type { TableColumnDesc } from "@/types/page";
 import envConfig from "@jhlc/common-core/src/store/env-config";
@@ -148,13 +148,15 @@ import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 export const ITEM_TABLE_CID = "[pageAbbr]-[base36Timestamp]-sub1";
 
 export const API_CONFIG = {
-  getById: "/[服务缩写]/[主资源]/getById",
+  getById: "/[服务缩写]/[主资源]/getById/{id}",
   save: "/[服务缩写]/[主资源]/save",
-  update: "/[服务缩写]/[主资源]/update",
-  itemList: "/[服务缩写]/[子资源]/list",
+  update: "/[服务缩写]/[主资源]/updateById",
+  itemList: "/[服务缩写]/[子资源]/queryPage",
   itemSave: "/[服务缩写]/[子资源]/save",
-  itemRemove: "/[服务缩写]/[子资源]/remove",
+  itemRemove: "/[服务缩写]/[子资源]/deleteById/{id}",
 } as const;
+export const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 // ===== 表单状态 =====
 export const formRef = ref<FormInstance>();
@@ -239,7 +241,7 @@ async function removeItem(row: any) {
     itemList.value = itemList.value.filter((r) => r.id !== row.id);
     return;
   }
-  await postAction(API_CONFIG.itemRemove, { ids: [row.id] });
+  await deleteAction(resolveApiPath(API_CONFIG.itemRemove, row.id), {});
   ElMessage.success("删除成功");
   loadItems();
 }
@@ -247,8 +249,8 @@ async function removeItem(row: any) {
 // ===== 表单操作 =====
 export async function handleSave() {
   await formRef.value?.validate();
-  const api = form.id ? API_CONFIG.update : API_CONFIG.save;
-  await postAction(api, { ...form, items: itemList.value });
+  if (form.id) await putAction(API_CONFIG.update, { ...form, items: itemList.value });
+  else await postAction(API_CONFIG.save, { ...form, items: itemList.value });
   ElMessage.success("保存成功");
 }
 
@@ -265,7 +267,7 @@ export async function initPage() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   if (id) {
-    const res = await getAction(API_CONFIG.getById, { id });
+    const res = await getAction(resolveApiPath(API_CONFIG.getById, id), {});
     const data = res.result || res.data || res;
     Object.assign(form, data);
     loadItems();
@@ -385,9 +387,9 @@ export async function initPage() {
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
-import { getAction, postAction } from "@jhlc/common-core/src/api/action";
-import { API_CONFIG } from "../data";
-import type { FormInstance, FormRules } from "element-plus";
+import { getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
+import { API_CONFIG, resolveApiPath } from "../data";
+import { ElMessage, type FormInstance, type FormRules } from "element-plus";
 
 const emit = defineEmits<{ (e: "ok"): void }>();
 
@@ -419,7 +421,7 @@ const rules: FormRules = {
 async function open(id?: string, viewMode?: "edit" | "view") {
   if (id) {
     mode.value = viewMode || "edit";
-    const res = await getAction(API_CONFIG.getById, { id });
+    const res = await getAction(resolveApiPath(API_CONFIG.getById, id), {});
     const data = res.result || res.data || res;
     Object.assign(form, initialForm(), data);
   } else {
@@ -438,8 +440,8 @@ async function handleSubmit() {
   await formRef.value?.validate();
   loading.value = true;
   try {
-    const api = mode.value === "edit" ? API_CONFIG.update : API_CONFIG.save;
-    await postAction(api, { ...form });
+    if (mode.value === "edit") await putAction(API_CONFIG.update, { ...form });
+    else await postAction(API_CONFIG.save, { ...form });
     ElMessage.success(mode.value === "edit" ? "编辑成功" : "新增成功");
     handleClose();
     emit("ok");
@@ -580,7 +582,7 @@ export function managementColumns(): TableColumnDesc<any>[] {
       align: "center",
       defaultSlot: ({ row }: any) => renderOps([
         { type: "edit", onClick: () => _editModalRef?.value?.open(row.id) },
-        { type: "del", onClick: () => Page?.remove(row.id) }
+        { type: "del", onClick: () => Page?.deleteById(row.id) }
       ])
     }
   ] as any) as TableColumnDesc<any>[];
@@ -601,7 +603,7 @@ export function usageColumns(): TableColumnDesc<any>[] {
       align: "center",
       defaultSlot: ({ row }: any) => renderOps([
         { type: "edit", onClick: () => _editModalRef?.value?.open(row.id) },
-        { type: "del", onClick: () => Page?.remove(row.id) }
+        { type: "del", onClick: () => Page?.deleteById(row.id) }
       ])
     }
   ] as any) as TableColumnDesc<any>[];
@@ -614,11 +616,16 @@ export function createPage(editModalRef?: any) {
 
   let Page_inst = new (class extends AbstractPageQueryHook {
     constructor() {
-      super({ url: { list: API_CONFIG.list, remove: API_CONFIG.remove } });
+      super({ url: { list: API_CONFIG.list } });
     }
     queryDef() { return [...]; }
     toolbarDef() { return [...]; }
     columnsDef() { return managementColumns(); }  // 默认视角（基类需要）
+    async deleteById(id: string) {
+      await ElMessageBox.confirm("确认删除该记录吗？", "提示", { type: "warning" });
+      await deleteAction(resolveApiPath(API_CONFIG.remove, id), {});
+      await this.select();
+    }
   })();
 
   Page = Page_inst;
@@ -1108,7 +1115,7 @@ const dataPool = Array.from({ length: 50 }, genRecord);
 const mockApi: MockMethod[] = [
   {
     // ⚠️ URL 必须带 /dev-api 前缀（axios baseURL = /dev-api）
-    url: "/dev-api/[服务缩写]/[资源名]/list",
+    url: "/dev-api/[服务缩写]/[资源名]/queryPage",
     // ⚠️ AbstractPageQueryHook 默认 requestMethod = GET，所以 list 必须用 get
     method: "get",
     response: ({ query }: any) => {
@@ -1128,7 +1135,7 @@ const mockApi: MockMethod[] = [
     },
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/getById",
+    url: "/dev-api/[服务缩写]/[资源名]/getById/:id",
     method: "get",
     response: ({ query }: any) => ({
       code: 2000,
@@ -1137,7 +1144,7 @@ const mockApi: MockMethod[] = [
     }),
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/remove",
+    url: "/dev-api/[服务缩写]/[资源名]/deleteById/:id",
     method: "delete",
     response: ({ query, body }: any) => {
       const id = query?.id || body?.id;
@@ -1159,8 +1166,8 @@ const mockApi: MockMethod[] = [
     },
   },
   {
-    url: "/dev-api/[服务缩写]/[资源名]/update",
-    method: "post",
+    url: "/dev-api/[服务缩写]/[资源名]/updateById",
+    method: "put",
     response: ({ body }: any) => {
       const idx = dataPool.findIndex((d) => d.id === body?.id);
       if (idx > -1) Object.assign(dataPool[idx], body);

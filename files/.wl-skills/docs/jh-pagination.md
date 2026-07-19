@@ -47,7 +47,7 @@ const list = ref([]);
 // 加载数据
 const loadData = async () => {
   const res = await request({
-    url: "/api/list",
+    url: "/api/queryPage",
     method: "get",
     params: {
       page: page.value.current,
@@ -244,7 +244,7 @@ const itemSize = ref(10);
 // 加载项次数据
 const loadItemData = async () => {
   const res = await request({
-    url: "/api/items/list",
+    url: "/api/items/queryPage",
     method: "get",
     params: {
       page: itemPage.value,

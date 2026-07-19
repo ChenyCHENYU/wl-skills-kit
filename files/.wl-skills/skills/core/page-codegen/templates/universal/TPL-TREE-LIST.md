@@ -83,20 +83,22 @@ import {
   TableColumnDesc,
   BusLogicDataType,
 } from "@/types/page";
-import { getAction, postAction } from "@jhlc/common-core/src/api/action";
-import { ElMessage } from "element-plus";
+import { deleteAction, getAction, postAction } from "@jhlc/common-core/src/api/action";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
 
 export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
 export const API_CONFIG = {
   tree: "/[服务缩写]/[树资源]/tree",
-  list: "/[服务缩写]/[主资源]/list",
-  remove: "/[服务缩写]/[主资源]/remove",
-  getById: "/[服务缩写]/[主资源]/getById",
+  list: "/[服务缩写]/[主资源]/queryPage",
+  remove: "/[服务缩写]/[主资源]/deleteById/{id}",
+  getById: "/[服务缩写]/[主资源]/getById/{id}",
   save: "/[服务缩写]/[主资源]/save",
-  update: "/[服务缩写]/[主资源]/update",
+  update: "/[服务缩写]/[主资源]/updateById",
 } as const;
+const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 // ===== 树形数据 =====
 const treeData = ref<any[]>([]);
@@ -112,7 +114,7 @@ export function createPage(editModalRef?: any) {
 
   let Page = new (class extends AbstractPageQueryHook {
     constructor() {
-      super({ url: { list: API_CONFIG.list, remove: API_CONFIG.remove } });
+      super({ url: { list: API_CONFIG.list } });
     }
 
     queryDef(): BaseQueryItemDesc<any>[] {
@@ -128,15 +130,7 @@ export function createPage(editModalRef?: any) {
           label: "新增",
           onClick: () => _editModalRef?.value?.open(),
         },
-        {
-          name: "danger",
-          label: "删除",
-          onClick: () => {
-            const rows = this.tableRef.value?.getSelectionRows();
-            if (!rows?.length) return ElMessage.warning("请先选择数据");
-            this.removeBatch();
-          },
-        },
+        // 批量删除仅在契约显式声明 batchDelete operation 后生成；不得复用单删 URL
       ];
     }
 
@@ -169,10 +163,17 @@ export function createPage(editModalRef?: any) {
                 type: "edit",
                 onClick: () => _editModalRef?.value?.edit(row.id),
               },
-              { type: "del", onClick: () => this.remove(row.id) },
+              { type: "del", onClick: () => this.deleteById(row.id) },
             ]),
         },
       ] as any) as TableColumnDesc<any>[];
+    }
+
+    async deleteById(id: string) {
+      await ElMessageBox.confirm("确认删除该记录吗？", "提示", { type: "warning" });
+      await deleteAction(resolveApiPath(API_CONFIG.remove, id), {});
+      ElMessage.success("删除成功");
+      await this.select();
     }
   })();
 

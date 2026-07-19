@@ -243,7 +243,7 @@ params: {
 ```ts
 const [startDate, endDate] = query.value.dateRange || [];
 request({
-  url: "/api/list",
+  url: "/api/queryPage",
   params: { startDate, endDate }
 });
 ```

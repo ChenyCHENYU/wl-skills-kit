@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agile-team.example/schemas/wl-api-contract-v1.json",
+  "title": "WL frontend/backend API contract",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "protocolVersion", "source", "resource", "transport", "operations", "models", "frontend", "completion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "wl-api-contract" },
+    "protocolVersion": { "const": "1.0" },
+    "source": {
+      "type": "object",
+      "required": ["profile", "mode"],
+      "properties": {
+        "profile": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["requirements", "design", "frontend", "backend-contract"] },
+        "contractHash": { "type": "string" },
+        "apiHash": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "resource": { "type": "object" },
+    "transport": { "type": "object" },
+    "operations": { "type": "object" },
+    "models": { "type": "object" },
+    "frontend": { "type": "object" },
+    "completion": {
+      "type": "object",
+      "required": ["contractStatus", "openQuestions", "deviations"],
+      "properties": {
+        "contractStatus": { "enum": ["draft", "confirmed"] },
+        "openQuestions": { "type": "array", "items": { "type": "string" } },
+        "deviations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

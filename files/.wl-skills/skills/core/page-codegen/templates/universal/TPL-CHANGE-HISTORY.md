@@ -32,10 +32,12 @@ import { create[Domain]MockData } from "@/components/local/c_[domainTabs]/data";
 import type { BasicInfoForm, BusinessInfoRow } from "@/components/local/c_[domainTabs]/data";
 
 export const API_CONFIG = {
-  changeHistoryList: "/[服务缩写]/[资源]/changeHistory/list",
-  getById: "/[服务缩写]/[资源]/changeHistory/getById",
-  getDiffById: "/[服务缩写]/[资源]/changeHistory/getDiffById"  // 获取旧版比对数据
+  changeHistoryList: "/[服务缩写]/[资源]/changeHistory/queryPage",
+  getById: "/[服务缩写]/[资源]/changeHistory/getById/{id}",
+  getDiffById: "/[服务缩写]/[资源]/changeHistory/getDiffById/{id}"  // 获取旧版比对数据
 } as const;
+const resolveApiPath = (template: string, id: string) =>
+  template.replace("{id}", encodeURIComponent(id));
 
 export interface HistoryRecord {
   id: string;
@@ -102,9 +104,7 @@ export function useChangeHistory(tabsRef: any) {
     historyLoading.value = true;
     try {
       const res = await getAction(API_CONFIG.changeHistoryList, { applyId });
-      historyList.value = res?.data?.length ? res.data : createHistoryListMock();
-    } catch {
-      historyList.value = createHistoryListMock();
+      historyList.value = res?.records || res?.data?.records || [];
     } finally {
       historyLoading.value = false;
       if (historyList.value.length > 0) {
@@ -117,17 +117,14 @@ export function useChangeHistory(tabsRef: any) {
     selectedId.value = id;
     loading.value = true;
     try {
-      const res = await getAction(API_CONFIG.getById, { id });
-      tabsRef.value?.loadData(res?.data || create[Domain]MockData());
-      const diffRes = await getAction(API_CONFIG.getDiffById, { id }).catch(() => null);
-      if (diffRes?.data) {
-        tabsRef.value?.loadDiffData(diffRes.data);
+      const res = await getAction(resolveApiPath(API_CONFIG.getById, id), {});
+      tabsRef.value?.loadData(res?.data || res);
+      const diffRes = await getAction(resolveApiPath(API_CONFIG.getDiffById, id), {});
+      if (diffRes?.data || diffRes) {
+        tabsRef.value?.loadDiffData(diffRes?.data || diffRes);
       } else {
         tabsRef.value?.clearDiffData();
       }
-    } catch {
-      tabsRef.value?.loadData(create[Domain]MockData());
-      tabsRef.value?.clearDiffData();
     } finally {
       loading.value = false;
     }

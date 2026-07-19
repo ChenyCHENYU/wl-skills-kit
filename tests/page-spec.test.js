@@ -15,6 +15,7 @@
 import { describe, it, expect } from "vitest";
 import {
   validateSpecShape,
+  normalizePageSpec,
   extractMethodBody,
   extractFieldSequence,
   extractToolbarSequence,
@@ -52,6 +53,41 @@ describe("validateSpecShape", () => {
   it("非法 color 报错", () => {
     const spec = { page: "x", toolbar: [{ label: "新增", color: "pink" }] };
     expect(validateSpecShape(spec).some((e) => /color/.test(e))).toBe(true);
+  });
+  it("兼容旧 pageName/pattern/field 并归一化", () => {
+    const spec = normalizePageSpec({
+      pageName: "客户档案",
+      pattern: "LIST",
+      query: [{ field: "customerCode", label: "客户编码" }],
+    });
+    expect(spec.page).toBe("客户档案");
+    expect(spec.mode).toBe("LIST");
+    expect(spec.query[0].name).toBe("customerCode");
+    expect(validateSpecShape(spec)).toEqual([]);
+  });
+  it("完整区块、子表和 features 得到结构校验", () => {
+    const spec = {
+      page: "订单",
+      formSections: [{ name: "basic", label: "基本信息", fields: [{ field: "code", label: "编码" }] }],
+      subTables: [{ name: "items", label: "明细", columns: [{ field: "qty", label: "数量" }], operations: [] }],
+      features: { tabSwitch: false },
+    };
+    expect(validateSpecShape(spec)).toEqual([]);
+    expect(validateSpecShape({ ...spec, subTables: [{ name: "items" }] }).some((item) => /subTables/.test(item))).toBe(true);
+  });
+  it("严格模式要求稳定 pageId、profile、协议和 API 契约", () => {
+    const base = { page: "订单", query: [], columns: [], toolbar: [], operations: [] };
+    expect(validateSpecShape(base, { strict: true }).length).toBeGreaterThan(0);
+    expect(validateSpecShape({
+      ...base,
+      schemaVersion: 1,
+      pageId: "PAGE_ORDER",
+      mode: "LIST",
+      profileId: "jh4j3-openapi3",
+      protocolVersion: "1.0",
+      apiContract: "contracts/order.json",
+      openQuestions: [],
+    }, { strict: true })).toEqual([]);
   });
 });
 

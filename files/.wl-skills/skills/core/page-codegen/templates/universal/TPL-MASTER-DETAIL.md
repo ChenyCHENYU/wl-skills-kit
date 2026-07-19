@@ -14,10 +14,10 @@ export const TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 export const BOTTOM_TABLE_CID = `${TABLE_CID}-sub1`;
 
 export const API_CONFIG = {
-  list: "/[服务缩写]/[主资源]/list",
-  remove: "/[服务缩写]/[主资源]/remove",
+  list: "/[服务缩写]/[主资源]/queryPage",
+  remove: "/[服务缩写]/[主资源]/deleteById/{id}",
   // ...标准 CRUD
-  bottomList: "/[服务缩写]/[从资源]/list", // 从表查询
+  bottomList: "/[服务缩写]/[从资源]/queryPage", // 从表查询
 } as const;
 
 export function createPage(/* refs */) {

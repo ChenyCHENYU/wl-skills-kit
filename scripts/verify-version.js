@@ -158,6 +158,7 @@ const REQUIRED_LIB_FILES = [
   "lib/vite-plugin-wl-skills.js",
   "lib/page-spec.js",
   "lib/safe-fix.js",
+  "lib/api-contract.js",
   "lib/standard-env/index.js",
 ];
 for (const rel of REQUIRED_LIB_FILES) {

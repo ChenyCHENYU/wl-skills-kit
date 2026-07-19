@@ -43,7 +43,7 @@ export const [camelPageName]Config: XxxTemplateConfig = {
   // 按 types.ts 的 interface 逐字段填写
   // 所有 API path 格式："/[服务缩写]/[资源名]/[操作]"
   api: {
-    list: "/[svc]/[resource]/list",
+    list: "/[svc]/[resource]/queryPage",
     // ... 其余 API 按 types.ts 定义
   },
 
@@ -133,7 +133,7 @@ import { BusLogicDataType } from "@/types/page";
 
 export const [pageName]Config: ResultQueryConfig = {
   api: {
-    list: "/[服务缩写]/[资源名]/list",
+    list: "/[服务缩写]/[资源名]/queryPage",
     export: "/[服务缩写]/[资源名]/export"  // 有导出时才加
   },
   queryItems: [
@@ -232,7 +232,7 @@ import { BusLogicDataType } from "@/types/page";
 
 export const [pageName]Config: ResultQueryConfig = {
   api: {
-    list: "/[服务缩写]/[资源名]/list",
+    list: "/[服务缩写]/[资源名]/queryPage",
     export: "/[服务缩写]/[资源名]/export"  // 有导出时才加
   },
   queryItems: [
