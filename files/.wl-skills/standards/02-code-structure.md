@@ -50,7 +50,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 | 场景                    | 位置                                 |
 | ----------------------- | ------------------------------------ |
-| kit 标准组件 | `.wl-skills/` 仅存模板；按需落盘到 `src/components/local/` |
+| kit 过渡期业务组件 | `.wl-skills/` 仅存快照；按需或全量落盘到 `src/components/local/`、`src/components/global/`，已有项目实现优先且不覆盖 |
 | 通用弹窗（2+ 页面复用） | `src/components/local/c_xxxModal/`   |
 | 极个性弹窗（仅单页面）  | 页面目录下 `components/xxxModal.vue` |
 

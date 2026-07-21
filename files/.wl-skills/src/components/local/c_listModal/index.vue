@@ -8,7 +8,7 @@
   >
     <BaseQuery
       :form="queryParam"
-      :items="queryItems"
+      :items="resolvedQueryItems"
       :columns="queryColumns"
       :label-width="queryLabelWidth"
       @select="select"
@@ -27,13 +27,13 @@
 
     <jh-pagination
       v-show="page.total && page.total > 0"
-      :total="page.total || 0"
       v-model:currentPage="page.current"
       v-model:pageSize="page.size"
+      :total="page.total || 0"
       @current-change="select"
       @size-change="select"
     />
-    <template #footer v-if="showFooterButtons">
+    <template v-if="showFooterButtons" #footer>
       <div class="dialog-footer">
         <BaseToolbar :items="cancelConfirmButtons(close, confirm)" />
       </div>
@@ -42,9 +42,10 @@
 </template>
 
 <script setup lang="ts">
-import { TableColumnDesc, BaseQueryItemDesc } from "@/types/page";
+import type { BaseQueryItemDesc, TableColumnDesc } from "@/types/page";
 import { cancelConfirmButtons } from "@jhlc/common-core/src/components/toolbar/toolbar-data";
 import { RequestMethod } from "@jhlc/types/src/request-type";
+import { ref } from "vue";
 import { createPage } from "./data";
 
 interface Props {
@@ -87,14 +88,14 @@ const Page = createPage(
 );
 
 const {
-  tableRef: tableRef,
-  page: page,
-  list: list,
-  queryParam: queryParam,
-  queryItems: queryItems,
-  columns: columns,
-  select: select,
-  resetQuery: resetQuery
+  tableRef,
+  page,
+  list,
+  queryParam,
+  queryItems: resolvedQueryItems,
+  columns,
+  select,
+  resetQuery
 } = Page;
 
 // 确定函数

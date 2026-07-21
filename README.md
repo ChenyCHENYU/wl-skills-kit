@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.13.2** — 一键将 14 条规范、12 个 AI Skill、21 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.13.3** — 一键将 14 条规范、12 个 AI Skill、21 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -396,6 +396,10 @@ pnpm dlx @agile-team/wl-skills-kit component check
 pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal,c_listModal
 pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal,c_listModal --confirm --plan-hash <hash>
 
+# 初始化时也可一次预览、落盘全部 7 个过渡期业务组件
+pnpm dlx @agile-team/wl-skills-kit component ensure --all
+pnpm dlx @agile-team/wl-skills-kit component ensure --all --confirm --plan-hash <hash>
+
 # 导出菜单/字典/权限基线为 xlsx
 pnpm dlx @agile-team/wl-skills-kit export
 
@@ -425,12 +429,16 @@ pnpm dlx @agile-team/wl-skills-kit update --dry-run
 
 ### 标准业务组件按需落盘
 
-kit 内的 `.wl-skills/src/components/` 是模板源和文档，不参与业务运行。页面需要 `c_formModal`、`C_Tree` 等标准组件时，`component ensure` 只把实际使用的运行文件落到项目 `src/components/local/` 或 `src/components/global/`，不复制 README，不修改 Vite alias。
+kit 内的 `.wl-skills/src/components/` 是过渡期组件快照和文档，不参与业务运行。当前可落盘 4 个 local 组件（`c_formModal`、`c_formSections`、`c_listModal`、`c_spliterTitle`）和 3 个 global 组件（`C_ParentView`、`C_TagStatus`、`C_Tree`）。可按页面实际使用落盘，也可用 `--all` 一次准备全部组件；均不复制 README、不修改 Vite alias。
 
 - 默认预览并返回 `planHash`，显式确认后才写入。
-- 目标目录已存在、文件被修改、契约不兼容或依赖缺失时全部阻断，绝不覆盖。
-- `.wl-skills/components.lock.json` 记录契约版本和文件哈希；kit 更新只提示同契约新实现，不自动升级项目组件。
-- `validate` / `validate-page` 内置 C1~C3：缺失、冲突和可升级状态均可追踪。
+- 项目已有同名有效组件或落盘后继续打磨时，以项目真实实现为准，直接复用且绝不覆盖；页面生成前读取其真实组件契约。
+- 已有目录缺少入口时只补齐缺失的声明文件，目录内任何已有文件都保留；只有目标路径不是目录或新落盘依赖缺失才阻断。
+- `.wl-skills/components.lock.json` 只记录 kit 快照，不取得项目源码所有权。
+- `validate` / `validate-page` 内置 C1~C4：缺失和真实阻断必须修复，可升级与项目实现优先为信息提示。
+- 平台已有能力时优先平台组件；项目成熟实现经人工评审后再反馈 kit，组件规模稳定后可提取独立业务组件库，不做自动反向同步。
+
+旧 `C_RightToolbar` 因实现不完整且没有有效使用退出分发；`C_SvgIcon` 因会引入额外资源包依赖也不再分发。工具栏使用平台 `BaseToolbar` 或项目等价组件，SVG 图标继续使用项目现有能力，有明确复用需求时再独立封装。
 
 ---
 
@@ -500,7 +508,7 @@ wls_standard_env_verify({ profile: "walsin", runBuild: true })
 - `diff`：查看当前项目与最新 kit 内容差异
 - `clean`：按 manifest 清理 AI 辅助文件，默认保留 `src/components/` 和 `src/types/`
 - `check`：检查 Node、MCP、manifest 和工程化配置
-- `.wl-skills/components.lock.json`：只记录已按需落盘的业务组件；`update` 和 `clean` 都不会覆盖或删除其项目源码
+- `.wl-skills/components.lock.json`：只记录 kit 首次落盘的业务组件快照；`update` 和 `clean` 都不会覆盖或删除项目源码，项目后续定制始终保留
 
 运行时最低要求 Node.js 22。仓库 CI 会在 Linux Node 22/24 与 Windows Node 24 上执行完整验证和打包验收。npm 发布只在 GitHub Release 正式发布后触发，并再次核对 Release tag、`package.json` 版本和全部质量门禁；仓库需在 npm 配置 Trusted Publisher，并为 `npm` environment 启用审批规则。
 

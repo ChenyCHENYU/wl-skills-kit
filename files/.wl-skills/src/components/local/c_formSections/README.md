@@ -26,7 +26,7 @@
 <template>
   <c_formSections
     :sections="sectionsConfig"
-    :form="form"
+    v-model:form="form"
     v-model:activeNames="activeNames"
   />
 </template>
@@ -80,7 +80,7 @@ const sectionsConfig = [
 <template>
   <c_formSections
     :sections="sectionsConfig"
-    :form="form"
+    v-model:form="form"
     v-model:activeNames="activeNames"
     show-header
     header-title="主档维护"
@@ -278,7 +278,7 @@ interface NavTabConfig {
 用于渲染 `isSpecial: true` 的区块自定义内容：
 
 ```vue
-<c_formSections :sections="sections" :form="form">
+<c_formSections :sections="sections" v-model:form="form">
   <template #special-3="{ section }">
     <el-row :gutter="20">
       <el-col :span="24">
@@ -294,7 +294,7 @@ interface NavTabConfig {
 用于渲染 `type: 'custom'` 的字段自定义内容：
 
 ```vue
-<c_formSections :sections="sections" :form="form">
+<c_formSections :sections="sections" v-model:form="form">
   <template #field-customField="{ field, form }">
     <custom-input v-model="form[field.prop]" />
   </template>
@@ -312,7 +312,7 @@ interface NavTabConfig {
     <!-- 表单区块组件 -->
     <c-form-sections
       :sections="visibleSections"
-      :form="form"
+      v-model:form="form"
       v-model:activeNames="activeNames"
       :rules="formRules"
       :fieldSpan="layoutColumns === 2 ? 12 : 6"

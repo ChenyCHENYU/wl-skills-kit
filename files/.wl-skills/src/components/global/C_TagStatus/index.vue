@@ -61,10 +61,12 @@ const props = withDefaults(defineProps<Props>(), {
 /**
  * 组件事件定义
  */
-const emit = defineEmits<{
-  click: [event: MouseEvent];
-  close: [event: MouseEvent];
-}>();
+interface Emits {
+  (event: "click", value: MouseEvent): void;
+  (event: "close", value: MouseEvent): void;
+}
+
+const emit = defineEmits<Emits>();
 
 /**
  * 获取状态配置

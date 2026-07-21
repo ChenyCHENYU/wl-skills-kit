@@ -340,12 +340,18 @@ describe("CLI component", () => {
   function makeComponentProject() {
     const dir = makeIsolatedDir();
     fs.mkdirSync(path.join(dir, "src", "views", "demo"), { recursive: true });
+    fs.mkdirSync(path.join(dir, "src", "types"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src", "types", "page.ts"), "export type Page = unknown\n");
     fs.writeFileSync(
       path.join(dir, "package.json"),
       JSON.stringify({
         dependencies: {
           vue: "3.2.0",
+          "vue-router": "4.0.0",
+          "element-plus": "2.0.0",
+          "@element-plus/icons-vue": "2.0.0",
           "@jhlc/common-core": "3.1.0",
+          "@jhlc/types": "3.1.0",
         },
       }),
     );
@@ -380,14 +386,36 @@ describe("CLI component", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("已有同名目录时报告冲突且不覆盖", () => {
+  it("--all 一次落盘全部 7 个组件且不包含已退役组件", () => {
+    const dir = makeComponentProject();
+    const preview = runCli(["component", "ensure", "--all"], { cwd: dir });
+    expect(preview.status).toBe(0);
+    const planHash = preview.stdout.match(/planHash:\s*([a-f0-9]{64})/)?.[1];
+    expect(planHash).toBeTruthy();
+
+    const apply = runCli([
+      "component", "ensure", "--all", "--confirm", "--plan-hash", planHash,
+    ], { cwd: dir });
+    expect(apply.status).toBe(0);
+    expect(fs.existsSync(path.join(dir, "src/components/local/c_formModal/index.vue"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "src/components/global/C_TagStatus/index.vue"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "src/components/global/C_RightToolbar"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "src/components/global/C_SvgIcon"))).toBe(false);
+
+    const check = runCli(["component", "check", "--all"], { cwd: dir });
+    expect(check.status).toBe(0);
+    expect((check.stdout.match(/: 可复用 →/g) || [])).toHaveLength(7);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("已有同名项目组件时直接复用且不覆盖", () => {
     const dir = makeComponentProject();
     const target = path.join(dir, "src", "components", "local", "c_formModal", "index.vue");
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, "custom", "utf8");
     const result = runCli(["component", "ensure", "--components", "c_formModal"], { cwd: dir });
-    expect(result.status).not.toBe(0);
-    expect(result.stdout).toMatch(/冲突（未受管）/);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/项目实现（保留）/);
     expect(fs.readFileSync(target, "utf8")).toBe("custom");
     fs.rmSync(dir, { recursive: true, force: true });
   });

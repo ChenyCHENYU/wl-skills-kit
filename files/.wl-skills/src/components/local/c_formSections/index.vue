@@ -69,10 +69,10 @@
       <!-- 左侧楼层导航 -->
       <el-tabs
         v-if="showNavTabs"
-        :tab-position="navTabsPosition"
         v-model="activeNavTab"
-        @tab-click="handleNavTabClick"
         class="nav-tabs"
+        :tab-position="navTabsPosition"
+        @tab-click="handleNavTabClick"
       >
         <el-tab-pane
           v-for="tab in navTabs"
@@ -83,7 +83,7 @@
       </el-tabs>
 
       <!-- 表单区域 -->
-      <div class="form-container" ref="formContainerRef">
+      <div ref="formContainerRef" class="form-container">
         <el-form
           :label-width="labelWidth"
           :label-position="labelPosition"
@@ -94,9 +94,9 @@
             <!-- 循环渲染折叠面板 -->
             <el-collapse-item
               v-for="section in visibleSections"
+              :id="section.id"
               :key="section.name"
               :name="section.name"
-              :id="section.id"
             >
               <template #title>
                 <span class="section-title">{{ section.title }}</span>
@@ -131,9 +131,10 @@
                     <!-- 下拉选择框 -->
                     <el-select
                       v-if="field.type === 'select'"
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       :placeholder="field.placeholder || '请选择'"
                       :clearable="field.clearable !== false"
+                      @update:model-value="updateField(field.prop, $event)"
                     >
                       <el-option
                         v-for="opt in field.options"
@@ -146,39 +147,43 @@
                     <!-- 多行文本框 -->
                     <el-input
                       v-else-if="field.type === 'textarea'"
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       type="textarea"
                       :rows="field.rows || 3"
                       :placeholder="field.placeholder || '请输入'"
+                      @update:model-value="updateField(field.prop, $event)"
                     />
 
                     <!-- 日期选择器 -->
                     <el-date-picker
                       v-else-if="field.type === 'date'"
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       type="date"
                       :placeholder="field.placeholder || '选择日期'"
                       style="width: 100%"
+                      @update:model-value="updateField(field.prop, $event)"
                     />
 
                     <!-- 日期时间选择器 -->
                     <el-date-picker
                       v-else-if="field.type === 'datetime'"
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       type="datetime"
                       :placeholder="field.placeholder || '选择日期时间'"
                       style="width: 100%"
+                      @update:model-value="updateField(field.prop, $event)"
                     />
 
                     <!-- 数字输入框 -->
                     <el-input-number
                       v-else-if="field.type === 'number'"
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       :min="field.min"
                       :max="field.max"
                       :precision="field.precision"
                       :step="field.step || 1"
                       style="width: 100%"
+                      @update:model-value="updateField(field.prop, $event)"
                     />
 
                     <!-- 自定义字段 - 使用作用域插槽 -->
@@ -189,16 +194,18 @@
                       :form="form"
                     >
                       <el-input
-                        v-model="form[field.prop]"
+                        :model-value="form[field.prop]"
                         :placeholder="field.placeholder || '请输入'"
+                        @update:model-value="updateField(field.prop, $event)"
                       />
                     </slot>
 
                     <!-- 默认单行文本输入框 -->
                     <el-input
                       v-else
-                      v-model="form[field.prop]"
+                      :model-value="form[field.prop]"
                       :placeholder="field.placeholder || '请输入'"
+                      @update:model-value="updateField(field.prop, $event)"
                     />
                   </el-form-item>
                 </el-col>
@@ -298,6 +305,7 @@ const props = withDefaults(defineProps<Props>(), {
 /** 组件 Emits */
 interface Emits {
   (e: "update:activeNames", value: string[]): void;
+  (e: "update:form", value: FormDataType): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -397,6 +405,11 @@ const internalNavTabs = computed<NavTabConfig[]>(() => {
 });
 
 // ===== 方法 =====
+/** 以不可变方式更新表单，避免组件直接修改父级 prop。 */
+const updateField = (field: string, value: unknown) => {
+  emit("update:form", { ...props.form, [field]: value });
+};
+
 /** 处理楼层导航点击 */
 const handleNavTabClick = (tab: any) => {
   const tabName = tab.paneName || tab.props?.name;

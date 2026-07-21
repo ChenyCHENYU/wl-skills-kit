@@ -1,5 +1,10 @@
 {
   "schemaVersion": 1,
+  "policy": {
+    "lifecycle": "provisional",
+    "projectCustomization": "allowed",
+    "futureDirection": "prefer-platform-or-extract-library"
+  },
   "components": [
     {
       "name": "c_formModal",
@@ -26,7 +31,7 @@
       "tags": ["c_formSections", "c-form-sections"],
       "files": ["data.ts", "index.scss", "index.vue"],
       "requirements": {
-        "packages": ["vue"]
+        "packages": ["vue", "element-plus"]
       }
     },
     {
@@ -55,7 +60,35 @@
       "tags": ["c_spliterTitle", "c-spliter-title"],
       "files": ["index.scss", "index.vue"],
       "requirements": {
-        "packages": ["vue"]
+        "packages": ["vue", "element-plus"]
+      }
+    },
+    {
+      "name": "C_ParentView",
+      "kind": "global",
+      "contractVersion": 1,
+      "sourceDir": "src/components/global/C_ParentView",
+      "targetDir": "src/components/global/C_ParentView",
+      "entry": "index.vue",
+      "importPath": "@/components/global/C_ParentView/index.vue",
+      "tags": ["C_ParentView", "c-parent-view"],
+      "files": ["index.vue"],
+      "requirements": {
+        "packages": ["vue", "vue-router"]
+      }
+    },
+    {
+      "name": "C_TagStatus",
+      "kind": "global",
+      "contractVersion": 1,
+      "sourceDir": "src/components/global/C_TagStatus",
+      "targetDir": "src/components/global/C_TagStatus",
+      "entry": "index.vue",
+      "importPath": "@/components/global/C_TagStatus/index.vue",
+      "tags": ["C_TagStatus", "c-tag-status"],
+      "files": ["config.ts", "index.scss", "index.vue", "types.ts"],
+      "requirements": {
+        "packages": ["vue", "element-plus"]
       }
     },
     {
@@ -69,7 +102,7 @@
       "tags": ["C_Tree", "c-tree"],
       "files": ["data.ts", "index.scss", "index.vue", "types.ts"],
       "requirements": {
-        "packages": ["vue", "@element-plus/icons-vue"]
+        "packages": ["vue", "element-plus", "@element-plus/icons-vue"]
       }
     }
   ]

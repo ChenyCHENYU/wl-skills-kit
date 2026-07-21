@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.13.2
+ * wl-skills-kit CLI v2.13.3
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -203,7 +203,7 @@ if (showHelp) {
     --keep-reports   clean 命令保留 .wl-skills/reports/（默认一起删除）
     --force          强制执行，跳过同版本检测（忽略已安装状态）
     --domain <name>  mock-clean 指定要清理的业务域（如 sale、mdata）
-    --all            mock-clean 清理全部 mock（保留 _utils.ts）
+    --all            component ensure 落盘全部组件；mock-clean 清理全部 mock
     --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（R14 类型错误零容忍）
@@ -238,6 +238,7 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wl-skills-ui 接入
     pnpm dlx @agile-team/wl-skills-kit component check       检查已引用组件
     pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal
+    pnpm dlx @agile-team/wl-skills-kit component ensure --all
     pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal --confirm --plan-hash <hash>
     pnpm dlx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
     pnpm dlx @agile-team/wl-skills-kit clean                 清理开发期文件
@@ -1508,7 +1509,7 @@ function runValidate() {
   appendMockArchitectureIssues(issues, mockFiles);
   appendAllPageIssues(issues, pages, mockFiles, mockContent);
 
-  // ── 标准业务组件 C1~C3：引用、落盘锁与契约一致性 ───────────────────
+  // ── 标准业务组件 C1~C4：引用、落盘锁、更新与项目实现优先级 ───────────
   const componentResult = componentIssues({
     projectRoot: TARGET_DIR,
     scanPath,
@@ -1603,7 +1604,9 @@ const AST_FIX_SUGGESTIONS = {
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
   C1: { fix: '\u5148\u6267\u884c component ensure \u9884\u89c8\uff0c\u518d\u643a\u5e26 planHash \u663e\u5f0f\u786e\u8ba4\u6309\u9700\u843d\u76d8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
-  C2: { fix: '\u4fdd\u7559\u73b0\u6709\u7ec4\u4ef6\uff0c\u6838\u5bf9 Props/Events/Expose \u5951\u7ea6\uff1b\u5de5\u5177\u4e0d\u4f1a\u8986\u76d6', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
+  C2: { fix: '\u4fee\u6b63\u7ec4\u4ef6\u76ee\u6807\u8def\u5f84\uff0c\u6216\u8865\u9f50\u8fd0\u884c\u4f9d\u8d56\u4e0e\u5fc5\u9700\u9879\u76ee\u6587\u4ef6\u540e\u91cd\u65b0\u9884\u89c8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
+  C3: { fix: '\u8bc4\u4f30 kit \u540c\u5951\u7ea6\u65b0\u5feb\u7167\uff1b\u9ed8\u8ba4\u4fdd\u7559\u9879\u76ee\u5f53\u524d\u5b9e\u73b0', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
+  C4: { fix: '\u751f\u6210\u9875\u9762\u524d\u8bfb\u53d6\u9879\u76ee\u7ec4\u4ef6\u7684 Props/Events/Slots/Expose \u771f\u5b9e\u5951\u7ea6', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
 };
 
 function groupIssuesByRule(blockingIssues) {
@@ -2182,6 +2185,7 @@ async function runComponent() {
     action: positional[1] || "check",
     projectRoot: TARGET_DIR,
     components: requestedComponentNames(),
+    all: args.includes("--all"),
     confirm: args.includes("--confirm"),
     dryRun,
     json: args.includes("--json"),
