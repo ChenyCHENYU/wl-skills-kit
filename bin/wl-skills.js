@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.13.1
+ * wl-skills-kit CLI v2.13.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -15,6 +15,7 @@
  *   export    导出 SYS_MENU / SYS_DICT / SYS_PERMISSION 为 xlsx
  *   mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
  *   standard-env 标准环境配置扫描、迁移与验证
+ *   component 按需检查并落盘标准业务组件
  *   --help    帮助
  *   --dry-run 预览模式（所有命令均支持）
  */
@@ -52,6 +53,8 @@ const {
   renderApiMarkdown,
   validateApiContract,
 } = require("../lib/api-contract");
+const { componentIssues } = require("../lib/component-catalog");
+const { runComponentCommand } = require("../lib/component-cli");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -78,6 +81,7 @@ const KNOWN_COMMANDS = new Set([
   "env",
   "standard-env",
   "contract",
+  "component",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -117,6 +121,8 @@ const KNOWN_FLAGS = new Set([
   "--external-id",
   "--source-mode",
   "--json",
+  "--components",
+  "--plan-hash",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -189,6 +195,7 @@ if (showHelp) {
     fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
     standard-env 标准环境配置（scan/plan/apply/verify）
     contract   独立 API 契约（init/validate/compare/render/profile），不依赖 design 或 bd
+    component  标准业务组件（list/check/ensure），按需落盘且绝不覆盖
     env        旧环境命令，已停用并提示迁移
 
   选项:
@@ -215,6 +222,8 @@ if (showHelp) {
     --left/--right   contract compare 的前后端契约
     --confirm        contract init/render 确认写入；默认只预览
     --json           contract 命令输出机器可读结果
+    --components     component 指定组件，逗号分隔；省略时检查源码实际引用
+    --plan-hash      component ensure 预览返回的计划哈希
     --help           显示帮助
 
   示例:
@@ -227,6 +236,9 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit validate --typecheck  含类型检查 R14（CI 用）
     pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
     pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wl-skills-ui 接入
+    pnpm dlx @agile-team/wl-skills-kit component check       检查已引用组件
+    pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal
+    pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal --confirm --plan-hash <hash>
     pnpm dlx @agile-team/wl-skills-kit export                导出菜单/字典/权限 xlsx
     pnpm dlx @agile-team/wl-skills-kit clean                 清理开发期文件
     pnpm dlx @agile-team/wl-skills-kit clean --keep-reports  保留 reports/中的菜单/字典数据
@@ -1457,6 +1469,7 @@ function printValidationSummary(context) {
     context.astPages ? `（AST 扫描 ${context.astPages}）` : "",
     context.specPages ? `（spec-align ${context.specPages}）` : "",
     context.dictContracts ? `（字典契约 ${context.dictContracts}）` : "",
+    context.components ? `（标准组件 ${context.components}）` : "",
     validationTypeSummary(context.typeCheckResult),
   ];
   console.log(`  页面目录: ${context.pages}${parts.join("")}`);
@@ -1495,6 +1508,14 @@ function runValidate() {
   appendMockArchitectureIssues(issues, mockFiles);
   appendAllPageIssues(issues, pages, mockFiles, mockContent);
 
+  // ── 标准业务组件 C1~C3：引用、落盘锁与契约一致性 ───────────────────
+  const componentResult = componentIssues({
+    projectRoot: TARGET_DIR,
+    scanPath,
+    sourceFiles: preCommit && stagedSet ? Array.from(stagedSet) : undefined,
+  });
+  issues.push(...componentResult.issues);
+
   // ── 模块字典契约 D1：api.md dict-contract → dicts.ts 汇总一致性 ─────
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
 
@@ -1519,6 +1540,7 @@ function runValidate() {
     astPages: astResult.pages,
     specPages: specAlignedPages,
     dictContracts: dictContractCount,
+    components: componentResult.selected.length,
     typeCheckResult,
     issues: issues.length,
   });
@@ -1580,6 +1602,8 @@ const AST_FIX_SUGGESTIONS = {
   S3: { fix: '\u8c03\u6574 toolbarDef() \u6309\u94ae\u987a\u5e8f/\u989c\u8272\u4e0e page-spec.json toolbar \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
+  C1: { fix: '\u5148\u6267\u884c component ensure \u9884\u89c8\uff0c\u518d\u643a\u5e26 planHash \u663e\u5f0f\u786e\u8ba4\u6309\u9700\u843d\u76d8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
+  C2: { fix: '\u4fdd\u7559\u73b0\u6709\u7ec4\u4ef6\uff0c\u6838\u5bf9 Props/Events/Expose \u5951\u7ea6\uff1b\u5de5\u5177\u4e0d\u4f1a\u8986\u76d6', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
 };
 
 function groupIssuesByRule(blockingIssues) {
@@ -2146,6 +2170,27 @@ function runContract() {
   }
 }
 
+function requestedComponentNames() {
+  return readOption("components")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+async function runComponent() {
+  const result = await runComponentCommand({
+    action: positional[1] || "check",
+    projectRoot: TARGET_DIR,
+    components: requestedComponentNames(),
+    confirm: args.includes("--confirm"),
+    dryRun,
+    json: args.includes("--json"),
+    planHash: readOption("plan-hash"),
+    version: PKG.version,
+  });
+  if (!result.ok) process.exitCode = 1;
+}
+
 switch (command) {
   case "init":
     runInstall(false);
@@ -2189,6 +2234,12 @@ switch (command) {
     break;
   case "contract":
     runContract();
+    break;
+  case "component":
+    runComponent().catch((error) => {
+      console.error(`  ✖ 标准业务组件处理失败：${error.message}`);
+      process.exitCode = 1;
+    });
     break;
   default:
     console.error(

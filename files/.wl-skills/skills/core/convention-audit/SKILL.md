@@ -128,8 +128,8 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 目录 | 规则强度 | 说明 |
 |---|---|---|
 | `src/views/**` | 最严格 | 业务页面，全规范覆盖 |
-| `.wl-skills/src/components/local/**` | 中等 | 业务封装组件，检查复用性和命名 |
-| `.wl-skills/src/components/**`（基础/历史） | 宽松 | 不套页面三文件原则；内部使用 el-* 需单独评审 |
+| `src/components/local/**` | 中等 | 业务封装组件，检查复用性、命名和组件锁状态 |
+| `.wl-skills/src/components/**`（模板/文档） | 宽松 | 禁止被运行时直接引用；不套页面三文件原则 |
 
 ---
 

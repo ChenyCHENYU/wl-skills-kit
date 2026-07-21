@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.13.1（2026-07-20）
+> **当前版本**：v2.13.2（2026-07-21）
 
 ---
 
@@ -487,7 +487,8 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 | v2.2–2.3 | dict-sync / permission-sync / code-fix 从 PLANNED → 转正 + lint-skills 静态护栏 + MCP 自愈闭环                                      | ✅ 已发布 |
 | v2.6 | business-doc-extract 语义触发 + 业务文档体系 + AGGrid/cid/defineColumns/renderOps 最终标准 + doctor-ui / validate 增强                     | ✅ 已发布 |
 | v2.7 | JH 组件文档全面修正 + MCP tools 单测覆盖 + 场景索引路由 + _mcp-guardrail 自愈闭环 + .gitattributes + 版本一致性自检                       | ✅ 已发布 |
-| v2.8 | Mock 架构体系固化（mock-architecture.md + _utils.ts 种子 + mock-clean CLI + validate mock 质量检查 + 规则修正）                            | ✅ 当前   |
+| v2.8 | Mock 架构体系固化（mock-architecture.md + _utils.ts 种子 + mock-clean CLI + validate mock 质量检查 + 规则修正）                            | ✅ 已发布 |
+| v2.13.2 | 标准业务组件目录 + 按需落盘 + planHash/进程锁/契约锁 + C1~C3 校验，运行时源码与 kit 模板彻底解耦                                      | ✅ 当前   |
 
 ---
 
@@ -563,3 +564,19 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 - 添加新编辑器：加 `headers/xxx.txt` + 在 `editors.json` 注册，JS 不改
 - 禁用某编辑器：`enabled: false` 一行，其他编辑器完全不受影响（已端到端验证）
 - 每个编辑器 frontmatter 独立维护，Kiro 有 `inclusion: always`，Trae 有 `description + alwaysApply`
+
+---
+
+### ADR-006：标准业务组件采用模板源与项目运行时双层模型
+
+**背景**：kit 内暂存了基于 core 扩展的业务组件，但页面 import 指向项目 `src/components`；若改用 Vite alias 直连 `.wl-skills`，kit 更新会在未评审时改变业务运行时，并与项目同名定制组件冲突。
+
+**决策**：
+
+- `.wl-skills/src/components/` 只作为 kit 管理的模板源和文档，不参与构建。
+- 页面只引用项目 `src/components/local/` 或 `src/components/global/`。
+- `component ensure` 根据目录按需落盘；默认只预览，确认时校验 `planHash` 并持有跨进程写锁。
+- 目标已存在、依赖不完整、契约不兼容或文件被修改时一律阻断，不覆盖、不生成转发文件、不修改 Vite alias。
+- `.wl-skills/components.lock.json` 记录契约版本与文件哈希；kit 更新仅提示同契约新实现，由项目显式评估升级。
+
+**效果**：生成页面可直接编译，kit 升级不会污染项目运行时，已有业务定制也不会被静默覆盖。

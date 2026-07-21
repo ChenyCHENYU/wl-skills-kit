@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import { cancelConfirmButtons } from "@jhlc/common-core/src/components/toolbar/toolbar-data";
 import {
@@ -77,7 +78,6 @@ const currentTitle = computed(() =>
 defineExpose({
   /** 打开新增弹窗 */
   open(formData?: Record<string, any>) {
-    console.log("🚀 ~ file: index.vue:80 ~ open ~ formData:", formData);
     mode.value = "add";
     reset();
     if (formData) {

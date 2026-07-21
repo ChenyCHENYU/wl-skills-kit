@@ -159,6 +159,8 @@ const REQUIRED_LIB_FILES = [
   "lib/page-spec.js",
   "lib/safe-fix.js",
   "lib/api-contract.js",
+  "lib/component-catalog.js",
+  "lib/component-cli.js",
   "lib/standard-env/index.js",
 ];
 for (const rel of REQUIRED_LIB_FILES) {

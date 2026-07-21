@@ -28,7 +28,7 @@ index.scss → 空文件或极少样式（模板组件内部已处理样式）
 生成 config 对象前，必须先读取该模板的类型定义文件：
 
 ```
-.wl-skills/src/components/template/{XxxTemplate}/types.ts
+src/components/template/{XxxTemplate}/types.ts
 ```
 
 `data.ts` 的 config 对象结构必须完全遵循 `types.ts` 的 interface 定义，不得猜测字段。
@@ -97,7 +97,7 @@ import { [camelPageName]Config } from "./data";
 
 **必须同时满足以下两个条件**：
 
-1. 项目 `.wl-skills/src/components/template/` 目录下已存在可复用的 Template 组件
+1. 项目 `src/components/template/` 目录下已存在可复用的 Template 组件
 2. 当前页面与该模板的交互骨架**完全一致**（查询/操作/表格结构均与模板期望的 config 结构匹配）
 
 **不确定时的决策**：
@@ -113,7 +113,7 @@ import { [camelPageName]Config } from "./data";
 ## 已知配置驱动模板一览（cx-ui-produce 项目特定）
 
 > ⚠️ 以下是 cx-ui-produce 项目已有的 Template 组件，仅在该项目中适用。
-> 其他项目需根据自己项目的 `.wl-skills/src/components/template/` 目录确认。
+> 其他项目需根据自己项目的 `src/components/template/` 目录确认。
 
 ### 1. ResultQueryTemplate（轧钢实绩查询类）
 
@@ -177,7 +177,7 @@ import { [pageName]Config } from "./data";
 - 有固定的查询区 + 实绩录入 + 汇总数据结构
 - 字段结构高度统一（同一套模板 7 个页面共用）
 
-**生成规则**：读 `.wl-skills/src/components/template/FinishingAchievementTemplate/types.ts`，按 `FinishingAchievementConfig` interface 生成 config 对象。
+**生成规则**：读 `src/components/template/FinishingAchievementTemplate/types.ts`，按 `FinishingAchievementConfig` interface 生成 config 对象。
 
 ---
 
@@ -278,7 +278,7 @@ import { [pageName]Config } from "./data";
 - 有固定的查询区 + 实绩录入 + 汇总数据结构
 - 字段结构高度统一（同一套模板 7 个页面共用）
 
-**生成规则**：参考 `.wl-skills/src/components/template/FinishingAchievementTemplate/` 内的 `types.ts` 定义，只生成对应的 config 配置。
+**生成规则**：参考 `src/components/template/FinishingAchievementTemplate/` 内的 `types.ts` 定义，只生成对应的 config 配置。
 
 ---
 

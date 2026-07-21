@@ -4,7 +4,7 @@
 
 ### c_formModal 使用规范
 
-> 项目已有 `.wl-skills/src/components/local/c_formModal/` 通用表单弹窗组件，支持 add/edit/view 三模式。
+> kit 提供 `c_formModal` 标准模板，页面生成前必须按 `component-materialization.md` 将其按需落盘到项目 `src/components/local/c_formModal/`；支持 add/edit/view 三模式。
 > 所有标准 CRUD 弹窗**必须使用此组件**，不可重复编写。
 
 **data.ts 中定义 modalConfig：**

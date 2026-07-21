@@ -314,6 +314,35 @@ describe("projectTools path discovery", () => {
   });
 });
 
+describe("projectTools component validation", () => {
+  it("wls_validate_page reports C1 for a referenced component that was not materialized", async () => {
+    const root = makeTempRoot();
+    const previous = process.env.WL_PROJECT_ROOT;
+    try {
+      const page = path.join(root, "src", "views", "demo");
+      fs.mkdirSync(page, { recursive: true });
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ dependencies: { vue: "3.2.0", "@jhlc/common-core": "3.1.0" } }),
+      );
+      fs.writeFileSync(
+        path.join(page, "index.vue"),
+        '<template><c_formModal /></template>\n<script setup>import c_formModal from "@/components/local/c_formModal/index.vue"</script>',
+      );
+      fs.writeFileSync(path.join(page, "data.ts"), "export const value = 1\n");
+      fs.writeFileSync(path.join(page, "index.scss"), "");
+      process.env.WL_PROJECT_ROOT = root;
+      const result = await projectTools.handleValidatePage({ path: "src/views/demo" });
+      expect(result).toMatch(/\[C1\]/);
+      expect(result).toMatch(/component ensure/);
+    } finally {
+      if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
+      else process.env.WL_PROJECT_ROOT = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("standardEnvTools", () => {
   it("scan 对当前项目保持只读", async () => {
     const root = makeTempRoot();

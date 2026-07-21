@@ -21,6 +21,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
 ✅ 已读取 standards/14-layout-containers.md   → 布局容器（必须用 jh-drag-row/jh-drag-col）
 ✅ 已读取 .wl-skills/docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
+✅ 已读取 references/component-materialization.md（使用标准业务组件时）→ 按需落盘与契约防护
 ✅ 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓  [全部就绪]
 ✅ cid 已生成：{value}（{首字母缩写说明}）
 ```
@@ -45,11 +46,12 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ src/views/.../{页面}/api.md
 ✅ src/views/.../{页面}/page-spec.json  → 约定真值（供 S1~S5 比对）
 ✅ src/views/{域}/{模块}/dicts.ts       → 模块字典发布真值（页面有字典时）
+✅ src/components/{local|global}/{组件}/ → 本页需要且原项目缺失时按需落盘
 ✅ reports/SYS_MENU_INFO.md  → 已追加菜单条目
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
    wl-skills validate src/views/{生成的页面目录}
-   → 同时执行 R1~R14（AST 语义）+ S1~S5（page-spec 比对）
+   → 同时执行 R1~R14（AST 语义）+ S1~S5（page-spec 比对）+ C1~C3（组件契约）
    → 结果：{0 error / N warn} 或列出 error 待修复
 ────────────────────────────────────────────────
 📌 后续步骤：
@@ -120,7 +122,8 @@ src/views/[域]/[模块]/dicts.ts
 
 弹窗组件处理策略：
 
-- **通用弹窗**（新增/编辑表单，2+ 页面可复用）→ 提取到 `.wl-skills/src/components/local/c_xxxModal/`
+- **kit 标准组件** → 按 `references/component-materialization.md` 预览并按需落盘到 `src/components/local/`；`.wl-skills` 仅为模板源
+- **项目通用弹窗**（新增/编辑表单，2+ 页面复用）→ 提取到 `src/components/local/c_xxxModal/`
 - **极个性弹窗**（仅单页面使用，c_modal 无法满足）→ 放在页面 `components/xxxModal.vue`
 
 附加输出：
@@ -154,7 +157,7 @@ src/views/[域]/[模块]/dicts.ts
 17. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
 18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
 19. **未知交互阻断**：原型/需求未提供交互细节且无法由已确认契约确定时，写入 `openQuestions` 并停止生成该操作；禁止用提示消息伪装已实现功能
-20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/_utils.ts` 是否存在（若不存在则从 kit 种子文件补充）
+20. **生成后依赖自检**：代码生成完成后，检查 `package.json` 是否已安装生成代码所需的依赖（`mockjs`、`vite-plugin-mock`、`lodash-es`、`xlsx` 等），若缺失则提示用户执行安装命令。同时检查 `vite.config.ts` 是否已注册 `viteMockServe`、`mock/_utils.ts` 是否存在（若不存在则从 kit 种子文件补充）；标准业务组件必须先执行 `component ensure` 预览/确认闭环
 21. **Contract First，Mock 可选**：先通过 `wl-api-contract` 建立真实 method/path/request/response。需求明确需要前端并行开发时再生成 `mock/[业务域]/[模块].ts`；mock 必须复用同一契约，关闭后不得修改业务 URL。
 22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/queryPage`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/queryPage`），这样关闭 mock 后无需修改业务代码。
 23. **页面初始数据必须由 mock 提供**：列表页 `onMounted(() => select())` 后必须能显示模拟数据，不允许生成空白页等待后端接口；`list` 端点返回 `{ code: 2000, data: { records, total, size, current } }`。
@@ -169,7 +172,7 @@ src/views/[域]/[模块]/dicts.ts
 
 ### 禁止事项（严格遵守）
 
-1. **❌ 禁止手写弹窗**：不可在页面 `components/` 下用 `el-dialog` + `el-form` + `el-row/col` 手写弹窗。必须使用 `c_formModal`（`.wl-skills/src/components/local/c_formModal/`），通过 `modalConfig` 配置驱动。**例外**：纯只读详情弹窗（`jh-dialog` + `BaseForm :disabled="true"`）可不用 `c_formModal`，如工艺参数查看（参考 mmwr-process-parameters）
+1. **❌ 禁止手写弹窗**：不可在页面 `components/` 下用 `el-dialog` + `el-form` + `el-row/col` 手写弹窗。必须使用按需落盘到 `src/components/local/c_formModal/` 的 `c_formModal`，通过 `modalConfig` 配置驱动；禁止运行时引用 `.wl-skills`。**例外**：纯只读详情弹窗（`jh-dialog` + `BaseForm :disabled="true"`）可不用 `c_formModal`，如工艺参数查看（参考 mmwr-process-parameters）
 2. **❌ 禁止在弹窗中使用原生 Element Plus 组件**：不可使用 `el-select`、`el-input`、`el-date-picker` 等原生组件，必须使用 `jh-select`、`jh-date`、`jh-user-picker` 等平台组件（通过 `BaseFormItemDesc` 的 `component` 属性配置）
 3. **❌ 禁止在 BaseToolbar 内使用 slot**：`BaseToolbar` 组件**不支持任何 slot**（源码中无 `<slot>` 标签），放入的内容会被丢弃不渲染。Tab/视角切换等额外 UI 必须放在 BaseToolbar **外部**
 4. **❌ 禁止用 el-radio-group 做 Tab/视角切换**：所有 Tab 式切换（视角切换、数据过滤 Tab、功能 Tab）**必须使用 `el-tabs`**（参考 `mmwr-steel-stripping-operations`）。不可用 `el-radio-group` + 手动 `handleViewChange` / `handleTabChange`

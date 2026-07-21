@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "name": "c_formModal",
+      "kind": "local",
+      "contractVersion": 1,
+      "sourceDir": "src/components/local/c_formModal",
+      "targetDir": "src/components/local/c_formModal",
+      "entry": "index.vue",
+      "importPath": "@/components/local/c_formModal/index.vue",
+      "tags": ["c_formModal", "c-form-modal"],
+      "files": ["data.ts", "index.scss", "index.vue"],
+      "requirements": {
+        "packages": ["vue", "@jhlc/common-core"]
+      }
+    },
+    {
+      "name": "c_formSections",
+      "kind": "local",
+      "contractVersion": 1,
+      "sourceDir": "src/components/local/c_formSections",
+      "targetDir": "src/components/local/c_formSections",
+      "entry": "index.vue",
+      "importPath": "@/components/local/c_formSections/index.vue",
+      "tags": ["c_formSections", "c-form-sections"],
+      "files": ["data.ts", "index.scss", "index.vue"],
+      "requirements": {
+        "packages": ["vue"]
+      }
+    },
+    {
+      "name": "c_listModal",
+      "kind": "local",
+      "contractVersion": 1,
+      "sourceDir": "src/components/local/c_listModal",
+      "targetDir": "src/components/local/c_listModal",
+      "entry": "index.vue",
+      "importPath": "@/components/local/c_listModal/index.vue",
+      "tags": ["c_listModal", "c-list-modal"],
+      "files": ["data.ts", "index.scss", "index.vue"],
+      "requirements": {
+        "packages": ["vue", "@jhlc/common-core", "@jhlc/types"],
+        "files": ["src/types/page.ts"]
+      }
+    },
+    {
+      "name": "c_spliterTitle",
+      "kind": "local",
+      "contractVersion": 1,
+      "sourceDir": "src/components/local/c_spliterTitle",
+      "targetDir": "src/components/local/c_spliterTitle",
+      "entry": "index.vue",
+      "importPath": "@/components/local/c_spliterTitle/index.vue",
+      "tags": ["c_spliterTitle", "c-spliter-title"],
+      "files": ["index.scss", "index.vue"],
+      "requirements": {
+        "packages": ["vue"]
+      }
+    },
+    {
+      "name": "C_Tree",
+      "kind": "global",
+      "contractVersion": 1,
+      "sourceDir": "src/components/global/C_Tree",
+      "targetDir": "src/components/global/C_Tree",
+      "entry": "index.vue",
+      "importPath": "@/components/global/C_Tree/index.vue",
+      "tags": ["C_Tree", "c-tree"],
+      "files": ["data.ts", "index.scss", "index.vue", "types.ts"],
+      "requirements": {
+        "packages": ["vue", "@element-plus/icons-vue"]
+      }
+    }
+  ]
+}

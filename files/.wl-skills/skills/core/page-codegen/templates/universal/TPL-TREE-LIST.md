@@ -207,5 +207,6 @@ export function createPage(editModalRef?: any) {
 > **C_Tree Props 速查**：`tabs`（标签页数组）、`treeData`（必填）、`showSearch`（默认 true）、`defaultExpandAll`（默认 true）。
 > **Events**：`@node-click`（节点点击）、`@tab-change`（标签页切换）。
 > 详见 `.wl-skills/src/components/global/C_Tree/README.md`。
+> 生成前执行 `wl-skills component ensure --components C_Tree` 预览并确认，将运行文件按需落盘到 `src/components/global/C_Tree/`；禁止让 Vite 直接引用 `.wl-skills`。
 
 ---

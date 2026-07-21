@@ -338,7 +338,7 @@ export async function initPage() {
 
 仅在“极个性弹窗”场景生成（c_modal 无法满足时），放在页面 `components/editModal.vue`：
 
-通用新增/编辑弹窗应优先使用 `.wl-skills/src/components/local/c_modal/` 局部公共组件。
+通用新增/编辑弹窗应优先使用项目 `src/components/local/c_modal/` 局部公共组件。
 
 ```vue
 <template>
@@ -749,7 +749,7 @@ function genRecord() {
    - 「菜单路径」字段（camelCase）才是真正的路由 path 段
 2. **隐藏菜单 hidden: true**：独立表单/详情页**必须设为隐藏**，避免菜单栏多出无意义入口
 3. **pages.ts 变更需重启** dev server（fullImportPlugin 只在首次 transform 时读取）
-4. **local 组件必须显式 import**：`.wl-skills/src/components/local/` 下的组件不会自动全局注册
+4. **local 组件必须显式 import**：运行时组件位于 `src/components/local/`；kit 标准组件缺失时先按需落盘，不得直接 import `.wl-skills`
 
 ### FORM_ROUTE 格式
 

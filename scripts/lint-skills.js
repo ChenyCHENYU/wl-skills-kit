@@ -159,8 +159,8 @@ for (const skillPath of SKILL_FILES) {
   }
 }
 
-// 8. 规则覆盖矩阵：标记「阻断」的 R*/S*/D* 规则必须在执行器代码中真实存在
-//    防止 rule-coverage.md 与 ast-rules.js / page-spec.js / dict-contract.js 漂移
+// 8. 规则覆盖矩阵：标记「阻断」的 R*/S*/D*/C* 规则必须在执行器代码中真实存在
+//    防止矩阵与 AST/page-spec/字典/组件执行器漂移
 function readOptionalSource(rel) {
   const filePath = path.join(ROOT, rel);
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
@@ -168,7 +168,7 @@ function readOptionalSource(rel) {
 
 function rulesInCoverageLine(line) {
   if (!/^\|/.test(line) || !/\|\s*是\s*\|?\s*$/.test(line)) return [];
-  return [...new Set([...line.matchAll(/\b([RSD]\d{1,2})\b/g)].map((match) => match[1]))];
+  return [...new Set([...line.matchAll(/\b([RSDC]\d{1,2})\b/g)].map((match) => match[1]))];
 }
 
 function assertRuleImplemented(rule, sources) {
@@ -186,10 +186,15 @@ function assertRuleImplemented(rule, sources) {
     return;
   }
   const coverage = fs.readFileSync(coveragePath, "utf8");
-  const sources = ["lib/ast-rules.js", "lib/page-spec.js", "lib/dict-contract.js"]
+  const sources = [
+    "lib/ast-rules.js",
+    "lib/page-spec.js",
+    "lib/dict-contract.js",
+    "lib/component-catalog.js",
+  ]
     .map(readOptionalSource);
 
-  // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S*/D* 编号
+  // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S*/D*/C* 编号
   for (const line of coverage.split("\n")) {
     for (const rule of rulesInCoverageLine(line)) assertRuleImplemented(rule, sources);
   }

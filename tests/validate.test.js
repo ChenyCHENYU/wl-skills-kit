@@ -201,4 +201,24 @@ describe("validate end-to-end integration", () => {
     expect(res.status).not.toBe(0);
     fs.rmSync(root, { recursive: true, force: true });
   });
+
+  it("C1: page import of a catalog component must be materialized", () => {
+    const root = makeProject();
+    fs.writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({ dependencies: { vue: "3.2.0", "@jhlc/common-core": "3.1.0" } }),
+    );
+    const index = COMPLIANT_INDEX.replace(
+      'import { tableRef, list, columns } from "./data";',
+      'import { tableRef, list, columns } from "./data";\n' +
+        'import c_formModal from "@/components/local/c_formModal/index.vue";',
+    );
+    writePage(root, "src/views/acme/component", index, COMPLIANT_DATA);
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status).not.toBe(0);
+    expect(output).toMatch(/C1/);
+    expect(output).toMatch(/component ensure/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
 });

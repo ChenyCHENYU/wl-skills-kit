@@ -157,7 +157,7 @@ Windsurf、Cline、Trae、Qoder 仅支持全局配置，需手动操作一次，
 A: 两个包不互相依赖。先用 `wl-skills-kit` 做页面生成、规范审计、菜单字典权限同步；如需统一 UI 风格或老系统化妆层，再单独安装 `@agile-team/wl-skills-ui` 并执行 `wl-ui init/update`。
 
 **Q: 部署到生产环境前如何清理 AI 文件？**
-A: 执行 `npx @agile-team/wl-skills-kit clean`。会移除所有 AI 辅助文件，保留 `.wl-skills/src/components/` 和 `src/types/`。
+A: 执行 `npx @agile-team/wl-skills-kit clean`。会移除可清理的 AI 辅助文件，保留 kit 组件模板、已按需落盘的 `src/components/` 和 `src/types/`。
 
 ---
 

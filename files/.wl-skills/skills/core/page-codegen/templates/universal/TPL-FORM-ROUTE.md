@@ -375,13 +375,13 @@ onMounted(() => {
 
 | 条件                                            | 方式                                                         |
 | ----------------------------------------------- | ------------------------------------------------------------ |
-| 3+ 页面布局完全相同，仅 API/工序代码/列不同     | 提取 `.wl-skills/src/components/template/XxxTemplate/`，页面仅传 config |
+| 3+ 页面布局完全相同，仅 API/工序代码/列不同     | 提取 `src/components/template/XxxTemplate/`，页面仅传 config |
 | 页面布局有显著差异（不同 Tab 结构、不同表数量） | 独立页面，在 data.ts 中定义多个 `createXxxPage()`            |
 
 ### D-2 配置驱动模板组件结构（参考 FinishingAchievementTemplate）
 
 ```
-.wl-skills/src/components/template/[TemplateName]/
+src/components/template/[TemplateName]/
 ├── index.vue       ← 模板组件（接收 config prop）
 ├── data.ts         ← createXxxPage() 工厂函数
 ├── types.ts        ← 配置类型定义（ApiConfig, ColumnsConfig, UiConfig 等）

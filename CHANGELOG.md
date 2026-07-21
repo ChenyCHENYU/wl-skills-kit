@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.13.2] - 2026-07-21
+
+### 新增
+
+- 新增标准业务组件目录与 `component list/check/ensure`，按页面实际引用或指定清单落盘到项目 `src/components`。
+- 新增预览 `planHash`、跨进程写锁和 `.wl-skills/components.lock.json`，保证并发、状态漂移和本地修改场景下零覆盖。
+- `validate`、`validate-page` 与 MCP 页面校验接入 C1~C3，确定性识别组件缺失、契约冲突和可评估更新。
+
+### 变更
+
+- 页面生成 Skill、模板与文档统一采用“kit 模板源、项目运行时”模型，禁止 Vite alias 或业务代码直连 `.wl-skills`。
+- 组件落盘仅复制目录声明的运行文件，不复制 README；补齐目录合法性、依赖、Vue SFC 编译及发布包完整性校验。
+- 清理 `c_formModal` 调试输出并补齐显式 Vue API import。
+- 固定开发工具链中 `brace-expansion` 与 `js-yaml` 的安全版本，清零 high 级依赖审计项。
+
 ## [2.13.1] - 2026-07-20
 
 ### 变更

@@ -335,3 +335,60 @@ describe("CLI standard-env", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe("CLI component", () => {
+  function makeComponentProject() {
+    const dir = makeIsolatedDir();
+    fs.mkdirSync(path.join(dir, "src", "views", "demo"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "package.json"),
+      JSON.stringify({
+        dependencies: {
+          vue: "3.2.0",
+          "@jhlc/common-core": "3.1.0",
+        },
+      }),
+    );
+    return dir;
+  }
+
+  it("ensure 必须先预览 planHash，再确认按需落盘", () => {
+    const dir = makeComponentProject();
+    const target = path.join(dir, "src", "components", "local", "c_formModal");
+    const preview = runCli(["component", "ensure", "--components", "c_formModal"], { cwd: dir });
+    expect(preview.status).toBe(0);
+    expect(fs.existsSync(target)).toBe(false);
+    const planHash = preview.stdout.match(/planHash:\s*([a-f0-9]{64})/)?.[1];
+    expect(planHash).toBeTruthy();
+
+    const apply = runCli([
+      "component",
+      "ensure",
+      "--components",
+      "c_formModal",
+      "--confirm",
+      "--plan-hash",
+      planHash,
+    ], { cwd: dir });
+    expect(apply.status).toBe(0);
+    expect(fs.existsSync(path.join(target, "index.vue"))).toBe(true);
+    expect(fs.existsSync(path.join(target, "README.md"))).toBe(false);
+
+    const check = runCli(["component", "check", "--components", "c_formModal"], { cwd: dir });
+    expect(check.status).toBe(0);
+    expect(check.stdout).toMatch(/可复用/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("已有同名目录时报告冲突且不覆盖", () => {
+    const dir = makeComponentProject();
+    const target = path.join(dir, "src", "components", "local", "c_formModal", "index.vue");
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, "custom", "utf8");
+    const result = runCli(["component", "ensure", "--components", "c_formModal"], { cwd: dir });
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toMatch(/冲突（未受管）/);
+    expect(fs.readFileSync(target, "utf8")).toBe("custom");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});

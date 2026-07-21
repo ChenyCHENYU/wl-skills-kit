@@ -6,6 +6,7 @@ const { execFileSync } = require("child_process");
 const https = require("https");
 const { runAstRules, runTypeCheck } = require("../../lib/ast-rules");
 const { alignPage } = require("../../lib/page-spec");
+const { componentIssues } = require("../../lib/component-catalog");
 
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -220,6 +221,13 @@ function addPageSpecIssues(root, pages, issues) {
   }
 }
 
+function addComponentIssues(root, scanPath, issues) {
+  const result = componentIssues({ projectRoot: root, scanPath });
+  for (const issue of result.issues) {
+    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
+  }
+}
+
 function addTypeCheckIssues(root, enabled, issues) {
   if (!enabled) return;
   for (const issue of runTypeCheck(root).issues) {
@@ -258,6 +266,7 @@ async function handleValidatePage(args) {
   addLocalPageIssues(root, pages, mockFiles, mockContent, issues);
   addAstIssues(root, scanPath, issues);
   addPageSpecIssues(root, pages, issues);
+  addComponentIssues(root, scanPath, issues);
   addTypeCheckIssues(root, args && args.typecheck, issues);
   return formatValidationResult(scanPath, pages, issues);
 }

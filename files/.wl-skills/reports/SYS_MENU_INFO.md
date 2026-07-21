@@ -241,7 +241,7 @@ aiflow: [
 
 - 客户档案详情通过页内 `c_formModal` 弹窗查看；临时客户详情通过路由跳转 `mmwrCustomerDetail` 查看
 - 新增/编辑弹窗复用平台 `c_formModal` 组件
-- 客户申请新增与客户申请变更共享 `.wl-skills/src/components/local/c_applyDetailDialog/index.vue` 详情弹窗
+- 客户申请新增与客户申请变更共享项目 `src/components/local/c_applyDetailDialog/index.vue` 详情弹窗
 - 变更历史查询通过路由跳转 `mmwrCustomerApplyChangeHistory` 查看，入口在申请表单页工具栏
 - **显示排序**：目录排 `6`（接在实绩统计查询后面），菜单从 `1` 开始
 - **mmwr- 前缀**：生产棒线材模块下所有页面统一使用 `mmwr-` 前缀（kebab）/ `mmwr` 前缀（camelCase）

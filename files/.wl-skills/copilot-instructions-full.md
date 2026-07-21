@@ -27,7 +27,8 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 弹窗组件处理策略：
 
-- **通用弹窗**（新增/编辑表单，2+ 页面可复用）→ 提取到 `.wl-skills/src/components/local/c_xxxModal/`
+- **kit 标准弹窗** → 先执行 `wl-skills component ensure` 预览，确认后按需落盘到 `src/components/local/`
+- **项目通用弹窗**（新增/编辑表单，2+ 页面可复用）→ 提取到 `src/components/local/c_xxxModal/`
 - **极个性弹窗**（仅单页面使用，c_modal 无法满足）→ 放在页面 `components/xxxModal.vue`
 
 ## 三、data.ts 核心模式
@@ -143,8 +144,8 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 |------|------|
 | 平台组件文档（jh-select 等） | `.wl-skills/.wl-skills/docs/jh-{name}.md` |
 | **组件在线查询索引（35 组件）** | `.wl-skills/docs/component-online-index.md` |
-| 组件 README（BaseTable 等） | `.wl-skills/.wl-skills/src/components/remote/{Name}/README.md` |
-| 局部组件 README | `.wl-skills/.wl-skills/src/components/local/{c_xxx}/README.md` |
+| 组件 README（BaseTable 等） | `.wl-skills/src/components/remote/{Name}/README.md` |
+| 局部组件模板/README | `.wl-skills/src/components/local/{c_xxx}/`（运行时按需落盘到 `src/components/local/`） |
 | 页面模板 | `.wl-skills/templates/` |
 | 使用指南 | `.wl-skills/guides/usage.md` |
 | 架构设计 | `.wl-skills/guides/architecture.md` |

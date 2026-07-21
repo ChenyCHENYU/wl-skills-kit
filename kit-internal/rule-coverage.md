@@ -15,6 +15,7 @@
 | `R1~R14` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S5` | page-spec 比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1` | 页面字典契约与模块发布清单比对 | `lib/dict-contract.js` | ✅ 确定性 |
+| `C1~C3` | 标准业务组件引用、落盘锁与契约状态 | `lib/component-catalog.js` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
 | `AI` | 仅 SKILL.md 约定 | 各 `SKILL.md` | ⚠️ 非确定性（靠 AI 自觉） |
 
@@ -40,7 +41,7 @@
 | standards/07 | 禁止硬编码 IP/URL | R12 | error/warn | 是 |
 | standards/14 | 布局容器必须用 jh-drag-col/row | regex | error | 是 |
 | standards/04 | 禁止空 onClick | regex | error | 是 |
-| standards/04 | 单函数圈复杂度 ≤ 10（Mcabe） | **R13** | error | 是 |
+| standards/04 | 单函数圈复杂度 ≤ 10（McCabe） | **R13** | error | 是 |
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **R14** | error | 是 |
 | page-codegen 10 | 查询字段顺序 = 原型顺序 | **S1** | warn | 否 |
 | page-codegen 11 | 表格列顺序 = 原型顺序 | **S2** | error | 是 |
@@ -50,6 +51,9 @@
 | page-codegen 21 | 默认 Mock First | regex | warn | 否 |
 | page-codegen 24 | 必须用 wl-skills-ui renderOps | regex | warn | 否 |
 | api-contract / dict-sync | api.md dict-contract 必须完整汇总到模块 dicts.ts，枚举与排序一致 | **D1** | error | 是 |
+| page-codegen / component | 引用的标准业务组件必须已按契约落盘 | **C1** | error | 是 |
+| page-codegen / component | 同名未受管、依赖缺失或契约/文件冲突时禁止覆盖 | **C2** | error | 是 |
+| page-codegen / component | kit 同契约新实现仅提示评估，不自动升级项目组件 | **C3** | info | 否 |
 
 ---
 
@@ -61,7 +65,7 @@
 - 按钮颜色语义推断（原型未标色时）—— 难以确定性判定原型颜色
 - 可点击列（蓝色链接列）识别 —— 依赖原型视觉信息
 - 状态列色块渲染 —— 部分可正则，误报率待验证
-- 弹窗使用 c_formModal —— 跨文件、跨组件，确定性判定成本高
+- 非目录组件是否应抽取为项目通用组件 —— 依赖跨页面复用语义
 - Mock 端点必须修改 dataPool —— 需深度语义分析
 
 > 收敛策略：每次实战发现某条 AI 约定被违反，评估能否写成 R*/S*/regex；
@@ -73,8 +77,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `R1~R14` → 检查 `lib/ast-rules.js` 中存在对应 `rule: "R*"`
-- `S1~S5` → 检查 `lib/page-spec.js` 中存在对应 `rule: "S*"`
+- `R1~R14` / `S1~S5` / `D1` / `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.13.1** — 一键将 14 条规范、12 个 AI Skill、21 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.13.2** — 一键将 14 条规范、12 个 AI Skill、21 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -186,7 +186,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
       └── field.md            # 字段清单
   ```
   碎片化问答、单截图、小修小改默认不触发，不污染轻量路径。页面级 `api.md` 仍然住页面目录，模块 `index.md` 只做链接索引。
-- `init/update/diff/clean/check/validate/validate-page/doctor-ui/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查、UI 接入诊断和基线导出
+- `init/update/diff/clean/check/validate/validate-page/doctor-ui/component/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查、标准组件按需落盘、UI 接入诊断和基线导出
 - 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wl-skills-ui` runtime，但保留 `common-core` 平台骨架
 - 新增 `doctor-ui` / `validate-page`：检查 `wl-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
 - **`prototype-scan` Skill 补齐 Axure 访问前置说明**：明确 `index.html` 永久不可用（VS Code 内嵌 Chromium 不加载用户 Chrome 扩展），只能用 `open_browser_page(具体页.html)` 或 `read_file`；`(not visible)` 不等于不可访问
@@ -389,6 +389,13 @@ pnpm dlx @agile-team/wl-skills-kit fix --dry-run
 # 检查 wl-skills-ui 是否真正接入
 pnpm dlx @agile-team/wl-skills-kit doctor-ui
 
+# 检查当前源码实际引用的标准业务组件（只读）
+pnpm dlx @agile-team/wl-skills-kit component check
+
+# 按需组件先预览，获取 planHash；确认后才落盘到 src/components/local 或 global
+pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal,c_listModal
+pnpm dlx @agile-team/wl-skills-kit component ensure --components c_formModal,c_listModal --confirm --plan-hash <hash>
+
 # 导出菜单/字典/权限基线为 xlsx
 pnpm dlx @agile-team/wl-skills-kit export
 
@@ -415,6 +422,15 @@ pnpm dlx @agile-team/wl-skills-kit update --dry-run
 ```
 
 > 全局安装后也可直接用 `wl-skills` 命令（如 `wl-skills update`）。
+
+### 标准业务组件按需落盘
+
+kit 内的 `.wl-skills/src/components/` 是模板源和文档，不参与业务运行。页面需要 `c_formModal`、`C_Tree` 等标准组件时，`component ensure` 只把实际使用的运行文件落到项目 `src/components/local/` 或 `src/components/global/`，不复制 README，不修改 Vite alias。
+
+- 默认预览并返回 `planHash`，显式确认后才写入。
+- 目标目录已存在、文件被修改、契约不兼容或依赖缺失时全部阻断，绝不覆盖。
+- `.wl-skills/components.lock.json` 记录契约版本和文件哈希；kit 更新只提示同契约新实现，不自动升级项目组件。
+- `validate` / `validate-page` 内置 C1~C3：缺失、冲突和可升级状态均可追踪。
 
 ---
 
@@ -484,6 +500,7 @@ wls_standard_env_verify({ profile: "walsin", runBuild: true })
 - `diff`：查看当前项目与最新 kit 内容差异
 - `clean`：按 manifest 清理 AI 辅助文件，默认保留 `src/components/` 和 `src/types/`
 - `check`：检查 Node、MCP、manifest 和工程化配置
+- `.wl-skills/components.lock.json`：只记录已按需落盘的业务组件；`update` 和 `clean` 都不会覆盖或删除其项目源码
 
 运行时最低要求 Node.js 22。仓库 CI 会在 Linux Node 22/24 与 Windows Node 24 上执行完整验证和打包验收。npm 发布只在 GitHub Release 正式发布后触发，并再次核对 Release tag、`package.json` 版本和全部质量门禁；仓库需在 npm 配置 Trusted Publisher，并为 `npm` environment 启用审批规则。
 
