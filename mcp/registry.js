@@ -22,6 +22,7 @@ const {
   handleDomainQuery,
   handleMenuQuery,
   handleMenuUpsert,
+  handleMenuDelete,
   handleMenuSyncFromReport,
 } = require("./tools/menuSync");
 const { handleDictBootstrap, handleDictQuery, handleDictUpsert } = require("./tools/dictSync");
@@ -122,6 +123,41 @@ const DESCRIPTORS = [
     outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
     handle: (args, config) => handleMenuUpsert(args, config),
+  },
+  {
+    name: "wls_menu_delete",
+    description:
+      "删除菜单（⚠️ 敏感操作）。默认只预览删除范围（含子节点递归），确认后执行。" +
+      "安全机制：① 默认预览 ② 需传 confirmApply:true + 正确 planHash ③ 生产环境阻断 ④ 自底向上逐个删除（后端不级联）。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        menuIds: {
+          type: "array",
+          description: "要删除的菜单 ID 列表",
+          items: { type: "string" },
+        },
+        cascadeChildren: {
+          type: "boolean",
+          description: "是否递归删除子菜单（默认 true）。传 false 时有子节点的菜单会被后端拒绝。",
+          default: true,
+        },
+        confirmApply: {
+          type: "boolean",
+          description: "默认 false，仅预览删除范围；明确确认后传 true 才执行删除",
+          default: false,
+        },
+        planHash: {
+          type: "string",
+          description: "confirmApply=true 时必填；必须等于预览返回的 planHash",
+        },
+      },
+      required: ["menuIds"],
+      additionalProperties: false,
+    },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
+    needsBackendConfig: true,
+    handle: (args, config) => handleMenuDelete(args, config),
   },
   {
     name: "wls_menu_sync_from_report",

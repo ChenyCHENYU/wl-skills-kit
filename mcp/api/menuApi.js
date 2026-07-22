@@ -66,4 +66,21 @@ function querySysDomainList(config) {
   return wlsFetch('/system/sysDomain/list?current=1&size=99', {}, config)
 }
 
-module.exports = { queryPermissionMenuTree, queryMenuTree, saveMenu, querySysDomainList }
+/**
+ * 删除单个菜单（含子节点需逐个删除，后端不级联）。
+ * DELETE /system/menu/remove?id={id}
+ *
+ * 注意：后端不自动级联删除子菜单，调用方需自底向上逐个删除。
+ *
+ * @param {string} id - 菜单 ID
+ * @param {{ gatewayPath: string, token: string }} config
+ */
+function deleteMenu(id, config) {
+  return wlsFetch(
+    `/system/menu/remove?id=${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+    config,
+  )
+}
+
+module.exports = { queryPermissionMenuTree, queryMenuTree, saveMenu, querySysDomainList, deleteMenu }

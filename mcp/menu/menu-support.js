@@ -326,11 +326,10 @@ function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
  */
 function toCamelCase(str) {
   if (!str) return str;
-  // 已经是纯 camelCase（无 - _）直接返回
-  if (!/[-_]/.test(str)) return str;
-  return str
-    .replace(/^[-_]+/, "")
-    .replace(/[-_](.)/g, (_, c) => c.toUpperCase());
+  // 去首尾连字符/下划线，再转 camelCase
+  const trimmed = str.replace(/^[-_]+|[-_]+$/g, "");
+  if (!/[-_]/.test(trimmed)) return trimmed;
+  return trimmed.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
 }
 
 /**

@@ -1,0 +1,7 @@
+# Kilo Code 项目编码规范（.kilo/steering）
+
+> 由 @agile-team/wl-skills-kit 自动生成。完整指令：`.wl-skills/copilot-instructions-full.md`
+> Kilo Code 原生兼容 AGENTS.md，本文件为显式注册（双保险）。
+> 请勿手动编辑本文件，更新方式：`pnpm dlx @agile-team/wl-skills-kit@latest update`
+
+---

@@ -58,6 +58,13 @@
       "enabled": true
     },
     {
+      "name": "kilo-code",
+      "headerFile": "kilo-code.txt",
+      "outputPath": ".kilo/steering/conventions.md",
+      "enabled": true,
+      "_note": "Kilo Code（Kilo Code CLI）。原生兼容 AGENTS.md，此文件为显式注册双保险。kilo.json 为项目级配置，不由此生成。"
+    },
+    {
       "name": "qoder",
       "headerFile": "qoder.txt",
       "outputPath": ".qoder/rules/conventions.md",

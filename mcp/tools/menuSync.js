@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { queryMenuTree, saveMenu, querySysDomainList } = require("../api/menuApi");
+const { queryMenuTree, saveMenu, querySysDomainList, deleteMenu } = require("../api/menuApi");
 const { writeBlockReason } = require("../write-guard");
 const { createPlanHash } = require("../../lib/plan-hash");
 const {
@@ -80,6 +80,106 @@ async function handleDomainQuery(config) {
   } catch (error) {
     return blockedResult(error.message, "query-failed", { mode: "query" });
   }
+}
+
+/**
+ * 删除菜单（敏感操作：默认预览，确认后执行）。
+ *
+ * 参数：
+ *   menuIds: string[]           要删除的菜单 ID 列表
+ *   confirmApply?: boolean      默认 false（只预览），传 true 才执行
+ *   cascadeChildren?: boolean   默认 true（递归删除子菜单），传 false 则只删指定 ID（有子节点时后端会报错）
+ *   planHash?: string           confirmApply=true 时必须传预览返回的 planHash
+ *
+ * 安全机制：
+ *   ① 默认只预览，列出会删除的完整范围（含子节点）
+ *   ② 确认需传 confirmApply:true + 正确 planHash
+ *   ③ 生产环境（allowProductionWrites:false）阻断删除
+ *   ④ 自底向上逐个删除（后端不级联）
+ */
+async function handleMenuDelete(args, config) {
+  const menuIds = args.menuIds;
+  if (!Array.isArray(menuIds) || menuIds.length === 0) {
+    return blockedResult("参数错误：menuIds 必须是非空数组（要删除的菜单 ID）", "blocked", { mode: "delete" });
+  }
+  const cascade = args.cascadeChildren !== false;
+
+  // ① 查询当前菜单树，定位要删的节点及其子树
+  const state = await queryMenuState(config);
+  const flatAll = flattenMenus(normalizeTree(state.tree), null, []);
+
+  // ② 收集要删除的完整 ID 列表（含子节点）
+  const toDelete = [];
+  const visited = new Set();
+  function collect(id) {
+    if (visited.has(String(id))) return;
+    visited.add(String(id));
+    const node = flatAll.find((n) => String(n.id) === String(id));
+    if (node) {
+      if (cascade) {
+        const kids = node.children || node.childList || [];
+        for (const kid of kids) collect(kid.id);
+      }
+      toDelete.push({ id: node.id, menuName: node.menuName, type: node.type, path: node.path || "" });
+    } else {
+      // ID 不在当前树里，仍允许删（可能是无权限的节点）
+      toDelete.push({ id, menuName: "(未知节点)", type: "?", path: "" });
+    }
+  }
+  for (const id of menuIds) collect(id);
+
+  // ③ 计算 planHash
+  const planValue = {
+    schemaVersion: 1,
+    domainId: String(state.domainId),
+    mode: "delete",
+    cascade,
+    items: toDelete.map((d) => ({ id: d.id, menuName: d.menuName })),
+  };
+  const plan = { ...planValue, planHash: createPlanHash("menu-delete", planValue) };
+
+  // ④ 未确认 → 只预览
+  if (args.confirmApply !== true) {
+    const lines = [
+      `⚠️ 菜单删除预览：共 ${toDelete.length} 个菜单将被删除（cascadeChildren=${cascade}）。`,
+      `planHash: ${plan.planHash}`,
+      "确认无误后，携带相同 planHash 并传 confirmApply: true 才会真正执行删除。",
+      "",
+      "| 菜单名 | ID | 类型 | path |",
+      "|---|---|---|---|",
+    ];
+    for (const d of toDelete) lines.push(`| ${d.menuName} | ${d.id} | ${d.type} | ${d.path} |`);
+    return previewResult(lines.join("\n"), plan, { actions: plan.items, count: toDelete.length });
+  }
+
+  // ⑤ 确认 → 校验 planHash + 写保护
+  const stale = validatePlanHash(args, plan);
+  if (stale) return stale;
+  const blocked = writeBlockReason(config);
+  if (blocked) return blockedResult(blocked, "blocked", { mode: "delete" });
+
+  // ⑥ 执行删除（自底向上）
+  const rows = [];
+  // 反转：先删子节点再删父节点
+  const ordered = [...toDelete].reverse();
+  for (const item of ordered) {
+    const result = await deleteMenu(item.id, config);
+    rows.push({
+      action: "删除",
+      menuName: item.menuName,
+      id: item.id,
+      ok: result.ok,
+      status: result.ok ? "✅ 成功" : `❌ 失败: ${result.error}`,
+    });
+  }
+  const text = formatMenuRows(rows);
+  return toolResult(text, {
+    ok: true,
+    state: "completed",
+    mode: "delete",
+    count: rows.filter((r) => r.ok).length,
+    results: rows,
+  });
 }
 
 async function handleMenuQuery(config) {
@@ -305,6 +405,7 @@ module.exports = {
   handleDomainQuery,
   handleMenuQuery,
   handleMenuUpsert,
+  handleMenuDelete,
   handleMenuSyncFromReport,
   // 导出纯工具函数供单测覆盖
   _internal: {
