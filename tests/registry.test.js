@@ -12,10 +12,10 @@ const ROOT = path.resolve(__dirname, "..");
 describe("mcp/registry.js", () => {
   const reg = require(path.join(ROOT, "mcp", "registry.js"));
 
-  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 21", () => {
+  it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 22", () => {
     expect(Array.isArray(reg.DESCRIPTORS)).toBe(true);
-    expect(reg.TOOLS.length).toBe(21);
-    expect(Object.keys(reg.HANDLERS).length).toBe(21);
+  expect(reg.TOOLS.length).toBe(22);
+  expect(Object.keys(reg.HANDLERS).length).toBe(22);
     expect(reg.DESCRIPTORS.length).toBe(reg.TOOLS.length);
   });
 

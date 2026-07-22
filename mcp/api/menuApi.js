@@ -52,4 +52,18 @@ function saveMenu(body, config) {
   return wlsFetch('/system/menu/save', { method: 'POST', body }, config)
 }
 
-module.exports = { queryPermissionMenuTree, queryMenuTree, saveMenu }
+/**
+ * 查询全部应用域（不依赖菜单权限）。
+ * GET /system/sysDomain/list?current=1&size=99
+ *
+ * 返回所有系统内置域（生产/质量/销售/...），含 id/code/name。
+ * 用途：getPermissionMenuTree 只返回有菜单权限的域；
+ *       当目标域存在但当前账号无权限时，改用此接口获取 domainId。
+ *
+ * @param {{ gatewayPath: string, token: string }} config
+ */
+function querySysDomainList(config) {
+  return wlsFetch('/system/sysDomain/list?current=1&size=99', {}, config)
+}
+
+module.exports = { queryPermissionMenuTree, queryMenuTree, saveMenu, querySysDomainList }

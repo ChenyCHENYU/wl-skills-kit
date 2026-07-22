@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { queryMenuTree, saveMenu } = require("../api/menuApi");
+const { queryMenuTree, saveMenu, querySysDomainList } = require("../api/menuApi");
 const { writeBlockReason } = require("../write-guard");
 const { createPlanHash } = require("../../lib/plan-hash");
 const {
@@ -45,6 +45,41 @@ async function queryMenuState(config) {
   const query = await queryMenuTree(domain.domainId, config);
   if (!query.ok) throw new Error(`查询菜单树失败: ${query.error} (code: ${query.code})`);
   return { domainId: domain.domainId, tree: query.data, flatMenus: flattenMenus(query.data, null, []) };
+}
+
+async function handleDomainQuery(config) {
+  try {
+    const result = await querySysDomainList(config);
+    if (!result.ok) {
+      return blockedResult(
+        `查询应用域列表失败: ${result.error} (code: ${result.code})`,
+        "query-failed",
+        { mode: "query" },
+      );
+    }
+    const records = result.data || [];
+    const items = records.map((d) => ({
+      id: d.id,
+      name: d.name,
+      code: d.code,
+      description: d.description || "",
+    }));
+    const text =
+      items.length === 0
+        ? "✅ 应用域查询成功，当前无应用域数据"
+        : `✅ 应用域查询成功（共 ${items.length} 个）\n\n${items
+            .map((d) => `${d.name} (code=${d.code}, domainId=${d.id})`)
+            .join("\n")}`;
+    return toolResult(text, {
+      ok: true,
+      state: "completed",
+      mode: "query",
+      count: items.length,
+      items,
+    });
+  } catch (error) {
+    return blockedResult(error.message, "query-failed", { mode: "query" });
+  }
 }
 
 async function handleMenuQuery(config) {
@@ -267,6 +302,7 @@ async function handleMenuSyncFromReport(args = {}, config) {
   return ok ? result : { ...result, isError: true, structuredContent: { ...result.structuredContent, ok: false, state: "partial" } };
 }
 module.exports = {
+  handleDomainQuery,
   handleMenuQuery,
   handleMenuUpsert,
   handleMenuSyncFromReport,

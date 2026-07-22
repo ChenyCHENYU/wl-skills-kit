@@ -57,17 +57,23 @@
 
 询问后端同事，或查看浏览器 Network 面板中任意接口请求的 URL，取协议 + 域名/IP + 端口部分。
 
-### menu.parentMenuId
+### menu.parentMenuId / domainId
 
-**方法 A（推荐）**：系统管理后台 → 菜单管理 → 找到目标父级目录 → 点编辑/查看 → 复制菜单 ID
+**方法 A（推荐，MCP 自动查询）**：对 AI 说「查一下所有应用域」，AI 会调用 `wls_domain_query`（`GET /system/sysDomain/list`），返回全部应用域及其 `id`（= domainId）。
 
-**方法 B（API 查询）**：
+**方法 B**：系统管理后台 → 菜单管理 → 找到目标父级目录 → 点编辑/查看 → 复制菜单 ID
+
+**方法 C（API 查询）**：
 
 ```
-GET {gatewayPath}/system/menu/children?menuId=0
+GET {gatewayPath}/system/sysDomain/list?current=1&size=99
 ```
 
-从顶级节点向下逐层查找，直到找到目标父级目录。也可以告诉 AI「帮我查一下父级菜单 ID」，AI 会自动调接口查询。
+返回所有系统内置域（生产/质量/销售/...），含 `id`/`code`/`name`。取目标域的 `id` 作为 domainId。
+
+> ⚠️ **不要用 `getPermissionMenuTree` 查 domainId**——该接口只返回有菜单权限的域。
+> 生产域（production）等可能存在但当前账号无权限时查不到。
+> 必须用 `sysDomain/list`（不依赖菜单权限）。
 
 ### sysAppNo
 

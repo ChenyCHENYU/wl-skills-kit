@@ -19,6 +19,7 @@
  */
 
 const {
+  handleDomainQuery,
   handleMenuQuery,
   handleMenuUpsert,
   handleMenuSyncFromReport,
@@ -65,6 +66,18 @@ const STRUCTURED_RESULT_SCHEMA = {
 
 const DESCRIPTORS = [
   // ── menu ───────────────────────────────────────────────────────────
+  {
+    name: "wls_domain_query",
+    description:
+      "查询全部应用域列表（不依赖菜单权限）。返回所有系统内置域（生产/质量/销售/...），" +
+      "含 id(code=domainId)/name/code。用途：当目标域存在但当前账号无菜单权限时，" +
+      "用此接口获取 domainId 和 sysAppNo（比 getPermissionMenuTree 更全面）。" +
+      "在建菜单前调用，确认 domainId/sysAppNo/parentMenuId。",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    outputSchema: STRUCTURED_RESULT_SCHEMA,
+    needsBackendConfig: true,
+    handle: (_args, config) => handleDomainQuery(config),
+  },
   {
     name: "wls_menu_query",
     description:

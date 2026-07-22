@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { queryPermissionMenuTree } = require("../api/menuApi");
+const { queryPermissionMenuTree, querySysDomainList } = require("../api/menuApi");
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
     ? path.resolve(process.env.WL_PROJECT_ROOT)
@@ -104,20 +104,57 @@ function locateAppDomain(topNodes, matchers) {
 /**
  * 自动解析 domainId（应用域归属 ID）。
  *
- * 链路：getPermissionMenuTree（仅需 token）
- *   → 顶层各应用域（主数据管理 等）
- *   → 按 sysAppNo 或关键词定位目标应用域
+ * 优先链路：sysDomain/list（仅需 token，不依赖菜单权限）
+ *   → 全部应用域（生产/质量/...，含系统内置域）
+ *   → 按 code/sysAppNo/关键词定位目标域
+ *   → 取域 id 即为 domainId
+ *
+ * Fallback 链路：getPermissionMenuTree（依赖菜单权限）
+ *   → 顶层各应用域
  *   → 取该节点的 parentId 即为 domainId
- *   → 同时可拿到 id（parentMenuId）、sysAppNo、menuName
+ *
+ * 注意：生产域（production）等可能存在但当前账号无菜单权限，
+ *       此时 getPermissionMenuTree 查不到，必须用 sysDomain/list。
  *
  * @param {object} config  含 gatewayPath/token，可选 sysAppNo
- * @param {{ keyword?: string }} [opts]  应用域名称关键词（如"主数据"）
+ * @param {{ keyword?: string, domainCode?: string }} [opts]  应用域名称/编码关键词（如"生产"/"production"）
  * @returns {Promise<{ ok: boolean, domainId?: string, appRootId?: string, sysAppNo?: string, menuName?: string, error?: string }>}
  */
 async function resolveDomainId(config, opts) {
+  const domainCode = (opts && opts.domainCode) || "";
+  const keyword = (opts && opts.keyword) || "";
+
+  // ── ① 优先：sysDomain/list（不依赖菜单权限）──
+  const domainResult = await querySysDomainList(config);
+  if (domainResult.ok && Array.isArray(domainResult.data)) {
+    const records = domainResult.data;
+    // 按 code 精确匹配 > name 关键词 > code 关键词
+    let matched = null;
+    if (domainCode) {
+      matched = records.find((d) => String(d.code || "") === domainCode);
+    }
+    if (!matched && keyword) {
+      matched = records.find((d) => String(d.name || "").includes(keyword));
+    }
+    if (!matched && config.sysAppNo) {
+      // sysDomain 不含 sysAppNo，跳过
+    }
+    if (matched) {
+      return {
+        ok: true,
+        domainId: String(matched.id || ""),
+        appRootId: String(matched.id || ""),
+        sysAppNo: config.sysAppNo || "",
+        menuName: matched.name || "",
+        domainCode: matched.code || "",
+      };
+    }
+  }
+
+  // ── ② Fallback：getPermissionMenuTree（依赖菜单权限）──
   const result = await queryPermissionMenuTree(config);
   if (!result.ok) {
-    return { ok: false, error: `查询权限菜单树失败: ${result.error}` };
+    return { ok: false, error: `查询应用域失败: ${result.error}（sysDomain/list 和 getPermissionMenuTree 均不可用）` };
   }
 
   const topNodes = normalizeTree(result.data);
@@ -125,27 +162,27 @@ async function resolveDomainId(config, opts) {
     return { ok: false, error: "权限菜单树为空，当前账号可能无任何菜单权限" };
   }
 
-  const matched = locateAppDomain(topNodes, {
+  const matchedNode = locateAppDomain(topNodes, {
     sysAppNo: config.sysAppNo,
-    keyword: opts && opts.keyword,
+    keyword,
   });
 
-  if (!matched) {
+  if (!matchedNode) {
     const names = topNodes
       .map((n) => `${n.menuName || "?"}(sysAppNo=${n.sysAppNo || "?"})`)
       .join("、");
     return {
       ok: false,
-      error: `未能匹配到目标应用域。请确认 sysAppNo 或关键词。当前可见应用域: ${names}`,
+      error: `未能匹配到目标应用域。请确认 sysAppNo/keyword/domainCode。当前可见应用域: ${names}`,
     };
   }
 
   return {
     ok: true,
-    domainId: String(matched.parentId || ""),
-    appRootId: String(matched.id || ""),
-    sysAppNo: matched.sysAppNo || config.sysAppNo || "",
-    menuName: matched.menuName || "",
+    domainId: String(matchedNode.parentId || ""),
+    appRootId: String(matchedNode.id || ""),
+    sysAppNo: matchedNode.sysAppNo || config.sysAppNo || "",
+    menuName: matchedNode.menuName || "",
   };
 }
 
