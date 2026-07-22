@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.13.4",
-  "description": "AI Skill 模板包 v2.13.4 — 14 条编码规范 + 12 个 AI Skill + 21 个 MCP Tool，独立 API 契约与前后端严格兼容",
+  "version": "2.13.5",
+  "description": "AI Skill 模板包 v2.13.5 — 14 条编码规范 + 12 个 AI Skill + 21 个 MCP Tool，独立 API 契约与前后端严格兼容",
   "main": "./bin/wl-skills.js",
   "packageManager": "pnpm@11.5.3",
   "bin": {
@@ -46,7 +46,7 @@
     "cz": "git-cz",
     "lint": "eslint . --max-warnings 0",
     "lint:skills": "node scripts/lint-skills.js",
-    "test": "vitest run",
+    "test": "vitest run && node tests/menu-buildbody.check.js",
     "version:verify": "node scripts/verify-version.js",
     "verify": "pnpm version:verify && pnpm lint && pnpm lint:skills && pnpm test",
     "ci": "pnpm install --frozen-lockfile && pnpm verify",

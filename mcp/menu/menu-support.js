@@ -291,6 +291,16 @@ function appendPageRow(pages, row, parentMenuName) {
 
 function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
   const codePrefix = parentMenuNameCode ? `${parentMenuNameCode}:` : "";
+  // ⚠️ path 必须是 camelCase 短名（如 mmwrCustomerArchive），禁止斜杠路径（/xxx/yyy）
+  // 平台用 path 做唯一性检查，斜杠路径会与同前缀目录冲突报"该权限标识已存在"
+  const rawPath = String(item.path || "");
+  if (rawPath.includes("/")) {
+    throw new Error(
+      `菜单 path 不能含斜杠：收到 "${rawPath}"。path 必须是 camelCase 短名（如 mmwrCustomerArchive），不是路由路径（如 /steelmaking/planning）。` +
+      `参考 SKILL.md: kebab-case 目录名转 camelCase（mmwr-customer-archive → mmwrCustomerArchive）。`,
+    );
+  }
+  const camelPath = toCamelCase(rawPath);
   return {
     useCache: 1,
     icon: item.icon || "list",
@@ -302,11 +312,25 @@ function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
     sysAppNo: config.sysAppNo,
     orderNum,
     menuName: item.menuName,
-    menuNameCode: item.menuNameCode || `${codePrefix}${item.path}`,
-    path: item.path,
+    menuNameCode: item.menuNameCode || `${codePrefix}${camelPath}`,
+    path: camelPath,
     component: item.type === "C" ? item.component : undefined,
-    permission: item.type === "C" ? item.permission : undefined,
+    // permission 默认 = path（camelCase），确保权限标识不遗漏
+    permission: item.type === "C" ? (item.permission || camelPath) : undefined,
   };
+}
+
+/**
+ * kebab-case 或下划线 → camelCase（mmwr-customer-archive → mmwrCustomerArchive）
+ * 已是 camelCase 则原样返回。
+ */
+function toCamelCase(str) {
+  if (!str) return str;
+  // 已经是纯 camelCase（无 - _）直接返回
+  if (!/[-_]/.test(str)) return str;
+  return str
+    .replace(/^[-_]+/, "")
+    .replace(/[-_](.)/g, (_, c) => c.toUpperCase());
 }
 
 /**
@@ -333,4 +357,5 @@ module.exports = {
   resolveDomainId,
   resolveReportPath,
   splitMarkdownRow,
+  toCamelCase,
 };
