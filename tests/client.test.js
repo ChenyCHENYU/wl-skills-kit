@@ -21,6 +21,33 @@ afterEach(async () => {
 });
 
 describe("MCP backend client", () => {
+  it("保留业务页面上下文请求头且不允许覆盖鉴权头", () => {
+    const result = buildRequest(
+      "https://gateway.example/sit-api/system/dictModule/save",
+      {
+        method: "POST",
+        body: { strSn: "plSteelmaking" },
+        headers: {
+          menuid: "24",
+          menuname: "业务字典",
+          menupath: "dataDic",
+          menupermission: "sys_businessDict",
+          Authorization: "invalid",
+        },
+      },
+      { token: "secret", sysAppNo: "produce" },
+      "request-dict",
+    );
+    expect(result.requestOptions.headers).toMatchObject({
+      menuid: "24",
+      menuname: "%E4%B8%9A%E5%8A%A1%E5%AD%97%E5%85%B8",
+      menupath: "dataDic",
+      menupermission: "sys_businessDict",
+      Authorization: "Bearer secret",
+      sysAppNo: "produce",
+    });
+  });
+
   it("构造带应用、当前应用和 requestId 的请求", () => {
     const result = buildRequest(
       "https://gateway.example/uat-api/system/test",

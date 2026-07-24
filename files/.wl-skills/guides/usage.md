@@ -109,7 +109,7 @@ AI 会自动识别意图，触发对应的 Skill。
 
 > **说明**：每一步都可以单独触发，也可以按用户意图自动接续。
 >
-> - `dict-sync`：首次使用先跑 **pull 模式**（「刷新字典基线」）建立本地基线，再跑 push 模式同步差异。
+> - `dict-sync`：`dicts.ts` 是唯一发布真值。首次连接环境先用 `wls_dict_query` 核对目标网关/应用，再由 `wls_dict_upsert` 预览 `safe-additive` 计划；没有 `dicts.ts` 的旧项目先用 `wls_dict_bootstrap` 从 `api.md dict-contract` 生成本地契约。
 > - `code-fix`：只修复 🟡/🟢 偏差；🔴 严重偏差必须人工或 page-codegen 处理。每条修复前强制 diff 预览确认。
 
 ### 页面生成最终标准

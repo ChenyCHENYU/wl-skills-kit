@@ -45,6 +45,36 @@ bootstrap-required → ready → verified
 
 比较明细时包含 `strKey/strValue/strValue2/strValue3/strValue4/strValueCode`，不是只比较显示名称。
 
+## 线上索引与兼容预检
+
+协调器不会只依赖字典树。每次预览和执行前会联合建立索引：
+
+1. 当前应用业务字典树：包含已有模块与字典关系。
+2. 当前应用业务模块列表：补齐尚无字典、因此未出现在树上的空模块。
+3. 全局业务模块列表：发现跨应用编码归属冲突。
+4. 显式诊断时的系统模块列表：发现业务模块编码被系统字典占用。
+
+所有分页都会读取到末页，并设 20000 条安全上限。任何线上模块/字典没有真实 `id` 都会在子级写入前阻断，禁止产生 `moduleId=null` 或 `dictId=null` 的孤儿数据。
+
+`wls_dict_query` 返回脱敏的：
+
+```json
+{
+  "target": {
+    "gatewayPath": "https://gateway.example:8443/sit-api",
+    "sysAppNo": "..."
+  }
+}
+```
+
+模型必须先核对目标。网关协议、端口、环境前缀与浏览器成功请求不一致时，后续查询和预览都不具备参考价值。
+
+若创建接口返回“已存在”，协调器会重新检查业务与系统模块：
+
+- 能回查到同名同编码且有真实 ID：按幂等并发结果安全复用。
+- 被系统模块占用：返回 `DICT_MODULE_SYSTEM_CONFLICT`。
+- 三类只读查询仍不可见：返回 `DICT_MODULE_HIDDEN_CONFLICT`，提示软删除/跨租户/历史残留，不再让模型盲重试。
+
 ## 旧项目引导
 
 `wls_dict_bootstrap` 是本地标准化工具，不访问后端：

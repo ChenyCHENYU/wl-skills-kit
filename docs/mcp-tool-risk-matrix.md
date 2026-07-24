@@ -1,8 +1,8 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.13.0
+> **版本基线**：wl-skills-kit v2.13.8
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
-> **定位**：统一说明 21 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
+> **定位**：统一说明 23 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---
 
@@ -30,6 +30,7 @@
 | `wls_standard_env_scan` | 环境扫描 | R1 | 否 | 是 | 无，只读识别项目形态和历史配置 |
 | `wls_standard_env_apply` | 环境迁移 | R2 | 否 | 否 | 默认只生成计划；正式写入必须确认 Profile、模块名、文件计划并传 `confirmApply: true` |
 | `wls_standard_env_verify` | 环境验证 | R1 | 否 | 是 | 静态验证可自动调用；五环境构建仅在依赖已安装时启用 |
+| `wls_domain_query` | 应用域查询 | R0 | 是 | 是 | 无 |
 | `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_query` | 字典查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_bootstrap` | 本地字典契约 | R2 | 否 | 否 | 默认只预览；创建本地 `dicts.ts` 必须携带预览 `planHash` 并传 `confirmWrite:true`，绝不覆盖已有文件 |
@@ -38,6 +39,7 @@
 | `wls_action_query` | 权限查询 | R0 | 是 | 是 | 无 |
 | `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
 | `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
+| `wls_menu_delete` | 菜单删除 | R3 | 是 | 否 | 默认预览；必须展示递归影响范围，正式删除需 `confirmApply:true` 和预览 `planHash` |
 | `wls_dict_upsert` | 字典协调 | R3 | 是 | 否 | 默认只预览；确认项目级 safe-additive 计划后必须同时传 `confirmApply:true` 和有效 `planHash` |
 | `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
 | `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并同时传 `confirmFullReplace:true` 和预览 `planHash` |
@@ -60,6 +62,7 @@ wls_validate_page
 wls_doctor_ui
 wls_standard_env_scan
 wls_standard_env_verify
+wls_domain_query
 wls_menu_query
 wls_dict_query
 wls_role_query
@@ -74,6 +77,7 @@ wls_action_query
 ```text
 wls_menu_sync_from_report
 wls_menu_upsert
+wls_menu_delete
 wls_dict_upsert
 wls_dict_bootstrap
 wls_role_upsert
@@ -97,7 +101,8 @@ wls_standard_env_apply
 ### 菜单同步
 
 ```text
-wls_menu_query
+wls_domain_query
+→ wls_menu_query
 → 读取/生成 SYS_MENU_INFO.md
 → wls_menu_sync_from_report（默认预览）
 → 用户确认
@@ -152,6 +157,7 @@ wls_standard_env_scan
 - `wls_standard_env_apply` 不调用后端，但会事务式更新本地前端环境与 Vite 配置；未确认时不得传 `confirmApply: true`。
 - 华新 Profile 不得静默套用；非华新项目必须提供完整五环境 Profile，避免客户地址混用。
 - 菜单、角色、动作和角色授权执行前都会重读线上；必须携带最近一次预览 `planHash`，漂移后旧计划自动失效。
+- 菜单删除必须展示全部递归子节点，自底向上执行；不得仅凭菜单名称直接删除。
 - 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true` 与预览 `planHash`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
 - CI 中默认只运行 R0/R1 能力；如需 R3/R4，必须使用受控环境变量和审批流程。

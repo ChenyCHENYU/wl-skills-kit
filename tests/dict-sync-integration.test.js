@@ -88,6 +88,18 @@ async function startBackend() {
             ],
           },
         };
+      } else if (key === "GET /system/dictModule/business/list") {
+        data = {
+          page: {
+            records: [
+              {
+                id: "module-1",
+                strSn: "mdmAuth",
+                name: "主数据系统授权",
+              },
+            ],
+          },
+        };
       } else if (key === "GET /system/business/dict/getById") {
         data = { dict: state.definition };
       } else if (key === "PUT /system/business/dict/update") {
@@ -114,14 +126,54 @@ async function startBackend() {
   };
 }
 
-function routeEmptyBackend(state, options, key, url, body) {
+function moduleRecord(module) {
+  const record = { ...module };
+  delete record.children;
+  return record;
+}
+
+function routeModuleBackend(state, options, key, body) {
   if (key === "GET /system/business/dict/getDictionaryTreeData") {
     return { data: { dictionary: { children: state.modules } }, businessCode: 2000 };
   }
+  if (key === "GET /system/dictModule/business/list") {
+    return {
+      data: {
+        page: {
+          records: state.modules.map(moduleRecord),
+          pages: 1,
+          total: state.modules.length,
+        },
+      },
+      businessCode: 2000,
+    };
+  }
+  if (key === "GET /system/dictModule/list") {
+    const records = options.systemModules || [];
+    return {
+      data: { page: { records, pages: 1, total: records.length } },
+      businessCode: 2000,
+    };
+  }
   if (key === "POST /system/dictModule/save") {
-    state.modules.push({ id: `module-${state.modules.length + 1}`, ...body, children: [] });
+    if (options.moduleAlreadyExists) {
+      return {
+        data: null,
+        businessCode: 5000,
+        message: "系统字典模块已存在，创建失败!",
+      };
+    }
+    state.modules.push({
+      ...(options.moduleWithoutId ? {} : { id: `module-${state.modules.length + 1}` }),
+      ...body,
+      children: [],
+    });
     return { data: null, businessCode: 2000 };
   }
+  return null;
+}
+
+function routeDictionaryBackend(state, options, key, url, body) {
   if (key === "POST /system/business/dict/save") {
     const module = state.modules.find((item) => item.id === body.moduleId);
     const id = `dict-${state.definitions.size + 1}`;
@@ -146,6 +198,14 @@ function routeEmptyBackend(state, options, key, url, body) {
     records.push({ id: `detail-${records.length + 1}`, ...body });
     return { data: null, businessCode: 2000 };
   }
+  return null;
+}
+
+function routeEmptyBackend(state, options, key, url, body) {
+  const moduleRoute = routeModuleBackend(state, options, key, body);
+  if (moduleRoute) return moduleRoute;
+  const dictionaryRoute = routeDictionaryBackend(state, options, key, url, body);
+  if (dictionaryRoute) return dictionaryRoute;
   return { data: null, businessCode: 4004, statusCode: 404 };
 }
 
@@ -168,7 +228,11 @@ async function startEmptyBackend(options = {}) {
       const routed = routeEmptyBackend(state, options, key, url, body);
       response.statusCode = routed.statusCode || 200;
       response.setHeader("Content-Type", "application/json");
-      response.end(JSON.stringify({ code: routed.businessCode, data: routed.data }));
+      response.end(JSON.stringify({
+        code: routed.businessCode,
+        data: routed.data,
+        ...(routed.message ? { message: routed.message } : {}),
+      }));
     });
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -299,6 +363,128 @@ describe("dicts.ts MCP sync", () => {
 });
 
 describe("project-wide dictionary reconcile", () => {
+  it("后端报告已存在但三类查询不可见时返回机器可识别的隐藏冲突", async () => {
+    const root = createProject();
+    const backend = await startEmptyBackend({ moduleAlreadyExists: true });
+    process.env.WL_PROJECT_ROOT = root;
+    const config = { gatewayPath: backend.gatewayPath, token: "token", sysAppNo: "mdata" };
+    const preview = await dictSync.handleDictUpsert({ scope: "project" }, config);
+    const applied = await dictSync.handleDictUpsert({
+      scope: "project",
+      confirmApply: true,
+      planHash: preview.structuredContent.planHash,
+    }, config);
+    expect(applied.structuredContent).toMatchObject({
+      ok: false,
+      state: "partial",
+      completed: [],
+      failure: {
+        code: "DICT_MODULE_HIDDEN_CONFLICT",
+        details: {
+          moduleCode: "mdmAuth",
+          suggestedActions: expect.any(Array),
+        },
+      },
+    });
+    expect(applied.text).toMatch(/软删除、跨租户或历史残留/);
+    expect(backend.state.writes.map((item) => item.key)).toEqual([
+      "POST /system/dictModule/save",
+    ]);
+  });
+
+  it("系统字典模块占用编码时返回明确冲突对象", async () => {
+    const root = createProject();
+    const backend = await startEmptyBackend({
+      moduleAlreadyExists: true,
+      systemModules: [{
+        id: "system-module-1",
+        strSn: "mdmAuth",
+        strName: "系统授权模块",
+      }],
+    });
+    process.env.WL_PROJECT_ROOT = root;
+    const config = { gatewayPath: backend.gatewayPath, token: "token", sysAppNo: "mdata" };
+    const preview = await dictSync.handleDictUpsert({ scope: "project" }, config);
+    const applied = await dictSync.handleDictUpsert({
+      scope: "project",
+      confirmApply: true,
+      planHash: preview.structuredContent.planHash,
+    }, config);
+    expect(applied.structuredContent.failure).toMatchObject({
+      code: "DICT_MODULE_SYSTEM_CONFLICT",
+      details: {
+        conflict: {
+          id: "system-module-1",
+          code: "mdmAuth",
+        },
+      },
+    });
+  });
+
+  it("字典树隐藏空模块时从业务模块列表识别并复用真实 moduleId", async () => {
+    const root = createProject();
+    const backend = await startEmptyBackend();
+    process.env.WL_PROJECT_ROOT = root;
+    backend.state.modules.push({
+      id: "module-existing",
+      strSn: "mdmAuth",
+      strName: "主数据系统授权",
+      children: [],
+    });
+    const config = { gatewayPath: backend.gatewayPath, token: "token", sysAppNo: "mdata" };
+    const preview = await dictSync.handleDictUpsert({ scope: "project" }, config);
+    expect(preview.structuredContent).toMatchObject({
+      ok: true,
+      state: "ready",
+      summary: { createModules: 0, createDictionaries: 1, addDetails: 3 },
+    });
+    const applied = await dictSync.handleDictUpsert({
+      scope: "project",
+      confirmApply: true,
+      planHash: preview.structuredContent.planHash,
+    }, config);
+    expect(applied.structuredContent).toMatchObject({ ok: true, state: "verified" });
+    expect(backend.state.writes.some((item) => item.key === "POST /system/dictModule/save")).toBe(false);
+    expect(backend.state.writes.find((item) => item.key === "POST /system/business/dict/save")?.body.moduleId)
+      .toBe("module-existing");
+  });
+
+  it("线上模块缺少 id 时预览阻断且零写入", async () => {
+    const root = createProject();
+    const backend = await startEmptyBackend();
+    process.env.WL_PROJECT_ROOT = root;
+    backend.state.modules.push({
+      strSn: "mdmAuth",
+      strName: "主数据系统授权",
+      children: [],
+    });
+    const config = { gatewayPath: backend.gatewayPath, token: "token", sysAppNo: "mdata" };
+    const preview = await dictSync.handleDictUpsert({ scope: "project" }, config);
+    expect(preview.structuredContent).toMatchObject({ ok: false, state: "blocked" });
+    expect(preview.structuredContent.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "remote-duplicate", message: "线上模块 mdmAuth 缺少 id" }),
+    ]));
+    expect(backend.state.writes).toEqual([]);
+  });
+
+  it("模块创建后回查 id 为空时禁止创建字典", async () => {
+    const root = createProject();
+    const backend = await startEmptyBackend({ moduleWithoutId: true });
+    process.env.WL_PROJECT_ROOT = root;
+    const config = { gatewayPath: backend.gatewayPath, token: "token", sysAppNo: "mdata" };
+    const preview = await dictSync.handleDictUpsert({ scope: "project" }, config);
+    const applied = await dictSync.handleDictUpsert({
+      scope: "project",
+      confirmApply: true,
+      planHash: preview.structuredContent.planHash,
+    }, config);
+    expect(applied.structuredContent).toMatchObject({ ok: false, state: "partial" });
+    expect(applied.text).toMatch(/模块 mdmAuth 缺少 id/);
+    expect(backend.state.writes.map((item) => item.key)).toEqual([
+      "POST /system/dictModule/save",
+    ]);
+  });
+
   it("自动发现多个模块，预览零写入，确认后只新增并在重跑时全部跳过", async () => {
     const root = createProject();
     addModuleContract(root, "quality", "quality", "mdmQualityLevel");
@@ -318,6 +504,9 @@ describe("project-wide dictionary reconcile", () => {
     expect(applied.structuredContent).toMatchObject({ ok: true, state: "verified" });
     expect(backend.state.modules).toHaveLength(2);
     expect([...backend.state.details.values()].flat()).toHaveLength(6);
+    expect(backend.state.writes
+      .filter((item) => item.key === "POST /system/dictModule/save")
+      .every((item) => !Object.prototype.hasOwnProperty.call(item.body, "sysAppNo"))).toBe(true);
 
     const rerun = await dictSync.handleDictUpsert({ scope: "project" }, config);
     expect(rerun.structuredContent.summary).toMatchObject({

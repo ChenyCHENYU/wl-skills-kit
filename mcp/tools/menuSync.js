@@ -98,7 +98,7 @@ async function handleDomainQuery(config) {
  *   ④ 自底向上逐个删除（后端不级联）
  */
 async function handleMenuDelete(args, config) {
-  const menuIds = args.menuIds;
+  const { menuIds } = args;
   if (!Array.isArray(menuIds) || menuIds.length === 0) {
     return blockedResult("参数错误：menuIds 必须是非空数组（要删除的菜单 ID）", "blocked", { mode: "delete" });
   }

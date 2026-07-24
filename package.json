@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.13.6",
-  "description": "AI Skill 模板包 v2.13.6 — 14 条编码规范 + 12 个 AI Skill + 21 个 MCP Tool，独立 API 契约与前后端严格兼容",
+  "version": "2.13.8",
+  "description": "AI Skill 模板包 v2.13.8 — 14 条编码规范 + 12 个 AI Skill + 23 个 MCP Tool，独立 API 契约与前后端严格兼容",
   "main": "./bin/wl-skills.js",
   "packageManager": "pnpm@11.5.3",
   "bin": {

@@ -10,6 +10,8 @@ const {
   planBootstrap,
 } = require('../../lib/dict-project')
 const {
+  queryBusinessDictModules,
+  querySystemDictModules,
   queryDictModules,
   saveDictModule,
   saveDictItem,
@@ -20,6 +22,15 @@ const {
 
 const projectLocks = new Map()
 
+class DictSyncFailure extends Error {
+  constructor(code, message, details = {}) {
+    super(message)
+    this.name = 'DictSyncFailure'
+    this.code = code
+    this.details = details
+  }
+}
+
 function identityKey(value) {
   return String(value || '').toLocaleLowerCase('en-US')
 }
@@ -28,10 +39,136 @@ function getNodeName(node) {
   return (node && (node.strName || node.name)) || ''
 }
 
+function hasEntityId(node) {
+  return node && node.id != null && String(node.id).trim() !== ''
+}
+
+function requireEntityId(node, label) {
+  if (!hasEntityId(node)) throw new Error(`${label} 缺少 id，已阻断后续写入`)
+  return node
+}
+
 function extractModules(data) {
   if (!data) return []
   if (data.dictionary && Array.isArray(data.dictionary.children)) return data.dictionary.children
   return Array.isArray(data) ? data : []
+}
+
+function extractBusinessModules(data) {
+  if (!data) return []
+  if (data.page && Array.isArray(data.page.records)) return data.page.records
+  if (Array.isArray(data.records)) return data.records
+  if (Array.isArray(data.list)) return data.list
+  for (const value of Object.values(data)) {
+    if (!value || typeof value !== 'object') continue
+    const nested = extractBusinessModules(value)
+    if (nested.length > 0) return nested
+  }
+  return extractModules(data)
+}
+
+function extractModulePage(data) {
+  if (!data || typeof data !== 'object') return null
+  if (data.page && typeof data.page === 'object') return data.page
+  for (const value of Object.values(data)) {
+    if (!value || typeof value !== 'object') continue
+    const nested = extractModulePage(value)
+    if (nested) return nested
+  }
+  return null
+}
+
+function globalDictionaryConfig(config) {
+  return {
+    ...config,
+    sysAppNo: '',
+    sysOnlyCurrentApp: false,
+    dict: { ...(config.dict || {}), sysOnlyCurrentApp: false },
+  }
+}
+
+async function queryAllModulePages(queryFn, query, config, label) {
+  const records = []
+  const size = 200
+  let current = 1
+  let pages = 1
+  do {
+    const result = await queryFn({ ...(query || {}), current, size }, config)
+    if (!result.ok) return result
+    records.push(...extractBusinessModules(result.data))
+    const page = extractModulePage(result.data)
+    pages = page && Number(page.pages) > 0 ? Number(page.pages) : 1
+    current += 1
+  } while (current <= pages && current <= 100)
+  if (current <= pages) {
+    return { ok: false, error: `${label}超过安全分页上限 20000 条` }
+  }
+  return { ok: true, data: records }
+}
+
+function queryAllBusinessModules(config, query = {}) {
+  return queryAllModulePages(
+    queryBusinessDictModules,
+    { moduleId: -1, ...query },
+    config,
+    '业务字典模块',
+  )
+}
+
+function queryAllSystemModules(config, query = {}) {
+  return queryAllModulePages(querySystemDictModules, query, config, '系统字典模块')
+}
+
+function moduleIndexKey(module) {
+  if (hasEntityId(module)) return `id:${module.id}`
+  return `code:${identityKey(module.strSn)}`
+}
+
+function moduleChildren(module, fallback = []) {
+  return Array.isArray(module.children) ? module.children : fallback
+}
+
+function findMergedModuleKey(merged, module) {
+  const idKey = hasEntityId(module) ? `id:${module.id}` : ''
+  const codeKey = `code:${identityKey(module.strSn)}`
+  if (idKey && merged.has(idKey)) return idKey
+  if (merged.has(codeKey)) return codeKey
+  return idKey || codeKey
+}
+
+function mergeOnlineModules(treeModules, businessModules) {
+  const merged = new Map()
+  for (const module of businessModules) {
+    merged.set(moduleIndexKey(module), { ...module, children: moduleChildren(module) })
+  }
+  for (const module of treeModules) {
+    const key = findMergedModuleKey(merged, module)
+    const previous = merged.get(key) || {}
+    merged.set(key, {
+      ...previous,
+      ...module,
+      children: moduleChildren(module, previous.children || []),
+    })
+  }
+  return [...merged.values()]
+}
+
+async function queryOnlineModules(config) {
+  const treeResult = await queryDictModules(config)
+  if (!treeResult.ok) throw new Error(`查询线上字典树失败: ${treeResult.error}`)
+  const businessResult = await queryAllBusinessModules(config)
+  if (!businessResult.ok) throw new Error(`查询线上业务字典模块失败: ${businessResult.error}`)
+  const globalBusinessResult = await queryAllBusinessModules(globalDictionaryConfig(config))
+  if (!globalBusinessResult.ok) {
+    throw new Error(`查询全局业务字典模块失败: ${globalBusinessResult.error}`)
+  }
+  return mergeOnlineModules(
+    extractModules(treeResult.data),
+    [
+      ...extractBusinessModules(globalBusinessResult.data),
+      ...extractBusinessModules(businessResult.data),
+    ],
+  )
 }
 
 function extractDetailRecords(data) {
@@ -133,6 +270,9 @@ function normalizeDetailItem(item, dictCode) {
 }
 
 function buildDetailBody(detail, dictBody, dictId) {
+  if (dictId == null || String(dictId).trim() === '') {
+    throw new Error(`字典 ${dictBody.strSn} 缺少 dictId，禁止创建明细`)
+  }
   return {
     dictId,
     strSn: dictBody.strSn,
@@ -164,6 +304,9 @@ function buildModuleBody(moduleBody) {
 }
 
 function buildDictBody(dictBody, moduleId) {
+  if (moduleId == null || String(moduleId).trim() === '') {
+    throw new Error(`字典 ${dictBody.strSn} 缺少 moduleId，禁止创建字典`)
+  }
   return {
     moduleId,
     strSn: dictBody.strSn,
@@ -206,6 +349,7 @@ function buildRemoteIndexes(modules) {
   for (const module of modules) {
     const code = String(module.strSn || '')
     if (!code) continue
+    if (!hasEntityId(module)) issues.push(`线上模块 ${code} 缺少 id`)
     const key = identityKey(code)
     if (moduleByCode.has(key)) issues.push(`线上模块编码重复（忽略大小写）: ${code}`)
     else moduleByCode.set(key, module)
@@ -218,6 +362,7 @@ function indexRemoteDictionaries(module, moduleCode, owners, issues) {
   for (const dictionary of Array.isArray(module.children) ? module.children : []) {
     const dictCode = String(dictionary.strSn || '')
     if (!dictCode) continue
+    if (!hasEntityId(dictionary)) issues.push(`线上字典 ${dictCode} 缺少 id`)
     const key = identityKey(dictCode)
     const owner = owners.get(key)
     if (owner && owner.moduleCode !== moduleCode) {
@@ -332,6 +477,7 @@ async function inspectExistingDictionary(plan, payload, onlineModule, onlineDict
 
 function inspectRemoteOwner(plan, remoteOwner, moduleCode, dictCode) {
   if (!remoteOwner) return true
+  if (!hasEntityId(remoteOwner.dictionary)) return false
   if (identityKey(remoteOwner.moduleCode) !== identityKey(moduleCode)) {
     addIssue(plan, 'dictionary-owner-conflict', { moduleCode, dictCode },
       `线上字典已属于模块 ${remoteOwner.moduleCode}`)
@@ -362,6 +508,7 @@ async function inspectPayload(plan, payload, indexes, config) {
   const dictCode = payload.dict.strSn
   const onlineModule = indexes.moduleByCode.get(identityKey(moduleCode))
   const remoteOwner = indexes.dictOwners.get(identityKey(dictCode))
+  if (onlineModule && !hasEntityId(onlineModule)) return
   if (!inspectRemoteOwner(plan, remoteOwner, moduleCode, dictCode)) return
   if (!onlineModule) {
     addMissingDictionaryActions(plan, payload, undefined, true)
@@ -400,9 +547,7 @@ async function buildReconcilePlan(args, config) {
   if (registry.modules.length === 0) {
     return { state: 'bootstrap-required', registry, bootstrap: planBootstrap(localOptions(args)) }
   }
-  const treeResult = await queryDictModules(config)
-  if (!treeResult.ok) throw new Error(`查询线上字典树失败: ${treeResult.error}`)
-  const onlineModules = extractModules(treeResult.data)
+  const onlineModules = await queryOnlineModules(config)
   const indexes = buildRemoteIndexes(onlineModules)
   const plan = emptyPlan(registry, config, args)
   plan.issues.push(...indexes.issues.map((message) => ({ type: 'remote-duplicate', message })))
@@ -418,9 +563,110 @@ async function buildReconcilePlan(args, config) {
 }
 
 async function queryTreeOrThrow(config) {
-  const result = await queryDictModules(config)
-  if (!result.ok) throw new Error(`查询线上字典树失败: ${result.error}`)
-  return extractModules(result.data)
+  return queryOnlineModules(config)
+}
+
+function moduleMatches(node, moduleBody) {
+  return identityKey(node && node.strSn) === identityKey(moduleBody.strSn) ||
+    String(getNodeName(node)) === String(moduleBody.strName)
+}
+
+function isAlreadyExistsError(message) {
+  return /已存在|already\s+exists|duplicate/i.test(String(message || ''))
+}
+
+function moduleFailureDetails(payload, config, backendError) {
+  return {
+    moduleCode: payload.module.strSn,
+    moduleName: payload.module.strName,
+    gatewayPath: config.gatewayPath,
+    sysAppNo: config.sysAppNo,
+    backendError,
+  }
+}
+
+function moduleFailure(code, message, details) {
+  return { error: new DictSyncFailure(code, message, details) }
+}
+
+async function findBusinessModuleAfterConflict(payload, config) {
+  try {
+    const modules = await queryOnlineModules(config)
+    return modules.find((item) => moduleMatches(item, payload.module))
+  } catch {
+    // 诊断是 best-effort，查询失败不能掩盖真正的写入失败。
+    return undefined
+  }
+}
+
+function isReusableBusinessModule(match, payload) {
+  return Boolean(
+    match &&
+    hasEntityId(match) &&
+    String(getNodeName(match)) === String(payload.module.strName),
+  )
+}
+
+async function findSystemModuleConflict(payload, config) {
+  try {
+    const result = await queryAllSystemModules(globalDictionaryConfig(config), {
+      strSn: payload.module.strSn,
+    })
+    if (!result.ok) return undefined
+    return result.data.find((item) => moduleMatches(item, payload.module))
+  } catch {
+    // 同上：诊断查询失败时保留原始写入结果。
+    return undefined
+  }
+}
+
+function systemModuleConflict(systemMatch, details) {
+  return moduleFailure(
+    'DICT_MODULE_SYSTEM_CONFLICT',
+    `模块编码或名称已被系统字典模块占用：${systemMatch.strSn || '-'} / ${getNodeName(systemMatch) || '-'}`,
+    {
+      ...details,
+      conflict: {
+        id: systemMatch.id,
+        code: systemMatch.strSn,
+        name: getNodeName(systemMatch),
+      },
+      suggestedActions: ['修改本地 module.code/name', '由管理员确认并处理系统字典模块冲突'],
+    },
+  )
+}
+
+function hiddenModuleConflict(payload, details) {
+  return moduleFailure(
+    'DICT_MODULE_HIDDEN_CONFLICT',
+    `后端判定模块 ${payload.module.strSn} 已存在，但业务字典树、业务模块列表和系统模块列表均不可见；通常是软删除、跨租户或历史残留占用。禁止盲目重试或自动复用空 ID`,
+    {
+      ...details,
+      suggestedActions: [
+        '使用明确且唯一的新 module.code，并同步 dicts.ts 与 api.md',
+        '或由管理员清理不可见的历史/软删除记录后重新预览',
+      ],
+    },
+  )
+}
+
+async function diagnoseModuleCreateFailure(payload, config, backendError) {
+  const details = moduleFailureDetails(payload, config, backendError)
+  if (!isAlreadyExistsError(backendError)) {
+    return moduleFailure(
+      'DICT_MODULE_CREATE_FAILED',
+      `创建模块 ${payload.module.strSn} 失败: ${backendError}`,
+      details,
+    )
+  }
+
+  const businessMatch = await findBusinessModuleAfterConflict(payload, config)
+  if (isReusableBusinessModule(businessMatch, payload)) return { target: businessMatch }
+
+  const systemMatch = await findSystemModuleConflict(payload, config)
+  return systemMatch
+    ? systemModuleConflict(systemMatch, details)
+    : hiddenModuleConflict(payload, details)
 }
 
 async function ensureModuleSafe(payload, config) {
@@ -428,29 +674,35 @@ async function ensureModuleSafe(payload, config) {
   let target = findModule(modules, payload.module)
   if (target) {
     if (getNodeName(target) !== payload.module.strName) throw new Error(`${payload.module.strSn}: 模块名称发生冲突`)
-    return target
+    return requireEntityId(target, `模块 ${payload.module.strSn}`)
   }
   const result = await saveDictModule(buildModuleBody(payload.module), config)
-  if (!result.ok) throw new Error(`创建模块 ${payload.module.strSn} 失败: ${result.error}`)
+  if (!result.ok) {
+    const diagnosis = await diagnoseModuleCreateFailure(payload, config, result.error)
+    if (diagnosis.target) return requireEntityId(diagnosis.target, `模块 ${payload.module.strSn}`)
+    throw diagnosis.error
+  }
   modules = await queryTreeOrThrow(config)
   target = findModule(modules, payload.module)
   if (!target) throw new Error(`创建模块 ${payload.module.strSn} 后未能回查`)
-  return target
+  return requireEntityId(target, `创建后的模块 ${payload.module.strSn}`)
 }
 
 async function ensureDictionarySafe(moduleNode, payload, config) {
+  requireEntityId(moduleNode, `模块 ${payload.module.strSn}`)
   let target = findDictInModule(moduleNode, payload.dict)
   if (target) {
     if (getNodeName(target) !== payload.dict.strName) throw new Error(`${payload.dict.strSn}: 字典名称发生冲突`)
-    return target
+    return requireEntityId(target, `字典 ${payload.dict.strSn}`)
   }
   const result = await saveDictItem(buildDictBody(payload.dict, moduleNode.id), config)
   if (!result.ok) throw new Error(`创建字典 ${payload.dict.strSn} 失败: ${result.error}`)
   const modules = await queryTreeOrThrow(config)
   const refreshedModule = findModule(modules, payload.module)
+  requireEntityId(refreshedModule, `模块 ${payload.module.strSn}`)
   target = findDictInModule(refreshedModule, payload.dict)
   if (!target) throw new Error(`创建字典 ${payload.dict.strSn} 后未能回查`)
-  return target
+  return requireEntityId(target, `创建后的字典 ${payload.dict.strSn}`)
 }
 
 function planMissingDetails(payload, details) {
@@ -471,6 +723,7 @@ function planMissingDetails(payload, details) {
 }
 
 async function addMissingDetailsSafe(targetDict, payload, config, completed) {
+  requireEntityId(targetDict, `字典 ${payload.dict.strSn}`)
   const result = await queryAllDictDetails(targetDict.id, config)
   if (!result.ok) throw new Error(`查询字典 ${payload.dict.strSn} 明细失败: ${result.error}`)
   const missing = planMissingDetails(payload, extractDetailRecords(result.data))
@@ -635,6 +888,14 @@ async function verifyProjectAfterApply(args, config) {
   return verification.plan
 }
 
+function failurePayload(error) {
+  return {
+    code: error && error.code ? error.code : 'DICT_SYNC_FAILED',
+    message: error && error.message ? error.message : String(error),
+    details: error && error.details ? error.details : {},
+  }
+}
+
 async function executeConfirmedPlan(current, args, config) {
   const { plan, registry } = current
   const invalid = validateConfirmedPlan(args, plan)
@@ -657,7 +918,11 @@ async function executeConfirmedPlan(current, args, config) {
     }
   } catch (error) {
     return errorResult(`执行中止：${error.message}；已完成项可安全重跑，不执行回滚删除`, {
-      state: 'partial', mode: 'apply', planHash: plan.planHash, completed,
+      state: 'partial',
+      mode: 'apply',
+      planHash: plan.planHash,
+      completed,
+      failure: failurePayload(error),
     })
   }
 }
@@ -686,14 +951,71 @@ async function handleDictUpsert(args = {}, config) {
   return withProjectLock(lockKey, () => applyReconcile(normalizedArgs, config))
 }
 
-async function handleDictQuery(config) {
-  if (!config || !config.sysAppNo) return '❌ env.local.json 必须填写 sysAppNo'
-  const result = await queryDictModules(config)
-  if (!result.ok) return `❌ 查询字典失败: ${result.error}`
-  const modules = extractModules(result.data)
-  return modules.length === 0
-    ? '✅ 字典查询成功，当前应用暂无字典数据'
-    : `✅ 字典查询成功，当前应用共 ${modules.length} 个业务模块\n\n${JSON.stringify(modules, null, 2)}`
+function filterModulesByCode(modules, moduleCode) {
+  if (!moduleCode) return modules
+  return modules.filter((item) => identityKey(item.strSn) === identityKey(moduleCode))
+}
+
+function queryTarget(config) {
+  return {
+    gatewayPath: config.gatewayPath,
+    sysAppNo: config.sysAppNo,
+  }
+}
+
+function successfulDictQuery(businessModules, systemModules, config, text) {
+  return {
+    text,
+    structuredContent: {
+      ok: true,
+      state: 'success',
+      count: businessModules.length,
+      items: businessModules,
+      systemModules,
+      target: queryTarget(config),
+    },
+  }
+}
+
+async function querySystemModulesForView(config, moduleCode) {
+  const result = await queryAllSystemModules(
+    globalDictionaryConfig(config),
+    { strSn: moduleCode || undefined },
+  )
+  if (!result.ok) throw new Error(result.error)
+  return filterModulesByCode(extractBusinessModules(result.data), moduleCode)
+}
+
+async function handleDictQuery(args = {}, config) {
+  if (!config || !config.sysAppNo) {
+    return errorResult('env.local.json 必须填写 sysAppNo', { state: 'blocked', mode: 'query' })
+  }
+  let modules
+  try {
+    modules = await queryOnlineModules(config)
+  } catch (error) {
+    return errorResult(`查询字典失败: ${error.message}`, { state: 'blocked', mode: 'query' })
+  }
+  const moduleCode = args.moduleCode ? String(args.moduleCode) : ''
+  const businessModules = filterModulesByCode(modules, moduleCode)
+  if (args.includeSystemModules === true) {
+    try {
+      const systemModules = await querySystemModulesForView(config, moduleCode)
+      const data = { businessModules, systemModules }
+      return successfulDictQuery(
+        businessModules,
+        systemModules,
+        config,
+        `字典模块查询成功\n\n${JSON.stringify(data, null, 2)}`,
+      )
+    } catch (error) {
+      return errorResult(`查询系统字典模块失败: ${error.message}`, { state: 'blocked', mode: 'query' })
+    }
+  }
+  const text = businessModules.length === 0
+    ? '✅ 字典查询成功，目标范围暂无业务字典模块'
+    : `✅ 字典查询成功，共 ${businessModules.length} 个业务模块\n\n${JSON.stringify(businessModules, null, 2)}`
+  return successfulDictQuery(businessModules, [], config, text)
 }
 
 function formatBootstrap(plan, mode) {
@@ -749,6 +1071,7 @@ module.exports = {
     buildReconcilePlan,
     detailDifference,
     extractDetailRecords,
+    extractBusinessModules,
     extractModules,
     findDictInModule,
     findModule,

@@ -35,8 +35,19 @@ function parseResponse(data, statusCode, requestId) {
   }
 }
 
-function buildHeaders(config, bodyStr, requestId) {
+function normalizeCustomHeaders(customHeaders) {
+  const normalized = {}
+  for (const [name, value] of Object.entries(customHeaders || {})) {
+    if (value == null) continue
+    const text = String(value)
+    normalized[name] = /[^\x20-\x7E]/.test(text) ? encodeURIComponent(text) : text
+  }
+  return normalized
+}
+
+function buildHeaders(config, bodyStr, requestId, customHeaders) {
   const headers = {
+    ...normalizeCustomHeaders(customHeaders),
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${config.token}`,
     'X-WL-Skills-Request-Id': requestId,
@@ -61,7 +72,7 @@ function buildRequest(fullUrl, options, config, requestId) {
       port: urlObj.port || (isHttps ? 443 : 80),
       path: urlObj.pathname + urlObj.search,
       method: options.method || 'GET',
-      headers: buildHeaders(config, bodyStr, requestId),
+      headers: buildHeaders(config, bodyStr, requestId, options.headers),
     },
   }
 }
@@ -141,5 +152,13 @@ async function wlsFetch(urlPath, options, config) {
 
 module.exports = {
   wlsFetch,
-  _internal: { boundedInteger, buildRequest, errorHint, parseResponse, requestOnce, retryableStatus },
+  _internal: {
+    boundedInteger,
+    buildRequest,
+    errorHint,
+    normalizeCustomHeaders,
+    parseResponse,
+    requestOnce,
+    retryableStatus,
+  },
 }

@@ -3,8 +3,7 @@
 const assert = require("assert");
 const { buildMenuBody, toCamelCase } = require("../mcp/menu/menu-support");
 
-let pass = 0;
-function ok(label) { pass++; console.log("  ✅ " + label); }
+function ok(label) { console.log("  ✅ " + label); }
 
 const config = { sysAppNo: "TEST_APP" };
 

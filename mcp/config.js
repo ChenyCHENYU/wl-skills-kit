@@ -58,7 +58,7 @@ function loadConfig() {
 
   return {
     gatewayPath: validateGateway(raw.gatewayPath),
-    token: validateToken(raw.token),
+    token: validateToken(process.env.WL_SKILLS_TOKEN || raw.token),
     sysAppNo: raw.sysAppNo || '',
     menu: raw.menu || {},
     dict: raw.dict || {},

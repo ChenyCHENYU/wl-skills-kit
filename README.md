@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.13.6** — 一键将 14 条规范、12 个 AI Skill、21 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.13.8** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -546,6 +546,25 @@ wls_standard_env_verify({ profile: "walsin", runBuild: true })
 ```
 
 项目级策略固定为 `safe-additive`：完全一致的跳过，只新增缺失模块、字典和明细；名称、排序、value/label 或扩展字段漂移会阻断整个计划；线上额外项只报告，不覆盖、不删除。多请求中断返回已完成项，重新预览后可幂等补齐。
+
+首次连接新环境时，先做目标与冲突诊断：
+
+```json
+{
+  "moduleCode": "mdmAuth",
+  "includeSystemModules": true
+}
+```
+
+调用 `wls_dict_query` 后必须核对返回的 `target.gatewayPath` 与 `target.sysAppNo`。`gatewayPath` 应与浏览器成功请求保持相同协议、显式端口和 `/sit-api`、`/uat-api` 等环境前缀；域名相同不代表默认 443 与 8443 是同一套数据。
+
+字典兼容保护包括：
+
+- 联合查询字典树、空业务模块列表和全局业务模块，避免空模块误判为不存在。
+- 系统模块冲突可显式诊断；模块、字典和明细父 ID 为空时硬阻断。
+- 后端报告“已存在”但三类查询均不可见时，返回 `DICT_MODULE_HIDDEN_CONFLICT`，明确提示软删除、跨租户或历史残留，禁止模型盲重试/猜 ID。
+- 少数依赖页面上下文的后端可通过 `env.local.json#dict.headers` 传递 `menupath/menupermission`；中文头值自动编码，鉴权头不可覆盖。
+- 自动化环境可通过 `WL_SKILLS_TOKEN` 临时注入凭据，避免 token 落盘。
 
 完整契约与状态机见 [字典契约](files/.wl-skills/docs/dictionary-contract.md) 和 [项目级字典协调](files/.wl-skills/docs/dictionary-reconcile.md)。
 

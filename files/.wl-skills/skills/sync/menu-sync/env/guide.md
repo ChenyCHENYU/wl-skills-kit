@@ -17,7 +17,7 @@
 
 ```json
 {
-  "gatewayPath": "http://192.168.10.50:9000",
+  "gatewayPath": "https://gateway.example:8443/sit-api",
   "sysAppNo": "QjQuXy1kbKxZyjhS5N2",
   "token": "eyJhbGci...",
   "environment": "uat",
@@ -28,7 +28,8 @@
   },
 
   "dict": {
-    "sysOnlyCurrentApp": true
+    "sysOnlyCurrentApp": true,
+    "headers": {}
   }
 }
 ```
@@ -39,13 +40,14 @@
 
 | 字段 | 说明 | 示例 |
 |---|---|---|
-| `gatewayPath` | 后端网关地址，含协议和端口，**末尾不加斜杠** | `http://192.168.10.50:9000` |
+| `gatewayPath` | 后端网关完整基地址，必须与浏览器成功请求保持同一协议、域名、**端口和环境前缀**，末尾不加斜杠 | `https://gateway.example:8443/sit-api` |
 | `sysAppNo` | 应用编码（非明文，从已有菜单接口响应中获取） | `QjQuXy1kbKxZyjhS5N2` |
 | `token` | 当前登录用户的登录凭据，**只填纯 token/JWT，不含 `bearer ` 前缀** | `eyJhbGci...` |
 | `environment` | 环境标识；生产填写 `production`，用于启用写保护 | `uat` |
 | `allowProductionWrites` | 生产写入审批后的本地显式开关，默认必须为 `false` | `false` |
 | `menu.parentMenuId` | 目标父级目录的菜单数据库 ID（每套环境不同） | `1803456789012345678` |
 | `dict.sysOnlyCurrentApp` | 字典查询/写入是否只看当前 `sysAppNo` 应用，建议保持 `true` | `true` |
+| `dict.headers` | 可选。仅后端依赖业务字典页面上下文时填写，从同环境成功请求复制 `menupath/menupermission` 等非敏感头 | `{ "menupath": "dataDic", "menupermission": "sys_businessDict" }` |
 
 > 字典业务模块不写死在 env 中。`wls_dict_upsert` 从当前项目各模块 `dicts.ts` 读取稳定的 `module.code/name`，并由 `sysAppNo` 限定目标应用；项目级预检会阻断跨模块重复和线上归属冲突。
 
@@ -55,7 +57,21 @@
 
 ### gatewayPath
 
-询问后端同事，或查看浏览器 Network 面板中任意接口请求的 URL，取协议 + 域名/IP + 端口部分。
+询问后端同事，或查看浏览器 Network 面板中任意**成功接口**的 Request URL。应保留协议、域名/IP、显式端口以及 `/sit-api`、`/uat-api` 等环境前缀，只去掉具体业务接口路径。
+
+例如成功请求为：
+
+```text
+https://gateway.example:8443/sit-api/system/dictModule/business/list
+```
+
+则配置为：
+
+```json
+{ "gatewayPath": "https://gateway.example:8443/sit-api" }
+```
+
+不要省略非默认端口，也不要因为域名相同就假定 443 与 8443 是同一套数据。
 
 ### menu.parentMenuId / domainId
 
@@ -92,6 +108,38 @@ GET {gatewayPath}/system/sysDomain/list?current=1&size=99
 5. 去掉 `bearer ` 前缀，复制剩余字符串粘贴到 `token` 字段
 
 > Token 有有效期，若创建菜单时提示鉴权失败，重新登录后刷新 token 即可。
+
+CI、Codex 或其他自动化环境建议通过环境变量临时注入，不把 token 写回文件：
+
+```powershell
+$env:WL_SKILLS_TOKEN="<临时 token>"
+```
+
+```bash
+export WL_SKILLS_TOKEN="<临时 token>"
+```
+
+运行时 `WL_SKILLS_TOKEN` 优先于 `env.local.json#token`，日志和查询结果不会回显 token。
+
+### dict.headers（少数后端需要）
+
+默认保持 `{}`。如果浏览器能创建业务字典模块，而 MCP 使用相同网关、token、`sysAppNo` 仍返回不符合现状的模块类型/权限错误，可对照成功请求补充：
+
+```json
+{
+  "dict": {
+    "sysOnlyCurrentApp": true,
+    "headers": {
+      "menupath": "dataDic",
+      "menupermission": "sys_businessDict"
+    }
+  }
+}
+```
+
+- `menuname` 可直接写中文，MCP 会自动进行 HTTP 头编码。
+- `Authorization`、`Content-Type`、`sysAppNo` 和请求追踪 ID 始终由 MCP 管理，配置值不能覆盖。
+- `menuid` 往往随环境变化；除非后端明确要求，否则不要复制到其他环境。
 
 ---
 

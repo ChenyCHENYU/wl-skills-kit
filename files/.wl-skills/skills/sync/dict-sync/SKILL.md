@@ -64,10 +64,20 @@ SYS_DICT_INFO.md             → 线上只读快照
 ## 线上发布
 
 1. 运行 `wl-skills validate`，D1 必须通过。
-2. 调用 `wls_dict_upsert` 预览，禁止传 `confirmApply`。
-3. 展示应用、扫描范围、动作、阻断项、警告和 `planHash`。
-4. 存在任一阻断项时停止，不请求用户强行覆盖。
-5. 用户明确确认后，重新调用并携带相同 `planHash`：
+2. 首次访问目标环境先调用：
+
+```json
+{
+  "moduleCode": "<dicts.ts 的 module.code>",
+  "includeSystemModules": true
+}
+```
+
+工具名：`wls_dict_query`。必须核对返回的 `target.gatewayPath` 和 `target.sysAppNo`；协议、端口、环境前缀或应用任一不符都停止，不得在错误环境继续预览/写入。
+3. 调用 `wls_dict_upsert` 预览，禁止传 `confirmApply`。
+4. 展示应用、扫描范围、动作、阻断项、警告和 `planHash`。
+5. 存在任一阻断项时停止，不请求用户强行覆盖。
+6. 用户明确确认后，重新调用并携带相同 `planHash`：
 
 ```json
 {
@@ -78,6 +88,19 @@ SYS_DICT_INFO.md             → 线上只读快照
 ```
 
 执行前会重读本地与线上；哈希变化则零写入并要求重新预览。执行中断不做危险回滚删除；修复后重跑，已完成项自动跳过。
+
+## 平台兼容与失败码
+
+MCP 会联合读取字典树、业务模块列表和全局业务模块，避免“空模块未出现在树上”时误建重复模块。模块/字典/明细的父 ID 为空会在下一层写入前硬阻断。
+
+| `failure.code` | 含义 | AI 必须采取的动作 |
+|---|---|---|
+| `DICT_MODULE_SYSTEM_CONFLICT` | 模块编码或名称被系统字典模块占用 | 停止；修改本地稳定 `module.code/name` 或由管理员处理冲突 |
+| `DICT_MODULE_HIDDEN_CONFLICT` | 后端报告已存在，但业务树、业务模块和系统模块都不可见 | 停止盲重试；通常是软删除、跨租户或历史残留。修改本地唯一模块编码并同步全部 `api.md`，或请管理员清理 |
+| `DICT_MODULE_CREATE_FAILED` | 非重复类模块创建失败 | 按 `failure.details.backendError` 定位权限、参数或服务问题 |
+| `DICT_SYNC_FAILED` | 其他同步失败 | 查看 `completed`，修复后重新预览并幂等补齐 |
+
+禁止模型为了“继续执行”而复用空 `moduleId/dictId`、猜测历史记录 ID、自动删除冲突记录，或只改线上不改本地契约。
 
 ## 强制安全规则
 
@@ -98,6 +121,7 @@ SYS_DICT_INFO.md             → 线上只读快照
 已触发 dict-sync
 项目根：{projectRoot}
 目标应用：{sysAppNo}
+目标网关：{gatewayPath，必须含真实端口和环境前缀}
 范围：project / module / bootstrap
 策略：safe-additive
 本地契约：{count / sourcePath}

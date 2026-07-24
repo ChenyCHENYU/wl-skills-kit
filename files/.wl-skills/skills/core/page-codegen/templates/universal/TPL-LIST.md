@@ -162,7 +162,9 @@ export function createPage(editModalRef?: any) {
       @select="select"
       @reset="select"
     />
+    <!-- 固定结构：工具栏在列表标题上方，二者均独占一行 -->
     <BaseToolbar :items="toolbars" />
+    <div class="list-title">[列表标题]</div>
     <BaseTable
       ref="tableRef"
       render-type="agGrid"

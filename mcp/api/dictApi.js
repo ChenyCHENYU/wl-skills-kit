@@ -2,6 +2,27 @@
 
 const { wlsFetch } = require('./client')
 
+function dictRequestOptions(options, config) {
+  return {
+    ...(options || {}),
+    headers: {
+      ...((config && config.dict && config.dict.headers) || {}),
+      ...((options && options.headers) || {}),
+    },
+  }
+}
+
+function moduleListParams(query, includeModuleId) {
+  const input = query || {}
+  const params = new URLSearchParams()
+  params.set('current', String(input.current || 1))
+  params.set('size', String(input.size || 200))
+  if (includeModuleId) params.set('moduleId', String(input.moduleId == null ? -1 : input.moduleId))
+  if (input.strSn) params.set('strSn', String(input.strSn))
+  if (input.strName) params.set('strName', String(input.strName))
+  return params
+}
+
 /**
  * 查询当前应用业务字典模块列表
  * GET /system/dictModule/business/list?size=20&moduleId=-1
@@ -10,9 +31,17 @@ const { wlsFetch } = require('./client')
  * @param {{ gatewayPath: string, token: string, sysAppNo?: string }} config
  */
 function queryBusinessDictModules(query, config) {
-  const size = query && query.size ? query.size : 200
-  const moduleId = query && query.moduleId != null ? query.moduleId : -1
-  return wlsFetch(`/system/dictModule/business/list?size=${encodeURIComponent(size)}&moduleId=${encodeURIComponent(moduleId)}`, {}, config)
+  const params = moduleListParams(query, true)
+  return wlsFetch(`/system/dictModule/business/list?${params.toString()}`, {}, config)
+}
+
+/**
+ * Query system dictionary modules to diagnose global module-code conflicts.
+ * GET /system/dictModule/list
+ */
+function querySystemDictModules(query, config) {
+  const params = moduleListParams(query, false)
+  return wlsFetch(`/system/dictModule/list?${params.toString()}`, {}, config)
 }
 
 /**
@@ -35,7 +64,7 @@ function queryDictModules(config) {
  * @param {{ gatewayPath: string, token: string }} config
  */
 function saveDictModule(body, config) {
-  return wlsFetch('/system/dictModule/save', { method: 'POST', body }, config)
+  return wlsFetch('/system/dictModule/save', dictRequestOptions({ method: 'POST', body }, config), config)
 }
 
 /**
@@ -47,7 +76,7 @@ function saveDictModule(body, config) {
  * @param {{ gatewayPath: string, token: string }} config
  */
 function saveDictItem(body, config) {
-  return wlsFetch('/system/business/dict/save', { method: 'POST', body }, config)
+  return wlsFetch('/system/business/dict/save', dictRequestOptions({ method: 'POST', body }, config), config)
 }
 
 /**
@@ -63,7 +92,7 @@ function getDictItem(dictId, config) {
  * PUT /system/business/dict/update
  */
 function updateDictItem(body, config) {
-  return wlsFetch('/system/business/dict/update', { method: 'PUT', body }, config)
+  return wlsFetch('/system/business/dict/update', dictRequestOptions({ method: 'PUT', body }, config), config)
 }
 
 /**
@@ -92,11 +121,12 @@ function queryDictDetails(dictId, config, page = {}) {
  * @param {{ gatewayPath: string, token: string, sysAppNo?: string }} config
  */
 function saveDictDetail(body, config) {
-  return wlsFetch('/system/dictDtl/save', { method: 'POST', body }, config)
+  return wlsFetch('/system/dictDtl/save', dictRequestOptions({ method: 'POST', body }, config), config)
 }
 
 module.exports = {
   queryBusinessDictModules,
+  querySystemDictModules,
   queryDictModules,
   saveDictModule,
   saveDictItem,

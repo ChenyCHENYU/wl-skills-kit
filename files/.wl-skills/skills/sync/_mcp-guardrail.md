@@ -71,13 +71,15 @@ AI **立即转入引导模式**：
 
 更新后**自动重跑**之前失败的 MCP 调用。
 
+自动化或临时授权场景可以使用 `WL_SKILLS_TOKEN` 环境变量，运行时优先于 `env.local.json#token`。不得把 token 写入源码、README、提交记录或工具输出。
+
 ### 2.5 L3 — 接口路径不匹配（如 4004）
 
 后端环境差异可能导致内置接口路径与实际不符。AI 应：
 
 1. 提示用户："当前 MCP 内置的接口路径在你的后端未注册（返回 4004）。可能是该环境网关前缀不同。"
 2. 引导用户：
-   - 检查 `env.local.json.gatewayPath` 是否需要补一段前缀（如 `/uac`）
+   - 对照浏览器成功请求，检查 `env.local.json.gatewayPath` 的协议、域名、**显式端口**和环境前缀（如 `/sit-api`、`/uat-api`）
    - 或者联系后端确认该 sync 工具对应的真实路径
 3. **不要**让 AI 自行去猜路径再 curl，否则就是绕开 MCP 的回旋
 4. 路径前缀这类配置类问题可以由用户更新后**重试 MCP 工具**完成闭环
@@ -87,6 +89,16 @@ AI **立即转入引导模式**：
 ### 2.6 L4 — 业务错误
 
 工具返回的业务层提示（如 "menuName 已存在"、"参数缺失"）属正常反馈，AI 直接展示给用户即可，不需要 fallback。
+
+字典同步优先读取结构化 `failure.code`：
+
+| code | 行为 |
+|---|---|
+| `DICT_MODULE_SYSTEM_CONFLICT` | 停止写入；模块编码/名称被系统字典占用 |
+| `DICT_MODULE_HIDDEN_CONFLICT` | 停止盲重试；按软删除/跨租户/历史残留处理，修改稳定模块编码或联系管理员 |
+| `DICT_MODULE_CREATE_FAILED` | 展示 `failure.details.backendError`，定位权限/参数/服务问题 |
+
+任何情况下都禁止猜测 `moduleId/dictId`、把空 ID 继续传给子级写接口，或为了消除错误自动删除线上记录。
 
 ---
 

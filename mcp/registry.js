@@ -197,11 +197,40 @@ const DESCRIPTORS = [
   {
     name: "wls_dict_query",
     description:
-      "查询当前 sysAppNo 应用下的业务字典树：业务模块 -> 字典 -> 字典明细入口。" +
-      "在 wls_dict_upsert 前调用，用于判断目标模块/字典是否已存在。",
-    inputSchema: { type: "object", properties: {}, required: [] },
+      "联合查询字典树、空业务模块列表和全局业务模块；可按 moduleCode 精确过滤，" +
+      "includeSystemModules=true 时同时诊断系统模块编码冲突。返回脱敏目标网关和 sysAppNo，" +
+      "在 wls_dict_upsert 前调用以确认没有查错环境。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        moduleCode: {
+          type: "string",
+          description: "可选；仅检查指定模块编码。",
+        },
+        includeSystemModules: {
+          type: "boolean",
+          description: "可选；同时查询系统字典模块，用于发现全局编码冲突。",
+          default: false,
+        },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean" },
+        state: { type: "string" },
+        mode: { type: "string" },
+        count: { type: "number" },
+        items: { type: "array", items: { type: "object" } },
+        systemModules: { type: "array", items: { type: "object" } },
+        target: { type: "object" },
+      },
+      required: ["ok", "state"],
+    },
     needsBackendConfig: true,
-    handle: (_args, config) => handleDictQuery(config),
+    handle: (args, config) => handleDictQuery(args, config),
   },
   {
     name: "wls_dict_bootstrap",
@@ -295,6 +324,7 @@ const DESCRIPTORS = [
         issues: { type: "array", items: { type: "object" } },
         warnings: { type: "array", items: { type: "object" } },
         completed: { type: "array", items: { type: "object" } },
+        failure: { type: "object" },
       },
       required: ["ok", "state"],
     },

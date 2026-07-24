@@ -101,6 +101,54 @@ function locateAppDomain(topNodes, matchers) {
   return null;
 }
 
+function locateSysDomain(records, domainCode, keyword) {
+  if (!Array.isArray(records)) return null;
+  const exact = domainCode
+    ? records.find((domain) => String(domain.code || "") === domainCode)
+    : null;
+  if (exact) return exact;
+  return keyword
+    ? records.find((domain) => String(domain.name || "").includes(keyword))
+    : null;
+}
+
+function resolvedSysDomain(domain, sysAppNo) {
+  return {
+    ok: true,
+    domainId: String(domain.id || ""),
+    appRootId: String(domain.id || ""),
+    sysAppNo: sysAppNo || "",
+    menuName: domain.name || "",
+    domainCode: domain.code || "",
+  };
+}
+
+function visibleDomainNames(topNodes) {
+  return topNodes
+    .map((node) =>
+      `${node.menuName || "?"}(sysAppNo=${node.sysAppNo || "?"})`,
+    )
+    .join("、");
+}
+
+function normalizeDomainOptions(opts) {
+  const options = opts || {};
+  return {
+    domainCode: options.domainCode || "",
+    keyword: options.keyword || "",
+  };
+}
+
+function resolvedMenuDomain(node, configuredSysAppNo) {
+  return {
+    ok: true,
+    domainId: String(node.parentId || ""),
+    appRootId: String(node.id || ""),
+    sysAppNo: node.sysAppNo || configuredSysAppNo || "",
+    menuName: node.menuName || "",
+  };
+}
+
 /**
  * 自动解析 domainId（应用域归属 ID）。
  *
@@ -121,35 +169,13 @@ function locateAppDomain(topNodes, matchers) {
  * @returns {Promise<{ ok: boolean, domainId?: string, appRootId?: string, sysAppNo?: string, menuName?: string, error?: string }>}
  */
 async function resolveDomainId(config, opts) {
-  const domainCode = (opts && opts.domainCode) || "";
-  const keyword = (opts && opts.keyword) || "";
+  const { domainCode, keyword } = normalizeDomainOptions(opts);
 
   // ── ① 优先：sysDomain/list（不依赖菜单权限）──
   const domainResult = await querySysDomainList(config);
-  if (domainResult.ok && Array.isArray(domainResult.data)) {
-    const records = domainResult.data;
-    // 按 code 精确匹配 > name 关键词 > code 关键词
-    let matched = null;
-    if (domainCode) {
-      matched = records.find((d) => String(d.code || "") === domainCode);
-    }
-    if (!matched && keyword) {
-      matched = records.find((d) => String(d.name || "").includes(keyword));
-    }
-    if (!matched && config.sysAppNo) {
-      // sysDomain 不含 sysAppNo，跳过
-    }
-    if (matched) {
-      return {
-        ok: true,
-        domainId: String(matched.id || ""),
-        appRootId: String(matched.id || ""),
-        sysAppNo: config.sysAppNo || "",
-        menuName: matched.name || "",
-        domainCode: matched.code || "",
-      };
-    }
-  }
+  const records = domainResult.ok ? domainResult.data : [];
+  const matchedDomain = locateSysDomain(records, domainCode, keyword);
+  if (matchedDomain) return resolvedSysDomain(matchedDomain, config.sysAppNo);
 
   // ── ② Fallback：getPermissionMenuTree（依赖菜单权限）──
   const result = await queryPermissionMenuTree(config);
@@ -168,22 +194,14 @@ async function resolveDomainId(config, opts) {
   });
 
   if (!matchedNode) {
-    const names = topNodes
-      .map((n) => `${n.menuName || "?"}(sysAppNo=${n.sysAppNo || "?"})`)
-      .join("、");
+    const names = visibleDomainNames(topNodes);
     return {
       ok: false,
       error: `未能匹配到目标应用域。请确认 sysAppNo/keyword/domainCode。当前可见应用域: ${names}`,
     };
   }
 
-  return {
-    ok: true,
-    domainId: String(matchedNode.parentId || ""),
-    appRootId: String(matchedNode.id || ""),
-    sysAppNo: matchedNode.sysAppNo || config.sysAppNo || "",
-    menuName: matchedNode.menuName || "",
-  };
+  return resolvedMenuDomain(matchedNode, config.sysAppNo);
 }
 
 function getReportDirs(root) {
