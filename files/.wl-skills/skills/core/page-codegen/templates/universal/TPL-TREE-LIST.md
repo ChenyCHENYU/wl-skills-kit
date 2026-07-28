@@ -149,6 +149,7 @@ export function createPage(editModalRef?: any) {
           name: "[fieldName]",
           cid: `${TABLE_CID}-[fieldName]`,
           minWidth: 120,
+          showOverflowTooltip: true,
         },
         {
           label: "操作",

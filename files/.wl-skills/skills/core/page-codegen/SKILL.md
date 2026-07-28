@@ -149,10 +149,11 @@ src/views/[域]/[模块]/dicts.ts
 9. 同时在 `mock/[业务域]/` 目录下生成对应的 mock 文件（`MockMethod[]` + mockjs，URL 和字段与 api.md 一致，URL 必须带 `/dev-api` 前缀）。业务域取 `src/views/` 下第一级目录名（如 `sale`、`mdata`）。mock 文件必须 `import { paginate, ok, pick, nowStr } from "../_utils"` 复用共享工具，不可自行重复定义
 10. **查询字段顺序**：`queryDef()` 中字段顺序必须与 page-spec `query` 数组顺序严格一致（即原型从左到右、从上到下）
 11. **表格列顺序**：`columnsDef()` 中列顺序必须与 page-spec `columns` 数组顺序严格一致（`selection` + `index` 在最前，其余按原型表头从左到右）
-12. **按钮顺序与颜色**：`toolbarDef()` 中按钮顺序和 `name`（颜色）必须与 page-spec `toolbar` 数组严格一致（`primary`=蓝底, `danger`=红色, `warning`=橙色, `default`=灰色; `plain: true`=线框）。**"新增"类按钮永远排第一**（如"新增"、"新增申请"），这是产品通用规范
-13. **操作列按钮**：`columnsDef()` 操作列的 `operations` 数组必须与 page-spec `operations` 数组**严格一一对应**，不可遗漏也**不可自行添加**（如原型没有"查看"按钮就不能加"查看"）
-14. **Tab 标签**：当 page-spec `features.tabSwitch === true` 时，必须在 index.vue 中生成 Tab 组件，tabs 与 `features.tabItems` 一一对应
-15. **按钮文字保真**：使用原型中的原始文字（如"新增申请"不可简化为"新增"，"变更申请"不可简化为"变更"）
+12. **按钮顺序与颜色**：`toolbarDef()` 中按钮顺序、`name`（颜色）和 `plain`（填充/线框）必须与 page-spec `toolbar` 数组严格一致（`primary`=蓝底, `danger`=红色, `warning`=橙色, `default`=灰色; `plain: true`=线框）。**"新增/新建/添加/创建"类主按钮永远排第一，并强制 `name: "primary"` 且不得设置 `plain: true`**；生成后 S3 必须同时校验颜色和 plain 形态。
+13. **长文本列**：普通文本列统一声明 `showOverflowTooltip: true`，列宽不足时显示省略号，悬停展示完整内容；selection/index/操作列、自定义 Tag 渲染列以及 `wrapText/autoHeight` 列不得机械添加。
+14. **操作列按钮**：`columnsDef()` 操作列的 `operations` 数组必须与 page-spec `operations` 数组**严格一一对应**，不可遗漏也**不可自行添加**（如原型没有"查看"按钮就不能加"查看"）
+15. **Tab 标签**：当 page-spec `features.tabSwitch === true` 时，必须在 index.vue 中生成 Tab 组件，tabs 与 `features.tabItems` 一一对应
+16. **按钮文字保真**：使用原型中的原始文字（如"新增申请"不可简化为"新增"，"变更申请"不可简化为"变更"）
 16. **可点击列（蓝色链接列）**：原型中蓝色凸显的列（如客户编码、申请编码等编码/编号类字段）必须实现为可点击链接，使用 `defaultSlot` + `h()` 渲染蓝色链接样式，点击后查看详情（调 `getById` 后展示或路由跳转）
 17. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
 18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则

@@ -94,7 +94,11 @@ src/views/[域]/[模块]/[页面]/
 | S0 | page-spec.json 结构合法性 | error/warn | JSON、完整区块、稳定 ID、profile、契约、未决问题 |
 | S1 | 查询字段顺序/集合 | warn | queryDef 与 spec.query 不一致 |
 | S2 | 表格列顺序/集合 | **error** | columnsDef 与 spec.columns 不一致（阻断提交）|
-| S3 | 工具栏按钮顺序/集合/颜色 | **error**/warn | toolbarDef 与 spec.toolbar 不一致 |
+| S3 | 工具栏按钮顺序/集合/颜色/填充形态 | **error**/warn | toolbarDef 与 spec.toolbar 不一致 |
+
+创建类主按钮（新增/新建/添加/创建）必须固定为
+`{ "color": "primary", "plain": false }`。S3 同时比较颜色与 `plain`，
+不得用 `primary + plain: true` 伪装成已满足主色要求。
 | S4 | 操作列按钮集合 | **error** | renderOps 与 spec.operations 不一致（含"多了原型外按钮"）|
 
 - 无 `page-spec.json` 的页面**静默跳过**，不影响其他检查

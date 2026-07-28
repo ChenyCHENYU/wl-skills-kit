@@ -91,7 +91,6 @@ export function createPage(editModalRef?: any) {
         {
           name: "primary",
           label: "新增",
-          plain: true,
           onClick: () => editModalRef?.value?.open()
         },
         // 其他按钮仅在 wl-api-contract 已确认对应 operation 时生成，禁止占位处理
@@ -108,6 +107,7 @@ export function createPage(editModalRef?: any) {
           name: "[fieldName]",
           cid: `${TABLE_CID}-[fieldName]`,
           minWidth: 120,
+          showOverflowTooltip: true,
           sortable: true,
           filterable: true
         },

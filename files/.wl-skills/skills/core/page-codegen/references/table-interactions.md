@@ -20,7 +20,8 @@
 > **`name` vs `type` 属性**：`name` 为按钮提供默认的颜色（`type`）和图标（`icon`）；`type` 可单独覆盖颜色，两者可共存，`type` 优先级更高。工具栏按钮优先使用 `name`，只在需要与 `name` 默认颜色不同时才加 `type` 覆盖。
 
 **语义自动推断**（仅当原型未标颜色时使用，原型明确颜色时以原型为准）：
-- 新增/新增申请/保存 → `name: "primary"`（蓝色填充）
+- 新增/新增申请/新建/添加/创建 → `name: "primary"`（蓝色填充，禁止 `plain: true`）
+- 保存 → `name: "primary"`（蓝色填充）
 - 变更申请 → `plain: true`（灰色线框）
 - 提交 → `name: "primary", plain: true`
 - 审批通过/认领/转化 → `name: "success", plain: true`
@@ -30,6 +31,15 @@
 - 停用 → `name: "warning"`（橙色填充）
 - 撤回/退回/回收 → `name: "warning", plain: true`
 - 导出/导入/批量修改 → `plain: true`（灰色线框）
+
+> **生成门禁**：S3 同时比较 `color/name` 和 `plain`。创建类主按钮即使
+> `name: "primary"` 正确，只要误带 `plain: true` 仍按 error 阻断。
+
+### 长文本列
+
+普通文本列统一设置 `showOverflowTooltip: true`，列宽不足时单行省略，悬停展示
+完整内容。selection/index/操作列、自定义 Tag/按钮渲染列和
+`wrapText/autoHeight` 列不设置。
 
 ---
 

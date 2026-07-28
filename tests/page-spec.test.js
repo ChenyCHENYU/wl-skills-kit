@@ -46,6 +46,14 @@ describe("validateSpecShape", () => {
     const spec = { page: "客户档案", query: [], columns: [], toolbar: [] };
     expect(validateSpecShape(spec)).toEqual([]);
   });
+
+  it("创建类主按钮禁止 plain 或非 primary", () => {
+    const errors = validateSpecShape({
+      page: "客户列表",
+      toolbar: [{ label: "新增", color: "primary", plain: true }],
+    });
+    expect(errors.some((item) => /primary.*plain=false/.test(item))).toBe(true);
+  });
   it("非数组 columns 报错", () => {
     const spec = { page: "x", columns: {} };
     expect(validateSpecShape(spec).some((e) => /columns/.test(e))).toBe(true);
@@ -213,6 +221,41 @@ describe("compareSpecToCode", () => {
     };
     const issues = compareSpecToCode(more, dataConsistent, "src/views/x");
     expect(issues.some((i) => i.rule === "S3" && /导出/.test(i.text))).toBe(true);
+  });
+
+  it("S3 创建类主按钮误用 plain → error", () => {
+    const code = dataConsistent.replace(
+      '{ name: "primary", label: "新增" }',
+      '{ name: "primary", label: "新增", plain: true }',
+    );
+    const issues = compareSpecToCode(spec, code, "src/views/x");
+    expect(
+      issues.some(
+        (item) =>
+          item.rule === "S3" &&
+          item.level === "error" &&
+          /禁止 plain/.test(item.text),
+      ),
+    ).toBe(true);
+  });
+
+  it("S3 普通按钮 plain 形态不一致 → warn", () => {
+    const expected = {
+      ...spec,
+      toolbar: [
+        { label: "新增", color: "primary", plain: false },
+        { label: "删除", color: "danger", plain: true },
+      ],
+    };
+    const issues = compareSpecToCode(expected, dataConsistent, "src/views/x");
+    expect(
+      issues.some(
+        (item) =>
+          item.rule === "S3" &&
+          item.level === "warn" &&
+          /填充形态/.test(item.text),
+      ),
+    ).toBe(true);
   });
 
   it("S4 操作列多出原型外按钮 → error", () => {

@@ -62,6 +62,7 @@ export function createBottomPage() {
           name: "[fieldName]",
           cid: `${BOTTOM_TABLE_CID}-[fieldName]`,
           minWidth: 120,
+          showOverflowTooltip: true,
         },
         // 从表字段
       ] as any) as TableColumnDesc<any>[];
