@@ -518,7 +518,7 @@ wls_standard_env_verify({ profile: "walsin", runBuild: true })
 
 | 类别     | Tools                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 菜单     | `wls_menu_query` / `wls_menu_upsert` / `wls_menu_sync_from_report`                                                                       |
+| 菜单     | `wls_domain_query` / `wls_menu_query` / `wls_menu_upsert` / `wls_menu_delete` / `wls_menu_sync_from_report`                              |
 | 字典     | `wls_dict_query` / `wls_dict_bootstrap` / `wls_dict_upsert`                                                                               |
 | 权限     | `wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert` |
 | 环境     | `wls_standard_env_scan` / `wls_standard_env_apply` / `wls_standard_env_verify`                                                           |
