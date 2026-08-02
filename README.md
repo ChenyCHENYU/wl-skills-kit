@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.14.2** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.14.3** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -44,6 +44,8 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.14.3**：增加跨包所有权保护；保留 `wl-skills-ui` 管理的编辑器规则，并合并共享 MCP 配置。
 
 **v2.14.2**：修正项目自检对包生成的 Husky 直调命令的识别，确保安装与自检口径一致。
 

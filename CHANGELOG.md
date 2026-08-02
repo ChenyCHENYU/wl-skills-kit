@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [2.14.3] - 2026-08-03
+
+### 跨包组合安全
+
+- `update --force` 识别并保留明确由 `@agile-team/wl-skills-ui` 生成的
+  `.clinerules`、`AGENTS.md`、`CLAUDE.md` 等编辑器入口，不再互相覆盖。
+- `.mcp.json`、Cursor、Kiro、VS Code 的共享 MCP 配置改为按 `mcpServers`
+  合并；更新 kit 时保留 UI 包和项目自定义 server。
+- `clean` 对共享 MCP 配置和外包生成的编辑器入口采取保护策略，避免误删
+  其他工具仍在使用的配置。
+
 ## [2.14.2] - 2026-08-03
 
 ### 接入自检闭环

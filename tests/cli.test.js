@@ -226,6 +226,39 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("update --force 保留 wl-skills-ui 编辑器规则并合并 MCP server", () => {
+    const dir = makeIsolatedDir();
+    const uiHeader = "由 @agile-team/wl-skills-ui 自动生成。请勿手动编辑。";
+    for (const relPath of [".clinerules", "AGENTS.md", "CLAUDE.md"]) {
+      fs.writeFileSync(path.join(dir, relPath), `${uiHeader}\n${relPath}\n`, "utf8");
+    }
+    fs.writeFileSync(
+      path.join(dir, ".mcp.json"),
+      JSON.stringify({
+        mcpServers: {
+          "wl-skills-ui": { command: "node", args: ["ui-server.js"] },
+        },
+      }),
+      "utf8",
+    );
+
+    const res = runCli(["update", "--force"], { cwd: dir, timeout: 60000 });
+    expect(res.status).toBe(0);
+    for (const relPath of [".clinerules", "AGENTS.md", "CLAUDE.md"]) {
+      expect(fs.readFileSync(path.join(dir, relPath), "utf8")).toContain(uiHeader);
+    }
+    const mcp = JSON.parse(fs.readFileSync(path.join(dir, ".mcp.json"), "utf8"));
+    expect(mcp.mcpServers["wl-skills-ui"]).toBeTruthy();
+    expect(mcp.mcpServers["wl-skills"]).toBeTruthy();
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
+    );
+    expect(manifest.files[".clinerules"]).toBeUndefined();
+    expect(manifest.files["AGENTS.md"]).toBeUndefined();
+    expect(manifest.files["CLAUDE.md"]).toBeUndefined();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("clean 不删除本地凭据配置", () => {
     const dir = makeIsolatedDir();
     expect(runCli(["init"], { cwd: dir, timeout: 60000 }).status).toBe(0);
