@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [2.14.2] - 2026-08-03
+
+### 接入自检闭环
+
+- `wl-skills check` 兼容包生成的
+  `node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --pre-commit`
+  调用形式，不再把有效 Husky hook 误报为缺失。
+- hook 检测忽略纯注释行，避免仅写说明但未真正执行校验时被误判为已接入。
+
 ## [2.14.1] - 2026-08-03
 
 ### 集中定义门禁精度

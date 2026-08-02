@@ -114,6 +114,37 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("check 应识别包生成的 node 直调 pre-commit hook", () => {
+    const dir = makeIsolatedDir();
+    const huskyDir = path.join(dir, ".husky");
+    fs.mkdirSync(huskyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(huskyDir, "pre-commit"),
+      "node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --pre-commit\n",
+      "utf8",
+    );
+
+    const res = runCli(["check"], { cwd: dir });
+    expect(res.stdout).toMatch(/\.husky\/pre-commit \(wl-skills validate\)/);
+    expect(res.stdout).toMatch(/已配置规范检测/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("check 不应把注释中的 pre-commit 命令当成有效配置", () => {
+    const dir = makeIsolatedDir();
+    const huskyDir = path.join(dir, ".husky");
+    fs.mkdirSync(huskyDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(huskyDir, "pre-commit"),
+      "# wl-skills validate --pre-commit\n",
+      "utf8",
+    );
+
+    const res = runCli(["check"], { cwd: dir });
+    expect(res.stdout).toMatch(/存在但未配置 wl-skills validate/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("check 应识别 .wl-skills/skills/sync/env.local.json", () => {
     const dir = makeIsolatedDir();
     const envDir = path.join(dir, ".wl-skills", "skills", "sync");

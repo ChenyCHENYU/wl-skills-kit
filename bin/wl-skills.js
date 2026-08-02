@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.14.1
+ * wl-skills-kit CLI v2.14.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1014,10 +1014,25 @@ function checkProjectConfig(name, candidates) {
   return createCheck(name, exists, exists ? "存在" : "缺失");
 }
 
+function hasWlSkillsValidateInvocation(content, flag) {
+  const invocation = new RegExp(
+    `(?:^|[\\s/\\\\])wl-skills(?:\\.js)?["']?\\s+validate\\s+${flag.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}(?:\\s|$)`,
+  );
+  return String(content || "")
+    .split(/\r?\n/)
+    .some((line) => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith("#") && invocation.test(trimmed);
+    });
+}
+
 function checkPreCommitHook(huskyExists) {
   const hookPath = path.join(TARGET_DIR, ".husky", "pre-commit");
   const configured = fs.existsSync(hookPath)
-    ? fs.readFileSync(hookPath, "utf8").includes("wl-skills validate --pre-commit")
+    ? hasWlSkillsValidateInvocation(
+        fs.readFileSync(hookPath, "utf8"),
+        "--pre-commit",
+      )
     : false;
   const detail = configured
     ? "已配置规范检测"
