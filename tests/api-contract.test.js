@@ -90,4 +90,46 @@ describe("独立 WL API contract", () => {
     expect(output).toMatch(/resolveApiPath/);
     expect(output).toMatch(/putAction/);
   });
+
+  it("模型字段支持可追溯的长度与数值边界契约", () => {
+    const value = contract();
+    value.models.createRequest.push({
+      name: "code",
+      description: "编码",
+      required: true,
+      type: "string",
+      constraints: { minLength: 1, maxLength: 64, pattern: "^[A-Z0-9-]+$" },
+      constraintSource: "db-contract:TASK.CODE",
+    });
+    value.models.createRequest.push({
+      name: "weight",
+      description: "重量",
+      required: true,
+      type: "number",
+      constraints: {
+        minimum: 0,
+        minExclusive: true,
+        totalDigits: 16,
+        fractionDigits: 4,
+      },
+      constraintSource: "db-contract:TASK.WEIGHT",
+    });
+    expect(validateApiContract(value, { strict: true }).errors).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "AC025" })]),
+    );
+  });
+
+  it("拒绝猜测式或矛盾的字段边界", () => {
+    const value = contract();
+    value.models.createRequest.push({
+      name: "code",
+      description: "编码",
+      required: true,
+      type: "string",
+      constraints: { minLength: 10, maxLength: 2 },
+    });
+    const result = validateApiContract(value, { strict: true });
+    expect(result.errors.some((item) => item.code === "AC025")).toBe(true);
+    expect(result.errors.some((item) => /constraintSource/.test(item.message))).toBe(true);
+  });
 });

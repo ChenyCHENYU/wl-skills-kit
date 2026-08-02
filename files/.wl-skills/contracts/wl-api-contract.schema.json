@@ -20,9 +20,32 @@
       "additionalProperties": false
     },
     "resource": { "type": "object" },
-    "transport": { "type": "object" },
+    "transport": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "type": "object",
+          "required": ["requestCurrent", "requestSize", "defaultCurrent", "defaultSize", "maxSize", "recordsPath", "totalPath"],
+          "properties": {
+            "requestCurrent": { "const": "current" },
+            "requestSize": { "const": "size" },
+            "defaultCurrent": { "const": 1 },
+            "defaultSize": { "const": 10 },
+            "maxSize": { "const": 200 },
+            "recordsPath": { "const": "data.records" },
+            "totalPath": { "const": "data.total" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
     "operations": { "type": "object" },
-    "models": { "type": "object" },
+    "models": {
+      "type": "object",
+      "required": ["pageRequest", "createRequest", "updateRequest", "detailResponse", "pageResponse"],
+      "additionalProperties": { "$ref": "#/$defs/model" }
+    },
     "frontend": { "type": "object" },
     "completion": {
       "type": "object",
@@ -33,6 +56,49 @@
         "deviations": { "type": "array", "items": { "type": "string" } }
       },
       "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "model": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/field" }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name", "description", "required", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "type": { "enum": ["string", "integer", "number", "boolean", "array", "object"] },
+        "format": { "type": "string" },
+        "default": {},
+        "constraints": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "minLength": { "type": "integer", "minimum": 0 },
+            "maxLength": { "type": "integer", "minimum": 0 },
+            "pattern": { "type": "string", "minLength": 1 },
+            "minimum": { "type": "number" },
+            "maximum": { "type": "number" },
+            "minExclusive": { "type": "boolean" },
+            "maxExclusive": { "type": "boolean" },
+            "step": { "type": "number", "exclusiveMinimum": 0 },
+            "totalDigits": { "type": "integer", "minimum": 1 },
+            "fractionDigits": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "constraintSource": { "type": "string", "minLength": 1 },
+        "enum": { "type": "array", "minItems": 1, "uniqueItems": true },
+        "maxItems": { "type": "integer", "minimum": 1 },
+        "items": { "type": "object" },
+        "x-semantic-id": { "type": "string", "minLength": 1 },
+        "x-data-classification": { "type": "string", "minLength": 1 },
+        "x-masking": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
     }
   },
   "additionalProperties": true

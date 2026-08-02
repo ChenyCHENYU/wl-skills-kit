@@ -43,6 +43,22 @@
 }
 ```
 
+若页面存在不可由用户修改、但所有查询与写入都必须携带的上下文（例如工厂、资源类型），
+显式声明：
+
+```jsonc
+"features": {
+  "fixedQueryFields": ["factory", "resourceType"]
+}
+```
+
+这些字段必须同时存在于 API 的 `pageRequest/createRequest/updateRequest`，运行时在查询、
+新增、更新三个路径统一合并；不得只用于筛选而在保存时丢失。
+
+当 `apiContract` 指向机器 JSON，或页面 `api.md` 内含 `wl-api-contract` 机器块时，S6 会自动
+核对 query/columns/formSections、create 必填字段、固定上下文和多资源绑定。纯展示字段必须
+显式声明 `"contractField": false`，禁止靠字段名白名单或扫描器猜测跳过。
+
 #### `mode` 枚举值
 
 旧版 `pageName/pattern/path/field` 仍会被校验器归一化，但新产物统一使用 `page/mode/dir/name`，避免两套结构继续漂移。
@@ -62,7 +78,13 @@
 ```jsonc
 "query": [
   // 文本输入
-  { "name": "customerName", "label": "客户名称", "type": "input" },
+  {
+    "name": "customerName",
+    "label": "客户名称",
+    "type": "input",
+    "constraints": { "maxLength": 100 },
+    "constraintSource": "api-contract:models.pageRequest.customerName"
+  },
 
   // 字典下拉
   { "name": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type" },
@@ -96,6 +118,9 @@
 - 顺序严格按原型/详设从左到右、从上到下排列
 - `dateRange` 类型的 `startName` / `endName` 是发给后端的实际字段名
 - `dict` 类型必须有 `dictCode`，且以生产/线上已有编码或后端确认为准；不要强制改命名风格，也不要让 AI 猜
+- `constraints` 只接受已确认边界；严格模式同时要求 `constraintSource`
+- 字符串支持 `minLength/maxLength/pattern`，数值支持
+  `minimum/maximum/minExclusive/maxExclusive/step/totalDigits/fractionDigits`
 
 ---
 
@@ -217,7 +242,14 @@
     "name": "basicInfo",       // 区块的 camelCase 标识
     "label": "基本信息",        // 区块的中文标题
     "fields": [
-      { "name": "customerName", "label": "客户名称", "type": "input", "required": true },
+      {
+        "name": "customerName",
+        "label": "客户名称",
+        "type": "input",
+        "required": true,
+        "constraints": { "minLength": 1, "maxLength": 100 },
+        "constraintSource": "api-contract:models.createRequest.customerName"
+      },
       { "name": "customerType", "label": "客户类型", "type": "dict", "dictCode": "customer_type", "required": true },
       { "name": "remark", "label": "备注", "type": "textarea", "required": false }
     ]
@@ -234,6 +266,9 @@
 
 **字段 `type` 枚举**：`input` | `textarea` | `dict` | `date` | `dateRange` | `number` | `select` | `treeSelect` | `text`（只读展示）
 
+`constraints` 必须同时落实为组件属性与表单 rules；后端契约仍是最终校验边界。
+若资料没有明确长度/精度，不得猜值凑齐。
+
 ---
 
 ### features — 页面特殊交互开关
@@ -248,9 +283,17 @@
   "viewItems": [],           // 视角列表（viewSwitch=true 时必填）
                              // 格式：[{ "label": "管理视角", "value": "management" }, ...]
 
-  "hiddenMenu": false        // 是否隐藏菜单（从列表跳转进入，不在菜单显示）
+  "hiddenMenu": false,       // 是否隐藏菜单（从列表跳转进入，不在菜单显示）
+
+  "definitionSource": "src/views/domain/definitions"
+                             // 可选：data.ts 只重导出共享 pageDefinition 时显式声明
 }
 ```
+
+声明 `definitionSource` 后，validate 会核对 `data.ts` 的 import/export 来源，
+不会再用旧式 `queryDef/columnsDef` 解析器误报。若项目还需执行共享定义的运行时语义核对，
+在 `.wl-skills-validate.json.definitionValidators` 中把该 source 绑定到已有的
+`package.json#scripts` 校验脚本；脚本失败时门禁阻断。
 
 **tabSwitch vs viewSwitch 的区别**：
 - `tabSwitch`：Tab 组件（`el-tabs`），切换时整个查询区+表格都变

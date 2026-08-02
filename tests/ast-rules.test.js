@@ -28,6 +28,8 @@ const {
   loadExemptions,
   hasAstAvailable,
   getStagedFiles,
+  explicitPaginationPairs,
+  runtimeBoundaryFindings,
   CONFIG,
 } = astRules;
 
@@ -125,6 +127,66 @@ describe("getStagedFiles", () => {
     // tests 目录不是 git 根 → 返回空数组（或空）
     expect(files).toBeDefined();
     expect(files.length).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("R15 分页边界", () => {
+  it("只识别同一对象中明确声明的 current/size 数值对", () => {
+    expect(explicitPaginationPairs("const page = ref({ current: 1, size: 10, total: 0 })"))
+      .toEqual([{ current: 1, size: 10 }]);
+    expect(explicitPaginationPairs("postAction(url, { current: 1, size: 1000 })"))
+      .toEqual([{ current: 1, size: 1000 }]);
+    expect(explicitPaginationPairs("const x = { current: from, size: limit }")).toEqual([]);
+  });
+
+  it("错误分页初值阻断，统一 1/10 通过", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r15-"));
+    const badDir = path.join(dir, "src", "views", "m", "bad");
+    const goodDir = path.join(dir, "src", "views", "m", "good");
+    for (const pageDir of [badDir, goodDir]) {
+      fs.mkdirSync(pageDir, { recursive: true });
+      fs.writeFileSync(path.join(pageDir, "index.vue"), "<template><div/></template><script setup lang=\"ts\"></script>");
+    }
+    fs.writeFileSync(path.join(badDir, "data.ts"), "const page = ref({ current: 1, size: 1000, total: 0 });");
+    fs.writeFileSync(path.join(goodDir, "data.ts"), "const page = ref({ current: 1, size: 10, total: 0 });");
+    const result = runAstRules(dir, "src/views");
+    expect(result.issues.filter((item) => item.rule === "R15")).toHaveLength(1);
+    expect(result.issues.find((item) => item.rule === "R15")?.dir).toContain("bad");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("翻到后续页的单次请求不误判，但命名分页状态仍校验默认值", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r15-context-"));
+    const requestDir = path.join(dir, "src", "views", "m", "request");
+    const stateDir = path.join(dir, "src", "views", "m", "state");
+    for (const pageDir of [requestDir, stateDir]) {
+      fs.mkdirSync(pageDir, { recursive: true });
+      fs.writeFileSync(path.join(pageDir, "index.vue"), "<template><div/></template><script setup lang=\"ts\"></script>");
+    }
+    fs.writeFileSync(path.join(requestDir, "data.ts"), "postAction(url, { current: 2, size: 20 });");
+    fs.writeFileSync(path.join(stateDir, "data.ts"), "const pagination = reactive({ current: 2, size: 20 });");
+    const result = runAstRules(dir, "src/views");
+    expect(result.issues.filter((item) => item.rule === "R15")).toHaveLength(1);
+    expect(result.issues.find((item) => item.rule === "R15")?.dir).toContain("state");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("R16 运行时边界", () => {
+  it("识别 structuredClone 与直接展示技术异常，正常中文兜底不误报", () => {
+    const findings = runtimeBoundaryFindings([
+      "const payload = structuredClone(form.value);",
+      "ElMessage.error(error.message);",
+      "jhMessage.error(err?.message);",
+      "ElMessage.error(response?.message || '保存失败，请稍后重试');",
+    ].join("\n"));
+    expect(findings.has("structuredClone")).toBe(true);
+    expect(findings.has("raw-error-message")).toBe(true);
+    expect(runtimeBoundaryFindings("ElMessage.error('保存失败，请稍后重试')").size).toBe(0);
   });
 });
 
@@ -319,6 +381,37 @@ exit 1`;
     expect(tc.issues[0].rule).toBe("R14");
     expect(tc.issues[0].text).toContain("TS2322");
     expect(tc.issues[0].text).toContain("x.ts:10");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("依赖包源码错误汇总为 warn，业务源码错误仍单独阻断", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r14-deps-"));
+    fs.writeFileSync(
+      path.join(dir, "tsconfig.json"),
+      JSON.stringify({ compilerOptions: { noEmit: true } }),
+    );
+    const binDir = path.join(dir, "node_modules", ".bin");
+    fs.mkdirSync(binDir, { recursive: true });
+    const unixScript = `#!/bin/sh
+if [ "$1" = "--version" ]; then echo "Version 5.0.0"; exit 0; fi
+echo 'node_modules/pkg/index.ts(1,1): error TS2322: dependency mismatch.'
+echo 'src/page.ts(2,3): error TS2345: project mismatch.'
+exit 1`;
+    fs.writeFileSync(path.join(binDir, "tsc"), unixScript, { mode: 0o755 });
+    fs.writeFileSync(
+      path.join(binDir, "tsc.cmd"),
+      '@echo off\r\nif "%1"=="--version" (echo Version 5.0.0 & exit /b 0)\r\n' +
+        'echo node_modules/pkg/index.ts(1,1): error TS2322: dependency mismatch.\r\n' +
+        'echo src/page.ts(2,3): error TS2345: project mismatch.\r\nexit /b 1\r\n',
+    );
+    const tc = runTypeCheck(dir);
+    expect(tc.errorCount).toBe(1);
+    expect(tc.issues.filter((item) => item.level === "error")).toHaveLength(1);
+    expect(tc.issues.find((item) => item.level === "error")?.text).toMatch(/page\.ts:2/);
+    expect(tc.issues.filter((item) => item.level === "warn")).toHaveLength(1);
+    expect(tc.issues.find((item) => item.level === "warn")?.text).toMatch(/依赖包源码存在 1 个类型错误/);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

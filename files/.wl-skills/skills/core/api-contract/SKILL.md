@@ -260,15 +260,35 @@ export const API_CONFIG = {
 
 > 字段名与 data.ts 中 queryDef/columnsDef 使用的字段名**完全一致**
 
-| 字段名        | 类型   | 说明     | 必填 | 字典(logicValue) | 备注                 |
-| ------------- | ------ | -------- | ---- | ---------------- | -------------------- |
-| id            | string | 主键     | 自动 | -                | 后端生成             |
-| [field1]      | string | [说明]   | ✅   | -                |                      |
-| [statusField] | string | [状态]   | ✅   | [dictCode]       | 前端 logicValue 对应 |
-| [dateField]   | string | [日期]   | ❌   | -                | YYYY-MM-DD           |
-| createTime    | string | 创建时间 | 自动 | -                | YYYY-MM-DD HH:mm:ss  |
-| updateTime    | string | 更新时间 | 自动 | -                |                      |
-| createBy      | string | 创建人   | 自动 | -                |                      |
+| 字段名        | 类型   | 说明     | 必填 | 字典(logicValue) | 边界/来源 | 备注                 |
+| ------------- | ------ | -------- | ---- | ---------------- | --------- | -------------------- |
+| id            | string | 主键     | 自动 | -                | maxLength=64 / DB契约 | 后端生成             |
+| [field1]      | string | [说明]   | ✅   | -                | 按已确认 API/DB 契约 |                      |
+| [statusField] | string | [状态]   | ✅   | [dictCode]       | 按字典 value 契约 | 前端 logicValue 对应 |
+| [dateField]   | string | [日期]   | ❌   | -                | format=date / API契约 | YYYY-MM-DD           |
+| createTime    | string | 创建时间 | 自动 | -                | format=date-time | YYYY-MM-DD HH:mm:ss  |
+| updateTime    | string | 更新时间 | 自动 | -                | format=date-time |                      |
+| createBy      | string | 创建人   | 自动 | -                | 按平台契约 |                      |
+
+机器契约模型字段可声明：
+
+```jsonc
+{
+  "name": "materialCode",
+  "description": "物料编码",
+  "required": true,
+  "type": "string",
+  "constraints": {
+    "minLength": 1,
+    "maxLength": 64,
+    "pattern": "^[A-Z0-9-]+$"
+  },
+  "constraintSource": "db-contract:MATERIAL.MATERIAL_CODE"
+}
+```
+
+数值支持 `minimum/maximum/minExclusive/maxExclusive/step/totalDigits/fractionDigits`。
+严格模式下声明 constraints 必须同时声明 constraintSource；不得从字段名或经验值猜测。
 
 ---
 
@@ -366,10 +386,13 @@ GET /[服务缩写]/[资源名]/export?[查询参数]
 2. 前端字段全部 camelCase，后端 JSON 序列化输出 camelCase
 3. 时间字段统一 `YYYY-MM-DD HH:mm:ss`
 4. 大数字 ID 后端转字符串（雪花 ID 超过 JS Number 精度）
-5. 分页参数前端传 `current` / `size`（基类自动处理），后端响应 `data.records` / `data.total`
+5. 分页参数前端传 `current` / `size`（默认 `1/10`，最大 `200`，基类自动处理），后端响应 `data.records` / `data.total`
 6. 枚举字段前端传 value，后端可返回 `[field]Label` 辅助展示，或前端自行通过 `logicValue` 字典翻译
 7. 业务代码 `.then(res => res)` 拿到的就是 `data` 字段（拦截器已剥外壳）
 8. 字典定义必须通过模块 `dicts.ts` 汇总和 D1 校验后才能进入 dict-sync
+9. 创建/更新模型的长度、格式、范围和精度必须来自确认过的需求、数据库或后端校验契约；生成 page-spec 和表单规则时保持同值
+10. 一个页面包含多个后端资源时，api.md 可包含多个 `wl-api-contract` 机器块；每个块的 `contractId + externalBasePath` 必须唯一，禁止用一份宽 DTO 代替多份资源契约
+11. 生成后必须通过 S6：page-spec 的 query/columns/formSections 只能引用对应模型字段，create 必填字段不得遗漏；`fixedQueryFields` 必须同时存在于 pageRequest/createRequest/updateRequest
 ````
 
 ---

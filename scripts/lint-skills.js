@@ -174,7 +174,9 @@ function rulesInCoverageLine(line) {
 function assertRuleImplemented(rule, sources) {
   const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const objectMarker = new RegExp(`rule\\s*:\\s*["']${escaped}["']`);
-  const helperMarker = new RegExp(`pushIssue\\([^;\\n]*["']${escaped}["']`);
+  // pushIssue 调用通常会按参数换行；限制检查窗口，既允许正常格式化，
+  // 又避免仅凭文件其他位置的规则名产生“已接线”假阳性。
+  const helperMarker = new RegExp(`pushIssue\\([\\s\\S]{0,500}?["']${escaped}["']`);
   if (sources.some((source) => objectMarker.test(source) || helperMarker.test(source))) return;
   errors.push(`rule-coverage.md 标记「阻断」的 ${rule} 在确定性执行器中未找到`);
 }
@@ -190,6 +192,7 @@ function assertRuleImplemented(rule, sources) {
     "lib/ast-rules.js",
     "lib/page-spec.js",
     "lib/dict-contract.js",
+    "lib/dict-project.js",
     "lib/component-catalog.js",
   ]
     .map(readOptionalSource);

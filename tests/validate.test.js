@@ -32,8 +32,8 @@ function makeProject() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "wl-validate-e2e-"));
 }
 
-function runValidate(cwd) {
-  return spawnSync("node", [CLI, "validate", "src/views"], {
+function runValidate(cwd, extraArgs = []) {
+  return spawnSync("node", [CLI, "validate", "src/views", ...extraArgs], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, FORCE_COLOR: "0" },
@@ -72,6 +72,66 @@ function writePage(root, relDir, indexVue, dataTs) {
 }
 
 describe("validate end-to-end integration", () => {
+  it("普通模式 warn 不阻断，strict 模式仍阻断", () => {
+    const root = makeProject();
+    writePage(
+      root,
+      "src/views/acme/warn-only",
+      "<template><div/></template><script setup lang=\"ts\"></script>",
+      "export const value = 1;",
+    );
+    const normal = runValidate(root);
+    expect(normal.status).toBe(0);
+    expect(normal.stdout + normal.stderr).toMatch(/warn 不阻断/);
+    const strict = runValidate(root, ["--strict"]);
+    expect(strict.status).not.toBe(0);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("显式排除非页面入口，并运行集中定义语义校验脚本", () => {
+    const root = makeProject();
+    const pageDir = writePage(
+      root,
+      "src/views/acme/page",
+      "<template><div/></template><script setup lang=\"ts\"></script>",
+      [
+        'import { taskDefinition as pageDefinition } from "@/views/acme/definitions";',
+        "export { pageDefinition };",
+      ].join("\n"),
+    );
+    fs.writeFileSync(path.join(pageDir, "index.scss"), "");
+    fs.writeFileSync(path.join(pageDir, "api.md"), "# API\n");
+    fs.writeFileSync(path.join(pageDir, "page-spec.json"), JSON.stringify({
+      page: "任务",
+      features: { definitionSource: "src/views/acme/definitions" },
+    }));
+    writePage(
+      root,
+      "src/views/acme/style",
+      "<template><span/></template><script setup lang=\"ts\"></script>",
+    );
+    fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(root, "scripts", "validate-definitions.js"), "process.exit(0);\n");
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({
+      scripts: { "validate:definitions": "node scripts/validate-definitions.js" },
+    }));
+    fs.writeFileSync(path.join(root, ".wl-skills-validate.json"), JSON.stringify({
+      excludePagePaths: ["src/views/acme/style"],
+      definitionValidators: [{
+        source: "src/views/acme/definitions",
+        script: "validate:definitions",
+      }],
+    }));
+
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).toMatch(/定义语义校验已通过/);
+    expect(output).not.toMatch(/src\/views\/acme\/style/);
+    expect(output).not.toMatch(/未解析到对应实现/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   it("compliant list page: no R3/R13 errors in output", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/ok", COMPLIANT_INDEX, COMPLIANT_DATA);
@@ -199,6 +259,48 @@ describe("validate end-to-end integration", () => {
     expect(out).toMatch(/dicts\.ts/);
     expect(out).toMatch(/value=0/);
     expect(res.status).not.toBe(0);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("D2: runtime dictionary reference must be registered in module contract", () => {
+    const root = makeProject();
+    const moduleDir = path.join(root, "src", "views", "acme", "module");
+    writePage(
+      root,
+      "src/views/acme/module/page",
+      COMPLIANT_INDEX,
+      `${COMPLIANT_DATA}\nexport const status = { dictCode: "unknownStatus" };\n`,
+    );
+    const pageContract = {
+      schemaVersion: 1,
+      module: { code: "acme", name: "示例模块" },
+      dictionaries: [{
+        code: "knownStatus",
+        name: "已知状态",
+        order: { field: "STR_KEY", direction: "asc" },
+        items: [{ value: "0", label: "停用" }],
+        sources: [],
+      }],
+    };
+    fs.writeFileSync(
+      path.join(moduleDir, "dicts.ts"),
+      `export const MODULE_DICTIONARIES = ${JSON.stringify({
+        ...pageContract,
+        dictionaries: [{
+          ...pageContract.dictionaries[0],
+          sources: ["page/api.md"],
+        }],
+      })} as const\n`,
+    );
+    fs.writeFileSync(
+      path.join(moduleDir, "page", "api.md"),
+      ["```dict-contract", JSON.stringify(pageContract), "```"].join("\n"),
+    );
+    const res = runValidate(root);
+    const out = res.stdout + res.stderr;
+    expect(res.status).not.toBe(0);
+    expect(out).toMatch(/unknownStatus/);
+    expect(out).toMatch(/D2/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 

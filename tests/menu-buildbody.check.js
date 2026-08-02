@@ -30,7 +30,7 @@ ok("kebab-case 自动转 camelCase");
 // 3. ❌ 斜杠 path 必须报错
 let threw = false;
 try {
-  buildMenuBody({ type: "M", menuName: "目录", path: "/steelmaking/planning" }, config, "P1", "parent");
+  buildMenuBody({ type: "M", menuName: "目录", path: "/operations/planning" }, config, "P1", "parent");
 } catch (e) {
   threw = true;
   assert.ok(/不能含斜杠/.test(e.message), "错误消息应说明原因");

@@ -44,14 +44,14 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ src/views/.../{页面}/data.ts
 ✅ src/views/.../{页面}/index.scss
 ✅ src/views/.../{页面}/api.md
-✅ src/views/.../{页面}/page-spec.json  → 约定真值（供 S1~S5 比对）
+✅ src/views/.../{页面}/page-spec.json  → 约定真值（供 S1~S6 比对）
 ✅ src/views/{域}/{模块}/dicts.ts       → 模块字典发布真值（页面有字典时）
 ✅ src/components/{local|global}/{组件}/ → 本页需要且原项目缺失时按需落盘
 ✅ reports/SYS_MENU_INFO.md  → 已追加菜单条目
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
    wl-skills validate src/views/{生成的页面目录}
-   → 同时执行 R1~R14（AST 语义）+ S1~S5（page-spec 比对）+ C1~C4（组件契约）
+   → 同时执行 R1~R16（AST 语义）+ S1~S6（page-spec/机器契约比对）+ C1~C4（组件契约）
    → 结果：{0 error / N warn} 或列出 error 待修复
 ────────────────────────────────────────────────
 📌 后续步骤：
@@ -107,7 +107,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 ├── data.ts         ← 业务逻辑（AbstractPageQueryHook 类 / 直接导出 ref+函数）
 ├── index.scss      ← 页面样式
 ├── api.md          ← 接口约定（按 api-contract Skill 模板生成）
-└── page-spec.json  ← ★ 原型约定真值（查询/列/按钮/操作列 顺序+颜色），供 validate S1~S5 确定性比对
+└── page-spec.json  ← ★ 原型约定真值（查询/列/按钮/操作列 顺序+颜色），供 validate S1~S6 确定性比对
 ```
 
 页面使用字典时，在模块根目录额外维护 `dicts.ts`：
@@ -168,8 +168,14 @@ src/views/[域]/[模块]/dicts.ts
 27. **BaseTable 强制 AGGrid**：所有业务主列表/台账/主从表/树表/详情子表的 `BaseTable` 必须显式写 `render-type="agGrid"`，并绑定全局唯一 `cid`。弹窗小表格可豁免，但必须在生成摘要中说明理由。
 28. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
 29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wl-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
-30. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts 生成内容、与原型严格一致——这是 `validate` 做 S1~S5 比对的真值。生成后自检若出现 S2/S3/S4 error，说明 data.ts 与 spec 不一致，必须修正到 0 error。
+30. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts、原型及机器 API 契约严格一致——这是 `validate` 做 S1~S6 比对的真值。生成后自检若出现 S2/S3/S4/S6 error，必须修正到 0 error。
 31. **字典契约闭环**：页面出现 `logicType: BusLogicDataType.dict` 时，api.md 必须包含完整 dict-contract，模块 dicts.ts 必须汇总该定义；`wl-skills validate` D1 未通过时禁止建议 dict-sync。
+32. **字段边界契约闭环**：创建/更新表单的字符串长度、格式和数值范围/精度必须从已确认的 API/数据库/需求契约写入 page-spec `constraints + constraintSource`；实现时同步生成控件属性与 rules，后端校验仍是最终边界。无来源时进入 `openQuestions`，禁止按字段名、标签或经验值猜测。
+33. **字典实际引用闭环**：生成结束后除 D1 外必须通过 D2；代码中的 `dictCode/logicValue/useDictOpts/jh-select dict` 字面量必须已在模块 dicts.ts 登记。状态机枚举不因名称含 status/type/flag 被强制改成平台字典。
+34. **分页边界闭环**：标准分页状态必须初始化为 `current: 1, size: 10`；查询、重置、页大小变化后回第一页。禁止用 `size: 500/1000` 伪装全量读取；需要全量时使用经契约确认的专用接口。
+35. **固定上下文闭环**：页面声明 `fixedQuery/fixedQueryFields`（如工厂、资源类型）时，同一字段必须进入查询、新增和更新请求，且用户不可在表单中篡改。只显示默认值但提交时丢失属于生成失败。
+36. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
+37. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
 
 ### 禁止事项（严格遵守）
 

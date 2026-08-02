@@ -97,7 +97,8 @@ export const MODULE_DICTIONARIES = {
 
 ```text
 wl-skills validate src/views/<域>/<模块>
-  → D1 校验 api.md 与 dicts.ts 一致
+  → D1 精确校验 api.md 与 dicts.ts 的字典、明细、排序和 sources 一致
+  → D2 校验页面实际使用的 dictCode/logicValue/useDictOpts 已在 dicts.ts 登记
 
 wls_dict_upsert({ scope: "project" })
   → 自动发现全部模块，只读预览 safe-additive 计划和 planHash
@@ -107,3 +108,11 @@ wls_dict_upsert({ scope: "project", confirmApply: true, planHash: "..." })
 ```
 
 单模块排查使用 `scope: "module" + sourcePath`。没有 `dicts.ts` 的项目先调用 `wls_dict_bootstrap`；详细状态机和冲突策略见 `dictionary-reconcile.md`。
+
+### 低误报边界
+
+- D2 只检查代码中的字面量字典编码，不根据字段名（如 `status/type/flag`）猜测。
+- 后端状态机枚举若未纳入平台字典，不会因字段名称被强制转换成字典。
+- 动态字典编码无法静态确认时不报“缺失”，必须由 API/page-spec 契约补足。
+- `dicts.ts` 中存在页面 `api.md` 未声明的字典或明细属于本地来源漂移，D1 阻断；
+  线上已有但本地未声明的历史明细仍由 dict-sync 仅警告、绝不自动删除。

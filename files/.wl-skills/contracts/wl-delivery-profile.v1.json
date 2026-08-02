@@ -12,7 +12,15 @@
       "remove": { "method": "DELETE", "path": "deleteById/{id}" }
     },
     "responseEnvelope": { "successCode": 2000, "codeField": "code", "messageField": "message", "dataField": "data" },
-    "pagination": { "requestCurrent": "current", "requestSize": "size", "responseRecords": "data.records", "responseTotal": "data.total" },
+    "pagination": {
+      "requestCurrent": "current",
+      "requestSize": "size",
+      "defaultCurrent": 1,
+      "defaultSize": 10,
+      "maxSize": 200,
+      "responseRecords": "data.records",
+      "responseTotal": "data.total"
+    },
     "concurrency": { "field": "revision", "requiredOnUpdate": true },
     "permissionPattern": "{module}:{resource}:{operation}"
   },

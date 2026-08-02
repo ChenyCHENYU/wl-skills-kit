@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.13.9** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.14.1** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -44,6 +44,24 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.14.1**：集中式页面定义形成可配置、可审计的门禁闭环。
+
+- `features.definitionSource` 只负责确认页面 `data.ts` 的 import/export 委托链；
+  `.wl-skills-validate.json.definitionValidators` 再执行项目级语义校验，避免“跳过误报”演变为“跳过验证”。
+- `excludePagePaths` 显式排除样式入口等非业务页面，不按目录名或客户项目硬编码。
+- 普通 `validate` 仅由 error 阻断，warn 保留提示；`--strict` 仍对 error/warn 零容忍。
+- R14 将业务源码类型错误与 `node_modules` 依赖源码错误分层，前者阻断、后者汇总提示，
+  防止依赖噪声掩盖真实业务错误。
+
+**v2.14.0**：页面、接口、字段边界和字典形成通用确定性闭环。
+
+- **字段来源优先**：字符串长度、正则、数值范围和精度只读取机器契约及其 `constraintSource`，不按字段名、页面名或业务域猜测。
+- **页面/API 精确对齐**：仅在页面存在机器 API 契约时启用 S6，核对查询、列表、表单、创建必填、固定上下文和多资源绑定；纯展示字段可用 `contractField:false` 单点豁免。
+- **分页安全默认值**：交付 Profile 固化 `current=1,size=10,maxSize=200`；R15 同时检查状态初值和实际请求，正常翻页不会误报，超大伪全量分页会被阻断。
+- **运行时可理解性**：R16 提示直接 `structuredClone` 的兼容风险和直接展示原始异常消息的用户体验风险，引导使用项目级克隆与错误映射能力。
+- **字典精确闭环**：D1/D2 比对结构化字典契约与真实字面量引用，不依赖 `status/type/flag` 等命名启发式。
+- **通用性边界**：执行器不内置客户、模块、表名、页面路径或业务状态；没有足够机器证据时报告“待补契约”，不会猜测并修改业务代码。
 
 **v2.13.0**：前端独立闭环与后端天然兼容。
 
@@ -128,7 +146,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 **v2.11.1**：精准卡控闭环 —— 把"约定"接线到确定性执行器，生成即精准。
 
-- **新增 page-spec 落盘 + spec-align 确定性比对（S1~S5）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 的 `queryDef/columnsDef/toolbarDef` 与之逐项比对——查询字段顺序、表格列顺序、工具栏按钮顺序与颜色、操作列按钮集合、label 文字保真。过去只靠 AI 自觉的 6 条"精准实现"约定，现在变成可阻断的硬卡控
+- **page-spec 落盘 + spec-align 确定性比对（S1~S6）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 并逐项比对查询字段、表格列、工具栏、操作列和 label；api.md 存在机器契约时，S6 进一步核对查询/展示/表单字段集合，阻断多传字段、漏掉必填字段和多资源绑定漂移。
 - **新增 `wl-skills fix` 确定性机械修复**：对幂等、零语义判断的偏差（BaseTable 补 `render-type`、`::v-deep`→`:deep()`、行尾空白、文件末尾换行）做确定性自动修复，AI 只处理需语义判断的部分；`--dry-run` 预览
 - **新增「规则 → 执行器」覆盖矩阵治理**：`kit-internal/rule-coverage.md` 登记每条约定由谁兜底（R*/S*/regex/AI），`lint:skills` 校验标记「阻断」的规则必须有真实执行器，杜绝"文档约定"退化为纯文档
 - **修复 v2.11 目录迁移遗留**：`lint-skills.js` / `verify-version.js` / `sync-version.js` 的 `.github/` 路径全部修正为 `.wl-skills/`，CI 自检链路恢复可用
@@ -365,8 +383,9 @@ pnpm dlx @agile-team/wl-skills-kit check
 pnpm dlx @agile-team/wl-skills-kit diff
 
 # 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui/mock
-# 内含 AST 语义级检测 R1~R14（正则覆盖不到的语义约束）
-# R13 圈复杂度 / R14 类型错误需 --typecheck 开启
+# 内含 AST 语义级检测 R1~R16（正则覆盖不到的语义约束）
+# R13 圈复杂度、R15 分页边界、R16 运行时边界默认执行；R14 类型错误需 --typecheck 开启
+# 默认 error 阻断、warn 提示；--strict 下 error/warn 都阻断
 pnpm dlx @agile-team/wl-skills-kit validate
 
 # 含类型检查 R14（vue-tsc/tsc --noEmit，CI / 发版前用）
@@ -375,8 +394,8 @@ pnpm dlx @agile-team/wl-skills-kit validate --typecheck --strict
 # 单页/指定目录校验
 pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/mdata-model-config
 
-# 特殊场景（表单设计器/行内编辑明细表等 BaseTable 受限）批量豁免 R3/R10：
-# 在项目根创建 .wl-skills-validate.json（详见 .wl-skills/docs/validate-exempt.md）
+# 特殊场景、非页面入口、集中定义校验脚本统一在项目根配置：
+# .wl-skills-validate.json（详见 .wl-skills/docs/validate-exempt.md）
 
 # spec-align：页面目录存在 page-spec.json 时，确定性比对"约定 vs 代码"
 # （查询字段/表格列顺序、工具栏按钮顺序与颜色、操作列严格对应、label 保真）
@@ -673,7 +692,7 @@ AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable(render-type="agGrid"
 - 📝 业务文档抽取 Skill：[files/.wl-skills/skills/core/business-doc-extract/USAGE.md](files/.wl-skills/skills/core/business-doc-extract/USAGE.md)
 - 📚 业务方使用指南：`.wl-skills/guides/usage.md`（业务项目内）
 - 🏗️ 架构与决策：`.wl-skills/guides/architecture.md`（业务项目内）
-- 🛡️ validate 豁免配置：[files/.wl-skills/docs/validate-exempt.md](files/.wl-skills/docs/validate-exempt.md)
+- 🛡️ validate 项目配置：[files/.wl-skills/docs/validate-exempt.md](files/.wl-skills/docs/validate-exempt.md)
 - 🔧 维护者文档：[kit-internal/README.md](kit-internal/README.md)（仅本仓库）
 - 🤖 多编辑器适配机制：[files/.wl-skills/skills/\_compat/README.md](files/.wl-skills/skills/_compat/README.md)
 - 🛠️ Jenkins 流水线参考：[kit-internal/jenkins-pipeline.md](kit-internal/jenkins-pipeline.md)

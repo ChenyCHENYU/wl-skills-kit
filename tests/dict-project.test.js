@@ -11,7 +11,9 @@ const {
   discoverDictFiles,
   planBootstrap,
   hashValue,
+  scanDictionaryReferences,
   stableStringify,
+  validateDictionaryReferences,
 } = require("../lib/dict-project");
 const { formatModuleContract } = require("../lib/dict-contract");
 const dictSync = require("../mcp/tools/dictSync");
@@ -153,5 +155,50 @@ describe("legacy project bootstrap", () => {
       planHash: preview.structuredContent.planHash,
     });
     expect(applied.structuredContent).toMatchObject({ ok: true, state: "created" });
+  });
+});
+
+describe("dictionary runtime references", () => {
+  it("识别 logicValue/useDictOpts/dictCode/jh-select dict 的字面量引用", () => {
+    const root = createRoot();
+    const moduleRoot = path.join(root, "src", "views", "mdata", "model");
+    fs.mkdirSync(moduleRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(moduleRoot, "fields.vue"),
+      [
+        '<template><jh-select dict="selectStatus" /></template>',
+        '<script setup lang="ts">',
+        'const a = { logicValue: "logicStatus" };',
+        'const b = { dictCode: "fieldStatus" };',
+        'useDictOpts("optionStatus");',
+        "</script>",
+      ].join("\n"),
+    );
+    expect(
+      scanDictionaryReferences(root, moduleRoot).map((item) => item.code),
+    ).toEqual(["fieldStatus", "logicStatus", "optionStatus", "selectStatus"]);
+  });
+
+  it("D2 只阻断代码真实引用但模块契约未登记的编码", () => {
+    const root = createRoot();
+    const moduleRoot = path.join(root, "src", "views", "mdata", "model");
+    fs.mkdirSync(moduleRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(moduleRoot, "dicts.ts"),
+      formatModuleContract(contract("model", "knownStatus")),
+    );
+    fs.writeFileSync(
+      path.join(moduleRoot, "data.ts"),
+      [
+        'const ok = { dictCode: "knownStatus" };',
+        'const bad = { logicValue: "unknownStatus" };',
+      ].join("\n"),
+    );
+    const result = validateDictionaryReferences(moduleRoot, {
+      projectRoot: root,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join("\n")).toMatch(/unknownStatus/);
+    expect(result.errors.join("\n")).not.toMatch(/未登记字典 knownStatus/);
   });
 });

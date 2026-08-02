@@ -1,7 +1,7 @@
 # page-spec.json 规范（精准实现的"真值锚点"）
 
 > **为什么需要它**：`page-codegen` 的精准约定——查询字段顺序、表格列顺序、按钮顺序与颜色、操作列严格对应原型、按钮文字保真——过去只活在 AI 的对话上下文里，没有机器可比对的真值。
-> `page-spec.json` 把这份"原型约定"固化到页面目录，`wl-skills validate`（S1~S5 规则）据此**确定性核对 data.ts 是否按约定实现**，让"生成即精准"可被验证、可被卡控。
+> `page-spec.json` 把这份"原型约定"固化到页面目录，`wl-skills validate`（S1~S6 规则）据此**确定性核对 data.ts 与机器 API 契约是否按约定实现**，让"生成即精准"可被验证、可被卡控。
 
 ---
 
@@ -38,7 +38,13 @@ src/views/[域]/[模块]/[页面]/
 
   // 查询字段：顺序 = 原型从左到右、从上到下
   "query": [
-    { "name": "customerCode", "label": "客户编码" },
+    {
+      "name": "customerCode",
+      "label": "客户编码",
+      "type": "input",
+      "constraints": { "maxLength": 64 },
+      "constraintSource": "api-contract:models.pageRequest.customerCode"
+    },
     { "name": "customerName", "label": "客户名称" }
   ],
 
@@ -79,13 +85,19 @@ src/views/[域]/[模块]/[页面]/
 | `toolbar[].label` | string | — | 与 `toolbarDef()` 按钮**集合 + 顺序**比对 | S3 error |
 | `toolbar[].color` | enum | — | 集合一致时逐个核对颜色（primary/danger/warning/success/default） | S3 warn |
 | `operations[].label` | string | — | 与 `renderOps([...])` 按钮**集合**比对 | S4 error |
+| `*.type=dict` | string | — | 必须同时声明已确认的 `dictCode` | S0 error |
+| `*.constraints` | object | — | 仅校验显式长度/格式/数值边界，不做字段名推断 | S0 error |
+| `*.constraintSource` | string | strict 条件必填 | 声明 constraints 时必须指向 API/数据库/需求契约 | S0 error |
+| `*.contractField` | boolean | 否 | 默认 true；纯展示字段必须显式设 false 才不参加机器契约字段白名单比对 | S6 error |
+| `features.fixedQueryFields` | string[] | 条件必填 | 固定工厂/类型等上下文字段；查询、新增、更新必须同时携带 | S0 error |
+| `features.definitionSource` | string | 集中定义必填 | 共享定义模块的项目相对路径；必须与 `data.ts` 的 `pageDefinition` import 一致 | S0 error |
 
 > `color` 合法值：`primary` `danger` `warning` `success` `default`
 > 颜色映射见 `page-codegen/SKILL.md` §按钮颜色映射表。
 
 ---
 
-## 校验规则（validate S1~S5）
+## 校验规则（validate S1~S6）
 
 执行 `wl-skills validate src/views/xxx` 时，若页面目录存在 `page-spec.json`，自动追加比对：
 
@@ -100,10 +112,28 @@ src/views/[域]/[模块]/[页面]/
 `{ "color": "primary", "plain": false }`。S3 同时比较颜色与 `plain`，
 不得用 `primary + plain: true` 伪装成已满足主色要求。
 | S4 | 操作列按钮集合 | **error** | renderOps 与 spec.operations 不一致（含"多了原型外按钮"）|
+| S5 | 按钮和字段 label 文字保真 | warn | 规格与代码文字不一致 |
+| S6 | page-spec 字段集合与机器 API 契约对齐 | **error** | 阻断查询/展示/表单多传字段、create 必填字段遗漏、固定上下文未贯穿 query/create/update，以及多资源页绑定不唯一 |
 
 - 无 `page-spec.json` 的页面**静默跳过**，不影响其他检查
 - 解析失败报告 S0；严格模式下缺契约元数据或存在未决问题直接阻断
+- `features.definitionSource` 明确声明共享定义源时，校验器确认
+  `data.ts import/export pageDefinition` 委托链，不再误套旧式
+  `queryDef/columnsDef` 解析器；建议在 `.wl-skills-validate.json`
+  的 `definitionValidators` 为该来源绑定项目语义校验脚本，闭合真实字段、按钮和接口验证
+- S6 仅在 `apiContract` 文件或 `api.md` 中存在 `wl-api-contract` 机器契约时执行；字段名只做
+  snake_case/camelCase 规范化，不根据中文标签猜测。纯展示字段用 `contractField:false` 精确豁免。
 - error 级别在 `--pre-commit` 时阻断提交，形成"生成 → 卡控 → 修复 → 复扫"闭环
+
+### constraints 支持项
+
+| 类型 | 支持字段 |
+|---|---|
+| 字符串 | `minLength`、`maxLength`、`pattern` |
+| 数值 | `minimum`、`maximum`、`minExclusive`、`maxExclusive`、`step`、`totalDigits`、`fractionDigits` |
+
+约束只在契约显式声明时检查。不得按“编码通常 64 位”“状态通常 2 位”等经验
+自动补值；未确认的边界应进入 `openQuestions`。
 
 ---
 
@@ -117,7 +147,7 @@ page-codegen
   └─ 把 page-spec 写入页面目录 page-spec.json（真值落盘）
   └─ 按 page-spec 生成 data.ts（精准实现）
        ↓
-wl-skills validate（S1~S5）
+wl-skills validate（S1~S6）
   └─ 比对 page-spec.json vs data.ts → 偏差即报 → 闭环
 ```
 

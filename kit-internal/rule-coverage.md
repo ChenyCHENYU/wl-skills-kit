@@ -12,9 +12,9 @@
 
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
-| `R1~R14` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
-| `S1~S5` | page-spec 比对 | `lib/page-spec.js` | ✅ 确定性 |
-| `D1` | 页面字典契约与模块发布清单比对 | `lib/dict-contract.js` | ✅ 确定性 |
+| `R1~R16` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
+| `S1~S6` | page-spec 与机器 API 契约比对 | `lib/page-spec.js` | ✅ 确定性 |
+| `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
 | `AI` | 仅 SKILL.md 约定 | 各 `SKILL.md` | ⚠️ 非确定性（靠 AI 自觉） |
@@ -43,14 +43,18 @@
 | standards/04 | 禁止空 onClick | regex | error | 是 |
 | standards/04 | 单函数圈复杂度 ≤ 10（McCabe） | **R13** | error | 是 |
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **R14** | error | 是 |
+| standards/11 | 分页状态默认 current=1、size=10；所有显式请求满足 current>=1、1<=size<=200 | **R15** | error | 是 |
+| standards/05/11 | structuredClone 响应式对象与 error.message 直出风险 | **R16** | warn | 否 |
 | page-codegen 10 | 查询字段顺序 = 原型顺序 | **S1** | warn | 否 |
 | page-codegen 11 | 表格列顺序 = 原型顺序 | **S2** | error | 是 |
 | page-codegen 12 | 工具栏按钮顺序/颜色 = 原型 | **S3** | error | 是 |
 | page-codegen 13 | 操作列按钮严格对应原型 | **S4** | error | 是 |
 | page-codegen 15 | 按钮文字保真 | **S5** | warn | 否 |
+| api-contract / page-codegen | page-spec 查询/展示/表单字段必须属于对应机器契约，create 必填字段不得遗漏 | **S6** | error | 是 |
 | page-codegen 21 | 默认 Mock First | regex | warn | 否 |
 | page-codegen 24 | 必须用 wl-skills-ui renderOps | regex | warn | 否 |
 | api-contract / dict-sync | api.md dict-contract 必须完整汇总到模块 dicts.ts，枚举与排序一致 | **D1** | error | 是 |
+| api-contract / dict-sync | 页面字典字面量引用必须已登记 | **D2** | error | 是 |
 | page-codegen / component | 引用的标准业务组件必须已按契约落盘 | **C1** | error | 是 |
 | page-codegen / component | 目标路径无效或新落盘/补齐缺依赖时禁止产生残缺组件 | **C2** | error | 是 |
 | page-codegen / component | kit 同契约新实现仅提示评估，不自动升级项目组件 | **C3** | info | 否 |
@@ -78,7 +82,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `R1~R14` / `S1~S5` / `D1` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
+- `R1~R16` / `S1~S6` / `D1~D2` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

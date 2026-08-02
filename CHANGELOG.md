@@ -1,5 +1,51 @@
 # Changelog
 
+## [Unreleased]
+
+## [2.14.1] - 2026-08-03
+
+### 集中定义门禁精度
+
+- 集中式页面通过 `features.definitionSource` 显式声明真实定义源，不再把
+  “旧解析器无法读取薄适配器”误报为列、工具栏或操作列不一致。
+- `.wl-skills-validate.json` 新增 `definitionValidators`，按共享定义源绑定
+  项目 `package.json` 校验脚本；同一来源只执行一次，失败即阻断，且禁止递归调用
+  `wl-skills validate`。
+- 新增 `excludePagePaths`，显式排除微前端样式入口等位于 `src/views`、但不属于
+  业务页面的入口文件；只接受安全的项目相对路径。
+- 修正普通 `validate` 的退出语义：error 阻断，warn 仅提示；`--strict` 继续保持
+  error/warn 全部阻断，与帮助文档和 pre-commit 行为一致。
+- R14 优先保留业务源码类型错误并继续阻断；`node_modules` 依赖源码错误去重汇总为
+  warning，避免第三方噪声占满 50 条上限、遮住真实项目问题。
+- 错误信息明确区分“实现不一致”“集中定义仅验证委托链”“语义校验脚本失败”，
+  不再用无法解析冒充真实业务偏差。
+
+## [2.14.0] - 2026-08-01
+
+### 高精度页面校验
+
+- `page-spec` 识别显式 `features.definitionSource` 配置驱动页面，并静态验证
+  `data.ts` 的 `pageDefinition` 导入/导出委托链，避免误报缺少
+  `queryDef/columnsDef/toolbarDef/renderOps`。
+- 新增共享字段边界契约校验：支持字符串长度/正则及数值范围/精度，严格模式
+  要求 `constraintSource`，不根据字段名或标签猜测。
+- API contract 与 page-spec 复用同一约束校验器，防止前后端规则漂移。
+- 新增 S6：存在机器 API 契约时，确定性核对 page-spec 查询/展示/表单字段白名单、
+  create 必填字段、固定上下文 query/create/update 闭环与多资源绑定；纯展示字段仅允许用
+  `contractField:false` 精确豁免。
+- 新增 R15：分页状态初值统一为 `current=1,size=10`，所有显式分页请求校验
+  `current>=1`、`1<=size<=200`；后续页请求不会被误判，同时阻断 `size=1000` 伪装全量读取。
+- 新增 R16：提示 Vue 页面直接 `structuredClone` 与向用户透出
+  `error.message` 的运行时/可理解性风险。
+- 统一交付 profile 固化分页默认值 1/10 与最大值 200，并写入机器 API 契约。
+
+### 字典闭环
+
+- D1 改为精确比对页面 `api.md` 与模块 `dicts.ts`，额外字典、明细或 sources
+  漂移均阻断。
+- 新增 D2，确定性校验 `dictCode/logicValue/useDictOpts/jh-select dict` 字面量
+  引用均已登记；不按 `status/type/flag` 等名称推断字典，避免误判。
+
 ## [2.13.9] - 2026-07-28
 
 ### 页面生成与验证

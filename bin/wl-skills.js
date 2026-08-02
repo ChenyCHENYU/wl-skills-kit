@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.13.9
+ * wl-skills-kit CLI v2.14.1
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -23,6 +23,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 
 // ─── AST 规则引擎（v2.10.1+，语义级约束检测）──────────────────────────
 const {
@@ -34,6 +35,7 @@ const {
 // ─── page-spec 比对引擎（v2.11.1+，"约定 vs 代码"确定性核对）────────────
 const { alignPage } = require("../lib/page-spec");
 const { validateContractAlignment } = require("../lib/dict-contract");
+const { validateDictionaryReferences } = require("../lib/dict-project");
 
 // ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
 const { runSafeFix } = require("../lib/safe-fix");
@@ -55,6 +57,10 @@ const {
 } = require("../lib/api-contract");
 const { componentIssues } = require("../lib/component-catalog");
 const { runComponentCommand } = require("../lib/component-cli");
+const {
+  isPathWithin,
+  loadValidationConfig,
+} = require("../lib/validate-config");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -1197,13 +1203,14 @@ function inspectPageDirectory(dir, names) {
   };
 }
 
-function scanPageDirs(scanRel) {
+function scanPageDirs(scanRel, validationConfig) {
   const scanDir = path.join(TARGET_DIR, scanRel || "src/views");
   if (!fs.existsSync(scanDir)) return [];
   const dirs = groupFilesByDirectory(walkDir(scanDir, TARGET_DIR));
   const pages = [];
   for (const [dir, names] of dirs.entries()) {
     if (!names.has("index.vue")) continue;
+    if (validationConfig?.isPageExcluded(dir)) continue;
     pages.push(inspectPageDirectory(dir, names));
   }
   return pages.sort((a, b) => a.dir.localeCompare(b.dir));
@@ -1245,6 +1252,15 @@ function appendDictionaryContractIssues(issues, scanPath) {
     const dir = path.relative(TARGET_DIR, file).replace(/\\/g, "/");
     for (const text of result.errors) issues.push({ level: "error", dir, text, rule: "D1" });
     for (const text of result.warnings) issues.push({ level: "warn", dir, text, rule: "D1" });
+    const references = validateDictionaryReferences(path.dirname(file), {
+      projectRoot: TARGET_DIR,
+    });
+    for (const text of references.errors) {
+      issues.push({ level: "error", dir, text, rule: "D2" });
+    }
+    for (const text of references.warnings) {
+      issues.push({ level: "warn", dir, text, rule: "D2" });
+    }
   }
   return files.length;
 }
@@ -1262,13 +1278,17 @@ function getValidationStagedSet() {
   return undefined;
 }
 
-function selectValidationPages(allPages, stagedSet) {
+function selectValidationPages(allPages, stagedSet, validationConfig) {
   if (!preCommit || !stagedSet) return allPages;
   const stagedFiles = Array.from(stagedSet);
   const contractStaged = stagedFiles.some(
     (file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"),
   );
   if (contractStaged) return allPages;
+  const definitionStaged = Array.from(validationConfig.definitionValidators.keys()).some(
+    (source) => stagedFiles.some((file) => isPathWithin(file, source)),
+  );
+  if (definitionStaged) return allPages;
   return allPages.filter((page) =>
     stagedFiles.some((file) => file.startsWith(page.dir + "/")),
   );
@@ -1382,12 +1402,105 @@ function appendAllPageIssues(issues, pages, mockFiles, mockContent) {
 
 function appendSpecIssues(issues, pages) {
   let alignedPages = 0;
+  const definitionSources = new Set();
   for (const page of pages) {
     const result = alignPage(path.join(TARGET_DIR, page.dir), page.dir, { strict });
     if (result.hasSpec) alignedPages++;
+    if (result.definitionSource) definitionSources.add(result.definitionSource);
     issues.push(...result.issues);
   }
-  return alignedPages;
+  return { alignedPages, definitionSources };
+}
+
+function readProjectScripts() {
+  const packagePath = path.join(TARGET_DIR, "package.json");
+  if (!fs.existsSync(packagePath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(packagePath, "utf8")).scripts || {};
+  } catch {
+    return {};
+  }
+}
+
+function runDefinitionValidator(script) {
+  const windows = process.platform === "win32";
+  const command = windows ? (process.env.ComSpec || "cmd.exe") : "npm";
+  const commandArgs = windows
+    ? ["/d", "/s", "/c", `npm run --silent ${script}`]
+    : ["run", "--silent", script];
+  return spawnSync(command, commandArgs, {
+    cwd: TARGET_DIR,
+    encoding: "utf8",
+    timeout: 180000,
+    windowsHide: true,
+    env: { ...process.env, WL_SKILLS_DEFINITION_VALIDATION: "1" },
+  });
+}
+
+function appendDefinitionValidatorIssues(issues, definitionSources, validationConfig) {
+  const scripts = readProjectScripts();
+  let executed = 0;
+  for (const source of definitionSources) {
+    const script = validationConfig.definitionValidatorFor(source);
+    if (!script) {
+      issues.push({
+        level: "warn",
+        dir: source,
+        rule: "S0",
+        text: "集中定义仅完成 import/export 委托链校验；建议在 .wl-skills-validate.json 配置 definitionValidators 以闭合语义验证",
+      });
+      continue;
+    }
+    const command = scripts[script];
+    if (!command) {
+      issues.push({
+        level: "error",
+        dir: source,
+        rule: "S0",
+        text: `definitionValidators 引用的 package.json 脚本不存在：${script}`,
+      });
+      continue;
+    }
+    if (/wl-skills(?:-kit)?(?:\.js)?\s+validate\b/.test(command)) {
+      issues.push({
+        level: "error",
+        dir: source,
+        rule: "S0",
+        text: `定义语义校验脚本 ${script} 不得再次调用 wl-skills validate，避免递归`,
+      });
+      continue;
+    }
+    if (process.env.WL_SKILLS_DEFINITION_VALIDATION === "1") {
+      issues.push({
+        level: "error",
+        dir: source,
+        rule: "S0",
+        text: `定义语义校验脚本 ${script} 发生递归调用，已终止`,
+      });
+      continue;
+    }
+    const result = runDefinitionValidator(script);
+    executed++;
+    if (result.error || result.status !== 0) {
+      const reason = result.error
+        ? result.error.message
+        : `退出码 ${result.status}${result.signal ? ` / ${result.signal}` : ""}`;
+      issues.push({
+        level: "error",
+        dir: source,
+        rule: "S0",
+        text: `定义语义校验脚本 ${script} 执行失败（${reason}）；请单独运行 npm run ${script} 查看明细`,
+      });
+      continue;
+    }
+    issues.push({
+      level: "info",
+      dir: source,
+      rule: "S0",
+      text: `定义语义校验已通过（package.json#scripts.${script}）`,
+    });
+  }
+  return executed;
 }
 
 function appendTypeCheckIssues(issues) {
@@ -1413,7 +1526,13 @@ function finishValidation(issues, errors, warns) {
   if (blocking.length > 0) printFixSuggestions(blocking);
   if (preCommit) return finishPreCommitValidation(issues, errors, warns);
   if (strict) return finishStrictValidation(errors, warns);
-  if (errors > 0 || warns > 0) process.exitCode = 1;
+  if (errors > 0) {
+    console.log(`  ✖ 检查发现 ${errors} 个 error，命令失败；另有 ${warns} 个 warn\n`);
+    process.exitCode = 1;
+    return;
+  }
+  if (warns > 0) console.log(`  ✔ 检查通过（${warns} 个 warn 不阻断；--strict 下会阻断）\n`);
+  else console.log("  ✔ 检查全部通过\n");
 }
 
 function finishPreCommitValidation(issues, errors, warns) {
@@ -1471,6 +1590,7 @@ function printValidationSummary(context) {
     context.specPages ? `（spec-align ${context.specPages}）` : "",
     context.dictContracts ? `（字典契约 ${context.dictContracts}）` : "",
     context.components ? `（标准组件 ${context.components}）` : "",
+    context.definitionValidators ? `（集中定义校验 ${context.definitionValidators}）` : "",
     validationTypeSummary(context.typeCheckResult),
   ];
   console.log(`  页面目录: ${context.pages}${parts.join("")}`);
@@ -1488,8 +1608,9 @@ function runValidate() {
   const scanPath = validationScanPath();
   const stagedSet = getValidationStagedSet();
   if (preCommit && stagedSet === undefined) return;
-  const allPages = scanPageDirs(scanPath);
-  const pages = selectValidationPages(allPages, stagedSet);
+  const validationConfig = loadValidationConfig(TARGET_DIR);
+  const allPages = scanPageDirs(scanPath, validationConfig);
+  const pages = selectValidationPages(allPages, stagedSet, validationConfig);
 
   printValidationHeader(scanPath);
 
@@ -1528,7 +1649,12 @@ function runValidate() {
   // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
   // 页面目录存在 page-spec.json 时，比对 data.ts 实际实现与原型约定真值。
   // 无 page-spec.json 的页面静默跳过，不影响其他检查。
-  const specAlignedPages = appendSpecIssues(issues, pages);
+  const specResult = appendSpecIssues(issues, pages);
+  const definitionValidators = appendDefinitionValidatorIssues(
+    issues,
+    specResult.definitionSources,
+    validationConfig,
+  );
 
   // ── 类型检查 R14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
   // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
@@ -1539,9 +1665,10 @@ function runValidate() {
   printValidationSummary({
     pages: pages.length,
     astPages: astResult.pages,
-    specPages: specAlignedPages,
+    specPages: specResult.alignedPages,
     dictContracts: dictContractCount,
     components: componentResult.selected.length,
+    definitionValidators,
     typeCheckResult,
     issues: issues.length,
   });
@@ -1603,6 +1730,7 @@ const AST_FIX_SUGGESTIONS = {
   S3: { fix: '\u8c03\u6574 toolbarDef() \u6309\u94ae\u987a\u5e8f/\u989c\u8272\u4e0e page-spec.json toolbar \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
+  D2: { fix: '\u5c06\u9875\u9762\u5b9e\u9645\u5f15\u7528\u7684 dictCode/logicValue/useDictOpts \u7f16\u7801\u7eb3\u5165\u6a21\u5757 dicts.ts \u4e0e api.md dict-contract\uff0c\u7981\u6b62\u524d\u7aef\u81ea\u9020\u5b57\u5178\u7f16\u7801', ref: 'docs/dictionary-contract.md', auto: false },
   C1: { fix: '\u5148\u6267\u884c component ensure \u9884\u89c8\uff0c\u518d\u643a\u5e26 planHash \u663e\u5f0f\u786e\u8ba4\u6309\u9700\u843d\u76d8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
   C2: { fix: '\u4fee\u6b63\u7ec4\u4ef6\u76ee\u6807\u8def\u5f84\uff0c\u6216\u8865\u9f50\u8fd0\u884c\u4f9d\u8d56\u4e0e\u5fc5\u9700\u9879\u76ee\u6587\u4ef6\u540e\u91cd\u65b0\u9884\u89c8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
   C3: { fix: '\u8bc4\u4f30 kit \u540c\u5951\u7ea6\u65b0\u5feb\u7167\uff1b\u9ed8\u8ba4\u4fdd\u7559\u9879\u76ee\u5f53\u524d\u5b9e\u73b0', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },

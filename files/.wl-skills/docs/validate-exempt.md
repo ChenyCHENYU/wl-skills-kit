@@ -1,14 +1,17 @@
-# validate 豁免配置（.wl-skills-validate.json）
+# validate 项目配置（.wl-skills-validate.json）
 
-> **版本**：v2.11.3+ 引入。对应执行器 `loadExemptions`（`lib/ast-rules.js`）。
+> **版本**：v2.11.3 引入规则豁免；v2.14.1 增加非页面排除和集中定义语义校验。
 > **零功能影响**：kit 不主动创建该文件；不存在时 validate 行为完全不变。
 
 ---
 
 ## 用途
 
-对"标准列表页强制 `BaseTable + AGGrid`"等规则，**批量豁免特殊场景目录**：
-表单设计器内嵌表格、行内编辑明细表等 BaseTable 受限的场景。
+该文件只描述 validate 的项目级、显式例外与扩展：
+
+1. 对表单设计器等特殊场景批量豁免指定规则；
+2. 排除放在 `src/views` 下、但不是业务页面的样式或微前端入口；
+3. 为 `features.definitionSource` 绑定项目已有的集中定义语义校验脚本。
 
 与单文件注释豁免（`<!-- wl-skills:ignore R3 -->`）互补：
 
@@ -36,6 +39,13 @@
 
 ```json
 {
+  "excludePagePaths": ["src/views/produce/style"],
+  "definitionValidators": [
+    {
+      "source": "src/views/produce/definitions",
+      "script": "validate:definitions"
+    }
+  ],
   "exemptions": [
     {
       "paths": ["<页面目录前缀，支持 /**>"],
@@ -50,6 +60,10 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
+| `excludePagePaths` | string[] | 否 | 非业务页面入口的项目相对路径；支持末尾 `/**`，禁止绝对路径和 `..` |
+| `definitionValidators` | array | 集中定义建议 | 共享定义源与 `package.json#scripts` 的确定性绑定 |
+| `definitionValidators[].source` | string | 是 | 与 page-spec 的 `features.definitionSource` 完全一致 |
+| `definitionValidators[].script` | string | 是 | 已存在的安全脚本名，只允许字母、数字、`:`、`_`、`-` |
 | `exemptions` | array | 是 | 豁免条目数组 |
 | `exemptions[].paths` | string[] | 是 | 页面目录前缀。支持 `/**` glob；命中该目录**及其子目录**下所有页面 |
 | `exemptions[].rules` | string[] | 是 | 规则编号（`R3`/`R10` 等），大小写不敏感 |
@@ -60,6 +74,15 @@
 - `src/views/produce/designer` → 命中 `src/views/produce/designer` 及 `src/views/produce/designer/**`
 - `src/views/sale/order/**` → 等价于上一行（显式 glob）
 - 路径分隔符自动规范化（Windows `\` → `/`），末尾 `/` 被忽略
+
+### 集中定义校验规则
+
+- kit 先确认页面 `data.ts` 确实从 `definitionSource` 导入并导出 `pageDefinition`；
+- 同一 `source` 的项目校验脚本在一次 validate 中只执行一次；
+- 脚本退出码非 0 时按 error 阻断；
+- 脚本不得再次执行 `wl-skills validate`，防止递归；
+- 未配置脚本时只报告“委托链已验证、语义尚未闭合”，不得伪报字段不一致；
+- 配置只引用项目已经审计的 `package.json#scripts`，不接受任意命令字符串。
 
 ---
 
@@ -78,6 +101,15 @@
 
 ```json
 {
+  "excludePagePaths": [
+    "src/views/produce/style"
+  ],
+  "definitionValidators": [
+    {
+      "source": "src/views/produce/definitions",
+      "script": "validate:definitions"
+    }
+  ],
   "exemptions": [
     {
       "paths": ["src/views/produce/designer"],
@@ -106,7 +138,11 @@
 # 跑 validate，命中豁免的页面不再报对应规则
 wl-skills validate src/views
 
-# 豁免配置格式错误时，validate 输出 warn 提示（不阻断），行为退化为无豁免
+# 普通模式 error 阻断、warn 提示
+wl-skills validate src/views
+
+# CI 严格模式中 error/warn 全部阻断
+wl-skills validate src/views --strict
 ```
 
 > 豁免项升级为主列表页时，必须迁移回 `BaseTable + AGGrid` 并从本文件移除豁免。

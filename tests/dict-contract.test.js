@@ -156,4 +156,39 @@ describe("api.md -> dicts.ts -> backend", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("拒绝 dicts.ts 中 api.md 未声明的字典或明细", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "wl-dict-contract-extra-"));
+    try {
+      fs.mkdirSync(path.join(root, "list"));
+      const expected = contract([modelType([{ value: "0", label: "主数据模型" }])]);
+      const actual = contract([
+        modelType([
+          { value: "0", label: "主数据模型" },
+          { value: "1", label: "参照数据模型" },
+        ]),
+        {
+          code: "extraStatus",
+          name: "多余状态",
+          order: { field: "STR_KEY", direction: "asc" },
+          items: [{ value: "0", label: "停用" }],
+          sources: ["list/api.md"],
+        },
+      ]);
+      actual.dictionaries.forEach((dictionary) => {
+        dictionary.sources = ["list/api.md"];
+      });
+      fs.writeFileSync(path.join(root, "dicts.ts"), formatModuleContract(actual));
+      fs.writeFileSync(
+        path.join(root, "list", "api.md"),
+        ["```dict-contract", JSON.stringify(expected), "```"].join("\n"),
+      );
+      const result = validateContractAlignment(root);
+      expect(result.ok).toBe(false);
+      expect(result.errors.join("\n")).toMatch(/未声明的明细 value=1/);
+      expect(result.errors.join("\n")).toMatch(/未声明的字典 extraStatus/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
