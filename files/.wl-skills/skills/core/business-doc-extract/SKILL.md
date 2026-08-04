@@ -41,7 +41,7 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
 | 已有 `.wl-skills/docs/business`，用户提交新增需求 | 进入增量维护态 | 是（仅追加/更新涉及模块） |
 | 单页面口述需求 / 单截图 | 不触发本 Skill | 否（仅输出页面理解、`api.md` 草案、必要时 preview） |
 | 小修小改、报错调试、样式调整 | 不触发本 Skill | 否 |
-| 用户要求 “先 mock 能跑” | 不阻塞 page-codegen | 否（保持轻量路径） |
+| 用户要求 “先 mock 能跑” | 先读取 `mockPolicy`；允许时不阻塞 page-codegen，`disabled` 时改走真实接口/契约联调 | 否（保持轻量路径） |
 
 > **缺资料时**：先询问用户提供资料路径，不要凭口述硬生成业务文档。
 
@@ -78,7 +78,7 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
 ### 3.3 与现有产物的边界
 
 - **页面级 `api.md` 不搬家**：仍然位于 `src/views/**/api.md`，是接口契约的唯一详细位置；模块 `index.md` 只做链接索引。
-- **mock 不动**：仍位于 `mock/`，是页面运行依赖。
+- **mock 按项目策略处理**：已有 Mock 仍位于 `mock/`；`mockPolicy=disabled` 的项目不生成、不要求 Mock，也不得把 Mock 描述为页面必需依赖。
 - **`reports/SYS_*` 不动**：菜单/字典/权限基线仍归 sync 类 Skill。
 
 ---
@@ -117,7 +117,7 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
      2. 详细设计 / 需求文档（md / docx / xlsx）
      3. 字段实体资料、字典资料表
      4. 已有页面目录与 api.md
-   → 或继续走 page-codegen 模式 0（口述需求 → 页面骨架 + mock，不生成业务文档）
+   → 或继续走 page-codegen 模式 0（口述需求 → 页面骨架；仅在 mockPolicy 允许且需求明确时附带 Mock，不生成业务文档）
    ⛔ 业务文档未写入，等待资料补充。
 ```
 

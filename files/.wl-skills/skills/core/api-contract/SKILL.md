@@ -300,6 +300,8 @@ export const API_CONFIG = {
 
 ## 接口清单
 
+> 以下是无项目覆盖时的 `jh4j3-openapi3` 基线示例。实际 method、path、载荷位置、分页字段和默认值必须从生效 Delivery Profile/已确认契约生成；项目明确使用 GET 查询或不同分页口径时不得改回本示例。
+
 ### 1. 分页查询
 
 ```

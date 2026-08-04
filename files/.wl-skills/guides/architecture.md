@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.15.0（2026-08-04）
+> **当前版本**：v2.16.0（2026-08-05）
 
 ---
 
@@ -88,23 +88,28 @@ npx @agile-team/wl-skills-kit update  ← 增量更新，可在业务项目生�
 ```
 wl-skills.js init/update
     │
-    ├─ 1. 递归读取 files/ 目录下所有文件
+    ├─ 1. 递归读取 files/，加载旧 manifest 与项目 mockPolicy
     │
-    ├─ 2. 读取 files/.github/copilot-instructions.md（薄壳入口，指向 .wl-skills/copilot-instructions-full.md）
+    ├─ 2. 计算全部目标文件并做所有权预检
+    │      - 未受管/已修改冲突：零写入停止
+    │      - --force：覆盖前逐文件备份
+    │      - Mock 种子：按 disabled/optional/required 决定
     │
-    ├─ 3. 读取 _compat/editors.json（编辑器注册表）
+    ├─ 3. 读取 files/.github/copilot-instructions.md 和 _compat/editors.json
     │      对每个 enabled editor：
     │        读取 _compat/headers/{editor}.txt（特化 frontmatter）
     │        拼接：header + 自动生成注释 + 主体内容
     │        写入 editor.outputPath（如 CLAUDE.md / .cursorrules / ...）
     │
-    ├─ 4. 写入其他 files/ 文件到目标目录
+    ├─ 4. 预检通过后写入 files/ 与安装基础设施
     │      - reports/*.md 已存在则跳过（保护团队累积数据）
-    │      - 其他文件：覆盖写入
+    │      - 其他生成器拥有的入口保留
     │
-    ├─ 5. 写入/更新 .wl-skills-manifest.json（文件哈希快照）
+    ├─ 5. 仅清理旧 manifest 拥有且未修改的退役文件
     │
-    └─ 6. 输出 wl-skills-ui 可选桥接提醒与 git-standards 规范插件建议
+    ├─ 6. 写入/更新 .wl-skills-manifest.json（实际安装内容哈希快照）
+    │
+    └─ 7. 输出 wl-skills-ui 可选桥接提醒与 git-standards 规范插件建议
 ```
 
 ---

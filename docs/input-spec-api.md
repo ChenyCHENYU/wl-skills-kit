@@ -42,9 +42,9 @@
 
 ---
 
-## 标准操作集
+## 通用操作基线（以生效 Delivery Profile/已确认契约为准）
 
-AI 会默认为每个页面生成以下标准接口，无需额外沟通：
+无项目 Profile、无既有接口契约时，AI 才使用以下通用基线。项目已明确 GET/POST、载荷位置、默认页大小或路径时，必须尊重项目口径并报告覆盖，不能为了套基线改坏既有链路：
 
 | 操作 | 方法 | URL | 请求体 |
 |------|------|-----|--------|
@@ -55,7 +55,7 @@ AI 会默认为每个页面生成以下标准接口，无需额外沟通：
 | 删除 | DELETE | `/deleteById/{id}` | 主键路径参数 |
 | 导出 | GET | `/export` | `?...查询条件` |
 
-> 如后端实际 URL 与上述规范不同（历史项目），请在 `api.md` 确认时注明实际 URL。
+> 生效顺序：已确认前后端契约/项目 Delivery Profile → 项目现有一致实现 → 本表通用基线。代码与生效 Profile 不一致才阻断；合理项目覆盖仅提示。
 
 ---
 
@@ -81,7 +81,7 @@ AI 会默认为每个页面生成以下标准接口，无需额外沟通：
     "records": [ { "字段名": "值" } ],
     "total": 100,
     "current": 1,
-    "size": 20,
+    "size": 10,
     "pages": 5
   }
 }
@@ -228,7 +228,7 @@ AI 基于原型/详设，自动生成 `api.md` 初稿，内容包括：
 
 ### Q：分页接口我们用的是 GET 还是 POST？
 
-统一用 **POST**，查询条件放在请求体（不是 query string）。这样支持复杂查询条件（数组、嵌套对象），且 URL 不会过长。
+由项目 Delivery Profile 或已确认的 `api.md` 决定。无项目口径时基线使用 **POST + body**，便于承载复杂条件；项目明确使用 **GET + query** 时同样合法。生成、mock、前端调用和后端 Controller 必须采用同一口径。
 
 ### Q：主键我们用的是 int 还是 string 类型？
 
@@ -288,9 +288,11 @@ export const API_CONFIG = {
 | 1 | 正式客户 |
 | 0 | 临时客户 |
 
-## 分页查询（POST /queryPage）
+## 分页查询基线示例（POST /queryPage）
 
-请求参数：`{ current: 1, size: 20, customerName?: string, customerType?: string }`  
+> 本节只展示无项目覆盖时的基线。项目 Delivery Profile 或已确认契约指定 GET、其他路径、查询参数位置或默认页大小时，以项目口径为准，并保持前端、Mock、后端和测试一致。
+
+请求参数：`{ current: 1, size: 10, customerName?: string, customerType?: string }`
 响应：标准分页格式，`records` 包含实体字段
 
 ## 单条查询（GET /getById/{id}）

@@ -32,10 +32,32 @@ describe("validate project config", () => {
       );
       const config = loadValidationConfig(root);
       expect(config.warnings).toEqual([]);
+      expect(config.mockPolicy).toBe("optional");
       expect(config.isPageExcluded("src/views/acme/style")).toBe(true);
       expect(config.isPageExcluded("src/views/acme/style-preview")).toBe(false);
       expect(config.definitionValidatorFor("@/views/acme/definitions")).toBeUndefined();
       expect(config.definitionValidatorFor("src/views/acme/definitions")).toBe("validate:definitions");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("支持 disabled/optional/required mock 策略并安全回退非法值", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "wl-validate-mock-policy-"));
+    try {
+      fs.writeFileSync(
+        path.join(root, ".wl-skills-validate.json"),
+        JSON.stringify({ mockPolicy: "disabled" }),
+      );
+      expect(loadValidationConfig(root).mockPolicy).toBe("disabled");
+
+      fs.writeFileSync(
+        path.join(root, ".wl-skills-validate.json"),
+        JSON.stringify({ mockPolicy: "always" }),
+      );
+      const invalid = loadValidationConfig(root);
+      expect(invalid.mockPolicy).toBe("optional");
+      expect(invalid.warnings.join("\n")).toMatch(/disabled\/optional\/required/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

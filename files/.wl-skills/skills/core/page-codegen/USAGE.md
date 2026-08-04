@@ -63,7 +63,7 @@ src/views/<域>/<模块>/<子模块>/<page-name>/
 ├── index.vue      template + script + import data.ts
 ├── index.scss     页面专属样式（已 :deep / scoped 包好）
 ├── api.md         （由 api-contract 生成，codegen 不覆盖）
-└── mock/*.ts      mock-first 场景下生成，端点与 API_CONFIG 对齐
+└── mock/*.ts      仅 mockPolicy 允许且需求明确时生成，端点与 API_CONFIG 对齐
 ```
 
 外加生成报告：`.wl-skills/reports/PAGE_CODEGEN_<模块>_<YYYYMMDD>.md`

@@ -72,6 +72,63 @@ function writePage(root, relDir, indexVue, dataTs) {
 }
 
 describe("validate end-to-end integration", () => {
+  it("默认 optional 不要求未接入 mock 的页面生成 mock", () => {
+    const root = makeProject();
+    const pageDir = writePage(root, "src/views/acme/no-mock", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.writeFileSync(path.join(pageDir, "index.scss"), "");
+    fs.writeFileSync(path.join(pageDir, "api.md"), "# API\n");
+    const result = runValidate(root);
+    expect(result.stdout + result.stderr).not.toMatch(/mock 中未发现|无 mock 文件|mockPolicy=required/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("disabled 完全跳过 mock 架构和端点检查", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/disabled", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.mkdirSync(path.join(root, "mock"), { recursive: true });
+    fs.writeFileSync(path.join(root, "mock", "partial.ts"), "export default {}\n");
+    fs.writeFileSync(
+      path.join(root, ".wl-skills-validate.json"),
+      JSON.stringify({ mockPolicy: "disabled" }),
+    );
+    const result = runValidate(root);
+    expect(result.stdout + result.stderr).not.toMatch(/mock\/_utils|mock 中未发现|mockPolicy=required/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("required 对缺失 mock 的 API 页面执行阻断", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/required", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.writeFileSync(
+      path.join(root, ".wl-skills-validate.json"),
+      JSON.stringify({ mockPolicy: "required" }),
+    );
+    const result = runValidate(root);
+    expect(result.status).not.toBe(0);
+    expect(result.stdout + result.stderr).toMatch(/mockPolicy=required/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("optional 只校验已显式接入 mock 的页面", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/one", COMPLIANT_INDEX, COMPLIANT_DATA);
+    writePage(
+      root,
+      "src/views/acme/two",
+      COMPLIANT_INDEX.replace("acme-ok", "acme-two"),
+      COMPLIANT_DATA.replaceAll("/acme/list", "/acme/two/list"),
+    );
+    fs.mkdirSync(path.join(root, "mock", "acme"), { recursive: true });
+    fs.writeFileSync(path.join(root, "mock", "_utils.ts"), "export const ok = () => 1\n");
+    fs.writeFileSync(
+      path.join(root, "mock", "acme", "one.ts"),
+      'export default { "/dev-api/acme/list": {} }\n',
+    );
+    const result = runValidate(root);
+    expect(result.stdout + result.stderr).not.toMatch(/\/dev-api\/acme\/two\/list/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   it("普通模式 warn 不阻断，strict 模式仍阻断", () => {
     const root = makeProject();
     writePage(

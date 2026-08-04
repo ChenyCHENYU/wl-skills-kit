@@ -28,7 +28,7 @@
 }
 ```
 
-**导入（需 mock 提供 import 端点）**：
+**导入（始终调用契约中的 import 端点；仅在 mockPolicy 允许时由 Mock 镜像该端点）**：
 
 ```typescript
 {
@@ -58,6 +58,7 @@
 
 ### Mock 端点最佳实践
 
+> 仅适用于 `mockPolicy=required`，或 `optional` 且需求明确需要 Mock 的项目；`disabled` 时不得安装依赖、生成文件或把 Mock 当作导入前提。
 > **核心原则**：Mock 模式下所有操作必须能完整走通，不可出现接口报错。
 > data.ts 中每个 `postAction(API_CONFIG.xxx, ...)` 调用，mock 文件中都必须有对应端点。
 

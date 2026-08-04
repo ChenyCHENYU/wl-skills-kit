@@ -87,7 +87,7 @@ import { h } from "vue";
 **点击处理逻辑**（按优先级选择）：
 1. 有编辑弹窗 → `_editModalRef?.value?.open(row.id, "view")` （查看模式打开同一弹窗）
 2. 如果有详情路由 → `navigateToForm({ id: row.id, mode: "view" })`
-3. Mock 阶段暂无详情页 → `ElMessage.info(\`查看详情: ${row.fieldValue}\`)`
+3. 仅当 `mockPolicy` 允许且需求明确为演示态时，可用受控占位交互；`disabled` 或正式交付时没有详情能力就不生成该操作，并把缺失路由/API 记入 openQuestions，禁止用提示框伪装已实现
 
 **handleCodeClick 推荐实现**：
 

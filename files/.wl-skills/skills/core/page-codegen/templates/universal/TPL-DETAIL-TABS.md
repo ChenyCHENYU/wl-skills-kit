@@ -937,9 +937,10 @@ onMounted(() => {
 
 ### Mock 数据
 
-- **变更表单打开无 id** 时应加载 mock 数据展示 demo 效果
-- Mock 数据工厂放在共享组件的 `data.ts` 中（如 `createChangeMockData()`）
-- 表单页 data.ts 在 `onMounted` 中判断无 id 则调用 `loadMockData()`
+> 本节仅在 `mockPolicy=required`，或 `optional` 且用户明确要求演示数据时生成；`disabled` 时整节及所有 `create*MockData/loadMockData` 分支必须省略。
+
+- Mock 数据工厂放在共享组件的 `data.ts` 中（如 `createChangeMockData()`），并镜像已确认契约
+- 表单无 id 的默认行为是创建空白表单；只有明确的“演示/Mock”入口才调用 `loadMockData()`，不得用“缺 id”隐式切换 Mock
 
 ---
 
@@ -1077,7 +1078,9 @@ spec.features.hiddenMenu === true：
 
 ### Mock 数据文件（mock/[页面kebab-name].ts）
 
-在项目根目录 `mock/` 下生成，`vite-plugin-mock`（`mockPath: "./mock"`）自动加载，**无需手动注册**。
+> 条件化产物：仅 `mockPolicy=required`，或 `optional` 且需求明确需要 Mock 时生成；`disabled` 时省略本节、文件和依赖。
+
+启用时在项目根目录 `mock/` 下生成，`vite-plugin-mock`（`mockPath: "./mock"`）自动加载，**无需手动注册**。
 
 **要求**：
 

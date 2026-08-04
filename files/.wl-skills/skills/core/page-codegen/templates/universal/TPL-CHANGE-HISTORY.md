@@ -1,6 +1,6 @@
 # CHANGE_HISTORY：变更历史查询
 
-> 见 SKILL.md 主文件（约束 + 按钮规则 + Mock 规范等共用规则）。
+> 见 SKILL.md 主文件（约束 + 按钮规则 + 项目 Mock 策略等共用规则）。本模板默认真实接口优先，不因缺少路由参数自动进入 Mock。
 
 
 > 适用场景：左侧为变更历史时间线列表，右侧为变更详情（复用业务域组件如 `c_customerTabs`，view 模式只读）。
@@ -18,7 +18,7 @@
 ```
 [kebab-name]-change-history/
 ├── index.vue     ← 双栏布局（左面板 + 右面板 + 业务组件）
-├── data.ts       ← useChangeHistory composable + mock 数据
+├── data.ts       ← useChangeHistory composable + 真实接口状态
 ├── index.scss    ← 双栏 flex 布局样式
 └── api.md        ← 接口约定
 ```
@@ -28,8 +28,6 @@
 ```typescript
 import { getAction } from "@jhlc/common-core/src/api/action";
 import { useRouter } from "vue-router";
-import { create[Domain]MockData } from "@/components/local/c_[domainTabs]/data";
-import type { BasicInfoForm, BusinessInfoRow } from "@/components/local/c_[domainTabs]/data";
 
 export const API_CONFIG = {
   changeHistoryList: "/[服务缩写]/[资源]/changeHistory/queryPage",
@@ -46,60 +44,12 @@ export interface HistoryRecord {
   changePerson: string;
 }
 
-/** 变更历史记录 mock 数据（对齐原型截图） */
-function createHistoryListMock(): HistoryRecord[] {
-  return [
-    { id: "h001", changeType: "数据新增", changeTime: "2025/12/15 13:48:07", changePerson: "新增人姓名" },
-    { id: "h003", changeType: "数据变更", changeTime: "2025/12/15 13:48:07", changePerson: "变更人姓名" },
-    // ... 按原型增减
-  ];
-}
-
-/** 变更比对 mock：旧版数据（体现字段级差异）
- *  修改目标字段使之与 createChangeMockData 产生差异，
- *  c_domainTabs.loadDiffData() 会自动对比并高亮。
- */
-function createDiffMockData() {
-  const current = create[Domain]MockData();
-  return {
-    basicInfo: { ...current.basicInfo, /* 修改需要比对的字段 */ },
-    businessInfoList: current.businessInfoList.map((row, idx) => {
-      if (idx === 0) return { ...row, /* 修改需要比对的字段 */ };
-      return { ...row };
-    })
-  };
-}
-
 export function useChangeHistory(tabsRef: any) {
   const router = useRouter();
   const loading = ref(false);
   const historyLoading = ref(false);
   const historyList = ref<HistoryRecord[]>([]);
   const selectedId = ref<string>("");
-  const isMockMode = ref(false);
-
-  // ── Mock 模式（后端接口未就绪时使用，关闭 mock 后切换到 loadHistoryList） ──
-  function loadMockData() {
-    isMockMode.value = true;
-    // 数据变更记录排在首位，确保页面加载时立即可见 diff 比对效果
-    historyList.value = createHistoryListMock();
-    if (historyList.value.length > 0) {
-      nextTick(() => selectMockDetail(historyList.value[0].id));
-    }
-  }
-
-  function selectMockDetail(id: string) {
-    selectedId.value = id;
-    const record = historyList.value.find(r => r.id === id);
-    tabsRef.value?.loadData(create[Domain]MockData());
-    if (record?.changeType.includes("变更")) {
-      tabsRef.value?.loadDiffData(createDiffMockData());
-    } else {
-      tabsRef.value?.clearDiffData();
-    }
-  }
-
-  // ── 真实接口模式（有 id 时使用） ──
   async function loadHistoryList(applyId: string) {
     historyLoading.value = true;
     try {
@@ -132,16 +82,12 @@ export function useChangeHistory(tabsRef: any) {
 
   function handleSelectHistory(item: HistoryRecord) {
     if (item.id === selectedId.value) return;
-    if (isMockMode.value) {
-      selectMockDetail(item.id);
-    } else {
-      loadHistoryDetail(item.id);
-    }
+    loadHistoryDetail(item.id);
   }
 
   function handleCancel() { router.back(); }
 
-  return { loading, historyLoading, historyList, selectedId, loadHistoryList, loadMockData, handleSelectHistory, handleCancel };
+  return { loading, historyLoading, historyList, selectedId, loadHistoryList, handleSelectHistory, handleCancel };
 }
 ```
 
@@ -186,19 +132,20 @@ export function useChangeHistory(tabsRef: any) {
 
 <script setup lang="ts">
 import { useRoute } from "vue-router";
+import { ElMessage } from "element-plus";
 import { useChangeHistory } from "./data";
 import c_[domainTabs] from "@/components/local/c_[domainTabs]/index.vue";
 
 const tabsRef = ref();
 const route = useRoute();
-const { loading, historyLoading, historyList, selectedId, loadHistoryList, loadMockData, handleSelectHistory, handleCancel } = useChangeHistory(tabsRef);
+const { loading, historyLoading, historyList, selectedId, loadHistoryList, handleSelectHistory, handleCancel } = useChangeHistory(tabsRef);
 
 onMounted(() => {
   const id = route.query.id as string;
   if (id) {
-    loadHistoryList(id);   // 真实接口：有 id 时加载
+    loadHistoryList(id);
   } else {
-    loadMockData();        // Mock 模式：无 id 时纯 mock，零接口请求
+    ElMessage.warning("缺少业务主键，无法查询变更历史");
   }
 });
 </script>

@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -206,6 +207,42 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("init 遇到未受管本地文件时零写入，--force 才备份覆盖", () => {
+    const dir = makeIsolatedDir();
+    const rel = ".github/copilot-instructions.md";
+    const target = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, "team-owned\n", "utf8");
+
+    const blocked = runCli(["init"], { cwd: dir, timeout: 60000 });
+    expect(blocked.status).not.toBe(0);
+    expect(blocked.stdout + blocked.stderr).toMatch(/停止且未写入任何文件/);
+    expect(fs.readFileSync(target, "utf8")).toBe("team-owned\n");
+    expect(fs.existsSync(path.join(dir, ".wl-skills-manifest.json"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".husky"))).toBe(false);
+
+    const forced = runCli(["init", "--force"], { cwd: dir, timeout: 60000 });
+    expect(forced.status).toBe(0);
+    const backups = path.join(dir, ".wl-skills", ".state", "backups");
+    const backupId = fs.readdirSync(backups)[0];
+    expect(fs.readFileSync(path.join(backups, backupId, rel), "utf8")).toBe("team-owned\n");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("mock 种子遵循项目策略：optional/disabled 不强加，required 才安装", () => {
+    for (const policy of ["optional", "disabled", "required"]) {
+      const dir = makeIsolatedDir();
+      fs.writeFileSync(
+        path.join(dir, ".wl-skills-validate.json"),
+        JSON.stringify({ mockPolicy: policy }),
+      );
+      const result = runCli(["init"], { cwd: dir, timeout: 60000 });
+      expect(result.status).toBe(0);
+      expect(fs.existsSync(path.join(dir, "mock", "_utils.ts"))).toBe(policy === "required");
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("update 保留已填写的本地 token", () => {
     const dir = makeIsolatedDir();
     const envDir = path.join(dir, ".wl-skills", "skills", "sync");
@@ -323,7 +360,7 @@ describe("CLI 独立 API 契约", () => {
 });
 
 describe("CLI standard-env", () => {
-  it("update 自动清理退役 env-config 并安装新 Skill", () => {
+  it("update 保留所有权不明的退役 env-config，并安装新 Skill", () => {
     const dir = makeIsolatedDir();
     const oldSkillDir = path.join(dir, ".wl-skills", "skills", "ops", "env-config");
     fs.mkdirSync(oldSkillDir, { recursive: true });
@@ -336,7 +373,7 @@ describe("CLI standard-env", () => {
 
     const res = runCli(["update"], { cwd: dir, timeout: 60000 });
     expect(res.status).toBe(0);
-    expect(fs.existsSync(oldSkillDir)).toBe(false);
+    expect(fs.existsSync(oldSkillDir)).toBe(true);
     expect(
       fs.existsSync(
         path.join(
@@ -349,6 +386,30 @@ describe("CLI standard-env", () => {
         ),
       ),
     ).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("update 只清理 manifest 拥有且未被修改的退役文件", () => {
+    const dir = makeIsolatedDir();
+    const rels = [
+      ".wl-skills/skills/ops/env-config/SKILL.md",
+      ".wl-skills/skills/ops/env-config/USAGE.md",
+    ];
+    const files = {};
+    for (const rel of rels) {
+      const target = path.join(dir, rel);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, `managed ${rel}\n`);
+      files[rel] = crypto.createHash("md5").update(fs.readFileSync(target)).digest("hex");
+    }
+    fs.writeFileSync(
+      path.join(dir, ".wl-skills-manifest.json"),
+      JSON.stringify({ version: "2.12.3", files }),
+    );
+
+    const res = runCli(["update"], { cwd: dir, timeout: 60000 });
+    expect(res.status).toBe(0);
+    for (const rel of rels) expect(fs.existsSync(path.join(dir, rel))).toBe(false);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

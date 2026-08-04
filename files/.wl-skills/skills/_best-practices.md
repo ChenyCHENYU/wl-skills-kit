@@ -156,15 +156,15 @@ wls_code_scan          ← 概览：页面目录、API_CONFIG、文件完整性
 
 **用户典型话术**："先 mock 一下"、"假数据"、"后端没好先能跑"
 
-**推荐**：`page-codegen` 的 mock-first 规则。Mock 架构详见 `.wl-skills/docs/mock-architecture.md`。
+**推荐**：先确认团队允许 mock，并将 `.wl-skills-validate.json.mockPolicy` 设为 `optional` 或 `required`；团队禁止 mock 时使用 `disabled`，直接对接真实接口，不生成任何假数据。Mock 架构详见 `.wl-skills/docs/mock-architecture.md`。
 
 ```
 mock/
-├── _utils.ts              ← 共享工具（kit init 自动写入）
+├── _utils.ts              ← 共享工具（required 或项目已有业务 mock 时按需安装）
 └── [业务域]/[模块].ts     ← 按 src/views 第一级域分目录
 ```
 
-- 生成页面自动生成 `mock/[业务域]/[模块].ts`，import `../_utils` 共享工具
+- 仅在策略允许且需求明确时生成 `mock/[业务域]/[模块].ts`，并 import `../_utils` 共享工具
 - 开关：`.env.dev` 中 `ENV_MOCK=true/false`，零污染切换
 - 清理：`wl-skills mock-clean --domain [域]` 按域清理，`--all` 全量清理（保留 `_utils.ts`）
 

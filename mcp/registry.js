@@ -588,7 +588,7 @@ const DESCRIPTORS = [
   {
     name: "wls_validate_page",
     description:
-      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、mock-first、api.md 等。开启 typecheck 额外执行 vue-tsc/tsc 类型检查（R14）。",
+      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、项目 mockPolicy、api.md 等。开启 typecheck 额外执行 vue-tsc/tsc 类型检查（R14）。",
     inputSchema: {
       type: "object",
       properties: {

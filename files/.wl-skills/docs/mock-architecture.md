@@ -1,10 +1,20 @@
 # Mock 架构规范
 
-> **适用范围**：所有基于 wl-skills-kit 的 Vue 3 业务子应用
+> **适用范围**：项目策略允许 Mock 的 Vue 3 业务子应用；禁止 Mock 的团队不需要接入本章能力
 > **技术依赖**：`vite-plugin-mock` + `mockjs`
-> **源码参考**：wl-mdata 项目实践（v2.7.x 基线）
+> **事实来源**：`.wl-skills-validate.json.mockPolicy` + `api.md` 机器契约 + 生效 Delivery Profile
 
 Mock 不是另一套接口：方法、路径、请求模型和响应外壳必须逐项镜像 `api.md` 中的 `wl-api-contract`。未确认契约时可以生成草稿 Mock，但不得据此宣称联调完成。
+
+## 零、项目策略（先于所有 Mock 规则）
+
+| `mockPolicy` | 行为 |
+|---|---|
+| `disabled` | 不生成、不安装、不检查 Mock；适用于团队明确禁止 Mock、要求直接联调的项目 |
+| `optional` | 默认值；没有 Mock 时静默通过，只有页面已显式接入 Mock 才核对其端点完整性 |
+| `required` | 所有含 API_CONFIG 的页面必须有完整 Mock；缺文件、缺端点或缺共享工具均阻断 |
+
+项目可复制 `.wl-skills-validate.example.json` 为 `.wl-skills-validate.json` 后选择策略。`init/update` 不会擅自创建真实策略文件；`_utils.ts` 仅在 `required` 或项目已经存在业务 Mock 时按需安装。
 
 ---
 
@@ -59,7 +69,7 @@ Mock 不是另一套接口：方法、路径、请求模型和响应外壳必须
 
 ## 三、`_utils.ts` 共享工具
 
-> 该文件由 `wl-skills init` 自动写入 `mock/_utils.ts`。无 `export default`，vite-plugin-mock 会安全跳过。
+> 该文件由 `wl-skills init/update` 按策略写入 `mock/_utils.ts`：`required` 必装，`optional` 仅在已有业务 Mock 时安装，`disabled` 不安装。无 `export default`，vite-plugin-mock 会安全跳过。
 
 ```typescript
 import Mock from "mockjs";
@@ -143,8 +153,9 @@ export default [
   // ── 列表（分页）──
   {
     url: "/dev-api/[服务]/[资源]/queryPage",
-    method: "get",
-    response: ({ query }: any) => paginate(STORE, query),
+    // 方法与载荷位置必须读取生效 Delivery Profile；此处仅展示包基线 POST + body。
+    method: "post",
+    response: ({ body }: any) => paginate(STORE, body),
   },
 
   // ── 新增 ──
@@ -190,7 +201,7 @@ export default [
 
 ### 4.4 端点覆盖检查
 
-**每个 `API_CONFIG` 的 key 都必须在 mock 文件中有对应端点**，零遗漏。
+当策略为 `required`，或 `optional` 页面已显式接入 Mock 时，**每个 `API_CONFIG` 的 key 都必须在同一契约对应的 mock 文件中有端点**，零遗漏。
 
 | 操作 | STORE 修改方式 |
 |---|---|
@@ -267,12 +278,12 @@ npx @agile-team/wl-skills-kit mock-clean --all --dry-run
 
 ## 七、validate 检查项
 
-`wl-skills validate` 对 mock 的检查（自动执行）：
+`wl-skills validate` 根据 `mockPolicy` 执行：`disabled` 全部跳过；`optional` 只检查已接入 Mock 的页面；`required` 全量阻断检查。
 
 | 检查项 | 级别 | 说明 |
 |---|---|---|
-| `mock/_utils.ts` 是否存在 | warn | 缺失则提示 `wl-skills init` 补充 |
-| API_CONFIG URL 是否有对应 mock 端点 | warn | 每个 URL 在 mock 文件中必须有 `/dev-api` 前缀的端点 |
+| `mock/_utils.ts` 是否存在 | optional=warn / required=error | 有业务 Mock 时必须复用共享工具 |
+| API_CONFIG URL 是否有对应 mock 端点 | optional=warn / required=error | 每个 URL 在 mock 文件中必须有 `/dev-api` 前缀的端点 |
 | mock 文件是否 import `_utils` | info | 未使用共享工具则提示 |
 | mock 文件是否按域分目录 | info | 扁平放在 `mock/` 根目录则提示迁移 |
 

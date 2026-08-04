@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-08-05
+
+### Added
+
+- `.wl-skills-validate.json` 新增 `mockPolicy=disabled|optional|required`；默认 optional，无 Mock 项目静默通过，required 才对缺文件/缺端点执行阻断。
+- `init/update --force` 对冲突文件逐项备份到 `.wl-skills/.state/backups/<timestamp>/`。
+
+### Changed
+
+- Mock 生成、依赖检查、共享工具安装和 validate 统一服从项目策略；团队禁止 Mock 时不生成、不安装、不检查。
+- 页面模板移除“缺少主键即自动进入本地 Mock”的隐式分支；空白表单、变更履历、导入和详情占位均按项目策略生成，禁止 Mock 的项目直接走真实契约或显式报告阻断。
+- GET/POST、载荷位置、默认页大小和上限的活动文档统一读取生效 Delivery Profile，包内 POST + 1/10/200 仅作无配置基线。
+
+### Fixed
+
+- `init/update` 改为全量预检后再写入；未显式 `--force` 的本地改动冲突保证零写入。
+- 退役文件只在旧 manifest 证明本包拥有且内容未修改时清理，不再递归删除所有权不明的 `.github/skills|standards|guides|reports` 内容。
+- reports 与其他生成器拥有的入口继续保留，manifest 记录实际保留内容，避免假漂移。
+
 ## [2.15.0] - 2026-08-04
 
 ### Added

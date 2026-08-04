@@ -1,7 +1,9 @@
-# demo — 领域样例索引
+# templates — 领域样例索引
 
-> AI 学习参考 + 开发者速查。每个样例均可独立运行（Mock 数据，不依赖后端）。
+> AI 学习参考 + 开发者速查。部分 demo 为了离线展示保留了本地演示数据，但它们不是生成规则或业务契约事实源。
 > 安装 wl-skills-kit 后自动导入此目录，**不要在此目录下放业务代码**。
+
+使用优先级：生效 Delivery Profile / 已确认 `api.md` / 项目 `mockPolicy` → `page-codegen/SKILL.md` 与 `templates/universal/` → 本目录具体 demo。`mockPolicy=disabled` 时不得复制 demo 中的 `create*MockData/loadMockData`、静态数据或 Mock 依赖；应生成空白初值并直连真实契约。具体 demo 与项目口径不一致时只借鉴布局，不得覆盖项目逻辑。
 
 ---
 
@@ -18,13 +20,13 @@
 | `mmwr-customer-apply-change-history/` | CHANGE_HISTORY | 客户变更历史比对                    |
 | `mmwr-customer-detail/`               | DETAIL_TABS    | 客户详情（多 Tab）                  |
 
-## sale/.wl-skills/templates/ — 销售域（平台默认样例，5 个页面）
+## sale/demo/ — 销售域（平台默认样例，5 个页面）
 
 | 目录                     | 模板类型      | 说明                             |
 | ------------------------ | ------------- | -------------------------------- |
 | `domestic-trade-order/`  | LIST          | 标准内贸订单列表                 |
 | `metallurgical-spec/`    | MASTER_DETAIL | 冶金规范（jh-drag-row 上下分栏） |
-| `add-.wl-skills/templates/`              | FORM_ROUTE    | 新增表单演示（c_formSections）   |
+| `add-demo/`              | FORM_ROUTE    | 新增表单演示（c_formSections）   |
 | `billet-flame-cut-plan/` | LIST          | 坯料火焰切割计划列表             |
 | `heat-batch-return/`     | LIST + Modal  | 炉批退判（含自定义弹窗）         |
 

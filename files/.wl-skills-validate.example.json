@@ -1,0 +1,5 @@
+{
+  "mockPolicy": "optional",
+  "excludePagePaths": [],
+  "definitionValidators": []
+}

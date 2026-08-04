@@ -165,18 +165,18 @@ export interface [PageName]Form {
   // ...所有字段
 }
 
-/** 开发期 Mock 数据 */
-export function createMockData(): [PageName]Form {
+/** 空白表单初值；只放类型安全的空值/业务已确认默认值，不放演示数据。 */
+export function createEmptyForm(): [PageName]Form {
   return {
-    id: "mock-001"
-    // ...所有字段的模拟值
+    id: ""
+    // ...所有字段的空值或已确认默认值
   };
 }
 
 export function use[PageName]Detail() {
   const router = useRouter();
   const loading = ref(false);
-  const form = reactive<[PageName]Form>(createMockData());
+  const form = reactive<[PageName]Form>(createEmptyForm());
 
   function addRecord() {
     form.[列表字段].push({ id: `temp_${Date.now()}` });

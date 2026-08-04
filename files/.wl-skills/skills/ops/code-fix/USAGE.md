@@ -124,8 +124,8 @@ A：**不允许**。code-fix 的核心定位就是"受控"，跳过确认会变�
 **Q：和 ESLint --fix 有什么区别？**
 A：ESLint 修语法/格式（自动化没风险），code-fix 修**项目内规范**（如 cid/operations/`:scoped`/导入顺序/AGGrid 写法 等 ESLint 不覆盖的规则）。两者互补，建议先 ESLint 再 code-fix。
 
-**Q：code-fix 改完会不会破坏 mock-first？**
-A：不会。code-fix 只动报告点名的行，mock-first 相关字段（`API_CONFIG.useMock` 等）不在受控修复范围。
+**Q：code-fix 改完会不会破坏项目 Mock 策略？**
+A：不会。code-fix 只动报告点名且可确定修复的行，不新增/删除 Mock，也不修改 `.wl-skills-validate.json.mockPolicy`。
 
 **Q：和 page-codegen 重新生成有什么区别？**
 A：`page-codegen` 是"重写整个页面骨架"，适合 🔴 级整页结构错误；`code-fix` 是"按 issue 精准修",  适合 🟡/🟢 级零碎偏差。两者互补，混用即可。

@@ -121,7 +121,7 @@ AI 会自动识别意图，触发对应的 Skill。
 - 每个 `BaseTable` 必须有全局唯一 `cid`
 - 列定义必须使用 `@agile-team/wl-skills-ui/runtime` 的 `defineColumns()`
 - 操作列必须使用 `renderOps()`，禁止旧式 `operations: []`
-- mock-first：后端未就绪时生成 `mock/*.ts`，关闭 mock 后业务代码不需要改
+- Mock 服从项目策略：`disabled` 不生成；`optional` 仅需求明确时生成；`required` 必须生成。关闭 Mock 后业务 URL 不需要改
 
 生成后建议运行：
 

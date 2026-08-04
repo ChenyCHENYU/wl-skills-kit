@@ -52,6 +52,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 ## 五、Mock 架构（与页面完全解耦）
 
+- **策略优先**：读取 `.wl-skills-validate.json.mockPolicy`；`disabled` 禁用、`optional` 按需（默认）、`required` 强制
 - **开关**：`.env.dev` 中 `ENV_MOCK=true/false`
 - **解耦**：mock 文件放在项目根 `mock/` 目录，不在 `src/views` 中 import 任何 mock
 - **URL 对齐**：`API_CONFIG` 保持真实路径，mock 端点带 `/dev-api` 前缀，关闭 mock 后无需改页面代码
@@ -129,7 +130,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 3 | 补字典 | dict-sync |
 | 4 | 角色授权 / 加动作 | permission-sync |
 | 5 | 存量项目体检 | convention-audit → code-fix → validate 复扫 → 闭环确认 |
-| 6 | mock 跑通 | page-codegen mock-first |
+| 6 | mock 跑通（项目策略允许时） | page-codegen + mockPolicy |
 | 7 | 模板沉淀 | template-extract |
 | 8 | 业务文档维护 | business-doc-extract |
 | 9 | 标准环境配置 | standard-env-config → scan → apply 计划 → 确认后 apply → verify |

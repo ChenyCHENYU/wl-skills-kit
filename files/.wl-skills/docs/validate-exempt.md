@@ -1,7 +1,7 @@
 # validate 项目配置（.wl-skills-validate.json）
 
-> **版本**：v2.11.3 引入规则豁免；v2.14.1 增加非页面排除和集中定义语义校验。
-> **零功能影响**：kit 不主动创建该文件；不存在时 validate 行为完全不变。
+> **版本**：v2.11.3 引入规则豁免；v2.14.1 增加非页面排除和集中定义语义校验；v2.16.0 增加 Mock 三态策略。
+> **零功能影响**：kit 只安装 `.wl-skills-validate.example.json` 示例，不主动创建或覆盖真实配置；不存在时 Mock 默认为按需 `optional`。
 
 ---
 
@@ -12,6 +12,7 @@
 1. 对表单设计器等特殊场景批量豁免指定规则；
 2. 排除放在 `src/views` 下、但不是业务页面的样式或微前端入口；
 3. 为 `features.definitionSource` 绑定项目已有的集中定义语义校验脚本。
+4. 明确团队的 Mock 策略，避免“无 Mock 即失败”或禁止 Mock 项目被生成器污染。
 
 与单文件注释豁免（`<!-- wl-skills:ignore R3 -->`）互补：
 
@@ -39,6 +40,7 @@
 
 ```json
 {
+  "mockPolicy": "optional",
   "excludePagePaths": ["src/views/produce/style"],
   "definitionValidators": [
     {
@@ -60,6 +62,7 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
+| `mockPolicy` | enum | 否 | `disabled` 不生成/不检查；`optional` 默认按需；`required` 全量阻断 |
 | `excludePagePaths` | string[] | 否 | 非业务页面入口的项目相对路径；支持末尾 `/**`，禁止绝对路径和 `..` |
 | `definitionValidators` | array | 集中定义建议 | 共享定义源与 `package.json#scripts` 的确定性绑定 |
 | `definitionValidators[].source` | string | 是 | 与 page-spec 的 `features.definitionSource` 完全一致 |
@@ -101,6 +104,7 @@
 
 ```json
 {
+  "mockPolicy": "disabled",
   "excludePagePaths": [
     "src/views/produce/style"
   ],

@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.15.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -45,6 +45,14 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
+**v2.16.0**：项目策略优先与安装所有权保护形成闭环。
+
+- **Mock 三态策略**：`disabled` 明确禁用、`optional` 默认按需、`required` 严格全量；不做 Mock 的团队不会再被生成规则或 strict 门禁误伤。
+- **真实接口优先模板**：缺主键不再隐式切入本地假数据；表单空值、履历、导入和详情占位都先遵循项目策略与已确认契约。
+- **安装冲突零写入**：`init/update` 先完整预检受管文件；发现本地改动时不创建 hook、配置或 manifest，显式 `--force` 才覆盖并逐文件备份。
+- **只清理本包拥有的文件**：旧版目录不再递归清空；只有旧 manifest 证明由本包安装且内容未修改的退役文件才会移除，本地定制和所有权不明文件全部保留。
+- **Profile 口径一致**：文档、Skill、Mock 示例统一声明 GET/POST、载荷位置和分页来自生效 Delivery Profile，`POST + 1/10/200` 只作无配置基线。
+
 **v2.15.0**：补齐“项目口径优先、通用基线兜底”的接口与交互闭环。
 
 - **Profile 是运行事实源**：查询 GET/POST、载荷位置、默认页大小和最大页大小均读取项目 Delivery Profile；无项目 Profile 时才回退 `POST + 1/10/200`。合理覆盖只提示，代码与生效 Profile 漂移才阻断。
@@ -70,7 +78,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 - **字段来源优先**：字符串长度、正则、数值范围和精度只读取机器契约及其 `constraintSource`，不按字段名、页面名或业务域猜测。
 - **页面/API 精确对齐**：仅在页面存在机器 API 契约时启用 S6，核对查询、列表、表单、创建必填、固定上下文和多资源绑定；纯展示字段可用 `contractField:false` 单点豁免。
-- **分页安全默认值**：交付 Profile 固化 `current=1,size=10,maxSize=200`；R15 同时检查状态初值和实际请求，正常翻页不会误报，超大伪全量分页会被阻断。
+- **分页安全默认值**：无项目配置时回退 `current=1,size=10,maxSize=200`；R15 按生效 Profile 同时检查状态初值和实际请求，合理的项目覆盖不误报，越界请求才阻断。
 - **运行时可理解性**：R16 提示直接 `structuredClone` 的兼容风险和直接展示原始异常消息的用户体验风险，引导使用项目级克隆与错误映射能力。
 - **字典精确闭环**：D1/D2 比对结构化字典契约与真实字面量引用，不依赖 `status/type/flag` 等命名启发式。
 - **通用性边界**：执行器不内置客户、模块、表名、页面路径或业务状态；没有足够机器证据时报告“待补契约”，不会猜测并修改业务代码。
@@ -97,9 +105,9 @@ wl-skills contract compare --left contracts/mdm-task.json \
 - **无覆盖发布**：正式执行必须携带预览 `planHash`；冲突或漂移全局阻断，线上额外项不覆盖、不删除，失败后可幂等补齐。
 - **统一写入闭环**：菜单、角色、动作和角色全量授权同样执行“线上快照预览 → `planHash` 确认 → 执行前重读”；旧计划失效时零写入。
 
-**v2.12.4**：存量项目升级入口收口。
+**v2.12.4**：存量项目升级入口收口（当时的路径迁移策略；v2.16 起进一步受 manifest 所有权保护）。
 
-- **自动清理旧 Skill**：`update` 会移除旧 `skills/ops/env-config/`，避免与 `standard-env-config` 并存。
+- **旧 Skill 迁移**：当时引入 `env-config → standard-env-config` 路径迁移；v2.16 起仅清理旧 manifest 拥有且未修改的文件，所有权不明内容只提示不删除。
 - **提示词更直接**：README 和使用指南补齐存量项目升级命令、最短提示词及自定义 Profile 表达。
 
 **v2.12.3**：标准环境配置能力重构并完成真实存量项目验证。
@@ -166,7 +174,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 **v2.8.0**：Mock 架构体系固化 + `mock-clean` CLI 命令。
 
 - 新增 `docs/mock-architecture.md` — Mock 目录约定、开关机制、模块化规范、一键清理流程
-- 新增 `mock/_utils.ts` 种子文件 — `init` 自动写入，提供 `pageResult`/`ok`/`paginate`/`nowStr`/`pick`
+- 新增 `mock/_utils.ts` 种子文件 — v2.8 当时由 `init` 自动写入；v2.16 起改为按 `mockPolicy`/已有业务 Mock 安装
 - 新增 CLI `mock-clean` 命令 — `--domain <name>` 按域清理、`--all` 全量清理（保留 `_utils.ts`）、`--dry-run` 预览
 - `copilot-instructions.md` 新增 Mock 架构节（目录约定、开关、STORE 模式、URL 对齐）
 - `page-codegen/SKILL.md` 规则 9/20/21 修正为按域分目录 + 强制引用 `_utils`
@@ -218,7 +226,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
   碎片化问答、单截图、小修小改默认不触发，不污染轻量路径。页面级 `api.md` 仍然住页面目录，模块 `index.md` 只做链接索引。
 - `init/update/diff/clean/check/validate/validate-page/doctor-ui/component/export` 覆盖安装、升级、对比、清理、体检、页面完整性检查、标准组件按需落盘、UI 接入诊断和基线导出
 - 页面模板升级为 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 最终标准，融合 `wl-skills-ui` runtime，但保留 `common-core` 平台骨架
-- 新增 `doctor-ui` / `validate-page`：检查 `wl-skills-ui` 接入、AGGrid/cid、操作列、mock-first、api.md 等关键偏差
+- 新增 `doctor-ui` / `validate-page`：检查 `wl-skills-ui` 接入、AGGrid/cid、操作列、按项目策略启用的 Mock、api.md 等关键偏差
 - **`prototype-scan` Skill 补齐 Axure 访问前置说明**：明确 `index.html` 永久不可用（VS Code 内嵌 Chromium 不加载用户 Chrome 扩展），只能用 `open_browser_page(具体页.html)` 或 `read_file`；`(not visible)` 不等于不可访问
 - **`page-codegen` Skill 统一隐藏页导航为 `navigateHidden` 主路**：懒注册 + router.push 无整页刷新，内部自动兜底防白屏；外部调用禁止直接 `location.href`，新增页面生成摘要步骤强提醒维护 `HIDDEN_ROUTE_MAP`
 - 增强 Intent Router：用户只需说“做个页面 / 先 mock / 菜单同步 / 风格不生效”，AI 自动识别触发 Skill/MCP
@@ -282,10 +290,11 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── standards/                    14 条规范
 │   │   ├── skills/                       Skill 目录（含 _compat/ 多编辑器适配源）
 │   │   ├── guides/                       人读指南
-│   │   └── reports/                      领域基线模板（菜单/字典/权限）
-│   ├── docs/                             组件 API 文档 + Mock 架构规范
-│   ├── mock/                             Mock 共享工具种子（_utils.ts）
-│   └── demo/                             领域样例
+│   │   ├── docs/                         组件 API 文档 + Mock 架构规范
+│   │   ├── reports/                      领域基线模板（菜单/字典/权限）
+│   │   ├── src/                          受隔离的组件参考实现（不直接覆盖业务源码）
+│   │   └── templates/                    领域样例（只作参考，项目 Profile/策略优先）
+│   └── mock/                             Mock 共享工具种子（_utils.ts，按策略安装）
 │
 ├── kit-internal/                         ★★ 仅仓库可见，不会安装到业务项目 ★★
 │   ├── README.md                         维护者首页
@@ -340,6 +349,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   └── domain/                       领域专属（按需创建）
 │   ├── guides/                           人读指南（usage.md / architecture.md）
 │   ├── docs/                             组件 API 文档 + validate 豁免配置说明
+│   ├── templates/                        领域样例（不直接复制其演示数据到业务源码）
 │   └── reports/                          AI 生成报告（追加不覆盖）
 │       ├── SYS_MENU_INFO.md              线上菜单基线
 │       ├── SYS_DICT_INFO.md              线上字典基线
@@ -357,16 +367,15 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
 ├── .qoder/rules/conventions.md           Qoder
 │
-├── .wl-skills-validate.json              ← 可选：validate 项目级豁免配置（kit 不创建）
-├── mock/                                 ← 来自本包 files/mock/（init 自动写入）
+├── .wl-skills-validate.example.json      ← validate 配置示例（mockPolicy/exclude/validator）
+├── .wl-skills-validate.json              ← 可选：项目真实策略（kit 不创建、不覆盖）
+├── mock/                                 ← 仅 mockPolicy=required 或已有业务 mock 时按需出现
 │   ├── _utils.ts                         共享工具（pageResult / ok / paginate / nowStr / pick）
 │   └── [业务域]/[模块].ts               按域分目录，page-codegen 自动生成
 │
-├── docs/                                 组件 API 文档 + mock-architecture.md
-├── demo/                                 领域样例
 └── src/
-    ├── components/                       全局/局部/远程组件
-    └── types/                            类型桶文件
+    ├── components/                       项目业务组件；仅显式 component ensure 确认后按需落盘
+    └── types/                            项目类型文件；kit update 不直接覆盖
 ```
 
 > **业务项目方准则**：
@@ -385,8 +394,11 @@ wl-skills-kit/                            ← 你正看的这个仓库
 # 全量安装（默认）
 pnpm dlx @agile-team/wl-skills-kit
 
-# 增量更新（仅覆盖有变化的文件，自动保护 reports/）
+# 增量更新（先预检；本地改动冲突时零写入，自动保护 reports/）
 pnpm dlx @agile-team/wl-skills-kit update
+
+# 确认覆盖冲突文件时显式使用；覆盖前备份到 .wl-skills/.state/backups/<时间>/
+pnpm dlx @agile-team/wl-skills-kit update --force
 
 # 环境预检（Node / 工具链 / MCP 配置 / manifest）
 pnpm dlx @agile-team/wl-skills-kit check
@@ -394,7 +406,7 @@ pnpm dlx @agile-team/wl-skills-kit check
 # 对比已安装文件与当前 kit 版本差异
 pnpm dlx @agile-team/wl-skills-kit diff
 
-# 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui/mock
+# 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui；mock 按 mockPolicy 检查
 # 内含 AST 语义级检测 R1~R16（正则覆盖不到的语义约束）
 # R13 圈复杂度、R15 分页边界、R16 运行时边界默认执行；R14 类型错误需 --typecheck 开启
 # 默认 error 阻断、warn 提示；--strict 下 error/warn 都阻断
@@ -408,6 +420,7 @@ pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/mdata-mod
 
 # 特殊场景、非页面入口、集中定义校验脚本统一在项目根配置：
 # .wl-skills-validate.json（详见 .wl-skills/docs/validate-exempt.md）
+# mockPolicy: disabled（禁用）/ optional（默认按需）/ required（强制）
 
 # spec-align：页面目录存在 page-spec.json 时，确定性比对"约定 vs 代码"
 # （查询字段/表格列顺序、工具栏按钮顺序与颜色、操作列严格对应、label 保真）

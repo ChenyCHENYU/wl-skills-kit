@@ -267,6 +267,8 @@ onMounted(() => {
 
 #### Mock 文件要点
 
+> 条件化产物：仅 `mockPolicy=required`，或 `optional` 且需求明确需要 Mock 时生成；`disabled` 时省略本节和文件。
+
 ```typescript
 // mock/[page-kebab-name].ts
 import type { MockMethod } from "vite-plugin-mock";
