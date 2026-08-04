@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.14.3** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.15.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -44,6 +44,14 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.15.0**：补齐“项目口径优先、通用基线兜底”的接口与交互闭环。
+
+- **Profile 是运行事实源**：查询 GET/POST、载荷位置、默认页大小和最大页大小均读取项目 Delivery Profile；无项目 Profile 时才回退 `POST + 1/10/200`。合理覆盖只提示，代码与生效 Profile 漂移才阻断。
+- **边界只来自证据**：写入约束、查询约束、数值精度、长度、正则和跨字段时间顺序必须在契约显式声明；不再按字段名或数据库宽度机械推断查询控件校验。
+- **上下文职责清晰**：`client` 上下文按操作精确携带，`server` 上下文禁止由浏览器伪造；页面规范、API 契约和运行模型做集合级核对。
+- **列表生命周期闭环**：首次进入查询；普通检索由搜索/重置触发而非失焦触发；保存回第一页，删除末页最后一条自动回退；特殊实时联想必须显式声明。
+- **运行边界可理解**：继续阻断 Vue Proxy 直接 `structuredClone` 和原始技术异常透传，并通过反例测试保护 Profile 覆盖与分页漂移识别。
 
 **v2.14.3**：增加跨包所有权保护；保留 `wl-skills-ui` 管理的编辑器规则，并合并共享 MCP 配置。
 

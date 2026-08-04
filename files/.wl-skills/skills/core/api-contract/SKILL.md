@@ -44,6 +44,8 @@ wl-skills contract render --input wl-api-contract.json --output api.md --confirm
 
 ### 标准操作集
 
+> 下表是内置 `jh4j3-openapi3` 基线示例；项目存在 Delivery Profile 时，查询方法、路径和载荷位置必须以项目 Profile 为准。
+
 | 操作     | 方法 | URL 后缀          | 说明                                                  |
 | -------- | ---- | ----------------- | ----------------------------------------------------- |
 | 分页列表 | POST | `/queryPage`       | `postAction(API_CONFIG.list, query)`                   |
@@ -76,6 +78,10 @@ wl-skills contract render --input wl-api-contract.json --output api.md --confirm
 ### 统一响应结构（基于真实后端契约）
 
 > ⚠️ **重要**：本项目后端响应外壳为 `{ code, message, data }`（**非 `result`**），成功码为 **`2000`**（**非 200**）。
+
+> **Profile 优先级**：先读取项目 `.wl-skills/contracts/wl-delivery-profile.v1.json`，不存在时才回退包基线。
+> 查询使用 GET 还是 POST、默认 10 还是 20 均由生效 Profile 决定；偏离通用基线只作非阻断提示，
+> 代码/接口文档/Mock 与生效 Profile 不一致才是阻断错误。
 
 #### 1. 分页查询响应
 
@@ -386,7 +392,7 @@ GET /[服务缩写]/[资源名]/export?[查询参数]
 2. 前端字段全部 camelCase，后端 JSON 序列化输出 camelCase
 3. 时间字段统一 `YYYY-MM-DD HH:mm:ss`
 4. 大数字 ID 后端转字符串（雪花 ID 超过 JS Number 精度）
-5. 分页参数前端传 `current` / `size`（默认 `1/10`，最大 `200`，基类自动处理），后端响应 `data.records` / `data.total`
+5. 分页参数前端传 `current` / `size`（初值和上限读取生效 Delivery Profile；无项目配置时基线为 `1/10/200`），后端响应 `data.records` / `data.total`
 6. 枚举字段前端传 value，后端可返回 `[field]Label` 辅助展示，或前端自行通过 `logicValue` 字典翻译
 7. 业务代码 `.then(res => res)` 拿到的就是 `data` 字段（拦截器已剥外壳）
 8. 字典定义必须通过模块 `dicts.ts` 汇总和 D1 校验后才能进入 dict-sync

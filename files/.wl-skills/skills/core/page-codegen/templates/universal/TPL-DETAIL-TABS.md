@@ -1047,7 +1047,7 @@ spec.features.hiddenMenu === true：
 ✅ subTables: businessInfo(editable) — 有新增/删除
 ✅ dict 字段: 8 个全部配置 logicType
 ✅ 文件完整性: 4/4
-✅ mock URL: 全部带 /dev-api 前缀，list 用 GET + query
+✅ mock URL: 全部带 /dev-api 前缀，list 的 method/载荷位置与生效 Delivery Profile 一致
 ```
 
 如有不通过项：
@@ -1115,11 +1115,11 @@ const mockApi: MockMethod[] = [
   {
     // ⚠️ URL 必须带 /dev-api 前缀（axios baseURL = /dev-api）
     url: "/dev-api/[服务缩写]/[资源名]/queryPage",
-    // ⚠️ AbstractPageQueryHook 默认 requestMethod = GET，所以 list 必须用 get
-    method: "get",
-    response: ({ query }: any) => {
-      const current = Number(query?.current) || 1;
-      const size = Number(query?.size) || 20;
+    // 必须与生效 Delivery Profile 一致；下面是包基线 POST + body + 1/10。
+    method: "post",
+    response: ({ body }: any) => {
+      const current = Number(body?.current) || 1;
+      const size = Number(body?.size) || 10;
       const start = (current - 1) * size;
       return {
         code: 2000,

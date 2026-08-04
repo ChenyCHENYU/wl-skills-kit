@@ -2,6 +2,11 @@
 
 本文档介绍如何使用 `AbstractPageQueryHook` 基类进行页面配置化开发，无需维护独立的 API 层。
 
+> **生效 Profile 是唯一事实源**：HTTP 方法、分页字段、默认页大小和最大页大小必须读取项目
+> `.wl-skills/contracts/wl-delivery-profile.v1.json`。包内通用基线为分页查询 `POST queryPage`、
+> `current=1`、`size=10`、`maxSize=200`；项目可显式采用 GET、20 条或其他合理口径，校验器只提示
+> “覆盖基线”，不会阻断。没有项目 Profile 时才使用包基线，禁止依赖框架隐式默认值。
+
 ## 核心理念
 
 **配置化驱动**：通过在 `data.ts` 中配置 `API_CONFIG` 直接调用基类内置的 HTTP 方法，实现"零 API 层"开发模式。
@@ -11,13 +16,15 @@
 `AbstractPageQueryHook` 来自 `@jhlc/common-core`，提供完整的分页查询 + CRUD 操作：
 
 ```typescript
-import { AbstractPageQueryHook } from "@jhlc/common-core";
+import { AbstractPageQueryHook, RequestMethod } from "@jhlc/common-core";
 
 class MyPageHook extends AbstractPageQueryHook {
   constructor() {
     super({
       url: { list: "/api/queryPage", remove: "/api/deleteById/{id}" },
-      // page 默认值: { size: 20, current: 1 }
+      // 必须显式传入生效 Profile 的分页值；包基线为 { size: 10, current: 1 }
+      page: { current: 1, size: 10 },
+      requestMethod: RequestMethod.post,
     });
   }
 
@@ -33,11 +40,11 @@ class MyPageHook extends AbstractPageQueryHook {
 | 参数             | 说明                       | 类型                                | 默认值           |
 | ---------------- | -------------------------- | ----------------------------------- | ---------------- |
 | url              | API 地址（list 必填）        | `{ list, remove?, save?, update? }` | -                |
-| page             | 分页初始值                   | `ViewPage`                          | `{size:20, current:1}` |
+| page             | 分页初始值                   | `ViewPage`                          | 生效 Profile（包基线 `{size:10, current:1}`） |
 | showSearchForm   | 是否显示搜索表单             | `boolean`                           | -                |
 | constQueryParam  | 查询条件常量（每次请求自动附加） | `() => Record<string, any>`         | -                |
 | queryParam       | 查询条件初始值               | `Q`                                 | `{}`             |
-| requestMethod    | 请求方式                       | `RequestMethod`                     | `RequestMethod.get` |
+| requestMethod    | 请求方式                       | `RequestMethod`                     | 必须显式使用生效 Profile（包基线 `RequestMethod.post`） |
 
 ### 核心属性（均为响应式 Ref）
 
@@ -180,7 +187,7 @@ export class LadleUseQueryHook extends AbstractPageQueryHook {
   constructor() {
     super({
       url: { list: API_CONFIG.list, remove: API_CONFIG.remove },
-      // page 默认 { size: 20, current: 1 }
+      // page/requestMethod 必须来自生效 Profile；包基线为 1/10 + POST
     });
   }
 

@@ -8,6 +8,7 @@
 // 实际项目中统一从桶文件导入（src/types/page.ts）
 import {
   AbstractPageQueryHook,
+  RequestMethod,
   BaseQueryItemDesc,
   ActionButtonDesc,
   TableColumnDesc,
@@ -41,7 +42,12 @@ const OPTS = {
 export function createPage(editModalRef?: any) {
   let Page = new (class extends AbstractPageQueryHook {
     constructor() {
-      super({ url: { list: API_CONFIG.list } });
+      // 下面是包基线；生成时必须替换为生效 Delivery Profile 的 method/defaultCurrent/defaultSize/maxSize。
+      super({
+        url: { list: API_CONFIG.list },
+        page: { current: 1, size: 10 },
+        requestMethod: RequestMethod.post,
+      });
     }
 
     queryDef(): BaseQueryItemDesc<any>[] {
@@ -143,6 +149,9 @@ export function createPage(editModalRef?: any) {
       await ElMessageBox.confirm("确认删除该记录吗？", "提示", { type: "warning" });
       await deleteAction(resolveApiPath(API_CONFIG.remove, id), {});
       ElMessage.success("删除成功");
+      if ((this.list?.value?.length || 0) <= 1 && (this.page?.value?.current || 1) > 1) {
+        this.page.value.current -= 1;
+      }
       await this.select();
     }
   })();
@@ -159,8 +168,9 @@ export function createPage(editModalRef?: any) {
     <BaseQuery
       :form="queryParam"
       :items="queryItems"
-      @select="select"
-      @reset="select"
+      :auto-select="false"
+      @select="search"
+      @reset="search"
     />
     <!-- 固定结构：工具栏在列表标题上方，二者均独占一行 -->
     <BaseToolbar :items="toolbars" />
@@ -179,7 +189,7 @@ export function createPage(editModalRef?: any) {
       v-model:currentPage="page.current"
       v-model:pageSize="page.size"
       @current-change="select"
-      @size-change="select"
+      @size-change="changePageSize"
     />
   </div>
 </template>
@@ -198,6 +208,16 @@ const {
   toolbars,
   select,
 } = Page;
+
+// 标准生命周期：首次进入查询；仅点击搜索/重置查询；搜索、重置、页大小变化和保存后回第一页。
+const search = () => {
+  page.value.current = 1;
+  return select();
+};
+const changePageSize = () => {
+  page.value.current = 1;
+  return select();
+};
 
 onMounted(() => select());
 </script>
@@ -244,8 +264,9 @@ function pageList(query: any) {
 export default [
   {
     url: "/dev-api/[服务缩写]/[资源名]/queryPage",
-    method: "get",
-    response: ({ query }: any) => pageList(query),
+    // 必须与生效 Delivery Profile 一致；包基线分页查询为 POST。
+    method: "post",
+    response: ({ body }: any) => pageList(body),
   },
   {
     url: "/dev-api/[服务缩写]/[资源名]/deleteById/:id",

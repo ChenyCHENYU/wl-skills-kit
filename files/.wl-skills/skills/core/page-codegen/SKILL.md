@@ -172,8 +172,10 @@ src/views/[域]/[模块]/dicts.ts
 31. **字典契约闭环**：页面出现 `logicType: BusLogicDataType.dict` 时，api.md 必须包含完整 dict-contract，模块 dicts.ts 必须汇总该定义；`wl-skills validate` D1 未通过时禁止建议 dict-sync。
 32. **字段边界契约闭环**：创建/更新表单的字符串长度、格式和数值范围/精度必须从已确认的 API/数据库/需求契约写入 page-spec `constraints + constraintSource`；实现时同步生成控件属性与 rules，后端校验仍是最终边界。无来源时进入 `openQuestions`，禁止按字段名、标签或经验值猜测。
 33. **字典实际引用闭环**：生成结束后除 D1 外必须通过 D2；代码中的 `dictCode/logicValue/useDictOpts/jh-select dict` 字面量必须已在模块 dicts.ts 登记。状态机枚举不因名称含 status/type/flag 被强制改成平台字典。
-34. **分页边界闭环**：标准分页状态必须初始化为 `current: 1, size: 10`；查询、重置、页大小变化后回第一页。禁止用 `size: 500/1000` 伪装全量读取；需要全量时使用经契约确认的专用接口。
-35. **固定上下文闭环**：页面声明 `fixedQuery/fixedQueryFields`（如工厂、资源类型）时，同一字段必须进入查询、新增和更新请求，且用户不可在表单中篡改。只显示默认值但提交时丢失属于生成失败。
+34. **分页边界闭环**：以项目 `.wl-skills/contracts/wl-delivery-profile.v1.json` 为唯一事实源；无项目配置时才使用包基线 `current: 1, size: 10, maxSize: 200`。项目显式采用 20/1000 等合理口径时允许并报告覆盖基线，不得误判；只有代码与生效 Profile 不一致或请求越界才阻断。查询、重置、页大小变化和保存成功后回第一页，删除末页最后一条时回退上一页。
+35. **上下文闭环**：新页面使用 `features.contextFields` 区分 `client/server`。客户端上下文仅进入显式 operations；服务端租户/公司上下文由鉴权注入，禁止由前端请求携带。旧 `fixedQueryFields` 兼容为客户端 page/create/update 上下文。只显示默认值但提交时丢失属于生成失败。
+36. **查询触发与列表生命周期**：标准列表首次进入查询；检索条件由“搜索/重置”显式触发，普通输入失焦不得自动查询（`BaseQuery :auto-select="false"`）；保存成功回第一页刷新；删除导致当前页为空时回退上一页。特殊实时联想页须在 page-spec 显式声明 `queryTrigger=auto`。
+37. **字段边界只认契约证据**：必填、长度、正则、数值范围/精度和开始/结束时间必须来自 page-spec + wl-api-contract；字符串字段不得按名称猜成数字，查询 DTO 不得机械继承数据库写入长度，拿不准时只保留明确必填或形成 openQuestion。
 36. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
 37. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
 

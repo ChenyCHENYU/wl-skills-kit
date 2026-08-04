@@ -35,6 +35,30 @@ src/views/[域]/[模块]/[页面]/
   "protocolVersion": "1.0",
   "apiContract": "contracts/customer-archive.json",
   "openQuestions": [],                  // 严格模式必须为空
+  "features": {
+    "contextFields": [
+      { "name": "companyId", "source": "server", "operations": ["page", "create", "update"] },
+      { "name": "factory", "source": "client", "operations": ["page", "create"] }
+    ],
+    "listLifecycle": {
+      "initialLoad": true,
+      "queryTrigger": "manual",
+      "queryResetPage": true,
+      "saveRefresh": "first",
+      "deleteEmptyPageFallback": true
+    }
+  },
+  "validationRules": [
+    {
+      "kind": "chronology",
+      "startField": "startTime",
+      "endField": "endTime",
+      "allowEqual": true,
+      "operations": ["create", "update"],
+      "message": "结束时间不能早于开始时间",
+      "source": "requirement:customer-validity"
+    }
+  ],
 
   // 查询字段：顺序 = 原型从左到右、从上到下
   "query": [
@@ -90,6 +114,9 @@ src/views/[域]/[模块]/[页面]/
 | `*.constraintSource` | string | strict 条件必填 | 声明 constraints 时必须指向 API/数据库/需求契约 | S0 error |
 | `*.contractField` | boolean | 否 | 默认 true；纯展示字段必须显式设 false 才不参加机器契约字段白名单比对 | S6 error |
 | `features.fixedQueryFields` | string[] | 条件必填 | 固定工厂/类型等上下文字段；查询、新增、更新必须同时携带 | S0 error |
+| `features.contextFields` | object[] | 推荐 | `client` 只进入显式 operations；`server` 必须由鉴权上下文注入且不得出现在请求模型 | S0/S6 error |
+| `features.listLifecycle` | object | 列表页推荐 | 首次查询、手动/自动触发、回第一页刷新、删除空页回退的显式契约 | S0 error |
+| `validationRules` | object[] | 跨字段边界必填 | chronology 等规则必须与 wl-api-contract 完全一致，禁止前后端各猜一套 | S0/S6 error |
 | `features.definitionSource` | string | 集中定义必填 | 共享定义模块的项目相对路径；必须与 `data.ts` 的 `pageDefinition` import 一致 | S0 error |
 
 > `color` 合法值：`primary` `danger` `warning` `success` `default`
@@ -113,7 +140,7 @@ src/views/[域]/[模块]/[页面]/
 不得用 `primary + plain: true` 伪装成已满足主色要求。
 | S4 | 操作列按钮集合 | **error** | renderOps 与 spec.operations 不一致（含"多了原型外按钮"）|
 | S5 | 按钮和字段 label 文字保真 | warn | 规格与代码文字不一致 |
-| S6 | page-spec 字段集合与机器 API 契约对齐 | **error** | 阻断查询/展示/表单多传字段、create 必填字段遗漏、固定上下文未贯穿 query/create/update，以及多资源页绑定不唯一 |
+| S6 | page-spec 与机器 API 契约对齐 | **error** | 阻断字段多传/漏传、显式 required/constraints 漂移、client/server 上下文方向错误、chronology 规则漂移及多资源绑定不唯一；未声明边界不按字段名猜测 |
 
 - 无 `page-spec.json` 的页面**静默跳过**，不影响其他检查
 - 解析失败报告 S0；严格模式下缺契约元数据或存在未决问题直接阻断

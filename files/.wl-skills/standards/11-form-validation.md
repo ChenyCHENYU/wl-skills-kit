@@ -121,9 +121,10 @@ export const formRules = {
 
 ## 分页请求边界（R15）
 
-- 标准分页初值统一为 `current: 1, size: 10`，不得为了“先拿全量”把
-  `size` 写成 500/1000。
-- 后端契约最大页大小为 200；超过上限的全量读取必须改用经评审的导出、字典、
+- 分页初值与上限必须读取项目 `.wl-skills/contracts/wl-delivery-profile.v1.json`；
+  无项目 Profile 时才使用包基线 `current: 1, size: 10, maxSize: 200`。
+- 项目明确采用 `size=20`、`maxSize=1000` 等口径时允许并给出非阻断提示；代码、Mock、
+  `api.md` 与生效 Profile 不一致才阻断。超过生效上限的全量读取必须改用经评审的导出、字典、
   级联选项或专用非分页接口，不能伪装成普通分页查询。
 - 查询、重置、页大小变化后都要回到第一页。`total === 0` 时隐藏分页器属于展示策略，
   不代表页面没有分页能力。
@@ -147,5 +148,5 @@ export const formRules = {
 - [ ] 必填字段都加了 `required: true` 校验规则
 - [ ] 已声明 constraints 的字段同时具备控件边界和 rules 校验
 - [ ] 每组 constraints 都有 constraintSource，可追溯且未凭经验猜测
-- [ ] 分页状态初值为 current=1、size=10；后续页请求仍满足 current>=1、1<=size<=200，未用大页伪装全量接口
+- [ ] 分页初值、上限和 GET/POST 载荷位置与生效 Profile 一致；未用越界大页伪装全量接口
 - [ ] 提交对象可序列化，用户提示不直接暴露浏览器技术异常

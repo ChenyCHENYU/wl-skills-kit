@@ -34,7 +34,7 @@
 
 ```json
 // 分页
-{ "code": 2000, "message": "操作成功", "data": { "records": [...], "total": 100, "current": 1, "size": 20, "pages": 5, "countId": null, "maxLimit": null, "orders": [], "searchCount": true } }
+{ "code": 2000, "message": "操作成功", "data": { "records": [...], "total": 100, "current": 1, "size": 10, "pages": 10, "countId": null, "maxLimit": null, "orders": [], "searchCount": true } }
 
 // 单条 / 数组
 { "code": 2000, "message": "...", "data": { /* 或 [] */ } }
