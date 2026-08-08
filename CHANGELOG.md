@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [2.16.2] - 2026-08-08
+
+### Added
+
+- R17 规则：扫描表单字段 ≥10 且混合必填 → 提示开启 `show-required-toggle`（`wl-skills validate` 自动检测）。
+- F6 安全修复：`wl-skills fix` 幂等补 `show-required-toggle`（确认后执行，重复运行不叠加）。
+- `TPL-DETAIL-TABS` 模板默认加 `show-required-toggle`。
+- `form-ui.md` 更新为 composable 推荐方案（旧 CSS `:has()` 方案标注废弃）。
+- 8 个测试覆盖 R17 检测 + F6 修复 + 幂等 + 字段数判断。
+
+### Changed
+
+- `safe-fix.js` 支持 `enableFormToggle` 选项，按 data.ts 字段数智能判断是否触发 F6。
+- 版本号同步 v2.16.2。
+
 ## [2.16.1] - 2026-08-08
 
 ### Added
