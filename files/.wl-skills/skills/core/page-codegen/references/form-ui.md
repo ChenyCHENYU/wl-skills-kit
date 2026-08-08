@@ -62,32 +62,53 @@
 }
 ```
 
-### 4. 只看必填项
+### 4. 只看必填项（推荐 composable 方案）
 
-通过在最外层容器加 CSS class 切换，利用 Element Plus 的 `.is-required` 自动标记来隐藏非必填项。
+**推荐方式**：用 `useFormRequiredOnly` composable 过滤 items 数组，而非 CSS 隐藏。
 
-**关键**：不能只隐藏 `el-form-item`（外层 `el-col` 仍占栅格空间→留白），必须隐藏整个 `el-col` 并让剩余列自动重排。
+**原理**：表单数据在 `form` 对象中（不在 items 中），过滤 items 只控制渲染，切换不丢数据。
 
-**组件 props**：接收 `onlyRequired` Boolean prop
-**模板**：`:class="{ 'only-required': onlyRequired }"`
-**样式**（使用 `:has()` 选择器，Chrome 105+）：
+#### c_formModal 场景（零代码）
+
+```vue
+<c_formModal v-bind="modalConfig" show-required-toggle @ok="select" />
+```
+
+加 `show-required-toggle` 即可，组件内部自动处理切换 + clearValidate。
+
+#### 独立路由表单（FORM_ROUTE）
+
+```ts
+import { useFormRequiredOnly } from "@/hooks/useFormRequiredOnly";
+const { showRequiredOnly, visibleItems } = useFormRequiredOnly(formItems, formRef);
+```
+
+```vue
+<el-switch v-model="showRequiredOnly" /> 仅必填
+<BaseForm :items="visibleItems" :form="form" />
+```
+
+#### 自动检测（R17）
+
+表单字段 ≥10 且混合必填时，`wl-skills validate` 会提示 R17 建议开启。
+`wl-skills fix` 可自动补 `show-required-toggle`（幂等安全，F6）。
+
+#### 旧 CSS 方案（已废弃，不推荐）
+
+> 以下 CSS `:has()` 方案有浏览器兼容问题且隐藏后校验未清除，已被 composable 方案取代。
+
+<details>
+<summary>旧 CSS 方案（仅供参考）</summary>
 
 ```scss
 &.only-required {
-  /* 隐藏包含非必填字段的整个 el-col */
   :deep(.el-col:has(> .el-form-item:not(.is-required))) {
     display: none !important;
   }
-  /* 让可见列自动重排（4列/行） */
-  :deep(.el-row) {
-    flex-wrap: wrap;
-  }
-  :deep(.el-col) {
-    flex: 0 0 25% !important;
-    max-width: 25% !important;
-  }
 }
 ```
+
+</details>
 
 ### 5. 状态信息区域放置
 

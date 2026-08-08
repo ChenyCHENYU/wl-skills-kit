@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.1** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -45,7 +45,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
-**v2.16.0**：项目策略优先与安装所有权保护形成闭环。
+**v2.16.1**：表单仅必填切换能力（composable + c_formModal prop + R17 检测 + F6 修复）。
 
 - **Mock 三态策略**：`disabled` 明确禁用、`optional` 默认按需、`required` 严格全量；不做 Mock 的团队不会再被生成规则或 strict 门禁误伤。
 - **真实接口优先模板**：缺主键不再隐式切入本地假数据；表单空值、履历、导入和详情占位都先遵循项目策略与已确认契约。

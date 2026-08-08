@@ -668,7 +668,7 @@ export function createPage(editModalRef?: any) {
       </el-tab-pane>
     </el-tabs>
     <jh-pagination ... />
-    <c_formModal ref="editModalRef" v-bind="modalConfig" @ok="select" />
+    <c_formModal ref="editModalRef" v-bind="modalConfig" show-required-toggle @ok="select" />
   </div>
 </template>
 
