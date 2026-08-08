@@ -60,9 +60,10 @@
     {
       "name": "kilo-code",
       "headerFile": "kilo-code.txt",
-      "outputPath": ".kilo/steering/conventions.md",
+      "outputPath": ".kilo/rules/wl-skills.md",
+      "skillDiscoveryPath": ".kilo/skills",
       "enabled": true,
-      "_note": "Kilo Code（Kilo Code CLI）。原生兼容 AGENTS.md，此文件为显式注册双保险。kilo.json 为项目级配置，不由此生成。"
+      "_note": "Kilo Code / CLI：规则写入 .kilo/rules，12 个原生 Skill 适配器写入 .kilo/skills；流程正文仍唯一指向 .wl-skills/skills，避免双份维护。"
     },
     {
       "name": "qoder",

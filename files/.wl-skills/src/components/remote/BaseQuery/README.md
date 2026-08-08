@@ -11,7 +11,7 @@ BaseQuery 是一个功能强大的查询条件组件，支持多列布局、条�
 // 直接使用 <BaseQuery /> 即可
 
 // 类型导入
-import type { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type";
+import type { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
 ```
 
 ## 🚀 基本用法
@@ -369,7 +369,7 @@ interface BaseQueryItemDesc<T = any> {
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import type { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type";
+import type { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
 
 const queryRef = ref();
 
@@ -546,7 +546,7 @@ BaseQuery 支持复杂的联动查询场景，通过 `customProps`、`disabled`�
 
 <script setup lang="ts">
 import { reactive, computed } from "vue";
-import type { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type";
+import type { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
 
 // 省市区数据
 const regionOptions = [
@@ -607,7 +607,7 @@ const handleSearch = () => {
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import type { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type";
+import type { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
 import request from "@/utils/request";
 
 // 动态选项数据

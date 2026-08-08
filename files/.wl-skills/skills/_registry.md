@@ -73,10 +73,11 @@ skills/
 8. 若消息包含“风格 / skills-ui / 状态标签 / 操作列 / AGGrid”，同时建议运行 `wl-skills doctor-ui`
 9. `business-doc-extract` 不依赖关键词匹配，AI 必须按 `资料源 + 意图 + 范围` 三因素自行判断；缺资料时先询问用户提供原型/详设/字段资料路径，不要凭推断写入 `.wl-skills/docs/business`
 10. **闭环强制约定**：code-fix 完成后必须自动执行 `wl-skills validate` 复扫，不等待用户确认
-11. **高风险 Skill 确认机制**：以下 Skill 触发前必须二次确认用户意图（输出“即将执行 XX，确认继续？”）：
-    - `page-codegen`（会创建/覆盖文件）
-    - `menu-sync` / `dict-sync` / `permission-sync`（会调用后端接口写数据）
-    - `code-fix`（会修改源码）
+11. **高风险 Skill 确认机制**：用户尚未明确授权具体写入范围时，以下 Skill 写入前必须确认；
+    当前请求已经明确要求生成/修复及范围时，不重复询问本地写入。后端写入仍必须执行 query → planHash 预览 → 用户确认 → 写入：
+    - `page-codegen`（会创建/覆盖文件；明确要求生成目标页面即视为已授权该范围）
+    - `menu-sync` / `dict-sync` / `permission-sync`（会调用后端接口写数据，始终需要计划确认）
+    - `code-fix`（会修改源码；明确要求修复具体范围即视为已授权该范围）
     - `standard-env-config`（会迁移前端环境与 Vite 配置；必须先扫描和计划，显式选择 Profile，确认后才能写入）
 12. **误触发防护**：当用户消息同时匹配 2+ Skill 且非明确流水线意图时，必须先输出“检测到多个可能的 Skill，您的意图是？”并列出候选，而不是自行决定
 

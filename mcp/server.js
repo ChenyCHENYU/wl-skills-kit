@@ -133,14 +133,29 @@ function initialize(id, params) {
   });
 }
 
+const PARAMLESS_HANDLERS = {
+  "tools/list": (id) => sendResult(id, { tools: TOOLS }),
+  ping: (id) => sendResult(id, {}),
+};
+
+const PARAM_HANDLERS = {
+  initialize,
+  "tools/call": (id, params) => dispatchTool(id, params.name, params.arguments || {}),
+};
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 async function handleMessage(msg) {
-  const { id, method, params = {} } = msg;
+  const { id, method, params } = msg;
   if (id === undefined || id === null) return;
-  if (method === "initialize") return initialize(id, params);
-  if (method === "tools/list") return sendResult(id, { tools: TOOLS });
-  if (method === "tools/call") return dispatchTool(id, params.name, params.arguments || {});
-  if (method === "ping") return sendResult(id, {});
-  return sendError(id, -32601, `Method not found: ${method}`);
+  const paramlessHandler = PARAMLESS_HANDLERS[method];
+  if (paramlessHandler) return paramlessHandler(id);
+  const paramHandler = PARAM_HANDLERS[method];
+  if (!paramHandler) return sendError(id, -32601, `Method not found: ${method}`);
+  if (!isRecord(params)) return sendError(id, -32602, "参数校验失败: params 必须是 object");
+  return paramHandler(id, params);
 }
 
 function startServer() {

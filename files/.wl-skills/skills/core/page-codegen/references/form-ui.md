@@ -1,6 +1,8 @@
 # 表单页 UI 细节规范
 
 > 本文件由 page-codegen 主 Skill 路由，只有命中对应页面场景时才读取。
+> 表单规则 API、依赖检查和 RuleSpec 复用方式同时读取
+> `references/form-validation-library.md`，本文件只维护布局与交互细节。
 
 ## 表单页 UI 细节规范（FORM_TAB / 独立路由表单页）
 
@@ -163,7 +165,7 @@ import {
 
 // ❌ 错误：直接从 common-core 深层路径导入
 import { AbstractPageQueryHook } from "@jhlc/common-core/src/page-hooks/page-query-hook.ts";
-import { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type.ts";
+import { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
 ```
 
 | 导出名                   | 说明                       |
@@ -175,7 +177,7 @@ import { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/f
 | `BusLogicDataType`       | 业务逻辑类型枚举（如 dict）|
 
 > **例外**：`BaseFormItemDesc`（弹窗表单字段类型）仍直接从 common-core 导入：
-> `import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";`
+> `import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";`
 > 因为 `src/types/page.ts` 当前未导出该类型。
 
 ---

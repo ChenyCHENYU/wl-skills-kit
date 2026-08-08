@@ -651,50 +651,82 @@ const DESCRIPTORS = [
   },
 ];
 
-const READ_ONLY_TOOLS = new Set([
-  "wls_code_scan",
-  "wls_route_check",
-  "wls_git_log_extract",
-  "wls_validate_page",
-  "wls_doctor_ui",
-  "wls_standard_env_scan",
-  "wls_standard_env_verify",
-  "wls_menu_query",
-  "wls_dict_query",
-  "wls_role_query",
-  "wls_assignable_menus_query",
-  "wls_action_query",
-]);
-const IDEMPOTENT_WRITE_TOOLS = new Set([
-  "wls_menu_sync_from_report",
-  "wls_menu_upsert",
-  "wls_dict_upsert",
-  "wls_dict_bootstrap",
-  "wls_role_upsert",
-  "wls_action_upsert",
-  "wls_standard_env_apply",
-]);
-const DESTRUCTIVE_TOOLS = new Set(["wls_role_assign_menus", "wls_standard_env_apply"]);
-const CLOSED_WORLD_TOOLS = new Set([
-  "wls_code_scan",
-  "wls_route_check",
-  "wls_git_log_extract",
-  "wls_validate_page",
-  "wls_doctor_ui",
-  "wls_standard_env_scan",
-  "wls_standard_env_apply",
-  "wls_standard_env_verify",
-  "wls_dict_bootstrap",
-]);
+const RISK_PROFILES = Object.freeze({
+  readRemote: Object.freeze({
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  }),
+  readLocal: Object.freeze({
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  }),
+  writeRemoteIdempotent: Object.freeze({
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  }),
+  writeRemoteDestructive: Object.freeze({
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true,
+  }),
+  writeRemoteNonIdempotent: Object.freeze({
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  }),
+  writeLocalIdempotent: Object.freeze({
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  }),
+  writeLocalDestructiveIdempotent: Object.freeze({
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: true,
+    openWorldHint: false,
+  }),
+});
+
+const TOOL_RISK_PROFILE = Object.freeze({
+  wls_domain_query: "readRemote",
+  wls_menu_query: "readRemote",
+  wls_menu_upsert: "writeRemoteIdempotent",
+  wls_menu_delete: "writeRemoteDestructive",
+  wls_menu_sync_from_report: "writeRemoteIdempotent",
+  wls_dict_query: "readRemote",
+  wls_dict_bootstrap: "writeLocalIdempotent",
+  wls_dict_upsert: "writeRemoteIdempotent",
+  wls_role_query: "readRemote",
+  wls_role_upsert: "writeRemoteIdempotent",
+  wls_assignable_menus_query: "readRemote",
+  wls_role_assign_menus: "writeRemoteDestructive",
+  wls_action_query: "readRemote",
+  wls_action_upsert: "writeRemoteIdempotent",
+  wls_code_scan: "readLocal",
+  wls_route_check: "readLocal",
+  wls_standard_env_scan: "readLocal",
+  wls_standard_env_apply: "writeLocalDestructiveIdempotent",
+  wls_standard_env_verify: "readLocal",
+  wls_validate_page: "readLocal",
+  wls_doctor_ui: "readLocal",
+  wls_git_log_extract: "readLocal",
+  wls_audit_report_push: "writeRemoteNonIdempotent",
+});
 
 function annotationsFor(name) {
-  const readOnly = READ_ONLY_TOOLS.has(name);
-  return {
-    readOnlyHint: readOnly,
-    destructiveHint: readOnly ? false : DESTRUCTIVE_TOOLS.has(name),
-    idempotentHint: readOnly || IDEMPOTENT_WRITE_TOOLS.has(name),
-    openWorldHint: !CLOSED_WORLD_TOOLS.has(name),
-  };
+  const profileName = TOOL_RISK_PROFILE[name];
+  const profile = RISK_PROFILES[profileName];
+  if (!profile) throw new Error(`[mcp/registry] 工具缺少风险画像: ${name}`);
+  return profile;
 }
 
 for (const descriptor of DESCRIPTORS) {
@@ -721,4 +753,11 @@ for (const d of DESCRIPTORS) {
   HANDLERS[d.name] = d;
 }
 
-module.exports = { DESCRIPTORS, TOOLS, HANDLERS, annotationsFor };
+module.exports = {
+  DESCRIPTORS,
+  HANDLERS,
+  RISK_PROFILES,
+  TOOLS,
+  TOOL_RISK_PROFILE,
+  annotationsFor,
+};

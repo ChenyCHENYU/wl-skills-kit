@@ -11,7 +11,7 @@ BaseForm 是一个功能强大的表单组件，支持多列布局、数据验�
 // 直接使用 <BaseForm /> 即可
 
 // 类型导入
-import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 ```
 
 ## 🚀 基本用法
@@ -119,36 +119,25 @@ interface BaseFormItemDesc<T = any> {
 ### 校验规则
 
 ```typescript
-{
+import {
+  ELEMENT_RULES,
+  createSpec,
+  toElementRule,
+} from "@robot-admin/form-validate";
+
+const userNameItem = {
   name: "userName",
   label: "用户名",
-  // 必填
-  required: true,
-  // 或使用函数动态判断
+  // 平台必填标识仍由 BaseFormItemDesc 表达；静态必填写 true
   required: (form) => form.userType === "admin",
-  // 校验提示
   message: "请输入用户名",
-  // 自定义校验规则
   rules: [
-    { required: true, message: "请输入用户名", trigger: "blur" },
-    { min: 2, max: 20, message: "长度在 2 到 20 个字符", trigger: "blur" },
-    {
-      pattern: /^[a-zA-Z0-9_]+$/,
-      message: "只能包含字母、数字和下划线",
-      trigger: "blur"
-    },
-    {
-      validator: (rule, value, callback) => {
-        if (value === "admin") {
-          callback(new Error("不能使用 admin 作为用户名"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "blur"
-    }
+    ELEMENT_RULES.minLength("用户名", 2),
+    ELEMENT_RULES.maxLength("用户名", 20),
+    ELEMENT_RULES.pattern("用户名", /^[a-zA-Z0-9_]+$/, "只能包含字母、数字和下划线"),
+    toElementRule(createSpec("blur", (value) => value !== "admin", "不能使用 admin 作为用户名")),
   ]
-}
+};
 ```
 
 ### 逻辑数据类型
@@ -341,7 +330,7 @@ import { h } from "vue";
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 
 const formRef = ref();
 

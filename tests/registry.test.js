@@ -14,8 +14,8 @@ describe("mcp/registry.js", () => {
 
   it("DESCRIPTORS / TOOLS / HANDLERS 长度一致且为 23", () => {
     expect(Array.isArray(reg.DESCRIPTORS)).toBe(true);
-  expect(reg.TOOLS.length).toBe(23);
-  expect(Object.keys(reg.HANDLERS).length).toBe(23);
+    expect(reg.TOOLS.length).toBe(23);
+    expect(Object.keys(reg.HANDLERS).length).toBe(23);
     expect(reg.DESCRIPTORS.length).toBe(reg.TOOLS.length);
   });
 
@@ -73,6 +73,19 @@ describe("mcp/registry.js", () => {
     }
   });
 
+  it("每个 Tool 都显式登记且仅登记一个风险画像", () => {
+    expect(Object.keys(reg.TOOL_RISK_PROFILE).sort()).toEqual(
+      reg.DESCRIPTORS.map((item) => item.name).sort(),
+    );
+    for (const [name, profileName] of Object.entries(reg.TOOL_RISK_PROFILE)) {
+      expect(reg.RISK_PROFILES, name).toHaveProperty(profileName);
+      expect(reg.annotationsFor(name), name).toBe(reg.RISK_PROFILES[profileName]);
+    }
+    expect(() => reg.annotationsFor("wls_future_unclassified")).toThrow(
+      /缺少风险画像/,
+    );
+  });
+
   it("旧项目字典引导只写本地、幂等且不访问外部系统", () => {
     const tool = reg.TOOLS.find((item) => item.name === "wls_dict_bootstrap");
     expect(tool.annotations).toMatchObject({
@@ -80,6 +93,21 @@ describe("mcp/registry.js", () => {
       destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false,
+    });
+  });
+
+  it("应用域查询声明只读，菜单删除声明破坏性", () => {
+    const domainQuery = reg.TOOLS.find((item) => item.name === "wls_domain_query");
+    const menuDelete = reg.TOOLS.find((item) => item.name === "wls_menu_delete");
+    expect(domainQuery.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    });
+    expect(menuDelete.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
     });
   });
 
@@ -131,6 +159,11 @@ describe("Skill 计数（_registry.md 单一数据源）", () => {
 
 describe("package.json", () => {
   const pkg = require(path.join(ROOT, "package.json"));
+
+  it("作为 CLI-only 包不暴露会执行 init 的默认 main 入口", () => {
+    expect(pkg.main).toBeUndefined();
+    expect(pkg.bin).toEqual({ "wl-skills": "bin/wl-skills.js" });
+  });
 
   it("description 包含与 version 一致的 vX.Y.Z", () => {
     const m = pkg.description.match(/v(\d+\.\d+\.\d+)/);

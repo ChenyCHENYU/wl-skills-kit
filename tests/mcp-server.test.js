@@ -87,4 +87,12 @@ describe("MCP stdio server", () => {
     expect(response.result.isError).toBe(true);
     expect(response.result.content[0].text).toMatch(/配置加载失败/);
   });
+
+  it("畸形 params 返回 -32602 且不会让 stdio 进程崩溃", async () => {
+    const server = startServer();
+    const invalid = await server.call(5, "tools/call", null);
+    expect(invalid.error).toMatchObject({ code: -32602 });
+    const ping = await server.call(6, "ping");
+    expect(ping.result).toEqual({});
+  });
 });

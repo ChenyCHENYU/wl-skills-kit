@@ -5,6 +5,8 @@
 > 复杂表单（多 Tab、多子表、独立布局）使用独立路由而非弹窗。
 > 表单页 `data.ts` **不继承 `AbstractPageQueryHook`**，改为导出 `useXxx` Composable。
 > 需在 `pages.ts` 单独注册路由，路径规则见"FORM_ROUTE 表单页"章节。
+> 子表单 rules 必须遵循 `references/form-validation-library.md`：Element UI-only
+> 使用 `ELEMENT_RULES`，跨 Tab/明细提交复用时使用 RuleSpec + `validateRecord/validateRows`。
 
 #### data.ts
 

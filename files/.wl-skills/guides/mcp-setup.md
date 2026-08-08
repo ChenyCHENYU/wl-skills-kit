@@ -8,6 +8,7 @@
 | Claude Code | `.mcp.json` |
 | VS Code / GitHub Copilot | `.vscode/mcp.json` |
 | Kiro | `.kiro/settings/mcp.json` |
+| Kilo Code / CLI | 优先复用根目录 `kilo.jsonc` / `kilo.json`，否则创建 `.kilo/kilo.jsonc` |
 
 以下编辑器仅支持全局配置，需手动添加一次（添加后对所有项目生效，无需重复操作）：
 

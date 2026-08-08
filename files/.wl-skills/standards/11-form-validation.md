@@ -16,6 +16,23 @@ open → 数据回填 → validate → submit → close / resetFields
 
 参考：`.wl-skills/src/components/local/c_formModal/README.md`
 
+## 标准校验库
+
+新生成的表单规则统一使用 `@robot-admin/form-validate` 3.4.1+：
+
+- 当前平台是 Element Plus，UI-only 规则使用 `ELEMENT_RULES` / `ELEMENT_COMBOS`。
+- 实时校验和提交前纯数据校验需要共享时，以 `SPEC_RULES` 为唯一事实源，
+  通过 `toElementRules` 适配 UI，并复用到 `validateRecord/validateRows`。
+- 禁止使用 Naive UI 兼容 API：`PRESET_RULES`、`RULE_COMBOS`、`NAIVE_COMBOS`、
+  `toNaiveRule(s)`。
+- 页面生成前检查项目 `package.json`。缺少依赖时先在 Pre-flight 提示
+  `pnpm add @robot-admin/form-validate@^3.4.1`，经确认安装后继续；禁止生成悬空 import。
+- `@robot-admin/form-validate-core`、`@robot-admin/form-validate-element` 已废弃，
+  新代码不得继续引用。
+
+完整选择规则与示例见
+`.wl-skills/skills/core/page-codegen/references/form-validation-library.md`。
+
 ---
 
 ## FORM_ROUTE 独立路由表单页（c_formModal 不适用时）
@@ -49,16 +66,20 @@ onBeforeRouteLeave(() => {
 
 ```typescript
 // data.ts
+import { ELEMENT_COMBOS, ELEMENT_RULES } from "@robot-admin/form-validate";
+
 export const formRules = {
   fieldName: [
-    { required: true, message: "请输入字段名", trigger: "blur" },
-    { max: 50, message: "不超过 50 字符", trigger: "blur" },
+    ELEMENT_RULES.required("字段名"),
+    ELEMENT_RULES.maxLength("字段名", 50),
   ],
-  status: [{ required: true, message: "请选择状态", trigger: "change" }],
+  mobile: ELEMENT_COMBOS.mobile("手机号"),
+  status: [ELEMENT_RULES.required("状态", "change")],
 };
 ```
 
 ❌ **禁止**：把 rules 写在 `<template>` 字面量里。
+❌ **禁止**：重复手写 `{ required, message, trigger }`、格式正则或通用数值 validator。
 
 ---
 
@@ -158,8 +179,17 @@ export const formRules = {
 - [ ] 提交按钮 click 处理函数中调用了 `formRef.value?.validate()`
 - [ ] 取消按钮 / 路由离开钩子中调用了 `resetFields()`
 - [ ] rules 定义在 `data.ts` 而非 `<template>`
-- [ ] 必填字段都加了 `required: true` 校验规则
+- [ ] 已确认项目声明 `@robot-admin/form-validate` 3.4.1+，未生成悬空 import
+- [ ] Element Plus 页面未误用 `PRESET_RULES/RULE_COMBOS/toNaiveRule(s)`
+- [ ] 必填字段使用 `ELEMENT_RULES.required`；c_formModal 字段仍保留 `required: true` UI 元数据
+- [ ] 格式、长度、数值和通用校验未重复手写 callback/正则规则
+- [ ] UI 与提交前校验需要复用时以 RuleSpec 为唯一事实源
 - [ ] 已声明 constraints 的字段同时具备控件边界和 rules 校验
 - [ ] 每组 constraints 都有 constraintSource，可追溯且未凭经验猜测
 - [ ] 分页初值、上限和 GET/POST 载荷位置与生效 Profile 一致；未用越界大页伪装全量接口
 - [ ] 提交对象可序列化，用户提示不直接暴露浏览器技术异常
+
+## 变更记录
+
+- 2026-08-08：接入 `@robot-admin/form-validate` 3.4.1+，明确 Element/RuleSpec
+  分层、依赖前置检查、废弃包迁移和提交校验复用规则。

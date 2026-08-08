@@ -140,6 +140,7 @@ import { ref, reactive } from "vue";
 import { deleteAction, getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 import type { TableColumnDesc } from "@/types/page";
 import envConfig from "@jhlc/common-core/src/store/env-config";
 import { defineColumns, renderOps } from "@agile-team/wl-skills-ui/runtime";
@@ -166,7 +167,7 @@ export const form = reactive({
 });
 
 export const rules: FormRules = {
-  // [fieldKey]: [{ required: true, message: "请输入[字段名]", trigger: "blur" }],
+  // [fieldKey]: [ELEMENT_RULES.required("[字段名]")],
 };
 
 // ===== 表单字段配置（驱动 template 动态渲染） =====
@@ -389,6 +390,7 @@ import { ref, reactive } from "vue";
 import { getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
 import { API_CONFIG, resolveApiPath } from "../data";
 import { ElMessage, type FormInstance, type FormRules } from "element-plus";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 
 const emit = defineEmits<{ (e: "ok"): void }>();
 
@@ -413,8 +415,7 @@ const initialForm = () => ({
 const form = reactive(initialForm());
 
 const rules: FormRules = {
-  // [必填字段校验]
-  // [fieldKey]: [{ required: true, message: "请输入[字段名]", trigger: "blur" }],
+  // [fieldKey]: [ELEMENT_RULES.required("[字段名]")],
 };
 
 async function open(id?: string, viewMode?: "edit" | "view") {

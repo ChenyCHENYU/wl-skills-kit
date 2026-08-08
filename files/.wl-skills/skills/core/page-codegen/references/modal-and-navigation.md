@@ -6,11 +6,13 @@
 
 > kit 提供 `c_formModal` 标准模板，页面生成前必须按 `component-materialization.md` 将其按需落盘到项目 `src/components/local/c_formModal/`；支持 add/edit/view 三模式。
 > 所有标准 CRUD 弹窗**必须使用此组件**，不可重复编写。
+> 字段格式、长度和数值规则按 `form-validation-library.md` 使用
+> `ELEMENT_RULES`；`required: true` 继续作为平台必填 UI 元数据保留。
 
 **data.ts 中定义 modalConfig：**
 
 ```typescript
-import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 
 export const modalConfig = {
   titlePrefix: "客户",       // 标题前缀：新增客户 / 编辑客户 / 查看客户

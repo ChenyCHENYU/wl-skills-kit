@@ -11,7 +11,7 @@ BaseTable 是一个功能强大的表格组件，支持数据展示、排序、�
 // 直接使用 <BaseTable /> 即可
 
 // 类型导入
-import type { TableColumnDesc } from "@jhlc/common-core/.wl-skills/src/components/table/base-table/type";
+import type { TableColumnDesc } from "@jhlc/common-core/src/components/table/base-table/type";
 ```
 
 ## 🚀 基本用法
@@ -357,6 +357,8 @@ import { h } from "vue";
 ### 可编辑列
 
 ```typescript
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
+
 {
   name: "quantity",
   label: "数量",
@@ -371,7 +373,7 @@ import { h } from "vue";
   // 自动聚焦
   autoFocusInput: true,
   // 校验规则
-  rules: [{ required: true, message: "请输入数量" }],
+  rules: [ELEMENT_RULES.required("数量")],
   required: true,
   // 生效校验规则
   effectRule: (row) => row.needValidate,
@@ -495,6 +497,7 @@ BaseTable 支持在列配置中直接定义行合并规则，无需手动编写 
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 import { h } from "vue";
 
 const experimentData = ref([
@@ -708,7 +711,7 @@ interface TableRowOperation {
 
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from "vue";
-import type { TableColumnDesc } from "@jhlc/common-core/.wl-skills/src/components/table/base-table/type";
+import type { TableColumnDesc } from "@jhlc/common-core/src/components/table/base-table/type";
 
 const tableRef = ref();
 const list = ref([]);
@@ -844,7 +847,7 @@ const editableColumns = computed(() => [
     name: "name",
     label: "名称",
     editable: true,
-    rules: [{ required: true, message: "请输入名称" }]
+    rules: [ELEMENT_RULES.required("名称")]
   },
   {
     name: "quantity",

@@ -13,6 +13,7 @@ import { ActionButtonDesc } from "@jhlc/common-core/src/components/toolbar/type"
 import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import axios from "axios";
 import { ElMessage } from "element-plus";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 
 // 计划炉号点击处理函数
 function handlePlanFurnaceNoClick(row: any) {
@@ -284,68 +285,42 @@ export const modalConfig = {
       label: "坯数",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入坯数", trigger: "blur" },
-        { pattern: /^\d+$/, message: "坯数必须为数字", trigger: "blur" }
-      ]
+      rules: [ELEMENT_RULES.positiveInteger("坯数")]
     },
     {
       name: "thickness",
       label: "厚度",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入厚度", trigger: "blur" },
-        { pattern: /^\d+(\.\d+)?$/, message: "厚度必须为数字", trigger: "blur" }
-      ]
+      rules: [ELEMENT_RULES.positiveNumber("厚度")]
     },
     {
       name: "width",
       label: "宽度",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入宽度", trigger: "blur" },
-        { pattern: /^\d+(\.\d+)?$/, message: "宽度必须为数字", trigger: "blur" }
-      ]
+      rules: [ELEMENT_RULES.positiveNumber("宽度")]
     },
     {
       name: "length",
       label: "长度",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入长度", trigger: "blur" },
-        { pattern: /^\d+(\.\d+)?$/, message: "长度必须为数字", trigger: "blur" }
-      ]
+      rules: [ELEMENT_RULES.positiveNumber("长度")]
     },
     {
       name: "lengthUpperLimit",
       label: "长度上限",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入长度上限", trigger: "blur" },
-        {
-          pattern: /^\d+(\.\d+)?$/,
-          message: "长度上限必须为数字",
-          trigger: "blur"
-        }
-      ]
+      rules: [ELEMENT_RULES.positiveNumber("长度上限")]
     },
     {
       name: "widthUpperLimit",
       label: "宽度上限",
       required: true,
       placeholder: "请输入",
-      rules: [
-        { required: true, message: "请输入宽度上限", trigger: "blur" },
-        {
-          pattern: /^\d+(\.\d+)?$/,
-          message: "宽度上限必须为数字",
-          trigger: "blur"
-        }
-      ]
+      rules: [ELEMENT_RULES.positiveNumber("宽度上限")]
     }
   ] as BaseFormItemDesc<any>[],
   api: {

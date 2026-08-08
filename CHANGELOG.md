@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [2.16.3] - 2026-08-09
+
+### Added
+
+- 新增 Kilo Code 原生适配：生成 `.kilo/skills/<skill>/SKILL.md` 薄入口和项目规则，确保 GLM 等模型能稳定发现 12 个 Skill。
+- 新增 R18 表单校验库检查：识别缺失依赖、废弃拆包、Naive API 误用及通用规则重复手写。
+- 新增 `@robot-admin/form-validate` 3.4.1+ 生成规范、场景参考、模板和组件示例，支持 Element 实时校验与 RuleSpec 提交/批量校验共用。
+
+### Changed
+
+- Kilo 项目配置支持根目录 `kilo.jsonc` / `kilo.json` 与 `.kilo/kilo.jsonc`，无损保留注释、provider、团队指令和既有 MCP。
+- MCP 23 个 Tool 改为逐项唯一风险画像，并强化协议版本协商、根参数校验和结构化输出。
+- 抽离编辑器适配、表单字段分析、校验库检测和共享 JSONC 配置模块，保持复杂度门禁为 10、ESLint 零 warning。
+- 统一本地写入授权与后端 `query → planHash → confirm → recheck` 写入边界，移除重复确认和冲突说明。
+
+### Fixed
+
+- 修正查询钩子响应式参数、表单必填切换识别与安全修复幂等边界。
+- 移除 CLI-only 包的默认 `main` 入口，补齐 Kilo/GLM 配置合并和 MCP 非法参数防崩溃回归。
+- 升级存在安全公告的 `nanoid`、`postcss` 传递依赖，并补充 `jsonc-parser` 以安全编辑注释配置。
+
 ## [2.16.2] - 2026-08-08
 
 ### Added

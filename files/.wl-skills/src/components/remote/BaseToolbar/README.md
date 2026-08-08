@@ -11,7 +11,7 @@ BaseToolbar 是一个灵活的工具栏组件，用于放置操作按钮，支�
 // 直接使用 <BaseToolbar /> 即可
 
 // 类型导入
-import type { ActionButtonDesc, ActionType } from "@jhlc/common-core/.wl-skills/src/components/toolbar/type";
+import type { ActionButtonDesc, ActionType } from "@jhlc/common-core/src/components/toolbar/type";
 ```
 
 ## 🚀 基本用法

@@ -217,7 +217,7 @@ menu-sync / dict-sync / permission-sync（写后端，需有 diff 预览和人�
 
          ↓
 ⑥ validate-page + doctor-ui
-   检查：AGGrid / cid / api.md 存在性 / wk-skills-ui 接入状态
+   检查：AGGrid / cid / api.md 存在性 / wl-skills-ui 接入状态
 
          ↓
 ⑦ convention-audit

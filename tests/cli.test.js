@@ -204,6 +204,10 @@ describe("CLI 参数防护（A1）", () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"));
     expect(manifest.files[localRel]).toBeUndefined();
     expect(manifest.files[exampleRel]).toBeTruthy();
+    expect(fs.existsSync(path.join(dir, ".kilo/rules/wl-skills.md"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, ".kilo/steering/conventions.md"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".kilo/skills/page-codegen/SKILL.md"))).toBe(true);
+    expect(manifest.files[".kilo/skills/page-codegen/SKILL.md"]).toBeTruthy();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -278,6 +282,26 @@ describe("CLI 参数防护（A1）", () => {
       }),
       "utf8",
     );
+    fs.mkdirSync(path.join(dir, ".vscode"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, ".vscode", "mcp.json"),
+      JSON.stringify({
+        servers: {
+          "wl-skills-ui": { type: "stdio", command: "node", args: ["ui-server.js"] },
+        },
+      }),
+      "utf8",
+    );
+    fs.mkdirSync(path.join(dir, ".kilo"), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, ".kilo", "kilo.jsonc"),
+      JSON.stringify({
+        instructions: ["docs/team-rule.md"],
+        provider: { zhipu: { model: "glm-5.2" } },
+        mcp: { "team-server": { type: "local", command: ["node", "team.js"] } },
+      }),
+      "utf8",
+    );
 
     const res = runCli(["update", "--force"], { cwd: dir, timeout: 60000 });
     expect(res.status).toBe(0);
@@ -287,12 +311,51 @@ describe("CLI 参数防护（A1）", () => {
     const mcp = JSON.parse(fs.readFileSync(path.join(dir, ".mcp.json"), "utf8"));
     expect(mcp.mcpServers["wl-skills-ui"]).toBeTruthy();
     expect(mcp.mcpServers["wl-skills"]).toBeTruthy();
+    const vscodeMcp = JSON.parse(fs.readFileSync(path.join(dir, ".vscode", "mcp.json"), "utf8"));
+    expect(vscodeMcp.servers["wl-skills-ui"]).toBeTruthy();
+    expect(vscodeMcp.servers["wl-skills"]).toBeTruthy();
+    const kilo = JSON.parse(fs.readFileSync(path.join(dir, ".kilo", "kilo.jsonc"), "utf8"));
+    expect(kilo.instructions).toEqual(["docs/team-rule.md", ".kilo/rules/wl-skills.md"]);
+    expect(kilo.provider.zhipu.model).toBe("glm-5.2");
+    expect(kilo.mcp["team-server"]).toBeTruthy();
+    expect(kilo.mcp["wl-skills"]).toBeTruthy();
     const manifest = JSON.parse(
       fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
     );
     expect(manifest.files[".clinerules"]).toBeUndefined();
     expect(manifest.files["AGENTS.md"]).toBeUndefined();
     expect(manifest.files["CLAUDE.md"]).toBeUndefined();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("update 复用 Kilo 根 JSONC 且保留注释和 GLM provider", () => {
+    const dir = makeIsolatedDir();
+    fs.writeFileSync(
+      path.join(dir, "kilo.jsonc"),
+      [
+        "{",
+        "  // 本地模型配置",
+        '  "provider": { "zhipu": { "model": "glm-5.2" } },',
+        '  "instructions": ["docs/team-rule.md"],',
+        '  "mcp": { "team-server": { "type": "local", "command": ["node", "team.js"] } },',
+        "}",
+      ].join("\n"),
+    );
+
+    const result = runCli(["init"], { cwd: dir, timeout: 60000 });
+    expect(result.status).toBe(0);
+    const content = fs.readFileSync(path.join(dir, "kilo.jsonc"), "utf8");
+    expect(content).toContain("// 本地模型配置");
+    expect(content).toContain('"model": "glm-5.2"');
+    expect(content).toContain('"team-server"');
+    expect(content).toContain('"wl-skills"');
+    expect(content).toContain('".kilo/rules/wl-skills.md"');
+    expect(fs.existsSync(path.join(dir, ".kilo", "kilo.jsonc"))).toBe(false);
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
+    );
+    expect(manifest.files["kilo.jsonc"]).toBeTruthy();
+    expect(manifest.files[".kilo/kilo.jsonc"]).toBeUndefined();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

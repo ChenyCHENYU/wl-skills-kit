@@ -168,6 +168,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
+import { ELEMENT_RULES } from '@robot-admin/form-validate';
 
 const dialogVisible = ref(false);
 const formRef = ref<FormInstance>();
@@ -204,33 +205,15 @@ const formData = reactive({
 
 // 表单校验规则
 const rules = reactive<FormRules>({
-  internalSteelGrade: [{ required: true, message: '请输入内部钢种', trigger: 'blur' }],
-  castSlabType: [{ required: true, message: '请选择铸坯类型', trigger: 'change' }],
-  slabCount: [
-    { required: true, message: '请输入坯数', trigger: 'blur' },
-    { pattern: /^\d+$/, message: '坯数必须为数字', trigger: 'blur' },
-  ],
-  continuousCasterNumber: [{ required: true, message: '请选择连铸机号', trigger: 'change' }],
-  width: [
-    { required: true, message: '请输入宽度', trigger: 'blur' },
-    { pattern: /^\d+(\.\d+)?$/, message: '宽度必须为数字', trigger: 'blur' },
-  ],
-  length: [
-    { required: true, message: '请输入长度', trigger: 'blur' },
-    { pattern: /^\d+(\.\d+)?$/, message: '长度必须为数字', trigger: 'blur' },
-  ],
-  lengthUpperLimit: [
-    { required: true, message: '请输入长度上限', trigger: 'blur' },
-    { pattern: /^\d+(\.\d+)?$/, message: '长度上限必须为数字', trigger: 'blur' },
-  ],
-  thickness: [
-    { required: true, message: '请输入厚度', trigger: 'blur' },
-    { pattern: /^\d+(\.\d+)?$/, message: '厚度必须为数字', trigger: 'blur' },
-  ],
-  widthUpperLimit: [
-    { required: true, message: '请输入宽度上限', trigger: 'blur' },
-    { pattern: /^\d+(\.\d+)?$/, message: '宽度上限必须为数字', trigger: 'blur' },
-  ],
+  internalSteelGrade: [ELEMENT_RULES.required('内部钢种')],
+  castSlabType: [ELEMENT_RULES.required('铸坯类型', 'change')],
+  slabCount: [ELEMENT_RULES.positiveInteger('坯数')],
+  continuousCasterNumber: [ELEMENT_RULES.required('连铸机号', 'change')],
+  width: [ELEMENT_RULES.positiveNumber('宽度')],
+  length: [ELEMENT_RULES.positiveNumber('长度')],
+  lengthUpperLimit: [ELEMENT_RULES.positiveNumber('长度上限')],
+  thickness: [ELEMENT_RULES.positiveNumber('厚度')],
+  widthUpperLimit: [ELEMENT_RULES.positiveNumber('宽度上限')],
 });
 
 // 关闭弹窗

@@ -1,8 +1,8 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.2** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.3** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
-让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
+让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
 ---
 
@@ -44,6 +44,13 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.16.3**：Kilo Code 原生适配、标准表单校验库闭环和 MCP 风险声明进一步收口。
+
+- **表单校验标准化**：生成表单先检查 `@robot-admin/form-validate`；Element 页面复用 `ELEMENT_RULES / ELEMENT_COMBOS`，跨 UI 与提交前校验使用 `RuleSpec` 单一真相源，R18 阻断缺依赖、退役包和 Naive API 混入。
+- **Kilo Code 原生兼容**：识别根目录 `kilo.jsonc / kilo.json` 与 `.kilo/kilo.jsonc`，无损保留 JSONC 注释、GLM provider、团队指令和既有 MCP，仅增量注册 wl-skills。
+- **MCP 契约强化**：23 个 Tool 逐项登记唯一风险画像，协议协商、参数校验与结构化输出统一收口；未来新增 Tool 漏配风险声明会直接失败。
+- **安全与可维护性**：拆分编辑器适配、表单字段分析和共享项目配置模块，移除 CLI 包误导性 `main` 入口，并升级存在安全公告的传递依赖。
 
 **v2.16.2**：表单仅必填切换完整闭环（composable + c_formModal prop + R17 检测 + F6 修复 + 模板默认 + 文档）。
 
@@ -364,6 +371,9 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── .windsurfrules                        Windsurf
 ├── .clinerules                           Cline
 ├── .kiro/steering/conventions.md         Kiro（含 inclusion frontmatter）
+├── kilo.jsonc / .kilo/kilo.jsonc         Kilo Code 项目规则 + MCP 增量注册（复用现有位置）
+├── .kilo/rules/wl-skills.md              Kilo Code 项目规则入口
+├── .kilo/skills/<skill>/SKILL.md          Kilo 原生发现薄适配器（流程仍指向 .wl-skills）
 ├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
 ├── .qoder/rules/conventions.md           Qoder
 │
@@ -407,7 +417,7 @@ pnpm dlx @agile-team/wl-skills-kit check
 pnpm dlx @agile-team/wl-skills-kit diff
 
 # 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui；mock 按 mockPolicy 检查
-# 内含 AST 语义级检测 R1~R16（正则覆盖不到的语义约束）
+# 内含 AST 语义级检测 R1~R18（正则覆盖不到的语义约束）
 # R13 圈复杂度、R15 分页边界、R16 运行时边界默认执行；R14 类型错误需 --typecheck 开启
 # 默认 error 阻断、warn 提示；--strict 下 error/warn 都阻断
 pnpm dlx @agile-team/wl-skills-kit validate
@@ -667,11 +677,15 @@ pnpm dlx @agile-team/wl-skills-kit update
 | Windsurf       | `.windsurfrules`                  | -                             |
 | Cline          | `.clinerules`                     | -                             |
 | Kiro           | `.kiro/steering/conventions.md`   | inclusion: always             |
+| Kilo Code      | `.kilo/rules/wl-skills.md`        | -；另生成 `.kilo/skills/`     |
 | Trae           | `.trae/rules/conventions.md`      | description+globs+alwaysApply |
 | 通用 Agent     | `AGENTS.md`                       | -                             |
 | Qoder          | `.qoder/rules/conventions.md`     | description                   |
 
 **解耦验证**：在 `editors.json` 中将任意编辑器 `enabled: false`，重新 `update` —— 该编辑器配置不再生成，其他编辑器**完全不受影响**。
+
+Kilo Code 额外采用原生 Agent Skills 发现：`.kilo/skills/<name>/SKILL.md` 仅保存
+`name`、`description` 和规范源指针，真正流程仍唯一维护在 `.wl-skills/skills/`，因此不会出现两套 Skill 冲突覆盖。
 
 ---
 

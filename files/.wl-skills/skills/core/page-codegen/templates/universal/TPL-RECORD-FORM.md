@@ -24,11 +24,16 @@ import {
   TableColumnDesc,
   BusLogicDataType,
 } from "@/types/page";
-import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import c_spliterTitle from "@/components/local/c_spliterTitle/index.vue";
 import { getAction, postAction } from "@jhlc/common-core/src/api/action";
 import { debounce } from "lodash-es";
 import { defineColumns } from "@agile-team/wl-skills-ui/runtime";
+import {
+  ELEMENT_RULES,
+  numeric,
+  toElementRule,
+} from "@robot-admin/form-validate";
 
 export const BOTTOM_TABLE_CID = "[pageAbbr]-[base36Timestamp]";
 
@@ -113,6 +118,15 @@ export const formItems: BaseFormItemDesc<any>[] = [
     name: "[numField]",
     placeholder: "请输入[数值字段]",
     logicType: BusLogicDataType.number,
+    // contract 明确数值边界时生成；不得保留占位参数
+    rules: [
+      toElementRule(
+        numeric(
+          { totalDigits: [p], fractionDigits: [s], min: [minimum] },
+          "[数值字段]",
+        ),
+      ),
+    ],
   },
 ];
 

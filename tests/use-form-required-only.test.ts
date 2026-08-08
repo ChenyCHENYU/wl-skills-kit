@@ -50,6 +50,7 @@ describe("useFormRequiredOnly", () => {
     expect(visibleItems.value).toHaveLength(1);
     toggleRequiredOnly(); // -> false
     expect(visibleItems.value).toHaveLength(2);
+    expect(showRequiredOnly.value).toBe(false);
   });
 
   it("hasRequiredItems 正确识别有无必填", () => {

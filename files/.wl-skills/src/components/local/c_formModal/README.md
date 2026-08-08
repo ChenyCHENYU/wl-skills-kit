@@ -33,7 +33,8 @@ c_formModal/
 
 ```typescript
 // src/views/your-module/data.ts
-import type { BaseFormItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/common/type";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 
 export const modalConfig = {
   titlePrefix: "内贸订单", // 标题前缀
@@ -53,6 +54,12 @@ export const modalConfig = {
       label: "周期",
       required: true,
       placeholder: "请选择"
+    },
+    {
+      name: "contactEmail",
+      label: "联系人邮箱",
+      rules: [ELEMENT_RULES.email("联系人邮箱")],
+      placeholder: "请输入"
     }
     // ... 更多字段
   ] as BaseFormItemDesc<any>[],
@@ -262,4 +269,3 @@ export function createFormModal(/* ... */) {
   return Page.create();
 }
 ```
-

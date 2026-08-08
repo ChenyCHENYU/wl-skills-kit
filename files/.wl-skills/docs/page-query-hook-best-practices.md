@@ -170,9 +170,9 @@ class LadleUseQueryHook extends AbstractPageQueryHook {
 ```typescript
 import { AbstractPageQueryHook } from "@jhlc/common-core";
 import { BusLogicDataType } from "@jhlc/types/src/logical-data";
-import { BaseQueryItemDesc } from "@jhlc/common-core/.wl-skills/src/components/form/base-query/type";
-import { TableColumnDesc } from "@jhlc/common-core/.wl-skills/src/components/table/base-table/type";
-import { ActionButtonDesc } from "@jhlc/common-core/.wl-skills/src/components/toolbar/type";
+import { BaseQueryItemDesc } from "@jhlc/common-core/src/components/form/base-query/type";
+import { TableColumnDesc } from "@jhlc/common-core/src/components/table/base-table/type";
+import { ActionButtonDesc } from "@jhlc/common-core/src/components/toolbar/type";
 
 const API_CONFIG = {
   list: "/mmsm/mmsmRsltLadleUse/queryPage",

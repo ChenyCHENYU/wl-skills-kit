@@ -1,0 +1,17 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "instructions": [
+    ".kilo/rules/wl-skills.md"
+  ],
+  "mcp": {
+    "wl-skills": {
+      "type": "local",
+      "command": [
+        "node",
+        "node_modules/@agile-team/wl-skills-kit/mcp/server.js"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    }
+  }
+}

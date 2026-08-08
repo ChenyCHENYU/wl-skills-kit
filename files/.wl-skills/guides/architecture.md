@@ -2,7 +2,7 @@
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.16.2（2026-08-08）
+> **当前版本**：v2.16.3（2026-08-09）
 
 ---
 
@@ -58,7 +58,7 @@ AI 编辑器（Copilot / Cursor / Windsurf 等）知道通用编程知识，但�
 1. 规范分层、按任务类型懒加载（token 高效利用）
 2. Skill 触发词驱动（开发者用自然语言，AI 读结构化 SKILL.md）
 3. Pre-flight 约定式声明（消除 AI "假执行"黑盒问题）
-4. 多 AI 编辑器适配（一套内容，自动生成 Copilot/Claude/Cursor/Windsurf/Cline/Kiro/Trae/Qoder/Agents 配置，解耦可扩展）
+4. 多 AI 编辑器适配（一套内容，自动生成 Copilot/Claude/Cursor/Windsurf/Cline/Kiro/Kilo Code/Trae/Qoder/Agents 配置，解耦可扩展）
 5. 报告层追加不覆盖（累积团队知识，不丢失审计历史）
 
 ---
@@ -121,7 +121,7 @@ wl-skills.js init/update
   │ 在 AI 对话中说出意图
   │ "帮我生成客户管理列表页"
   ▼
-AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae）
+AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae）
   │
   │ 自动加载根配置文件（各编辑器读自己的文件）：
   │   Copilot  → .github/copilot-instructions.md
@@ -130,6 +130,7 @@ AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Trae�
   │   Windsurf → .windsurfrules
   │   Cline    → .clinerules
   │   Kiro     → .kiro/steering/conventions.md
+  │   Kilo     → .kilo/rules/wl-skills.md + .kilo/skills/<name>/SKILL.md
   │   Trae     → .trae/rules/conventions.md
   │   Qoder    → .qoder/rules/conventions.md
   │   通用     → AGENTS.md
@@ -252,7 +253,7 @@ skills/
 
 ### 4.3 适配层（\_compat/）
 
-**核心问题**：9 种 AI 编辑器读取格式各异，有的需要 frontmatter，有的不需要，字段也不同：
+**核心问题**：10 种 AI 编辑器读取格式各异，有的需要 frontmatter，有的不需要，字段也不同：
 
 | 编辑器       | 加载路径                          | frontmatter 要求                    |
 | ------------ | --------------------------------- | ----------------------------------- |
@@ -263,6 +264,7 @@ skills/
 | Windsurf     | `.windsurfrules`                  | 无                                  |
 | Cline        | `.clinerules`                     | 无                                  |
 | Kiro         | `.kiro/steering/*.md`             | `inclusion: always`                 |
+| Kilo Code    | `.kilo/rules/*.md` + `.kilo/skills/*/SKILL.md` | Skill 需 `name + description` |
 | Trae         | `.trae/rules/*.md`                | `description + alwaysApply`         |
 | 通用         | `AGENTS.md`                       | 无                                  |
 
@@ -274,6 +276,7 @@ _compat/
 ├── headers/             ← 各编辑器特化头部模板（含 frontmatter）
 │   ├── cursor-mdc.txt     description + globs + alwaysApply
 │   ├── kiro.txt           inclusion: always
+│   ├── kilo-code.txt      Kilo rules；Skill 适配器由规范源元数据生成
 │   ├── trae.txt           description + alwaysApply
 │   └── ...（无 frontmatter 的也有对应 txt，写版权注释）
 └── README.md
@@ -458,7 +461,7 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 - **env.local.json 不入 git**：包含 token / gatewayPath，每个开发者本地配置
 - **永远不主动删除**：sync 系列 Skill 只做新增/更新，删除走人工 + 后台
 - **生产环境保护**：检测到 gatewayPath 含生产域名时，强制输出 SQL 而不直接调用接口
-- **二次确认**：任何写操作，Pre-flight 声明后必须等用户 `yes` 才执行
+- **分级授权**：用户已明确要求并限定范围的本地代码写入无需重复确认；范围扩张时先询问。后端写入始终执行“查询 → 预览 planHash → 明确确认 → 写入前重查”
 
 ---
 
@@ -497,7 +500,9 @@ AI "假执行"——声称读了规范，实际按惯性输出。没有强制约
 | v2.13.6 | 7 个过渡期业务组件支持按需/全量落盘 + 项目真实实现优先 + C4 契约提醒，剔除高风险/额外依赖组件                                     | ✅ 已发布 |
 | v2.13.7 | 列表页结构固定为“查询区 → 工具栏 → 列表标题 → 表格 → 分页器”，防止按钮组生成到标题右侧或标题下方                         | ✅ 已发布 |
 | v2.13.8 | 字典同步增加多源索引、分页、上下文头、父 ID 硬校验与隐藏/系统模块冲突结构化诊断，避免弱模型盲重试                         | ✅ 已发布 |
-| v2.14.3 | 跨包编辑器规则所有权保护与共享 MCP server 合并                                                      | ✅ 当前   |
+| v2.16.3 | Kilo 原生 Skill、表单校验库 R18 与 MCP 风险画像闭环                                                   | ✅ 当前   |
+| v2.16.2 | 表单仅必填切换、R17 检测与 F6 安全修复闭环                                                         | ✅ 稳定   |
+| v2.14.3 | 跨包编辑器规则所有权保护与共享 MCP server 合并                                                      | ✅ 已发布 |
 | v2.14.2 | Husky 直调命令与 `check` 自检口径闭环                                                               | ✅        |
 | v2.14.1 | 集中定义委托链与项目语义校验、非页面显式排除、validate error/warn 分级闭环                              | ✅        |
 | v2.14.0 | 机器契约驱动字段边界、S6 页面/API 对齐、R15 分页门、R16 运行时风险提示及 D1/D2 字典精确闭环           | ✅ 已完成 |

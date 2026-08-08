@@ -333,6 +333,7 @@ interface NavTabConfig {
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
 import CFormSections from "@/components/local/c_formSections/index.vue";
 import { filterFieldsByRequired } from "@/components/local/c_formSections/data";
 
@@ -398,8 +399,8 @@ const visibleSections = computed(() => {
 });
 
 const formRules = {
-  name: [{ required: true, message: "请输入名称", trigger: "blur" }],
-  code: [{ required: true, message: "请输入编码", trigger: "blur" }]
+  name: [ELEMENT_RULES.required("名称")],
+  code: [ELEMENT_RULES.required("编码")]
 };
 
 const addRequirement = () => {

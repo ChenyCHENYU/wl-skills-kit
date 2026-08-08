@@ -90,7 +90,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 1. 首先匹配上表触发词，结合 `_best-practices.md` 场景索引判断用户意图
 2. 双线隔离：输入含 `.wl-skills/docs/spec/` / 功能编码 / IPO 表 → 强制路由 `spec-doc-parse`，禁止 `prototype-scan` 接管
 3. 匹配 2+ Skill 时必须列出候选并询问用户意图（误触发防护）
-4. `page-codegen` / `menu-sync` / `dict-sync` / `permission-sync` / `code-fix` / `standard-env-config` 触发写入前二次确认
+4. 本地代码写入以用户当前请求和明确范围为授权，不重复追问；后端写操作必须执行“查询 → 预览 planHash → 明确确认 → 写入”
 5. `code-fix` 完成后必须自动 `wl-skills validate` 复扫（闭环强制）
 6. sync 类任务必须额外加载 `.wl-skills/skills/sync/_mcp-guardrail.md`
 
@@ -143,7 +143,7 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 | 类型 | 路径 |
 |------|------|
-| 平台组件文档（jh-select 等） | `.wl-skills/.wl-skills/docs/jh-{name}.md` |
+| 平台组件文档（jh-select 等） | `.wl-skills/docs/jh-{name}.md` |
 | **组件在线查询索引（35 组件）** | `.wl-skills/docs/component-online-index.md` |
 | 组件 README（BaseTable 等） | `.wl-skills/src/components/remote/{Name}/README.md` |
 | 局部组件模板/README | `.wl-skills/src/components/local/{c_xxx}/`（运行时按需落盘到 `src/components/local/`） |
@@ -198,14 +198,15 @@ kit 内的 `jh-{name}.md` 是**精简快速参考**（11 个常用组件）。�
 <el-table :data="dialogData">...</el-table>
 ```
 
-- 必须带规则编号（R1~R14），精确豁免，不支持全局豁免
+- 必须带规则编号（R1~R18），精确豁免，不支持全局豁免
 - CI `--strict` 模式下豁免标记仍然生效
 
 ---
 
 ## 十一、AI 执行护栏（强制约定）
 
-以下规则对所有 AI 助手在本项目中执行任务时**强制生效**，不可被用户口头覆盖。
+以下规则是项目默认执行策略，AI 不得自行省略；若当前用户明确改变任务范围或验证要求，
+应遵循用户指令并如实说明未执行项及风险，不得谎称已完成。
 
 ### 1. 闭环强制约定
 
@@ -213,18 +214,14 @@ kit 内的 `jh-{name}.md` 是**精简快速参考**（11 个常用组件）。�
 |----------|----------|-------------|
 | code-fix 执行完毕 | 自动执行 `wl-skills validate` 复扫 | 确保修复未引入新偏差 |
 | 复扫发现新问题 | 继续修复 → 再次复扫，直到通过 | 闭环不允许断开 |
-| 用户说"不用验证了" | **仍然执行**复扫，只是不再追问 | 规范高于口头指令 |
+| 用户未明确改变验证范围 | 自动执行复扫，不额外追问 | 默认交付闭环 |
 
-### 2. 高风险 Skill 确认机制
+### 2. 写入授权与后端确认机制
 
-以下 Skill 触发前必须向用户**二次确认**，不可静默执行：
-
-- `page-codegen`（生成整页代码，不可逆）
-- `menu-sync` / `dict-sync` / `permission-sync`（跨系统同步，影响后端数据）
-- `code-fix`（批量修改源码文件，需确认范围）
-- `standard-env-config`（迁移前必须扫描、显式选择 Profile 并确认文件计划）
-
-确认话术：`即将执行 [Skill名称]，影响范围：[文件列表 / 后端数据类型] 是否继续？(Y/n)`
+- 用户已明确要求生成、修复或更新本地代码，并能从当前任务确定目录/文件范围时，即视为本地写入授权；`page-codegen`、`code-fix` 不再重复二次确认。
+- 范围无法从需求和仓库事实确定，或会扩展到用户未授权模块时，先列出差异并询问。
+- `menu-sync` / `dict-sync` / `permission-sync` 等后端写入始终执行：查询线上快照 → 生成预览与 `planHash` → 用户明确确认 → 写入前重查；快照漂移则零写入。
+- `standard-env-config` 先扫描并展示文件计划；用户已明确选择 Profile 和迁移范围后可执行，仍须保留事务备份与验证。
 
 ### 3. 误触发防护
 

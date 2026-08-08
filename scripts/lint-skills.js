@@ -14,6 +14,7 @@
  *  7. 三个 sync SKILL.md 不得保留旧版"TODO_CONFIRM"占位
  *  8. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 R/S 规则必须在执行器中真实存在
  *  9. SKILL.md 主文件不超过 500 行，且声明的一级 references 必须存在
+ * 10. 所有 Skill 的 name/description 合法，且 name 与文件夹名一致（原生发现前提）
  *
  * 用法：
  *   node scripts/lint-skills.js          # 全量校验
@@ -22,6 +23,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { parseSkillMetadata } = require("../lib/editor-adapters");
 
 const ROOT = path.resolve(__dirname, "..");
 const SKILLS = path.join(ROOT, "files", ".wl-skills", "skills");
@@ -143,6 +145,15 @@ const SKILL_FILES = walkAll(SKILLS).filter((fp) => path.basename(fp) === "SKILL.
 for (const skillPath of SKILL_FILES) {
   const rel = path.relative(SKILLS, skillPath).replace(/\\/g, "/");
   const content = fs.readFileSync(skillPath, "utf8");
+  try {
+    const metadata = parseSkillMetadata(content, rel);
+    const folderName = path.basename(path.dirname(skillPath));
+    if (metadata.name !== folderName) {
+      errors.push(`${rel}: frontmatter name ${metadata.name} 与文件夹名 ${folderName} 不一致`);
+    }
+  } catch (error) {
+    errors.push(error.message);
+  }
   const lineCount = content.split(/\r?\n/).length;
   if (lineCount > 500) {
     errors.push(`${rel}: 主文件 ${lineCount} 行，超过 500 行；请把场景化细节移入 references/`);
@@ -202,6 +213,14 @@ function assertRuleImplemented(rule, sources) {
     for (const rule of rulesInCoverageLine(line)) assertRuleImplemented(rule, sources);
   }
 })();
+
+// 9. npm 包 import 路径不得被 .wl-skills 目录迁移误伤。
+for (const filePath of walkAll(path.join(ROOT, "files"))) {
+  const content = fs.readFileSync(filePath, "utf8");
+  if (/@[\w-]+\/[\w-]+\/\.wl-skills\/src\//.test(content)) {
+    errors.push(`${path.relative(ROOT, filePath).replace(/\\/g, "/")}: npm 包 import 中混入 .wl-skills/src`);
+  }
+}
 
 // 输出
 if (warnings.length) {

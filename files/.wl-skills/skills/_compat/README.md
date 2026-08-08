@@ -28,6 +28,7 @@ _compat/
     ├── windsurf.txt
     ├── cline.txt
     ├── kiro.txt                （.kiro/steering/conventions.md，含 frontmatter）
+    ├── kilo-code.txt           （.kilo/rules/wl-skills.md；另生成原生 Skill 薄适配器）
     ├── trae.txt                （.trae/rules/conventions.md，含 frontmatter）
     ├── agents.txt              （AGENTS.md 通用代理）
     └── qoder.txt               （.qoder/rules/conventions.md）
@@ -93,7 +94,7 @@ bin/wl-skills.js (init/update)
 
 ---
 
-## 与官方机制的对应关系（截至 2026-04）
+## 与官方机制的对应关系（截至 2026-08）
 
 | 编辑器         | 官方加载路径                           | 是否需要 frontmatter | 备注                             |
 | -------------- | -------------------------------------- | -------------------- | -------------------------------- |
@@ -103,8 +104,10 @@ bin/wl-skills.js (init/update)
 | Windsurf       | `.windsurfrules` (root)                | ❌                   | 单文件                           |
 | Cline          | `.clinerules` (root)                   | ❌                   | 单文件                           |
 | Kiro           | `.kiro/steering/*.md`                  | ✅                   | 需 inclusion 字段                |
+| Kilo Code      | `.kilo/rules/*.md` + `.kilo/skills/*/SKILL.md` | Skill 需 YAML | 复用根 `kilo.jsonc/json` 或创建 `.kilo/kilo.jsonc`，增量注册规则与 MCP |
 | Trae           | `.trae/rules/*.md`                     | ✅                   | 需 description 字段              |
 | 通用 Agent     | `AGENTS.md` (root)                     | ❌                   | 新兴跨平台规范                   |
 | Qoder          | `.qoder/rules/conventions.md`          | ✅                   | 项目规则文件                     |
 
-> 所有这些编辑器在加载完根配置后，**都支持按指令读取项目内任意文件**（含 `.wl-skills/standards/`、`.wl-skills/skills/`、`.wl-skills/guides/`），所以本架构的"懒加载门控 + 子目录规范"对所有编辑器**有效**。
+> 所有编辑器都可按指令读取 `.wl-skills/`。Kilo Code 额外通过 `.kilo/skills/` 原生按需发现；
+> 每个适配器只保留元数据和规范源指针，避免整套 Skill 复制后产生双份维护。

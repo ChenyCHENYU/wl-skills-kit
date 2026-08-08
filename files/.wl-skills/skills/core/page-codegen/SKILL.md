@@ -20,9 +20,12 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ✅ 已读取 standards/12-base-table.md         → AGGrid必用 + cid命名规范
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
 ✅ 已读取 standards/14-layout-containers.md   → 布局容器（必须用 jh-drag-row/jh-drag-col）
+✅ 已读取 standards/11-form-validation.md     → 表单校验库 + 契约边界（页面含表单时）
 ✅ 已读取 .wl-skills/docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
 ✅ 已读取 references/component-materialization.md（使用标准业务组件时）→ 按需落盘与契约防护
+✅ 已读取 references/form-validation-library.md（页面含表单时）→ Element/RuleSpec API 选择
 ✅ 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓  [全部就绪]
+✅ 表单校验库：@robot-admin/form-validate {版本/不适用}
 ✅ cid 已生成：{value}（{首字母缩写说明}）
 ```
 
@@ -51,7 +54,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
    wl-skills validate src/views/{生成的页面目录}
-   → 同时执行 R1~R16（AST 语义）+ S1~S6（page-spec/机器契约比对）+ C1~C4（组件契约）
+   → 同时执行 R1~R18（AST 语义）+ S1~S6（page-spec/机器契约比对）+ C1~C4（组件契约）
    → 结果：{0 error / N warn} 或列出 error 待修复
 ────────────────────────────────────────────────
 📌 后续步骤：
@@ -154,30 +157,30 @@ src/views/[域]/[模块]/dicts.ts
 14. **操作列按钮**：`columnsDef()` 操作列的 `operations` 数组必须与 page-spec `operations` 数组**严格一一对应**，不可遗漏也**不可自行添加**（如原型没有"查看"按钮就不能加"查看"）
 15. **Tab 标签**：当 page-spec `features.tabSwitch === true` 时，必须在 index.vue 中生成 Tab 组件，tabs 与 `features.tabItems` 一一对应
 16. **按钮文字保真**：使用原型中的原始文字（如"新增申请"不可简化为"新增"，"变更申请"不可简化为"变更"）
-16. **可点击列（蓝色链接列）**：原型中蓝色凸显的列（如客户编码、申请编码等编码/编号类字段）必须实现为可点击链接，使用 `defaultSlot` + `h()` 渲染蓝色链接样式，点击后查看详情（调 `getById` 后展示或路由跳转）
-17. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
-18. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
-19. **未知交互阻断**：原型/需求未提供交互细节且无法由已确认契约确定时，写入 `openQuestions` 并停止生成该操作；禁止用提示消息伪装已实现功能
-20. **生成后依赖自检**：只检查本次生成代码真实使用的依赖（如 `lodash-es`、`xlsx`）；仅在 mock 策略启用且本次生成 mock 时检查 `mockjs`、`vite-plugin-mock`、`viteMockServe` 和 `mock/_utils.ts`。标准业务组件必须先执行 `component ensure` 预览/确认闭环
-21. **Contract First，Mock 可选**：先通过 `wl-api-contract` 建立真实 method/path/request/response。需求明确需要前端并行开发时再生成 `mock/[业务域]/[模块].ts`；mock 必须复用同一契约，关闭后不得修改业务 URL。
-22. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/queryPage`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/queryPage`），这样关闭 mock 后无需修改业务代码。
-23. **列表首次加载必须真实执行查询**：列表页 `onMounted(() => select())` 调用同一 API_CONFIG；mock 启用时由 mock 返回契约数据，mock 禁用时直接访问真实后端。不得为了展示初始数据在页面内硬编码假数据
-24. **必须使用 wl-skills-ui runtime 风格**：当项目安装了 `@agile-team/wl-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
-25. **wl-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wl-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wl-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
-26. **pages.ts 分组注册**：多页面模块必须按当前业务目录分组写入 `vite/plugins/shared/pages.ts`，使用 `gProd(module, { subModule: [[page, label]] })` 结构，不允许把所有页面扁平追加到一个数组。
-27. **BaseTable 强制 AGGrid**：所有业务主列表/台账/主从表/树表/详情子表的 `BaseTable` 必须显式写 `render-type="agGrid"`，并绑定全局唯一 `cid`。弹窗小表格可豁免，但必须在生成摘要中说明理由。
-28. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
-29. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wl-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
-30. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts、原型及机器 API 契约严格一致——这是 `validate` 做 S1~S6 比对的真值。生成后自检若出现 S2/S3/S4/S6 error，必须修正到 0 error。
-31. **字典契约闭环**：页面出现 `logicType: BusLogicDataType.dict` 时，api.md 必须包含完整 dict-contract，模块 dicts.ts 必须汇总该定义；`wl-skills validate` D1 未通过时禁止建议 dict-sync。
-32. **字段边界契约闭环**：创建/更新表单的字符串长度、格式和数值范围/精度必须从已确认的 API/数据库/需求契约写入 page-spec `constraints + constraintSource`；实现时同步生成控件属性与 rules，后端校验仍是最终边界。无来源时进入 `openQuestions`，禁止按字段名、标签或经验值猜测。
-33. **字典实际引用闭环**：生成结束后除 D1 外必须通过 D2；代码中的 `dictCode/logicValue/useDictOpts/jh-select dict` 字面量必须已在模块 dicts.ts 登记。状态机枚举不因名称含 status/type/flag 被强制改成平台字典。
-34. **分页边界闭环**：以项目 `.wl-skills/contracts/wl-delivery-profile.v1.json` 为唯一事实源；无项目配置时才使用包基线 `current: 1, size: 10, maxSize: 200`。项目显式采用 20/1000 等合理口径时允许并报告覆盖基线，不得误判；只有代码与生效 Profile 不一致或请求越界才阻断。查询、重置、页大小变化和保存成功后回第一页，删除末页最后一条时回退上一页。
-35. **上下文闭环**：新页面使用 `features.contextFields` 区分 `client/server`。客户端上下文仅进入显式 operations；服务端租户/公司上下文由鉴权注入，禁止由前端请求携带。旧 `fixedQueryFields` 兼容为客户端 page/create/update 上下文。只显示默认值但提交时丢失属于生成失败。
-36. **查询触发与列表生命周期**：标准列表首次进入查询；检索条件由“搜索/重置”显式触发，普通输入失焦不得自动查询（`BaseQuery :auto-select="false"`）；保存成功回第一页刷新；删除导致当前页为空时回退上一页。特殊实时联想页须在 page-spec 显式声明 `queryTrigger=auto`。
-37. **字段边界只认契约证据**：必填、长度、正则、数值范围/精度和开始/结束时间必须来自 page-spec + wl-api-contract；字符串字段不得按名称猜成数字，查询 DTO 不得机械继承数据库写入长度，拿不准时只保留明确必填或形成 openQuestion。
-36. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
-37. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
+17. **可点击列（蓝色链接列）**：原型中蓝色凸显的列（如客户编码、申请编码等编码/编号类字段）必须实现为可点击链接，使用 `defaultSlot` + `h()` 渲染蓝色链接样式，点击后查看详情（调 `getById` 后展示或路由跳转）
+18. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
+19. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
+20. **未知交互阻断**：原型/需求未提供交互细节且无法由已确认契约确定时，写入 `openQuestions` 并停止生成该操作；禁止用提示消息伪装已实现功能
+21. **生成后依赖自检**：只检查本次生成代码真实使用的依赖（如 `lodash-es`、`xlsx`）；页面含新增/编辑/独立表单或可编辑明细时检查 `@robot-admin/form-validate` 3.4.1+。缺少依赖必须在 Pre-flight 提示安装并暂停，不得生成悬空 import；不得静默安装。仅在 mock 策略启用且本次生成 mock 时检查 `mockjs`、`vite-plugin-mock`、`viteMockServe` 和 `mock/_utils.ts`。标准业务组件必须先执行 `component ensure` 预览/确认闭环
+22. **Contract First，Mock 可选**：先通过 `wl-api-contract` 建立真实 method/path/request/response。需求明确需要前端并行开发时再生成 `mock/[业务域]/[模块].ts`；mock 必须复用同一契约，关闭后不得修改业务 URL。
+23. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/queryPage`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/queryPage`），这样关闭 mock 后无需修改业务代码。
+24. **列表首次加载必须真实执行查询**：列表页 `onMounted(() => select())` 调用同一 API_CONFIG；mock 启用时由 mock 返回契约数据，mock 禁用时直接访问真实后端。不得为了展示初始数据在页面内硬编码假数据
+25. **必须使用 wl-skills-ui runtime 风格**：当项目安装了 `@agile-team/wl-skills-ui` 时，列表列定义必须使用 `defineColumns()`，操作列必须使用 `renderOps()`，状态/字典列优先使用 runtime 渲染器或 `logicType=dict` 自动映射；不可退回默认纯文本/空函数风格。
+26. **wl-skills-ui 接入自检**：生成页面前检查项目是否已接入 `@agile-team/wl-skills-ui` 样式与 runtime。若未接入，先提示并补齐：`@use '@agile-team/wl-skills-ui/styles' as *;`、`installCommonPreset()`、必要的 design tokens 引入；否则页面风格不会自动生效。
+27. **pages.ts 分组注册**：多页面模块必须按当前业务目录分组写入 `vite/plugins/shared/pages.ts`，使用 `gProd(module, { subModule: [[page, label]] })` 结构，不允许把所有页面扁平追加到一个数组。
+28. **BaseTable 强制 AGGrid**：所有业务主列表/台账/主从表/树表/详情子表的 `BaseTable` 必须显式写 `render-type="agGrid"`，并绑定全局唯一 `cid`。弹窗小表格可豁免，但必须在生成摘要中说明理由。
+29. **cid 必须可追踪**：每个页面导出 `TABLE_CID = "{pageAbbr}-{base36Timestamp}"`；多表页面使用 `BOTTOM_TABLE_CID` / `ITEM_TABLE_CID`，列级 `cid` 必须使用 `${TABLE_CID}-fieldName` 前缀。
+30. **skills-ui 只能融合，不可生搬硬套**：不得照搬 `wl-skills-ui/templates/list-page` 中的原生 `el-form/usePageHook/el-pagination` 通用写法；本项目必须保留 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination` 平台骨架，只融合 `defineColumns/renderOps/tokens/preset`。
+31. **必须落盘 page-spec.json**：生成页面时，把 page-spec（`page` 中文名 + `query` + `columns` + `toolbar` + `operations`）按 `.wl-skills/docs/page-spec-schema.md` 写入页面目录的 `page-spec.json`。字段 `name`/`label`/顺序必须与 data.ts、原型及机器 API 契约严格一致——这是 `validate` 做 S1~S6 比对的真值。生成后自检若出现 S2/S3/S4/S6 error，必须修正到 0 error。
+32. **字典契约闭环**：页面出现 `logicType: BusLogicDataType.dict` 时，api.md 必须包含完整 dict-contract，模块 dicts.ts 必须汇总该定义；`wl-skills validate` D1 未通过时禁止建议 dict-sync。
+33. **字段边界契约闭环**：创建/更新表单的字符串长度、格式和数值范围/精度必须从已确认的 API/数据库/需求契约写入 page-spec `constraints + constraintSource`；实现时同步生成控件属性与 `@robot-admin/form-validate` 规则，后端校验仍是最终边界。UI-only 使用 `ELEMENT_RULES/ELEMENT_COMBOS`；需与提交/明细校验复用时以 `SPEC_RULES` 为唯一事实源并用 `toElementRules` 适配。无来源时进入 `openQuestions`，禁止按字段名、标签或经验值猜测。
+34. **字典实际引用闭环**：生成结束后除 D1 外必须通过 D2；代码中的 `dictCode/logicValue/useDictOpts/jh-select dict` 字面量必须已在模块 dicts.ts 登记。状态机枚举不因名称含 status/type/flag 被强制改成平台字典。
+35. **分页边界闭环**：以项目 `.wl-skills/contracts/wl-delivery-profile.v1.json` 为唯一事实源；无项目配置时才使用包基线 `current: 1, size: 10, maxSize: 200`。项目显式采用 20/1000 等合理口径时允许并报告覆盖基线，不得误判；只有代码与生效 Profile 不一致或请求越界才阻断。查询、重置、页大小变化和保存成功后回第一页，删除末页最后一条时回退上一页。
+36. **上下文闭环**：新页面使用 `features.contextFields` 区分 `client/server`。客户端上下文仅进入显式 operations；服务端租户/公司上下文由鉴权注入，禁止由前端请求携带。旧 `fixedQueryFields` 兼容为客户端 page/create/update 上下文。只显示默认值但提交时丢失属于生成失败。
+37. **查询触发与列表生命周期**：标准列表首次进入查询；检索条件由“搜索/重置”显式触发，普通输入失焦不得自动查询（`BaseQuery :auto-select="false"`）；保存成功回第一页刷新；删除导致当前页为空时回退上一页。特殊实时联想页须在 page-spec 显式声明 `queryTrigger=auto`。
+38. **字段边界只认契约证据**：必填、长度、正则、数值范围/精度和开始/结束时间必须来自 page-spec + wl-api-contract；字符串字段不得按名称猜成数字，查询 DTO 不得机械继承数据库写入长度，拿不准时只保留明确必填或形成 openQuestion。
+39. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
+40. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
 
 ### 禁止事项（严格遵守）
 
@@ -199,6 +202,8 @@ src/views/[域]/[模块]/dicts.ts
 16. **❌ 禁止忽略 wl-skills-ui**：项目已安装 `@agile-team/wl-skills-ui` 时，不使用 `defineColumns/renderOps` 属于生成失败。
 17. **❌ 禁止 BaseTable 非 AGGrid**：业务列表中 `<BaseTable>` 未写 `render-type="agGrid"` 或缺少 `cid/:cid` 属于生成失败。
 18. **❌ 禁止列缺 cid**：AGGrid 表格的数据列/操作列缺少列级 `cid` 属于生成失败。
+19. **❌ 禁止新页面手写通用表单规则**：不得重复写 `{ required, message, trigger }`、通用格式正则和数值 callback validator；使用 `@robot-admin/form-validate`。业务特有且无法等价映射的规则可保留，但必须说明契约来源。
+20. **❌ 禁止 Element Plus 页面使用 Naive API**：不得使用 `PRESET_RULES`、`RULE_COMBOS`、`NAIVE_COMBOS` 或 `toNaiveRule(s)`；改用 `ELEMENT_RULES/ELEMENT_COMBOS` 或 RuleSpec 适配。
 
 ### 场景化实现规则（按需读取）
 
@@ -208,6 +213,7 @@ src/views/[域]/[模块]/dicts.ts
 | 按钮交互、条件操作列、状态标签或视角/Tab | `references/table-interactions.md` |
 | Excel 导入导出或 Mock 写操作 | `references/import-export-and-mock.md` |
 | FORM_TAB / FORM_ROUTE / 独立路由表单页 | `references/form-ui.md` |
+| 新增/编辑表单、可编辑明细或提交前批量校验 | `references/form-validation-library.md` |
 | 写入 `pages.ts` 或 `SYS_MENU_INFO.md` 前 | `references/registration-and-menu.md` |
 
 只读取本次页面命中的 reference；模板代码仍按下方模板索引读取一个匹配文件。

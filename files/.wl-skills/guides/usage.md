@@ -144,10 +144,10 @@ A: 检查 `.prettierrc.js` / `eslint.config.ts` / `.husky/` 是否齐全。重�
 A: 触发 `template-extract`，从现有标杆页面提取为领域专属模板，沉淀到 `templates/domains/{你的领域}/`。
 
 **Q: 多个 AI 编辑器之间会冲突吗？**
-A: 不会。`bin/wl-skills.js` 已自动生成 9 种主流 AI 编辑器配置文件（含 Qoder），所有内容来自同一份 `copilot-instructions.md`，保持一致。
+A: 不会。`bin/wl-skills.js` 已自动生成 10 种 AI 编辑器配置（含 Kilo Code / Qoder）；规则正文来自同一入口。Kilo 的 `.kilo/skills/` 也只是指向 `.wl-skills/skills/` 的薄适配器，不复制流程正文。
 
 **Q: MCP Server 是什么？需要额外配置吗？**
-A: `wl-skills init` 会自动为 **Cursor**（`.cursor/mcp.json`）、**Claude Code**（`.mcp.json`）、**VS Code / GitHub Copilot**（`.vscode/mcp.json`）、**Kiro**（`.kiro/settings/mcp.json`）生成项目级 MCP 配置文件。
+A: `wl-skills init` 会自动为 **Cursor**（`.cursor/mcp.json`）、**Claude Code**（`.mcp.json`）、**VS Code / GitHub Copilot**（`.vscode/mcp.json`）、**Kiro**（`.kiro/settings/mcp.json`）和 **Kilo Code** 生成项目级 MCP 配置。Kilo 优先无损合并已有根目录 `kilo.jsonc` / `kilo.json`，否则创建 `.kilo/kilo.jsonc`；现有注释、GLM provider、团队规则和其他 MCP 均保留。
 
 Windsurf、Cline、Trae、Qoder 仅支持全局配置，需手动操作一次，详见 `.wl-skills/guides/mcp-setup.md`。
 
