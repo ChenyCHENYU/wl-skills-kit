@@ -6,3 +6,16 @@
   display: flex;
   justify-content: flex-end;
 }
+
+.required-toggle-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+
+  .required-toggle-label {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+    user-select: none;
+  }
+}

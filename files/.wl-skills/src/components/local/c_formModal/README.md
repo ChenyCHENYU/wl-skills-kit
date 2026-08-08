@@ -15,6 +15,7 @@
 - ✅ **表单校验**：继承 `AbstractFormHook`，自动支持表单验证
 - ✅ **异步请求**：使用 async/await 扁平化异步代码
 - ✅ **类型安全**：完整的 TypeScript 类型定义
+- ✅ **仅必填切换**（v2.14.4+）：`showRequiredToggle` 开关一键切换"全部/仅必填"，表单数据不丢失
 
 ## 📦 文件结构
 
@@ -115,6 +116,7 @@ function select() {
 | `columns`     | `number`             | ❌   | `2`     | 表单列数         |
 | `labelWidth`  | `string`             | ❌   | `110px` | 标签宽度         |
 | `titlePrefix` | `string`             | ❌   | `数据`  | 标题前缀         |
+| `showRequiredToggle` | `boolean`      | ❌   | `false` | 显示"仅必填"切换开关 |
 
 ### ModalApi 类型
 
@@ -217,6 +219,34 @@ modalRef.value?.edit(taskId);
 ```
 
 ### 扩展功能
+
+#### 仅必填切换（大量表单场景）
+
+表单字段多时，开启 `showRequiredToggle` 可一键切换"全部 / 仅必填"，快速填写提交：
+
+```vue
+<c_formModal ref="modalRef" v-bind="modalConfig" show-required-toggle @ok="select" />
+```
+
+- 切换不影响已填数据（表单值在 `form` 对象中，不在 items 中）
+- 隐藏非必填项时同步清除其校验状态，不阻断提交
+- 无必填字段的表单不显示切换开关
+
+#### 独立路由表单页（FORM_ROUTE）
+
+非 `c_formModal` 场景，直接用 composable：
+
+```ts
+import { useFormRequiredOnly } from "@/hooks/useFormRequiredOnly";
+
+const { showRequiredOnly, visibleItems, toggleRequiredOnly } =
+  useFormRequiredOnly(formItems, formRef);
+```
+
+```vue
+<el-switch v-model="showRequiredOnly" /> 仅必填
+<BaseForm :items="visibleItems" :form="form" />
+```
 
 在 [data.ts](data.ts) 中新增方法：
 

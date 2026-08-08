@@ -138,6 +138,19 @@ export const formRules = {
   `message`，否则使用明确中文兜底；技术堆栈进入日志。
 - 表单提交必须构造 API 契约允许的请求模型，禁止把整个响应式页面状态直接发送。
 
+## 仅必填切换（大量表单场景）
+
+表单字段多（>10 项）且混合必填/非必填时，推荐开启"仅必填"切换：
+
+- **c_formModal**：加 `show-required-toggle` prop 即可（零代码）
+- **FORM_ROUTE**：用 `useFormRequiredOnly(formItems, formRef)` composable
+
+设计约束：
+- 切换用过滤 items 而非 v-if/v-show（表单数据在 form 对象中，切换不丢值）
+- 隐藏非必填项时同步 `clearValidate`，防止残留校验阻断提交
+- 无必填字段的表单不显示切换开关
+- 底层 composable 纯 Vue 3 零平台依赖，可独立测试
+
 ## AI 检查清单
 
 生成 FORM_ROUTE 模板代码时确认：

@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-08-08
+
+### Added
+
+- 新增 `useFormRequiredOnly` composable（`src/hooks/useFormRequiredOnly.ts`）：表单"仅必填"切换通用能力。纯 Vue 3 零平台依赖，过滤 items 控制渲染，切换不丢数据，隐藏非必填项时同步 clearValidate。12 个单元测试覆盖。
+- `c_formModal` 新增 `showRequiredToggle` prop（默认 false，opt-in）：开启后表单上方显示"仅显示必填项"开关，适合大量表单场景快速填写提交。
+
+### Changed
+
+- `standards/11-form-validation.md` 补"仅必填切换"规范段。
+- `c_formModal` README 补充 `showRequiredToggle` prop 说明和独立 composable 用法。
+
 ## [2.16.0] - 2026-08-05
 
 ### Added
