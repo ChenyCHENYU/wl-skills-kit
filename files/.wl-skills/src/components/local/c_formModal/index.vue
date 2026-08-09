@@ -9,7 +9,10 @@
  -->
 <template>
   <jh-dialog v-model="visible" :width="width" :title="currentTitle">
-    <div v-if="showRequiredToggle && hasRequiredItems" class="required-toggle-bar">
+    <div
+      v-if="showRequiredToggle && mode !== 'view' && canToggleRequiredOnly"
+      class="required-toggle-bar"
+    >
       <el-switch v-model="showRequiredOnly" size="small" />
       <span class="required-toggle-label">仅显示必填项</span>
     </div>
@@ -81,7 +84,8 @@ const { visible, formRef, form, formItems, save, reset } = Page;
 // "仅必填"切换能力（opt-in，showRequiredToggle=false 时不生效）
 const {
   showRequiredOnly,
-  hasRequiredItems,
+  canToggleRequiredOnly,
+  setRequiredOnly,
   visibleItems: requiredOnlyItems
 } = useFormRequiredOnly(toRef(props, "formItems"), formRef);
 
@@ -101,6 +105,7 @@ defineExpose({
   /** 打开新增弹窗 */
   open(formData?: Record<string, any>) {
     mode.value = "add";
+    setRequiredOnly(false);
     reset();
     if (formData) {
       form.value = {
@@ -112,12 +117,14 @@ defineExpose({
   /** 打开编辑弹窗 */
   async edit(id: string) {
     mode.value = "edit";
+    setRequiredOnly(false);
     visible.value = true;
     await Page.getById(id);
   },
   /** 打开详情弹窗（只读） */
   async view(id: string) {
     mode.value = "view";
+    setRequiredOnly(false);
     visible.value = true;
     await Page.getById(id);
   }

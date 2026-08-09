@@ -7,7 +7,8 @@
 
 先读取项目 `package.json`：
 
-- 已声明 `@robot-admin/form-validate`：继续生成。
+- 已声明 `@robot-admin/form-validate`：验证声明范围及可解析安装版本均满足 `3.4.1+`
+  后继续；低版本阻断，`workspace:*` 等无法判定的范围先人工确认并锁定兼容版本。
 - 未声明且本页需要表单规则：在 Pre-flight 列出
   `pnpm add @robot-admin/form-validate@^3.4.1`，经用户确认安装后继续；不得先生成悬空 import。
 - 存在已废弃的 `@robot-admin/form-validate-core` 或

@@ -14,7 +14,8 @@
 import { computed, ref, watch, unref, type Ref, type MaybeRef } from "vue";
 
 export interface FormItemLike {
-  name: string;
+  name?: string;
+  prop?: string;
   required?: boolean;
   [key: string]: any;
 }
@@ -29,12 +30,29 @@ export interface UseFormRequiredOnlyReturn<T> {
   showRequiredOnly: Ref<boolean>;
   /** 是否存在必填字段（无必填项时切换无意义） */
   hasRequiredItems: Ref<boolean>;
+  /** 是否同时存在必填和非必填字段，只有此时才展示切换 */
+  canToggleRequiredOnly: Ref<boolean>;
   /** 当前应渲染的 items（全部或仅必填） */
   visibleItems: Ref<T[]>;
   /** 当前被隐藏的字段名列表 */
   hiddenFieldNames: Ref<string[]>;
   /** 切换模式 */
   toggleRequiredOnly: () => void;
+  /** 显式设置模式，便于页面按钮或外部状态驱动 */
+  setRequiredOnly: (value: boolean) => void;
+}
+
+export interface UseFormRequiredOnlyOptions<T> {
+  /** 父页面控制的模式；Tab 子组件可直接传入只读 prop */
+  requiredOnly?: MaybeRef<boolean>;
+  /** 受控模式变更回调；未提供时仅由父级改变 */
+  onRequiredOnlyChange?: (value: boolean) => void;
+  /** 非受控模式初值，默认展示全部字段 */
+  defaultRequiredOnly?: boolean;
+  /** 字段名提取器，默认依次读取 name / prop */
+  getFieldName?: (item: T) => string | undefined;
+  /** 必填判断器，默认 required === true */
+  isRequired?: (item: T) => boolean;
 }
 
 /**
@@ -57,9 +75,21 @@ export interface UseFormRequiredOnlyReturn<T> {
  */
 export function useFormRequiredOnly<T extends FormItemLike>(
   formItems: MaybeRef<T[]>,
-  formRef?: MaybeRef<FormRefLike | null>
+  formRef?: MaybeRef<FormRefLike | null>,
+  options: UseFormRequiredOnlyOptions<T> = {}
 ): UseFormRequiredOnlyReturn<T> {
-  const showRequiredOnly = ref(false);
+  const internalRequiredOnly = ref(options.defaultRequiredOnly ?? false);
+  const showRequiredOnly = computed({
+    get: () => options.requiredOnly === undefined
+      ? internalRequiredOnly.value
+      : Boolean(unref(options.requiredOnly)),
+    set: (value: boolean) => {
+      if (options.requiredOnly === undefined) internalRequiredOnly.value = value;
+      options.onRequiredOnlyChange?.(value);
+    }
+  });
+  const isRequired = options.isRequired ?? ((item: T) => item.required === true);
+  const getFieldName = options.getFieldName ?? ((item: T) => item.name ?? item.prop);
 
   const resolveItems = (): T[] => {
     const raw = unref(formItems);
@@ -67,45 +97,57 @@ export function useFormRequiredOnly<T extends FormItemLike>(
   };
 
   const hasRequiredItems = computed(() =>
-    resolveItems().some((item) => item.required === true)
+    resolveItems().some(isRequired)
   );
+
+  const canToggleRequiredOnly = computed(() => {
+    const items = resolveItems();
+    return items.some(isRequired) && items.some((item) => !isRequired(item));
+  });
 
   const visibleItems = computed(() => {
     const items = resolveItems();
-    if (!showRequiredOnly.value) return items;
-    return items.filter((item) => item.required === true);
+    if (!showRequiredOnly.value || !canToggleRequiredOnly.value) return items;
+    return items.filter(isRequired);
   });
 
   const hiddenFieldNames = computed(() => {
     const items = resolveItems();
-    if (!showRequiredOnly.value) return [];
+    if (!showRequiredOnly.value || !canToggleRequiredOnly.value) return [];
     return items
-      .filter((item) => item.required !== true)
-      .map((item) => item.name);
+      .filter((item) => !isRequired(item))
+      .map(getFieldName)
+      .filter((name): name is string => Boolean(name));
   });
 
   function toggleRequiredOnly() {
-    showRequiredOnly.value = !showRequiredOnly.value;
+    if (canToggleRequiredOnly.value) showRequiredOnly.value = !showRequiredOnly.value;
+  }
+
+  function setRequiredOnly(value: boolean) {
+    showRequiredOnly.value = value && canToggleRequiredOnly.value;
   }
 
   // 切换时清除隐藏字段的残留校验状态，防止隐藏的必填项阻断 validate
-  watch(showRequiredOnly, (isRequiredOnly) => {
+  watch([showRequiredOnly, canToggleRequiredOnly], ([isRequiredOnly, canToggle]) => {
     const ref = unref(formRef);
     if (!ref || typeof ref.clearValidate !== "function") return;
-    if (isRequiredOnly) {
+    if (isRequiredOnly && canToggle) {
       // 切换到"仅必填"：清除即将隐藏的非必填字段校验
       ref.clearValidate(hiddenFieldNames.value);
     } else {
       // 切换回"全部"：清除所有校验状态，下次 validate 重新计算
       ref.clearValidate();
     }
-  });
+  }, { flush: "post" });
 
   return {
     showRequiredOnly,
     hasRequiredItems,
+    canToggleRequiredOnly,
     visibleItems,
     hiddenFieldNames,
     toggleRequiredOnly,
+    setRequiredOnly,
   };
 }

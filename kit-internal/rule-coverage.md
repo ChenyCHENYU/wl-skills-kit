@@ -45,8 +45,8 @@
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **R14** | error | 是 |
 | standards/11 | 分页状态默认 current=1、size=10；所有显式请求满足 current>=1、1<=size<=200 | **R15** | error | 是 |
 | standards/05/11 | structuredClone 响应式对象与 error.message 直出风险 | **R16** | warn | 否 |
-| standards/11 | 大型混合必填表单缺少“仅必填”快速切换 | **R17** | warn | 否 |
-| standards/11 | form-validate 依赖、Element API 与手写规则混用检查 | **R18** | error/warn/info | 是 |
+| standards/11 | 弹窗、BaseForm、分区页面的大型混合必填表单缺少快速切换 | **R17** | warn | 弹窗 F6 |
+| standards/11 | form-validate 依赖/版本、Element API 与手写规则混用检查 | **R18** | error/warn/info | 是 |
 | page-codegen 10 | 查询字段顺序 = 原型顺序 | **S1** | warn | 否 |
 | page-codegen 11 | 表格列顺序 = 原型顺序 | **S2** | error | 是 |
 | page-codegen 12 | 工具栏按钮顺序/颜色 = 原型 | **S3** | error | 是 |

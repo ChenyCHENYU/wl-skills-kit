@@ -150,7 +150,7 @@ const navTabsConfig = [
 | headerTitle        | 标题栏标题文本                             | `string`                  | `'主档维护'` |
 | headerActions      | 顶部操作按钮                               | `HeaderAction[]`          | `[]`         |
 | showToolbar        | 是否显示工具栏                             | `boolean`                 | `false`      |
-| showRequiredFilter | 是否显示必填字段过滤开关                   | `boolean`                 | `false`      |
+| showRequiredFilter | 混合必填/非必填时显示快速过滤开关           | `boolean`                 | `false`      |
 | showLayoutSwitch   | 是否显示布局切换器                         | `boolean`                 | `false`      |
 | defaultLayout      | 默认布局列数                               | `2 \| 3 \| 4 \| 5`        | `5`          |
 | layoutOptions      | 可选布局列数                               | `Array<2 \| 3 \| 4 \| 5>` | `[2,3,4,5]`  |
@@ -176,8 +176,13 @@ interface SectionConfig {
   visible?: () => boolean;
   /** 是否为特殊处理的区块 */
   isSpecial?: boolean;
+  /** 仅必填模式是否保留特殊插槽；默认 true，确认无必填输入后才能设为 false */
+  requiredOnlyVisible?: boolean;
 }
 ```
+
+`show-required-filter` 可独立使用，不要求同时开启 `show-toolbar`。只有字段不少于 10 项且
+混合必填/非必填时由页面生成规范要求开启；组件本身仅在切换有实际意义时显示开关。
 
 ### FieldConfig
 
@@ -306,16 +311,14 @@ interface NavTabConfig {
 ```vue
 <template>
   <div class="form-container">
-    <!-- 必填字段过滤开关 -->
-    <el-switch v-model="showRequiredOnly" />
-
     <!-- 表单区块组件 -->
     <c-form-sections
-      :sections="visibleSections"
+      :sections="sectionsConfig"
       v-model:form="form"
       v-model:activeNames="activeNames"
       :rules="formRules"
       :fieldSpan="layoutColumns === 2 ? 12 : 6"
+      show-required-filter
     >
       <!-- 特殊需求区块 -->
       <template #special-3>
@@ -332,12 +335,10 @@ interface NavTabConfig {
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { ELEMENT_RULES } from "@robot-admin/form-validate";
 import CFormSections from "@/components/local/c_formSections/index.vue";
-import { filterFieldsByRequired } from "@/components/local/c_formSections/data";
 
-const showRequiredOnly = ref(false);
 const layoutColumns = ref(5);
 const activeNames = ref(["1", "2", "3"]);
 
@@ -349,7 +350,7 @@ const form = ref({
   date: null
 });
 
-const sectionsConfigRaw = [
+const sectionsConfig = [
   {
     name: "1",
     id: "section-1",
@@ -383,20 +384,10 @@ const sectionsConfigRaw = [
     title: "特殊需求",
     fieldsConfig: [],
     isSpecial: true,
-    visible: () => !showRequiredOnly.value
+    // 已确认该插槽没有必填输入，快速填写模式可隐藏
+    requiredOnlyVisible: false
   }
 ];
-
-// 动态过滤字段
-const visibleSections = computed(() => {
-  return sectionsConfigRaw.map((section) => ({
-    ...section,
-    fieldsConfig: filterFieldsByRequired(
-      section.fieldsConfig,
-      showRequiredOnly.value
-    )
-  }));
-});
 
 const formRules = {
   name: [ELEMENT_RULES.required("名称")],

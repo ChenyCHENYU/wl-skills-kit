@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.3** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.4** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -20,6 +20,31 @@ pnpm standards:init                           # 本包维护/业务项目均可�
 > 可选桥接：如业务项目也需要统一 UI 风格、老系统化妆层和 UI 扫描修复，可单独安装 `@agile-team/wl-skills-ui`。两包职责独立，不互相强依赖：`wl-skills-kit` 负责编码规范/页面生成/菜单字典权限，`wl-skills-ui` 负责视觉一致性/设计令牌/化妆层/Runtime 渲染。
 
 > 包管理策略：本仓库维护链路 **pnpm-first**，使用 `pnpm-lock.yaml`、`pnpm verify`、`pnpm ci`；npm 只用于 `npm pack` / `npm publish` 发版环节，不提交 `package-lock.json` 和 npm token。
+
+### 表单校验与“仅必填”快速填写
+
+`wl-skills-kit` 不依赖也不内置 `@robot-admin/form-validate`。只有本次生成的业务表单
+实际需要校验时，page-codegen 才检查目标项目的依赖与版本；缺失时列出
+`pnpm add @robot-admin/form-validate@^3.4.1` 并暂停，经确认后再安装，绝不静默安装或
+生成悬空 import。存量手写 validator 只做渐进提示，不自动改写业务语义；新生成或
+明确改造的通用规则统一使用校验库。
+
+字段不少于 10 项且同时包含必填、非必填字段时，生成页面必须提供“全部/仅必填”切换：
+
+| 页面形态 | 接入方式 | 状态归属 |
+| --- | --- | --- |
+| `c_formModal` 弹窗 | 添加 `show-required-toggle` | 组件内部管理，每次打开恢复全部字段 |
+| `c_formSections` 分区页 | 添加 `show-required-filter` | 组件内部管理并清理隐藏字段校验 |
+| 普通 `BaseForm` 页面 | `useFormRequiredOnly(formItems, formRef)`，把 `visibleItems` 传给 `BaseForm` | 页面管理 |
+| 多 Tab 表单 | 父页面维护状态，子表单通过 `requiredOnly` 受控参数过滤 | 父页面统一管理 |
+
+完整代码示例、特殊插槽处理和多 Tab 受控写法见
+[表单 UI 生成指南](files/.wl-skills/skills/core/page-codegen/references/form-ui.md#4-全部仅必填切换)，
+校验规则与存量项目接入边界见
+[表单校验规范](files/.wl-skills/standards/11-form-validation.md#仅必填切换大量表单场景)。
+
+R17 会同时检查弹窗、`BaseForm` 页面和 `c_formSections` 页面。F6 只自动补齐可确定安全的
+弹窗 prop；页面需要协调 import、状态和布局，只给出精确建议，不做高风险机械改写。
 
 ### 独立使用与前后端配套
 
@@ -44,6 +69,12 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.16.4**：统一弹窗、普通页面、分区页面和多 Tab 表单的“全部/仅必填”快速填写能力。
+
+- **页面级能力闭环**：共享 `useFormRequiredOnly`，只过滤渲染项、不删除表单值，并同步清理隐藏字段校验。
+- **生成与检查一致**：页面模板直接生成有效过滤逻辑；R17 逐表单检查弹窗、`BaseForm` 和 `c_formSections`，避免只生成无效开关。
+- **依赖边界明确**：校验库继续由业务项目按需安装，kit 仅检查 `@robot-admin/form-validate` 3.4.1+，不与其运行时耦合。
 
 **v2.16.3**：Kilo Code 原生适配、标准表单校验库闭环和 MCP 风险声明进一步收口。
 

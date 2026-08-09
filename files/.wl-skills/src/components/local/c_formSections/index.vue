@@ -48,10 +48,16 @@
     </div>
 
     <!-- 工具栏 -->
-    <div v-if="showToolbar" class="c-form-toolbar">
+    <div
+      v-if="showToolbar || (showRequiredFilter && canToggleRequiredOnly)"
+      class="c-form-toolbar"
+    >
       <div class="toolbar-left">
         <!-- 必填字段过滤开关 -->
-        <span v-if="showRequiredFilter" class="required-toggle">
+        <span
+          v-if="showRequiredFilter && canToggleRequiredOnly"
+          class="required-toggle"
+        >
           <span class="label">仅显示必填字段</span>
           <el-switch v-model="showRequiredOnly" size="small" />
         </span>
@@ -75,7 +81,7 @@
         @tab-click="handleNavTabClick"
       >
         <el-tab-pane
-          v-for="tab in navTabs"
+          v-for="tab in visibleNavTabs"
           :key="tab.name"
           :label="tab.label"
           :name="tab.name"
@@ -85,6 +91,7 @@
       <!-- 表单区域 -->
       <div ref="formContainerRef" class="form-container">
         <el-form
+          ref="formRef"
           :label-width="labelWidth"
           :label-position="labelPosition"
           :model="form"
@@ -220,8 +227,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import {
+  useFormRequiredOnly,
+  type FormRefLike
+} from "@/hooks/useFormRequiredOnly";
 import type {
   SectionConfig,
+  FieldConfig,
   FormDataType,
   NavTabConfig,
   HeaderAction,
@@ -311,9 +323,6 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 // ===== 内部状态 =====
-/** 仅显示必填字段开关 */
-const showRequiredOnly = ref(false);
-
 /** 当前布局列数 */
 const currentLayout = ref<2 | 3 | 4 | 5>(props.defaultLayout);
 
@@ -322,6 +331,9 @@ const activeNavTab = ref("");
 
 /** 表单容器引用 */
 const formContainerRef = ref<HTMLElement | null>(null);
+
+/** Element/BaseForm 校验引用，仅用于清理被隐藏字段的残留校验。 */
+const formRef = ref<FormRefLike | null>(null);
 
 // ===== 计算属性 =====
 /** 激活的折叠面板（v-model） */
@@ -352,21 +364,36 @@ const currentFieldSpan = computed(() => {
   return Math.floor(24 / currentLayout.value);
 });
 
-/**
- * 🆕 过滤后的区块（根据必填字段过滤）
- */
+/** 参与标准过滤的字段；特殊插槽区块由 requiredOnlyVisible 显式控制。 */
+const formFields = computed(() =>
+  props.sections.flatMap((section) => section.isSpecial ? [] : section.fieldsConfig)
+);
+
+const {
+  showRequiredOnly,
+  canToggleRequiredOnly,
+  visibleItems,
+  setRequiredOnly
+} = useFormRequiredOnly<FieldConfig>(formFields, formRef, {
+  getFieldName: (field) => field.prop
+});
+
+/** 过滤后的区块（根据必填字段过滤）。 */
 const filteredSections = computed(() => {
-  if (!showRequiredOnly.value) {
+  if (!showRequiredOnly.value || !canToggleRequiredOnly.value) {
     return props.sections;
   }
 
+  const visibleFields = new Set(visibleItems.value);
   return props.sections.map((section) => {
     if (section.isSpecial) {
-      return section;
+      return section.requiredOnlyVisible === false
+        ? { ...section, fieldsConfig: [] }
+        : section;
     }
     return {
       ...section,
-      fieldsConfig: section.fieldsConfig.filter((field) => field.required)
+      fieldsConfig: section.fieldsConfig.filter((field) => visibleFields.has(field))
     };
   });
 });
@@ -377,9 +404,9 @@ const filteredSections = computed(() => {
  */
 const visibleSections = computed(() => {
   return filteredSections.value.filter((section) => {
-    // 特殊区块：必填模式下隐藏
+    // 特殊插槽无法静态分析字段，默认保留；业务确认无必填内容时可显式隐藏。
     if (section.isSpecial) {
-      return !showRequiredOnly.value;
+      return section.requiredOnlyVisible !== false || !showRequiredOnly.value;
     }
     // 普通区块：有字段才显示
     const hasFields = section.fieldsConfig.length > 0;
@@ -402,6 +429,14 @@ const internalNavTabs = computed<NavTabConfig[]>(() => {
     label: section.title,
     sectionName: section.name
   }));
+});
+
+/** 仅保留当前可见区块的导航项，避免快速填写模式出现无内容锚点。 */
+const visibleNavTabs = computed(() => {
+  const visibleNames = new Set(visibleSections.value.map((section) => section.name));
+  return internalNavTabs.value.filter((tab) =>
+    !tab.sectionName || visibleNames.has(tab.sectionName)
+  );
 });
 
 // ===== 方法 =====
@@ -435,6 +470,13 @@ const handleNavTabClick = (tab: any) => {
     }
   }, 150);
 };
+
+defineExpose({
+  showRequiredOnly,
+  canToggleRequiredOnly,
+  setRequiredOnly,
+  validate: () => formRef.value?.validate?.()
+});
 </script>
 
 <style scoped lang="scss">

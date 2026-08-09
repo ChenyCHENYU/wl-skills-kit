@@ -64,53 +64,79 @@
 }
 ```
 
-### 4. 只看必填项（推荐 composable 方案）
+### 4. 全部/仅必填切换
 
-**推荐方式**：用 `useFormRequiredOnly` composable 过滤 items 数组，而非 CSS 隐藏。
+字段 ≥10 且同时存在必填、非必填字段时生成切换。只过滤配置数组控制渲染，禁止
+删除 `form` 字段、CSS 隐藏或维护第二份表单数据。
 
-**原理**：表单数据在 `form` 对象中（不在 items 中），过滤 items 只控制渲染，切换不丢数据。
-
-#### c_formModal 场景（零代码）
+#### c_formModal
 
 ```vue
 <c_formModal v-bind="modalConfig" show-required-toggle @ok="select" />
 ```
 
-加 `show-required-toggle` 即可，组件内部自动处理切换 + clearValidate。
+组件仅在混合必填/非必填且非查看模式显示开关，重新打开时默认恢复全部字段。
 
-#### 独立路由表单（FORM_ROUTE）
+#### c_formSections 页面
+
+```vue
+<c_formSections
+  v-model:form="form"
+  :sections="sections"
+  show-required-filter
+/>
+```
+
+`show-required-filter` 不依赖 `show-toolbar`；组件内部复用 composable，并通过字段 `prop`
+清理隐藏项校验。特殊插槽默认保留，确认没有必填内容时为 section 声明
+`requiredOnlyVisible: false`。
+
+#### BaseForm / FORM_ROUTE 页面
 
 ```ts
+import { ref } from "vue";
 import { useFormRequiredOnly } from "@/hooks/useFormRequiredOnly";
-const { showRequiredOnly, visibleItems } = useFormRequiredOnly(formItems, formRef);
+
+const formRef = ref();
+const {
+  showRequiredOnly,
+  canToggleRequiredOnly,
+  visibleItems
+} = useFormRequiredOnly(formItems, formRef);
 ```
 
 ```vue
-<el-switch v-model="showRequiredOnly" /> 仅必填
-<BaseForm :items="visibleItems" :form="form" />
+<div v-if="canToggleRequiredOnly" class="required-toggle-bar">
+  <span>仅显示必填项</span>
+  <el-switch v-model="showRequiredOnly" />
+</div>
+<BaseForm ref="formRef" :items="visibleItems" :form="form" />
 ```
 
-#### 自动检测（R17）
+#### 多 Tab / 子组件表单
 
-表单字段 ≥10 且混合必填时，`wl-skills validate` 会提示 R17 建议开启。
-`wl-skills fix` 可自动补 `show-required-toggle`（幂等安全，F6）。
+父页面只维护一个开关，并传入各子组件：
 
-#### 旧 CSS 方案（已废弃，不推荐）
-
-> 以下 CSS `:has()` 方案有浏览器兼容问题且隐藏后校验未清除，已被 composable 方案取代。
-
-<details>
-<summary>旧 CSS 方案（仅供参考）</summary>
-
-```scss
-&.only-required {
-  :deep(.el-col:has(> .el-form-item:not(.is-required))) {
-    display: none !important;
-  }
-}
+```vue
+<el-switch v-model="showRequiredOnly" />
+<c_customerTabs :required-only="showRequiredOnly" />
 ```
 
-</details>
+每个拥有 items 与 `formRef` 的子表单使用受控模式，不能只接收 prop 却不执行过滤：
+
+```ts
+const props = defineProps<{ requiredOnly: boolean }>();
+const { visibleItems } = useFormRequiredOnly(formItems, formRef, {
+  requiredOnly: toRef(props, "requiredOnly")
+});
+```
+
+每个子表单将自己的 `visibleItems` 传给 `BaseForm`；切换时各自执行 `clearValidate`。
+
+#### 自动检测边界
+
+R17 同时检查 `c_formModal`、页面 `BaseForm` 与 `c_formSections`。F6 只自动补可确定
+安全的弹窗 prop；页面缺少能力时输出 composable/prop 建议，不自动注入 import 和布局。
 
 ### 5. 状态信息区域放置
 
@@ -137,7 +163,7 @@ const { showRequiredOnly, visibleItems } = useFormRequiredOnly(formItems, formRe
   <span class="page-title">客户申请详情</span>
   <span class="page-tag page-tag--add">新增</span>
   <span class="page-tag page-tag--status">未审核</span>
-  <el-checkbox v-model="onlyRequired" class="only-required-check">只看必填项</el-checkbox>
+  <el-checkbox v-model="showRequiredOnly" class="only-required-check">只看必填项</el-checkbox>
 </div>
 <div class="page-toolbar">
   <el-button type="danger" @click="handleSaveAndChange">保存并变更</el-button>

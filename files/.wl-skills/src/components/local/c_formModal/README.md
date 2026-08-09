@@ -15,7 +15,7 @@
 - ✅ **表单校验**：继承 `AbstractFormHook`，自动支持表单验证
 - ✅ **异步请求**：使用 async/await 扁平化异步代码
 - ✅ **类型安全**：完整的 TypeScript 类型定义
-- ✅ **仅必填切换**（v2.14.4+）：`showRequiredToggle` 开关一键切换"全部/仅必填"，表单数据不丢失
+- ✅ **仅必填切换**：`showRequiredToggle` 开关一键切换“全部/仅必填”，表单数据不丢失
 
 ## 📦 文件结构
 
@@ -237,7 +237,8 @@ modalRef.value?.edit(taskId);
 
 - 切换不影响已填数据（表单值在 `form` 对象中，不在 items 中）
 - 隐藏非必填项时同步清除其校验状态，不阻断提交
-- 无必填字段的表单不显示切换开关
+- 仅字段同时包含必填和非必填、且弹窗不是查看模式时显示开关
+- 每次重新打开新增/编辑弹窗时恢复“全部字段”，避免沿用上次筛选状态
 
 #### 独立路由表单页（FORM_ROUTE）
 
@@ -246,13 +247,13 @@ modalRef.value?.edit(taskId);
 ```ts
 import { useFormRequiredOnly } from "@/hooks/useFormRequiredOnly";
 
-const { showRequiredOnly, visibleItems, toggleRequiredOnly } =
+const { showRequiredOnly, canToggleRequiredOnly, visibleItems } =
   useFormRequiredOnly(formItems, formRef);
 ```
 
 ```vue
-<el-switch v-model="showRequiredOnly" /> 仅必填
-<BaseForm :items="visibleItems" :form="form" />
+<el-switch v-if="canToggleRequiredOnly" v-model="showRequiredOnly" /> 仅必填
+<BaseForm ref="formRef" :items="visibleItems" :form="form" />
 ```
 
 在 [data.ts](data.ts) 中新增方法：

@@ -79,7 +79,8 @@ export function use[PageName]Form(tabsRef: any) {
     <div class="page-header">
       <span class="page-title">[页面标题]</span>
       <span class="page-tag page-tag--add">新增</span>
-      <el-checkbox v-model="onlyRequired" class="only-required-check"
+      <!-- 仅当 page-spec 字段 ≥10 且混合必填/非必填时生成 -->
+      <el-checkbox v-model="showRequiredOnly" class="only-required-check"
         >只看必填项</el-checkbox
       >
     </div>
@@ -87,7 +88,11 @@ export function use[PageName]Form(tabsRef: any) {
       <el-button type="primary" @click="handleSave">保存</el-button>
       <el-button @click="handleCancel">取消</el-button>
     </div>
-    <c_[业务名]Tabs ref="tabsRef" mode="add" :only-required="onlyRequired" />
+    <c_[业务名]Tabs
+      ref="tabsRef"
+      mode="add"
+      :required-only="showRequiredOnly"
+    />
   </div>
 </template>
 
@@ -98,7 +103,7 @@ import c_[业务名]Tabs from "@/components/local/c_[业务名]Tabs/index.vue";
 
 const tabsRef = ref();
 const route = useRoute();
-const onlyRequired = ref(false);
+const showRequiredOnly = ref(false);
 const { loading, loadDetail, handleSave, handleCancel } = use[PageName]Form(tabsRef);
 
 onMounted(() => {
@@ -111,6 +116,28 @@ onMounted(() => {
 @import "./index.scss";
 </style>
 ```
+
+多 Tab 子组件不能只接收 prop。每个拥有 `formItems + formRef` 的子表单必须实际过滤：
+
+```vue
+<template>
+  <BaseForm ref="formRef" :form="form" :items="visibleItems" />
+</template>
+
+<script setup lang="ts">
+import { ref, toRef } from "vue";
+import { useFormRequiredOnly } from "@/hooks/useFormRequiredOnly";
+
+const props = defineProps<{ requiredOnly: boolean }>();
+const formRef = ref();
+const { visibleItems } = useFormRequiredOnly(formItems, formRef, {
+  requiredOnly: toRef(props, "requiredOnly")
+});
+</script>
+```
+
+单一 `BaseForm` 页面不需要父子传值，直接在页面调用 composable 并用
+`canToggleRequiredOnly` 控制开关，完整代码见 `references/form-ui.md`。
 
 ---
 

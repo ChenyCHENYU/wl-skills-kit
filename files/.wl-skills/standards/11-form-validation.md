@@ -25,7 +25,8 @@ open → 数据回填 → validate → submit → close / resetFields
   通过 `toElementRules` 适配 UI，并复用到 `validateRecord/validateRows`。
 - 禁止使用 Naive UI 兼容 API：`PRESET_RULES`、`RULE_COMBOS`、`NAIVE_COMBOS`、
   `toNaiveRule(s)`。
-- 页面生成前检查项目 `package.json`。缺少依赖时先在 Pre-flight 提示
+- 页面生成前检查项目 `package.json` 和可解析的实际安装版本，声明范围与安装版本均须满足
+  `3.4.1+`。非标准版本范围不得伪装兼容，先提示人工确认。缺少依赖时在 Pre-flight 提示
   `pnpm add @robot-admin/form-validate@^3.4.1`，经确认安装后继续；禁止生成悬空 import。
 - `@robot-admin/form-validate-core`、`@robot-admin/form-validate-element` 已废弃，
   新代码不得继续引用。
@@ -161,16 +162,25 @@ export const formRules = {
 
 ## 仅必填切换（大量表单场景）
 
-表单字段多（>10 项）且混合必填/非必填时，推荐开启"仅必填"切换：
+表单字段不少于 10 项且混合必填/非必填时，新生成页面必须提供“全部/仅必填”切换；
+存量页面由 R17 提示后渐进接入：
 
 - **c_formModal**：加 `show-required-toggle` prop 即可（零代码）
-- **FORM_ROUTE**：用 `useFormRequiredOnly(formItems, formRef)` composable
+- **c_formSections 页面**：加 `show-required-filter`，内部复用 composable
+- **BaseForm / FORM_ROUTE 页面**：用 `useFormRequiredOnly(formItems, formRef)`，将
+  `visibleItems` 传给 `BaseForm`
+- **多 Tab 页面**：父页面持有 `showRequiredOnly`，每个子表单通过 composable 的
+  `requiredOnly` 受控参数过滤自己的 items，并清理自己的表单校验
 
 设计约束：
-- 切换用过滤 items 而非 v-if/v-show（表单数据在 form 对象中，切换不丢值）
+- 只有同时存在必填和非必填字段时才显示开关；全必填、全非必填或空表单不显示
+- 切换用 computed 过滤 items/sections，而非删除字段或 CSS 隐藏；表单数据仍在 form
+  对象中，切换不丢值
 - 隐藏非必填项时同步 `clearValidate`，防止残留校验阻断提交
-- 无必填字段的表单不显示切换开关
+- 切回全部字段时清理旧校验状态，下次提交重新完整校验
+- 特殊插槽无法静态判断必填性时默认保留；确认无必填内容后才显式隐藏
 - 底层 composable 纯 Vue 3 零平台依赖，可独立测试
+- F6 只自动补 `c_formModal` 的安全 prop；独立页面涉及 import、状态和布局，不做机械改写
 
 ## AI 检查清单
 
@@ -184,6 +194,7 @@ export const formRules = {
 - [ ] 必填字段使用 `ELEMENT_RULES.required`；c_formModal 字段仍保留 `required: true` UI 元数据
 - [ ] 格式、长度、数值和通用校验未重复手写 callback/正则规则
 - [ ] UI 与提交前校验需要复用时以 RuleSpec 为唯一事实源
+- [ ] 字段 ≥10 且混合必填/非必填时已提供有效切换，不是只有开关却未过滤子表单
 - [ ] 已声明 constraints 的字段同时具备控件边界和 rules 校验
 - [ ] 每组 constraints 都有 constraintSource，可追溯且未凭经验猜测
 - [ ] 分页初值、上限和 GET/POST 载荷位置与生效 Profile 一致；未用越界大页伪装全量接口

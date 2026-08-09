@@ -843,7 +843,8 @@ const Page = createPage();
       <span class="page-title">客户申请详情</span>
       <span class="page-tag page-tag--add">新增</span>
       <span class="page-tag page-tag--status">未审核</span>
-      <el-checkbox v-model="onlyRequired" class="only-required-check"
+      <!-- 仅当 page-spec 字段 ≥10 且混合必填/非必填时生成 -->
+      <el-checkbox v-model="showRequiredOnly" class="only-required-check"
         >只看必填项</el-checkbox
       >
     </div>
@@ -854,8 +855,12 @@ const Page = createPage();
       <el-button type="warning" @click="handleSave">保存</el-button>
       <el-button @click="handleCancel">取消</el-button>
     </div>
-    <!-- ⚠️ local 组件必须显式 import，onlyRequired 传递给子组件 -->
-    <c_customerTabs ref="tabsRef" mode="add" :only-required="onlyRequired" />
+    <!-- local 组件必须显式 import；子组件必须真实过滤自己的 formItems -->
+    <c_customerTabs
+      ref="tabsRef"
+      mode="add"
+      :required-only="showRequiredOnly"
+    />
   </div>
 </template>
 
@@ -865,7 +870,7 @@ import c_customerTabs from "@/components/local/c_customerTabs/index.vue";
 
 const route = useRoute();
 const tabsRef = ref();
-const onlyRequired = ref(false);
+const showRequiredOnly = ref(false);
 
 onMounted(() => {
   const id = route.query.id as string;
@@ -877,6 +882,10 @@ onMounted(() => {
 @import "./index.scss";
 </style>
 ```
+
+`c_customerTabs` 内每个子表单必须按 `references/form-ui.md` 的“多 Tab / 子组件表单”
+模式，将 `requiredOnly` 传给 `useFormRequiredOnly` 的受控参数，并将 `visibleItems`
+传给实际 `BaseForm`。只声明 prop、只改变复选框状态而未过滤字段属于生成失败。
 
 ---
 

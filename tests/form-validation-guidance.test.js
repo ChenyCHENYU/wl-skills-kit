@@ -6,10 +6,12 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const {
+  MINIMUM_VERSION,
   formValidationFindings,
   hasManualRuleObjects,
   importedNames,
   validationDependency,
+  versionCompatibility,
 } = require("../lib/form-validation-guidance.js");
 const { runAstRules } = require("../lib/ast-rules.js");
 
@@ -35,6 +37,29 @@ describe("form validation guidance", () => {
     expect(importedNames(
       'import { ELEMENT_RULES, SPEC_RULES as specs } from "@robot-admin/form-validate";',
     )).toEqual(new Set(["ELEMENT_RULES", "SPEC_RULES"]));
+  });
+
+  it("校验库声明版本必须满足最低版本", () => {
+    expect(MINIMUM_VERSION).toBe("3.4.1");
+    expect(versionCompatibility("^3.4.1", "")).toBe(true);
+    expect(versionCompatibility("^3.3.0", "")).toBe(false);
+    expect(versionCompatibility("workspace:*", "")).toBeNull();
+
+    const root = project({ "@robot-admin/form-validate": "^3.3.0" });
+    const findings = formValidationFindings(root, "<BaseForm />");
+    expect(findings).toContainEqual(expect.objectContaining({
+      level: "error",
+      text: expect.stringMatching(/3\.4\.1\+.*3\.3\.0/),
+    }));
+  });
+
+  it("无法判定的非标准版本范围给出警告而不伪装兼容", () => {
+    const root = project({ "@robot-admin/form-validate": "workspace:*" });
+    const findings = formValidationFindings(root, "<BaseForm />");
+    expect(findings).toContainEqual(expect.objectContaining({
+      level: "warn",
+      text: expect.stringMatching(/无法确认.*workspace:\*/),
+    }));
   });
 
   it("import 但 package.json 未声明依赖时阻断", () => {

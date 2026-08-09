@@ -161,7 +161,7 @@ src/views/[域]/[模块]/dicts.ts
 18. **按钮颜色映射**：按钮的 `type` 属性决定颜色，须根据原型按钮颜色或按钮语义映射（见下方 §按钮颜色映射表）
 19. **按钮必须可交互**：所有按钮的 `onClick` 必须有真实处理逻辑，禁止空函数 `() => {}`。通用交互实现见下方 §按钮交互实现规则
 20. **未知交互阻断**：原型/需求未提供交互细节且无法由已确认契约确定时，写入 `openQuestions` 并停止生成该操作；禁止用提示消息伪装已实现功能
-21. **生成后依赖自检**：只检查本次生成代码真实使用的依赖（如 `lodash-es`、`xlsx`）；页面含新增/编辑/独立表单或可编辑明细时检查 `@robot-admin/form-validate` 3.4.1+。缺少依赖必须在 Pre-flight 提示安装并暂停，不得生成悬空 import；不得静默安装。仅在 mock 策略启用且本次生成 mock 时检查 `mockjs`、`vite-plugin-mock`、`viteMockServe` 和 `mock/_utils.ts`。标准业务组件必须先执行 `component ensure` 预览/确认闭环
+21. **生成后依赖自检**：只检查本次生成代码真实使用的依赖（如 `lodash-es`、`xlsx`）；页面含新增/编辑/独立表单或可编辑明细时检查 `@robot-admin/form-validate` 的声明范围与可解析安装版本均满足 3.4.1+。缺少依赖必须在 Pre-flight 提示安装并暂停，不得生成悬空 import；不得静默安装。仅在 mock 策略启用且本次生成 mock 时检查 `mockjs`、`vite-plugin-mock`、`viteMockServe` 和 `mock/_utils.ts`。标准业务组件必须先执行 `component ensure` 预览/确认闭环
 22. **Contract First，Mock 可选**：先通过 `wl-api-contract` 建立真实 method/path/request/response。需求明确需要前端并行开发时再生成 `mock/[业务域]/[模块].ts`；mock 必须复用同一契约，关闭后不得修改业务 URL。
 23. **Mock URL 必须匹配真实请求**：`API_CONFIG` 保持真实接口路径（如 `/mdata/mdataModel/queryPage`），mock 文件端点必须带 Vite 代理前缀（如 `/dev-api/mdata/mdataModel/queryPage`），这样关闭 mock 后无需修改业务代码。
 24. **列表首次加载必须真实执行查询**：列表页 `onMounted(() => select())` 调用同一 API_CONFIG；mock 启用时由 mock 返回契约数据，mock 禁用时直接访问真实后端。不得为了展示初始数据在页面内硬编码假数据
@@ -181,6 +181,7 @@ src/views/[域]/[模块]/dicts.ts
 38. **字段边界只认契约证据**：必填、长度、正则、数值范围/精度和开始/结束时间必须来自 page-spec + wl-api-contract；字符串字段不得按名称猜成数字，查询 DTO 不得机械继承数据库写入长度，拿不准时只保留明确必填或形成 openQuestion。
 39. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
 40. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
+41. **大量表单快速填写闭环**：page-spec 中表单字段 ≥10 且混合必填/非必填时必须生成有效“全部/仅必填”切换。弹窗用 `show-required-toggle`，分区页面用 `show-required-filter`，页面 `BaseForm` 用 `useFormRequiredOnly + visibleItems`，多 Tab 页由父级传递受控状态且每个子表单真实过滤。禁止只生成开关或 prop 而未改变渲染 items；完整实现只读 `references/form-ui.md`。
 
 ### 禁止事项（严格遵守）
 

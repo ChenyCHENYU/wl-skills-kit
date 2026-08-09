@@ -69,6 +69,8 @@ export interface SectionConfig {
   visible?: () => boolean;
   /** 是否为特殊处理的区块（如特殊需求） */
   isSpecial?: boolean;
+  /** 仅必填模式下是否保留特殊插槽；默认保留，确认无必填内容时设为 false */
+  requiredOnlyVisible?: boolean;
 }
 
 /**

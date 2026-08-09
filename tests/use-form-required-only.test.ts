@@ -61,6 +61,56 @@ describe("useFormRequiredOnly", () => {
     expect(useFormRequiredOnly(withoutRequired).hasRequiredItems.value).toBe(false);
   });
 
+  it("只有混合必填和非必填字段时才允许切换", () => {
+    const allRequired = useFormRequiredOnly([
+      { name: "a", required: true },
+      { name: "b", required: true },
+    ]);
+    const mixed = useFormRequiredOnly([
+      { name: "a", required: true },
+      { name: "b", required: false },
+    ]);
+
+    expect(allRequired.canToggleRequiredOnly.value).toBe(false);
+    allRequired.toggleRequiredOnly();
+    expect(allRequired.showRequiredOnly.value).toBe(false);
+    expect(mixed.canToggleRequiredOnly.value).toBe(true);
+  });
+
+  it("支持页面分区字段使用 prop 作为校验字段名", async () => {
+    const clearValidate = vi.fn();
+    const fields = ref([
+      { prop: "code", required: true },
+      { prop: "remark", required: false },
+    ]);
+    const result = useFormRequiredOnly(fields, ref({ clearValidate }));
+
+    result.setRequiredOnly(true);
+    await nextTick();
+    expect(result.visibleItems.value.map((item) => item.prop)).toEqual(["code"]);
+    expect(result.hiddenFieldNames.value).toEqual(["remark"]);
+    expect(clearValidate).toHaveBeenCalledWith(["remark"]);
+  });
+
+  it("支持 Tab 子组件由父页面受控切换", async () => {
+    const requiredOnly = ref(false);
+    const clearValidate = vi.fn();
+    const result = useFormRequiredOnly(
+      [
+        { name: "code", required: true },
+        { name: "remark", required: false },
+      ],
+      ref({ clearValidate }),
+      { requiredOnly },
+    );
+
+    requiredOnly.value = true;
+    await nextTick();
+    expect(result.showRequiredOnly.value).toBe(true);
+    expect(result.visibleItems.value.map((item) => item.name)).toEqual(["code"]);
+    expect(clearValidate).toHaveBeenCalledWith(["remark"]);
+  });
+
   it("hiddenFieldNames 返回被隐藏的字段名", () => {
     const items = ref([
       { name: "a", required: true },
