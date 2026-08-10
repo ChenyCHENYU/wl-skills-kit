@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [2.16.5] - 2026-08-10
+
+### Added
+
+- 新增 D3 字典字段绑定门禁：当 `page-spec.json` 显式声明 `dict/dictCode` 时，逐字段核对 `queryDef/columnsDef` 中的 `dict/dictCode/logicValue`，缺失或错绑均给出确定性错误。
+- 集中定义页面缺少 `definitionValidators` 时统一给出 D3 语义未闭合提示，`--strict` 模式阻断发布。
+
+### Changed
+
+- 字典校验坚持契约驱动，不按字段名、标签或业务状态猜测字典，不把业务状态自动归入通用是否字典。
+- 更新字典契约、page-spec、项目豁免与架构文档，明确共享 definitions 的校验职责和低误报边界。
+
 ## [2.16.4] - 2026-08-09
 
 ### Changed

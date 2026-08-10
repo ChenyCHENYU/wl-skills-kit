@@ -295,6 +295,11 @@
 在 `.wl-skills-validate.json.definitionValidators` 中把该 source 绑定到已有的
 `package.json#scripts` 校验脚本；脚本失败时门禁阻断。
 
+若 `query` 或 `columns` 声明了 `dictCode`，生成代码必须在对应字段上显式使用同一
+`dictCode`（或平台等价的 `logicValue`）。不得依据字段名或 label 猜测字典，更不得把
+业务状态自动归入通用“是否”字典。集中 definitions 场景由 `definitionValidators`
+校验真实共享定义；未配置时普通模式提示、`--strict` 阻断。
+
 **tabSwitch vs viewSwitch 的区别**：
 - `tabSwitch`：Tab 组件（`el-tabs`），切换时整个查询区+表格都变
 - `viewSwitch`：RadioButton 组，通常只改变表格列或查询条件（同一批数据的不同展示视角）

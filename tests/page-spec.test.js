@@ -198,13 +198,15 @@ describe("extractMethodBody", () => {
 });
 
 describe("extractFieldSequence", () => {
-  it("按顺序提取 name/label", () => {
+  it("按顺序提取 name/label 与显式字典绑定", () => {
     const body = `return [
-      { name: "code", label: "编码" },
-      { name: "name", label: "名称" }
+      { name: "code", label: "编码", dictCode: "code_type" },
+      { name: "name", label: "名称", logicValue: "name_type" },
+      { name: "status", label: "状态", dict: "status_type" }
     ];`;
     const seq = extractFieldSequence(body);
-    expect(seq.map((s) => s.name)).toEqual(["code", "name"]);
+    expect(seq.map((s) => s.name)).toEqual(["code", "name", "status"]);
+    expect(seq.map((s) => s.dictCode)).toEqual(["code_type", "name_type", "status_type"]);
   });
 });
 
@@ -348,6 +350,46 @@ describe("compareSpecToCode", () => {
     expect(issues.some((i) => i.rule === "S2" && i.level === "error")).toBe(true);
     expect(issues.some((i) => i.rule === "S3" && i.level === "error")).toBe(true);
     expect(issues.some((i) => i.rule === "S4" && i.level === "error")).toBe(true);
+  });
+
+  it("D3 阻断字典缺绑或错绑，但不按字段名推断", () => {
+    const dictSpec = {
+      ...spec,
+      query: [
+        { name: "code", type: "dict", dictCode: "business_code" },
+        { name: "name" },
+      ],
+      columns: [
+        { name: "code", type: "dict", dict: "business_code" },
+        { name: "name" },
+      ],
+    };
+    const wrong = dataConsistent
+      .replace(
+        '{ name: "code", label: "编码" }, { name: "name", label: "名称" }',
+        '{ name: "code", label: "编码", dictCode: "yes_no" }, { name: "name", label: "名称" }',
+      )
+      .replace(
+        '{ name: "code", label: "编码" },\n        { name: "name", label: "名称" }',
+        '{ name: "code", label: "编码" },\n        { name: "name", label: "名称" }',
+      );
+    const issues = compareSpecToCode(dictSpec, wrong, "src/views/x");
+    expect(
+      issues.some(
+        (item) =>
+          item.rule === "D3" &&
+          item.level === "error" &&
+          /yes_no/.test(item.text),
+      ),
+    ).toBe(true);
+    expect(
+      issues.some(
+        (item) =>
+          item.rule === "D3" &&
+          item.level === "error" &&
+          /缺少显式字典绑定/.test(item.text),
+      ),
+    ).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.16.4
+ * wl-skills-kit CLI v2.16.5
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1582,8 +1582,8 @@ function appendDefinitionValidatorIssues(issues, definitionSources, validationCo
       issues.push({
         level: "warn",
         dir: source,
-        rule: "S0",
-        text: "集中定义仅完成 import/export 委托链校验；建议在 .wl-skills-validate.json 配置 definitionValidators 以闭合语义验证",
+        rule: "D3",
+        text: "集中定义仅完成 import/export 委托链校验；请在 .wl-skills-validate.json 配置 definitionValidators，逐字段核对显式 dictCode 等业务语义；禁止按字段名猜字典",
       });
       continue;
     }
@@ -1870,6 +1870,7 @@ const AST_FIX_SUGGESTIONS = {
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
   D2: { fix: '\u5c06\u9875\u9762\u5b9e\u9645\u5f15\u7528\u7684 dictCode/logicValue/useDictOpts \u7f16\u7801\u7eb3\u5165\u6a21\u5757 dicts.ts \u4e0e api.md dict-contract\uff0c\u7981\u6b62\u524d\u7aef\u81ea\u9020\u5b57\u5178\u7f16\u7801', ref: 'docs/dictionary-contract.md', auto: false },
+  D3: { fix: '\u4ee5 page-spec/api.md \u7684\u663e\u5f0f dictCode \u4e3a\u51c6\u4fee\u6b63\u5b57\u6bb5\u7ed1\u5b9a\uff1b\u96c6\u4e2d\u5b9a\u4e49\u9879\u76ee\u914d\u7f6e definitionValidators\uff0c\u7981\u6b62\u6309\u5b57\u6bb5\u540d\u731c\u6d4b\u901a\u7528\u662f\u5426\u5b57\u5178', ref: 'docs/dictionary-contract.md', auto: false },
   C1: { fix: '\u5148\u6267\u884c component ensure \u9884\u89c8\uff0c\u518d\u643a\u5e26 planHash \u663e\u5f0f\u786e\u8ba4\u6309\u9700\u843d\u76d8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
   C2: { fix: '\u4fee\u6b63\u7ec4\u4ef6\u76ee\u6807\u8def\u5f84\uff0c\u6216\u8865\u9f50\u8fd0\u884c\u4f9d\u8d56\u4e0e\u5fc5\u9700\u9879\u76ee\u6587\u4ef6\u540e\u91cd\u65b0\u9884\u89c8', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },
   C3: { fix: '\u8bc4\u4f30 kit \u540c\u5951\u7ea6\u65b0\u5feb\u7167\uff1b\u9ed8\u8ba4\u4fdd\u7559\u9879\u76ee\u5f53\u524d\u5b9e\u73b0', ref: 'skills/core/page-codegen/references/component-materialization.md', auto: false },

@@ -189,6 +189,32 @@ describe("validate end-to-end integration", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
+  it("集中定义缺少语义校验器时以 D3 提示，strict 模式阻断", () => {
+    const root = makeProject();
+    const pageDir = writePage(
+      root,
+      "src/views/acme/delegated",
+      "<template><div/></template><script setup lang=\"ts\"></script>",
+      [
+        'import { pageDefinition } from "@/views/acme/definitions";',
+        "export { pageDefinition };",
+      ].join("\n"),
+    );
+    fs.writeFileSync(path.join(pageDir, "api.md"), "# API\n");
+    fs.writeFileSync(path.join(pageDir, "page-spec.json"), JSON.stringify({
+      page: "集中定义页",
+      features: { definitionSource: "src/views/acme/definitions" },
+      query: [{ name: "status", type: "dict", dictCode: "task_status" }],
+    }));
+
+    const normal = runValidate(root);
+    expect(normal.status, normal.stdout + normal.stderr).toBe(0);
+    expect(normal.stdout + normal.stderr).toMatch(/D3|禁止按字段名猜字典/);
+    const strictResult = runValidate(root, ["--strict"]);
+    expect(strictResult.status).not.toBe(0);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   it("compliant list page: no R3/R13 errors in output", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/ok", COMPLIANT_INDEX, COMPLIANT_DATA);

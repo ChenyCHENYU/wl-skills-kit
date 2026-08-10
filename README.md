@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.4** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.5** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -69,6 +69,12 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.16.5**：字典字段绑定从“存在字典”升级为“字段与显式字典契约一致”。
+
+- **D3 字典绑定门禁**：`page-spec.json` 已声明 `dict/dictCode` 时，真实 `queryDef/columnsDef` 必须显式绑定同一编码；缺失或错绑直接报告字段、期望值和实际值。
+- **集中定义语义闭环**：委托到共享 definitions 的页面必须通过 `.wl-skills-validate.json.definitionValidators` 执行项目级校验；普通模式提示，`--strict` 阻断未闭合来源。
+- **零猜测边界**：不按 `status/type/flag` 等字段名推断通用是否字典，不内置任何客户或业务模块的字典编码和值域。
 
 **v2.16.4**：统一弹窗、普通页面、分区页面和多 Tab 表单的“全部/仅必填”快速填写能力。
 
