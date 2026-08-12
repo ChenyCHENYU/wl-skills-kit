@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.16.9
+
+- 新增 **R19 质量门禁**：弹窗内 AG Grid 必须用 `v-if` 延迟挂载，防止 AG Grid 在弹窗动画期间初始化导致零高度渲染（有数据但不显示行）。
+- AST 自动检测：`jh-dialog`/`el-dialog` 内含 `render-type="agGrid"` 但无 `v-if` 包裹时报 error。
+- AGGrid/README.md 追加"弹窗内使用 AG Grid"完整规范（根因分析 + 正确/错误写法 + 最佳实践）。
+- standards/12-base-table.md 追加 R19 标准章节。
+- convention-audit/SKILL.md 审计清单新增弹窗 AG Grid v-if 检测项。
+
 ## 2.16.8
 
 - 修复 `validate --pre-commit` 对纯文档、规则快照和依赖升级提交的误拦截：无 staged 页面、页面契约或集中定义时明确跳过成功。
