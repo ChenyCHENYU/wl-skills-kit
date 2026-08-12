@@ -287,6 +287,18 @@
 
   "definitionSource": "src/views/domain/definitions"
                              // 可选：data.ts 只重导出共享 pageDefinition 时显式声明
+
+  "lookupFlows": [{          // 可选：进阶查询/选择回填交互契约
+    "name": "releasedPlan",
+    "triggerAction": "advanced-query",
+    "queryOperation": "releasedPlanPage",
+    "refreshOnOpen": true,
+    "cancelIsolation": true,
+    "selectionMode": "single",
+    "bindings": [
+      { "source": "planNo", "target": "heatNo", "lockAfterSelect": true }
+    ]
+  }]
 }
 ```
 
@@ -299,6 +311,17 @@
 `dictCode`（或平台等价的 `logicValue`）。不得依据字段名或 label 猜测字典，更不得把
 业务状态自动归入通用“是否”字典。集中 definitions 场景由 `definitionValidators`
 校验真实共享定义；未配置时普通模式提示、`--strict` 阻断。
+
+`lookupFlows` 用于消除“新增误开成进阶查询”“弹窗重复打开仍显示旧数据”“取消后污染
+主表单”“选中计划后回填错字段”等问题。S7 只在页面显式声明该能力时启用：
+
+- `triggerAction` 必须匹配 `toolbar[].action`，不按按钮中文猜动作；
+- `queryOperation` 必须唯一匹配机器 API 契约中的标准或扩展操作；
+- 查询操作必须声明非空 `responseModel`，每个 `source` 必须来自该模型；
+- 每个 `target` 必须属于 `createRequest/updateRequest`，选择后是否锁定必须显式声明；
+- `refreshOnOpen`、`cancelIsolation`、`selectionMode` 都必须明确，执行器不猜交互生命周期。
+
+通用包不内置具体页面、接口路径或业务字段；没有进阶查询的页面无需声明，行为保持不变。
 
 **tabSwitch vs viewSwitch 的区别**：
 - `tabSwitch`：Tab 组件（`el-tabs`），切换时整个查询区+表格都变

@@ -13,7 +13,7 @@
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
 | `R1~R18` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
-| `S1~S6` | page-spec 与机器 API 契约比对 | `lib/page-spec.js` | ✅ 确定性 |
+| `S1~S7` | page-spec、机器 API 契约与进阶查询回填比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
@@ -53,6 +53,7 @@
 | page-codegen 13 | 操作列按钮严格对应原型 | **S4** | error | 是 |
 | page-codegen 15 | 按钮文字保真 | **S5** | warn | 否 |
 | api-contract / page-codegen | page-spec 查询/展示/表单字段必须属于对应机器契约，create 必填字段不得遗漏 | **S6** | error | 是 |
+| api-contract / page-codegen | 显式进阶查询必须闭合触发动作、查询操作、响应来源、写入目标和取消/刷新生命周期 | **S7** | error | 是 |
 | page-codegen 21 | 默认 Mock First | regex | warn | 否 |
 | page-codegen 24 | 必须用 wl-skills-ui renderOps | regex | warn | 否 |
 | api-contract / dict-sync | api.md dict-contract 必须完整汇总到模块 dicts.ts，枚举与排序一致 | **D1** | error | 是 |
@@ -84,7 +85,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `R1~R18` / `S1~S6` / `D1~D2` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
+- `R1~R18` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

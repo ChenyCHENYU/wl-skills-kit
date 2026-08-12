@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.5** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.6** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -69,6 +69,12 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**v2.16.6**：进阶查询/选择回填从页面隐式行为升级为可选机器契约。
+
+- `features.lookupFlows` 显式声明触发动作、查询操作、打开刷新、取消隔离、单/多选及字段回填。
+- S7 将查询响应字段与新增/更新目标字段精确闭合，避免按钮串线、旧缓存和炉号/身份字段错绑。
+- 未声明该能力的存量页面不启用新门禁，不改变生成结果和运行逻辑。
 
 **v2.16.5**：字典字段绑定从“存在字典”升级为“字段与显式字典契约一致”。
 
@@ -210,7 +216,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 **v2.11.1**：精准卡控闭环 —— 把"约定"接线到确定性执行器，生成即精准。
 
-- **page-spec 落盘 + spec-align 确定性比对（S1~S6）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 并逐项比对查询字段、表格列、工具栏、操作列和 label；api.md 存在机器契约时，S6 进一步核对查询/展示/表单字段集合，阻断多传字段、漏掉必填字段和多资源绑定漂移。
+- **page-spec 落盘 + spec-align 确定性比对（S1~S7）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 并逐项比对查询字段、表格列、工具栏、操作列和 label；S6 核对页面/API 字段，S7 核对进阶查询/选择回填生命周期与字段绑定。
 - **新增 `wl-skills fix` 确定性机械修复**：对幂等、零语义判断的偏差（BaseTable 补 `render-type`、`::v-deep`→`:deep()`、行尾空白、文件末尾换行）做确定性自动修复，AI 只处理需语义判断的部分；`--dry-run` 预览
 - **新增「规则 → 执行器」覆盖矩阵治理**：`kit-internal/rule-coverage.md` 登记每条约定由谁兜底（R*/S*/regex/AI），`lint:skills` 校验标记「阻断」的规则必须有真实执行器，杜绝"文档约定"退化为纯文档
 - **修复 v2.11 目录迁移遗留**：`lint-skills.js` / `verify-version.js` / `sync-version.js` 的 `.github/` 路径全部修正为 `.wl-skills/`，CI 自检链路恢复可用

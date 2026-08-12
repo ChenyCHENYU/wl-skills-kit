@@ -21,7 +21,12 @@ function contract() {
         { name: "startTime", required: false, type: "string", format: "date-time" },
         { name: "endTime", required: false, type: "string", format: "date-time" },
       ],
+      releasedPlanResponse: [{ name: "planNo", required: true, type: "string" }],
     },
+    extensionOperations: [{
+      name: "releasedPlanPage", method: "POST", externalPath: "/demo/resource/released-plan",
+      requestModel: "pageRequest", responseModel: "releasedPlanResponse",
+    }],
     validationRules: [{
       kind: "chronology", startField: "startTime", endField: "endTime", allowEqual: true,
       operations: ["create", "update"], message: "结束时间不能早于开始时间", source: "requirement:time-range",
@@ -34,7 +39,6 @@ function spec() {
     page: "通用资源",
     query: [{ name: "factory", label: "工厂", required: true, type: "input", constraints: { maxLength: 10 } }],
     columns: [{ name: "factory", label: "工厂" }],
-    toolbar: [],
     operations: [],
     formSections: [{
       name: "base", label: "基础", fields: [
@@ -51,7 +55,17 @@ function spec() {
         saveRefresh: "first",
         deleteEmptyPageFallback: true,
       },
+      lookupFlows: [{
+        name: "releasedPlan",
+        triggerAction: "advanced-query",
+        queryOperation: "releasedPlanPage",
+        refreshOnOpen: true,
+        cancelIsolation: true,
+        selectionMode: "single",
+        bindings: [{ source: "planNo", target: "startTime", lockAfterSelect: true }],
+      }],
     },
+    toolbar: [{ label: "进阶查询", action: "advanced-query" }],
     validationRules: contract().validationRules,
   };
 }
@@ -61,6 +75,25 @@ describe("page-spec 边界与上下文闭环", () => {
     expect(validateSpecShape(spec(), { strict: false })).toEqual([]);
     const issues = validateSpecContractAlignment(spec(), JSON.stringify(contract()), "demo");
     expect(issues).toEqual([]);
+  });
+
+  it("进阶查询必须显式闭合操作、响应字段、回填目标和交互生命周期", () => {
+    const value = contract();
+    expect(validateSpecContractAlignment(spec(), JSON.stringify(value), "demo")).toEqual([]);
+
+    const invalid = spec();
+    invalid.features.lookupFlows[0].bindings[0].source = "missingPlanNo";
+    const issues = validateSpecContractAlignment(invalid, JSON.stringify(value), "demo");
+    expect(issues.some((item) => item.rule === "S7" && /missingPlanNo/.test(item.text))).toBe(true);
+  });
+
+  it("进阶查询结构必须声明刷新、取消隔离、选择模式和工具栏动作", () => {
+    const invalid = spec();
+    delete invalid.features.lookupFlows[0].cancelIsolation;
+    invalid.features.lookupFlows[0].triggerAction = "missing-action";
+    const errors = validateSpecShape(invalid);
+    expect(errors.some((item) => /cancelIsolation/.test(item))).toBe(true);
+    expect(errors.some((item) => /未匹配 toolbar/.test(item))).toBe(true);
   });
 
   it("只阻断有证据的约束漂移和服务端上下文泄漏", () => {
