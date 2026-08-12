@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.7** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.8** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -70,7 +70,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
-**v2.16.7**：项目显式交付契约在强制更新时也不会被通用基线覆盖。
+**v2.16.8**：纯文档、规则快照或依赖升级提交不再被页面门禁误拦截；项目显式交付契约在强制更新时仍不会被通用基线覆盖。
 
 - `update --force` 识别已修改的 `.wl-skills/contracts/wl-delivery-profile.v1.json` 并原样保留。
 - 防止 query 参数删除、POST 查询、分页默认值等项目事实被误改回包内默认口径。

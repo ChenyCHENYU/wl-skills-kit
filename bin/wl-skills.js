@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.16.7
+ * wl-skills-kit CLI v2.16.8
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1421,6 +1421,18 @@ function selectValidationPages(allPages, stagedSet, validationConfig) {
   );
 }
 
+function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig) {
+  if (!stagedSet) return true;
+  const stagedFiles = Array.from(stagedSet);
+  if (stagedFiles.some((file) => isPathWithin(file, scanPath))) return true;
+  if (stagedFiles.some((file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"))) {
+    return true;
+  }
+  return Array.from(validationConfig.definitionValidators.keys()).some((source) =>
+    stagedFiles.some((file) => isPathWithin(file, source)),
+  );
+}
+
 function appendMockArchitectureIssues(issues, mockFiles, mockPolicy) {
   if (mockPolicy === "disabled") return;
   const mockDir = path.join(TARGET_DIR, "mock");
@@ -1765,6 +1777,15 @@ function runValidate() {
   printValidationHeader(scanPath);
 
   if (pages.length === 0) {
+    if (
+      preCommit &&
+      stagedSet &&
+      !hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig)
+    ) {
+      console.log("  ✔ staged 变更不涉及页面、页面契约或集中定义，跳过页面检测");
+      console.log("");
+      return;
+    }
     console.log("  ⚠ 未发现包含 index.vue 的页面目录");
     console.log("");
     process.exitCode = 1;

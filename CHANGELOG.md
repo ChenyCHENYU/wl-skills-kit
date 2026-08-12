@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.16.8
+
+- 修复 `validate --pre-commit` 对纯文档、规则快照和依赖升级提交的误拦截：无 staged 页面、页面契约或集中定义时明确跳过成功。
+- 新增真实 Git staged 回归测试，业务页面变更仍由原门禁检查。
+
 ## 2.16.7
 
 - 修复 `update --force` 覆盖项目定制 delivery profile 的问题；显式项目口径现在始终优先于通用基线。

@@ -41,6 +41,10 @@ function runValidate(cwd, extraArgs = []) {
   });
 }
 
+function runGit(cwd, args) {
+  return spawnSync("git", args, { cwd, encoding: "utf8", timeout: 30000 });
+}
+
 // A compliant list page: BaseTable + agGrid + cid + defineColumns + AbstractPageQueryHook
 const COMPLIANT_INDEX =
   '<template>\n' +
@@ -72,6 +76,22 @@ function writePage(root, relDir, indexVue, dataTs) {
 }
 
 describe("validate end-to-end integration", () => {
+  it("pre-commit 遇到纯文档变更时应跳过页面检测", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/existing", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+    fs.writeFileSync(path.join(root, "docs", "test-plan.md"), "# Test plan\n");
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "docs/test-plan.md"]).status).toBe(0);
+
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).toMatch(/staged/);
+    expect(output).not.toMatch(/index\.vue/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   it("默认 optional 不要求未接入 mock 的页面生成 mock", () => {
     const root = makeProject();
     const pageDir = writePage(root, "src/views/acme/no-mock", COMPLIANT_INDEX, COMPLIANT_DATA);
