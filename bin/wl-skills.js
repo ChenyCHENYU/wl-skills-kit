@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.16.6
+ * wl-skills-kit CLI v2.16.7
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -484,6 +484,18 @@ function isInstallPreserved(relPath, dest) {
   return (isReportFile(relPath) && fs.existsSync(dest)) || isForeignGeneratedFile(dest);
 }
 
+const DELIVERY_PROFILE_RELATIVE = ".wl-skills/contracts/wl-delivery-profile.v1.json";
+
+function preserveCustomizedDeliveryProfile(relPath, dest, context) {
+  if (relPath !== DELIVERY_PROFILE_RELATIVE || !fs.existsSync(dest)) return false;
+  const oldHash = manifestInstalledHash(context.oldManifest, relPath);
+  if (!oldHash || fileMd5(dest) === oldHash) return false;
+  context.manifest.files[relPath] = fileMd5(dest);
+  updateInstallCounter(context.stats, "preserved");
+  if (dryRun) console.log(`  保留  ${relPath}  (项目已显式定制交付 Profile)`);
+  return true;
+}
+
 function collectInstallConflicts(oldManifest, validationConfig, editorConfigs) {
   const conflicts = [];
   const inspect = (relPath, desiredHash, sharedSourceRelPath = "") => {
@@ -573,6 +585,7 @@ function installStaticFile(relPath, context) {
   }
   const srcHash = fileMd5(src);
   context.manifest.files[targetRelPath] = srcHash;
+  if (preserveCustomizedDeliveryProfile(targetRelPath, dest, context)) return;
   if (preserveInstalledReport(relPath, dest, context.stats)) {
     context.manifest.files[targetRelPath] = fileMd5(dest);
     return;
@@ -765,6 +778,7 @@ function runInstall(incremental) {
     incremental: mode.incremental,
     manifest: { version: PKG.version, files: {} },
     stats: { created: 0, updated: 0, unchanged: 0, preserved: 0, removed: 0, backups: 0 },
+    oldManifest,
     validationConfig,
     editorConfigs,
     conflictPaths: new Set(conflicts.map((item) => item.relPath)),

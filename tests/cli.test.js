@@ -267,6 +267,24 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it("update --force 保留项目显式定制的 delivery profile", () => {
+    const dir = makeIsolatedDir();
+    expect(runCli(["init"], { cwd: dir, timeout: 60000 }).status).toBe(0);
+    const rel = ".wl-skills/contracts/wl-delivery-profile.v1.json";
+    const profilePath = path.join(dir, rel);
+    const profile = JSON.parse(fs.readFileSync(profilePath, "utf8"));
+    profile.transport.operations.remove.path = "deleteById";
+    fs.writeFileSync(profilePath, JSON.stringify(profile, null, 2) + "\n", "utf8");
+
+    const updated = runCli(["update", "--force"], { cwd: dir, timeout: 60000 });
+    expect(updated.status).toBe(0);
+    const installed = JSON.parse(fs.readFileSync(profilePath, "utf8"));
+    expect(installed.transport.operations.remove.path).toBe("deleteById");
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"));
+    expect(manifest.files[rel]).toBeTruthy();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("update --force 保留 wl-skills-ui 编辑器规则并合并 MCP server", () => {
     const dir = makeIsolatedDir();
     const uiHeader = "由 @agile-team/wl-skills-ui 自动生成。请勿手动编辑。";

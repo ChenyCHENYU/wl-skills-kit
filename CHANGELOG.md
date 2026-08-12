@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.16.7
+
+- 修复 `update --force` 覆盖项目定制 delivery profile 的问题；显式项目口径现在始终优先于通用基线。
+- 增加 CLI 回归测试，覆盖 `deleteById` query 参数等项目级运输契约。
+
 ## [Unreleased]
 
 ## [2.16.6] - 2026-08-12

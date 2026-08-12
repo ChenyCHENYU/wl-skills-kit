@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.16.6** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.16.7** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -70,6 +70,12 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
+**v2.16.7**：项目显式交付契约在强制更新时也不会被通用基线覆盖。
+
+- `update --force` 识别已修改的 `.wl-skills/contracts/wl-delivery-profile.v1.json` 并原样保留。
+- 防止 query 参数删除、POST 查询、分页默认值等项目事实被误改回包内默认口径。
+- 新项目和未定制 profile 仍正常跟随包升级，不影响既有更新行为。
+
 **v2.16.6**：进阶查询/选择回填从页面隐式行为升级为可选机器契约。
 
 - `features.lookupFlows` 显式声明触发动作、查询操作、打开刷新、取消隔离、单/多选及字段回填。
@@ -101,6 +107,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 - **真实接口优先模板**：缺主键不再隐式切入本地假数据；表单空值、履历、导入和详情占位都先遵循项目策略与已确认契约。
 - **安装冲突零写入**：`init/update` 先完整预检受管文件；发现本地改动时不创建 hook、配置或 manifest，显式 `--force` 才覆盖并逐文件备份。
 - **只清理本包拥有的文件**：旧版目录不再递归清空；只有旧 manifest 证明由本包安装且内容未修改的退役文件才会移除，本地定制和所有权不明文件全部保留。
+- **项目交付 Profile 优先**：项目已显式修改 `.wl-skills/contracts/wl-delivery-profile.v1.json` 时，`update --force` 也会保留该项目契约，避免把 query 参数删除、POST 查询等真实项目口径覆盖回通用基线。
 - **Profile 口径一致**：文档、Skill、Mock 示例统一声明 GET/POST、载荷位置和分页来自生效 Delivery Profile，`POST + 1/10/200` 只作无配置基线。
 
 **v2.15.0**：补齐“项目口径优先、通用基线兜底”的接口与交互闭环。
