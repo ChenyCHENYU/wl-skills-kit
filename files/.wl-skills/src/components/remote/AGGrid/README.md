@@ -528,3 +528,73 @@ const toolbarItems = computed(() => [
 - [BaseTable 表格组件](../BaseTable/README.md) - 完整的表格 Props 和列配置
 - [BaseToolbar 工具栏组件](../BaseToolbar/README.md) - 搭配工具栏使用
 - [AG Grid 官方文档](https://www.ag-grid.com/documentation/) - AG Grid 更多高级特性
+
+---
+
+## 🚨 弹窗内使用 AG Grid（必须遵守）
+
+### 问题
+
+AG Grid 依赖容器高度初始化。弹窗（`jh-dialog` / `el-dialog`）在打开动画期间容器高度为 0 或动画中间态，AG Grid 初始化时读到错误高度会导致**有数据但不渲染行**——表格只显示表头，data 有 3 条但行数为 0。
+
+### 根因
+
+```
+弹窗打开 → jh-dialog v-model=true → 动画开始
+    ↓
+内容区 DOM 已存在（v-model 只控制显隐，不控制 DOM 挂载）
+    ↓
+AG Grid 初始化 → 读取容器高度 → 读到 0 或动画中间态
+    ↓
+AG Grid 认为"无高度" → 只渲染表头，不渲染行
+    ↓
+即使 API 返回了数据（total=3），行渲染器已"放弃"
+```
+
+### 规则：弹窗内 render-type="agGrid" 必须用 v-if 延迟挂载
+
+```vue
+<!-- ✅ 正确：v-if 确保弹窗可见时才挂载 -->
+<jh-dialog v-model="visible" title="进阶查询">
+  <div v-if="visible">
+    <BaseTable render-type="agGrid" :data="list" :columns="columns" />
+  </div>
+</jh-dialog>
+
+<!-- ✅ 正确：弹窗内 SteelListPanel 也要 v-if -->
+<jh-dialog v-model="advancedVisible" title="进阶查询">
+  <div v-if="advancedVisible">
+    <SteelListPanel :definition="def" :autoload="true" />
+  </div>
+</jh-dialog>
+
+<!-- ❌ 错误：v-model 只控制显隐，AG Grid 在动画期间初始化 -->
+<jh-dialog v-model="visible" title="进阶查询">
+  <BaseTable render-type="agGrid" :data="list" :columns="columns" />
+</jh-dialog>
+
+<!-- ❌ 错误：@opened + 串行 await 导致卡顿 -->
+<jh-dialog v-model="visible" @opened="handleOpened">
+  <BaseTable render-type="agGrid" ... />
+</jh-dialog>
+<script setup>
+// 卡顿：弹窗打开后串行 await API + refreshLayout
+const handleOpened = async () => {
+  await nextTick();
+  await panelRef.value?.select();       // 阻塞 UI
+  await panelRef.value?.refreshLayout(); // 再次阻塞
+};
+</script>
+```
+
+### 最佳实践
+
+| 做法 | 说明 |
+|---|---|
+| `v-if="visible"` 包裹弹窗内容 | AG Grid 在弹窗可见时才初始化，容器高度正确 |
+| `autoload="true"` | 子组件挂载后自动触发查询，无需手动 select() |
+| 关闭弹窗 | `v-if=false` → 子组件自动销毁 → 再次打开重新初始化（无缓存残留） |
+
+### 质量门禁
+
+此规则已纳入 AST 检测（R19）：`jh-dialog` 或 `el-dialog` 内含 `render-type="agGrid"` 的组件但无 `v-if` 包裹时，validate 会报 **error**。

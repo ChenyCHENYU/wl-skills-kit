@@ -197,7 +197,32 @@ subColumnsDef(): TableColumnDesc<any>[] {
 | 主列表 `BaseTable` 但非 AGGrid | 🔴/🟡 |
 | 弹窗小表格 `BaseTable` 非 AGGrid | 🟢 可豁免 |
 | 弹窗小表格 `el-table` | 🟡 建议改 BaseTable |
+| 弹窗内 `BaseTable` 使用 AGGrid 但无 `v-if` | 🔴 **严重（R19）** |
 | 封装组件内部 `el-table` | ⚠️ 需确认，不直接报红 |
+
+---
+
+## 弹窗内 AG Grid 延迟挂载（R19）
+
+> AG Grid 依赖容器高度初始化。弹窗在打开动画期间容器高度为 0，AG Grid 会"有数据但不渲染行"。
+
+**规则**：`jh-dialog` 或 `el-dialog` 内如果使用 `render-type="agGrid"` 的 BaseTable/SteelListPanel，**必须用 `v-if` 包裹弹窗内容**，确保 AG Grid 在弹窗可见后才初始化。
+
+```vue
+<!-- ✅ 正确 -->
+<jh-dialog v-model="visible">
+  <div v-if="visible">
+    <BaseTable render-type="agGrid" ... />
+  </div>
+</jh-dialog>
+
+<!-- ❌ 错误：无 v-if，AG Grid 在动画期间初始化导致零高度渲染 -->
+<jh-dialog v-model="visible">
+  <BaseTable render-type="agGrid" ... />
+</jh-dialog>
+```
+
+**AST 检测**：R19 自动检测弹窗内 AG Grid 是否有 `v-if` 包裹，缺失时报 error。
 
 ---
 

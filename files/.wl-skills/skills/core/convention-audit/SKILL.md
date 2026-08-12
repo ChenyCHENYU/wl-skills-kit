@@ -386,6 +386,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 - 部分 TS `any`
 - 历史提交信息不规范
 - 弹窗小表格 AGGrid 待确认
+- 弹窗内 AG Grid 缺少 v-if 延迟挂载（R19，自动检测）
 
 ---
 
@@ -401,6 +402,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | Git 提交历史 | 高 |
 | 页面是否需要 data.ts | 中（需人工确认） |
 | AGGrid 是否适配弹窗表格 | 中（需人工确认） |
+| 弹窗内 AGGrid 是否有 v-if 延迟挂载 | 高（R19 自动检测） |
 | 复杂业务逻辑是否应提取 | 中 |
 
 ---
