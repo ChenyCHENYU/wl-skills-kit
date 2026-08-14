@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.17.0
+
+- 新增 **status-column-audit 技能**（`.wl-skills/skills/core/status-column-audit/`）：存量列表页「字典列纯文本 → 文案语义自动判色 Tag」全流程固化，来源 wl-ui-ep 存量改造实战验证。
+  - 审计：扫描 `formatter: (row) => xDict.fmt(row.x)` 与别名写法，按列 label 语义分级（P1 状态/类型类 / P2 中性 / P5 `logicType:"dict"` 配置列）输出报告。
+  - `--fix` 自动转换 P1（可 `--all` 全转）：转换目标 `dictAutoTag(dictRef, value, fieldName)`，自动补 import、清理无引用 formatter、括号平衡 sanity；dict/字段取自 const 定义（无歧义源），误转换最多"没变化"（中性纯文本兜底），零风险。
+  - `--init-bridge` 一键生成本地桥接 `src/utils/dict-auto-tag.ts`（桥接 `@agile-team/wl-skills-ui >= 1.10.0` 的 `renderAutoTagByLabel`，适配各项目 dictRef 体系）。
+  - 参数：`--dir` 扫描目录 / `--call` 目标调用名 / `--import` 桥接路径。
+
 ## 2.16.9
 
 - 新增 **R19 质量门禁**：弹窗内 AG Grid 必须用 `v-if` 延迟挂载，防止 AG Grid 在弹窗动画期间初始化导致零高度渲染（有数据但不显示行）。
