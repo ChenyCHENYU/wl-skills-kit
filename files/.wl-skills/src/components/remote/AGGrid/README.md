@@ -597,4 +597,4 @@ const handleOpened = async () => {
 
 ### 质量门禁
 
-此规则已纳入 AST 检测（R19）：`jh-dialog` 或 `el-dialog` 内含 `render-type="agGrid"` 的组件但无 `v-if` 包裹时，validate 会报 **error**。
+此规则已纳入 AST 检测（K19，2.18.0 前称 R19）：`jh-dialog` 或 `el-dialog` 内含 `render-type="agGrid"` 的组件但无 `v-if` 包裹时，validate 会报 **error**。

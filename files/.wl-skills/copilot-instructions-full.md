@@ -194,11 +194,11 @@ kit 内的 `jh-{name}.md` 是**精简快速参考**（11 个常用组件）。�
 ### 豁免标记
 
 ```vue
-<!-- wl-skills:ignore R3 -->
+<!-- wl-skills:ignore K3 -->
 <el-table :data="dialogData">...</el-table>
 ```
 
-- 必须带规则编号（R1~R18），精确豁免，不支持全局豁免
+- 必须带规则编号（K1~K18），精确豁免，不支持全局豁免
 - CI `--strict` 模式下豁免标记仍然生效
 
 ---

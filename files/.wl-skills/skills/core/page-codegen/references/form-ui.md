@@ -135,7 +135,7 @@ const { visibleItems } = useFormRequiredOnly(formItems, formRef, {
 
 #### 自动检测边界
 
-R17 同时检查 `c_formModal`、页面 `BaseForm` 与 `c_formSections`。F6 只自动补可确定
+K17 同时检查 `c_formModal`、页面 `BaseForm` 与 `c_formSections`。F6 只自动补可确定
 安全的弹窗 prop；页面缺少能力时输出 composable/prop 建议，不自动注入 import 和布局。
 
 ### 5. 状态信息区域放置

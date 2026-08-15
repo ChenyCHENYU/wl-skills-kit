@@ -204,7 +204,7 @@ function addLocalPageIssues(root, pages, mockFiles, mockContent, issues) {
 function addAstIssues(root, scanPath, issues) {
   const result = runAstRules(root, scanPath);
   if (result.astAvailable === false) {
-    issues.push([scanPath, "warn", "AST 引擎不可用，跳过语义级规则（R1~R18）"]);
+    issues.push([scanPath, "warn", "AST 引擎不可用，跳过语义级规则（K1~K18）"]);
     return;
   }
   for (const issue of result.issues) {

@@ -588,7 +588,7 @@ const DESCRIPTORS = [
   {
     name: "wls_validate_page",
     description:
-      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、项目 mockPolicy、api.md 等。开启 typecheck 额外执行 vue-tsc/tsc 类型检查（R14）。",
+      "校验页面是否符合 wl-skills-kit 最新页面规范：BaseTable+AGGrid+cid、defineColumns、renderOps、项目 mockPolicy、api.md 等。开启 typecheck 额外执行 vue-tsc/tsc 类型检查（K14）。",
     inputSchema: {
       type: "object",
       properties: {
@@ -596,7 +596,7 @@ const DESCRIPTORS = [
         typecheck: {
           type: "boolean",
           description:
-            "是否额外执行 vue-tsc/tsc --noEmit 类型检查（R14，体积较大，CI 场景开启）",
+            "是否额外执行 vue-tsc/tsc --noEmit 类型检查（K14，体积较大，CI 场景开启）",
         },
       },
       required: [],

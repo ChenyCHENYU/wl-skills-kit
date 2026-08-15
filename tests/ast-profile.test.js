@@ -29,13 +29,13 @@ function project(size) {
   return root;
 }
 
-describe("R15 使用项目 Profile", () => {
+describe("K15 使用项目 Profile", () => {
   it("项目默认 20 通过，硬编码回基线 10 反而报告漂移", () => {
     const validRoot = project(20);
     const driftRoot = project(10);
     try {
-      expect(runAstRules(validRoot, "src/views").issues.filter((item) => item.rule === "R15")).toEqual([]);
-      expect(runAstRules(driftRoot, "src/views").issues.some((item) => item.rule === "R15")).toBe(true);
+      expect(runAstRules(validRoot, "src/views").issues.filter((item) => item.rule === "K15")).toEqual([]);
+      expect(runAstRules(driftRoot, "src/views").issues.some((item) => item.rule === "K15")).toBe(true);
     } finally {
       fs.rmSync(validRoot, { recursive: true, force: true });
       fs.rmSync(driftRoot, { recursive: true, force: true });

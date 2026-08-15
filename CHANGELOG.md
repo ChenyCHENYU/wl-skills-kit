@@ -1,6 +1,22 @@
 # Changelog
 
-## 2.17.0
+## [2.18.0] - 2026-08-15
+
+### Changed
+
+- **规则编号命名空间与 wl-skills-ui 解耦**：kit 全部规则编号由 `R1~R19` 改为 `K1~K19`（K=Kit），与 wl-skills-ui scanner 的 `R001~R040` 编号空间彻底区分，混合报告/跨包沟通不再歧义。涉及 `lib/ast-rules.js`、`lib/page-spec.js`、`bin/wl-skills.js`、4 个测试文件与 standards/skills 文档（34 处）。
+- **存量项目零改动兼容**：`wl-skills:ignore` 行内标记与 `.wl-skills-validate.json` 配置豁免**同时接受旧 R 前缀与新 K 前缀**（同号等价，旧 `R3` ≡ 新 `K3`，大小写不敏感），已有豁免配置无需任何修改。
+
+### Added
+
+- K/R 别名兼容回归测试（3 用例）：行内标记双向命中、旧 R 前缀配置豁免新 K 编号、源码防回流守门（字符串字面量不得再出现旧 R 前缀）。
+- `docs/legacy-migration-lessons.md` 交叉引用 wl-skills-ui 的存量改造十条沉淀（两包规范互相索引）。
+
+### Fixed
+
+- 仓库卫生：删除 Windows 重定向残留文件 `nul`；`AI工作流演进与多智能体协作交流文档.md` 从根目录移入 `docs/`。
+
+## [2.17.0] - 2026-08-15
 
 - 新增 **status-column-audit 技能**（`.wl-skills/skills/core/status-column-audit/`）：存量列表页「字典列纯文本 → 文案语义自动判色 Tag」全流程固化，来源 wl-ui-ep 存量改造实战验证。
   - 审计：扫描 `formatter: (row) => xDict.fmt(row.x)` 与别名写法，按列 label 语义分级（P1 状态/类型类 / P2 中性 / P5 `logicType:"dict"` 配置列）输出报告。
@@ -8,25 +24,23 @@
   - `--init-bridge` 一键生成本地桥接 `src/utils/dict-auto-tag.ts`（桥接 `@agile-team/wl-skills-ui >= 1.10.0` 的 `renderAutoTagByLabel`，适配各项目 dictRef 体系）。
   - 参数：`--dir` 扫描目录 / `--call` 目标调用名 / `--import` 桥接路径。
 
-## 2.16.9
+## [2.16.9] - 2026-08-12
 
-- 新增 **R19 质量门禁**：弹窗内 AG Grid 必须用 `v-if` 延迟挂载，防止 AG Grid 在弹窗动画期间初始化导致零高度渲染（有数据但不显示行）。
+- 新增 **K19 质量门禁**（时称 R19）：弹窗内 AG Grid 必须用 `v-if` 延迟挂载，防止 AG Grid 在弹窗动画期间初始化导致零高度渲染（有数据但不显示行）。
 - AST 自动检测：`jh-dialog`/`el-dialog` 内含 `render-type="agGrid"` 但无 `v-if` 包裹时报 error。
 - AGGrid/README.md 追加"弹窗内使用 AG Grid"完整规范（根因分析 + 正确/错误写法 + 最佳实践）。
-- standards/12-base-table.md 追加 R19 标准章节。
+- standards/12-base-table.md 追加该标准章节。
 - convention-audit/SKILL.md 审计清单新增弹窗 AG Grid v-if 检测项。
 
-## 2.16.8
+## [2.16.8] - 2026-08-12
 
 - 修复 `validate --pre-commit` 对纯文档、规则快照和依赖升级提交的误拦截：无 staged 页面、页面契约或集中定义时明确跳过成功。
 - 新增真实 Git staged 回归测试，业务页面变更仍由原门禁检查。
 
-## 2.16.7
+## [2.16.7] - 2026-08-12
 
 - 修复 `update --force` 覆盖项目定制 delivery profile 的问题；显式项目口径现在始终优先于通用基线。
 - 增加 CLI 回归测试，覆盖 `deleteById` query 参数等项目级运输契约。
-
-## [Unreleased]
 
 ## [2.16.6] - 2026-08-12
 

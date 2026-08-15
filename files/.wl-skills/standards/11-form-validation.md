@@ -141,7 +141,7 @@ export const formRules = {
 字段的最终实现。查询条件可按接口契约限制输入长度，但不得把数据库列长度
 机械套成业务查询规则。
 
-## 分页请求边界（R15）
+## 分页请求边界（K15）
 
 - 分页初值与上限必须读取项目 `.wl-skills/contracts/wl-delivery-profile.v1.json`；
   无项目 Profile 时才使用包基线 `current: 1, size: 10, maxSize: 200`。
@@ -151,7 +151,7 @@ export const formRules = {
 - 查询、重置、页大小变化后都要回到第一页。`total === 0` 时隐藏分页器属于展示策略，
   不代表页面没有分页能力。
 
-## 响应式克隆与可理解异常（R16）
+## 响应式克隆与可理解异常（K16）
 
 - 不要直接对 Vue `reactive/ref`、表格行、组件实例调用 `structuredClone`；其中可能
   含 Proxy、函数或不可克隆对象。先通过项目已验证的 `toRaw + cloneDeep` 或明确的
@@ -163,7 +163,7 @@ export const formRules = {
 ## 仅必填切换（大量表单场景）
 
 表单字段不少于 10 项且混合必填/非必填时，新生成页面必须提供“全部/仅必填”切换；
-存量页面由 R17 提示后渐进接入：
+存量页面由 K17 提示后渐进接入：
 
 - **c_formModal**：加 `show-required-toggle` prop 即可（零代码）
 - **c_formSections 页面**：加 `show-required-filter`，内部复用 composable

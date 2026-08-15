@@ -105,7 +105,7 @@ describe("form validation guidance", () => {
     }));
   });
 
-  it("R18 已接入页面 AST 扫描而不是仅停留在文档", () => {
+  it("K18 已接入页面 AST 扫描而不是仅停留在文档", () => {
     const root = project();
     const page = path.join(root, "src", "views", "orders");
     fs.mkdirSync(page, { recursive: true });
@@ -119,7 +119,7 @@ const formRules = { name: [ELEMENT_RULES.required("名称")] };
     );
     const result = runAstRules(root, "src/views");
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ level: "error", rule: "R18" }),
+      expect.objectContaining({ level: "error", rule: "K18" }),
     );
   });
 });

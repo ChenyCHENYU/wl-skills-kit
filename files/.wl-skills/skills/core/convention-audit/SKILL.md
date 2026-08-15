@@ -112,7 +112,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 06 | 安全规范 | 静态扫描 | `v-html` 无注释 / `import axios` / `eval` / `new Function` → 🔴 |
 | 07 | 配置管理 | 静态扫描 | 硬编码 `http://` IP → 🔴；API 路径散落 → 🟡 |
 | 08 | Git 规范 | Git 命令 + 文件检测 | 工具链缺失 → 🔴；分支名不规范 → 🟡；近期提交不规范 → 🟡；历史 → 🟢 |
-| 09 | TypeScript 类型 + 类型错误 | R14（vue-tsc/tsc 委托）+ AI | 类型检查器缺失 → 🔴；`vue-tsc --noEmit` 非 0 → 🔴；`any` 滥用 → 🟡 |
+| 09 | TypeScript 类型 + 类型错误 | K14（vue-tsc/tsc 委托）+ AI | 类型检查器缺失 → 🔴；`vue-tsc --noEmit` 非 0 → 🔴；`any` 滥用 → 🟡 |
 | 10 | Pinia | 静态扫描 | `data.ts` 内 import Store → 🔴 |
 | 11 | 表单校验 | AI 场景判断 | FORM_ROUTE 缺 validate / resetFields → 🔴 |
 | 12 | BaseTable + cid | 静态 + 场景判断 | 主列表用 el-table → 🔴；cid 缺失/重复 → 🔴；弹窗小表格见豁免规则 |
@@ -158,7 +158,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 1. 读取 `standards/01 ~ 14` 全部规范文件
 2. 检测工具链状态：
    - ESLint：是否可执行
-   - TypeScript：`vue-tsc --noEmit`（回退 `tsc --noEmit`）是否可执行、是否 0 error（R14）
+   - TypeScript：`vue-tsc --noEmit`（回退 `tsc --noEmit`）是否可执行、是否 0 error（K14）
    - Git：当前分支 / 最近提交
    - Husky：`.husky/pre-commit`、`.husky/pre-push`、`.husky/commit-msg` 是否存在
 3. 读取 `package.json` 获取项目脚本名称
@@ -386,7 +386,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 - 部分 TS `any`
 - 历史提交信息不规范
 - 弹窗小表格 AGGrid 待确认
-- 弹窗内 AG Grid 缺少 v-if 延迟挂载（R19，自动检测）
+- 弹窗内 AG Grid 缺少 v-if 延迟挂载（K19，自动检测）
 
 ---
 
@@ -402,7 +402,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | Git 提交历史 | 高 |
 | 页面是否需要 data.ts | 中（需人工确认） |
 | AGGrid 是否适配弹窗表格 | 中（需人工确认） |
-| 弹窗内 AGGrid 是否有 v-if 延迟挂载 | 高（R19 自动检测） |
+| 弹窗内 AGGrid 是否有 v-if 延迟挂载 | 高（K19 自动检测） |
 | 复杂业务逻辑是否应提取 | 中 |
 
 ---

@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.17.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.18.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -43,7 +43,7 @@ pnpm standards:init                           # 本包维护/业务项目均可�
 校验规则与存量项目接入边界见
 [表单校验规范](files/.wl-skills/standards/11-form-validation.md#仅必填切换大量表单场景)。
 
-R17 会同时检查弹窗、`BaseForm` 页面和 `c_formSections` 页面。F6 只自动补齐可确定安全的
+K17 会同时检查弹窗、`BaseForm` 页面和 `c_formSections` 页面。F6 只自动补齐可确定安全的
 弹窗 prop；页面需要协调 import、状态和布局，只给出精确建议，不做高风险机械改写。
 
 ### 独立使用与前后端配套
@@ -70,7 +70,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
-**v2.17.0**：纯文档、规则快照或依赖升级提交不再被页面门禁误拦截；项目显式交付契约在强制更新时仍不会被通用基线覆盖。
+**v2.18.0**：纯文档、规则快照或依赖升级提交不再被页面门禁误拦截；项目显式交付契约在强制更新时仍不会被通用基线覆盖。
 
 - `update --force` 识别已修改的 `.wl-skills/contracts/wl-delivery-profile.v1.json` 并原样保留。
 - 防止 query 参数删除、POST 查询、分页默认值等项目事实被误改回包内默认口径。
@@ -91,17 +91,17 @@ wl-skills contract compare --left contracts/mdm-task.json \
 **v2.16.4**：统一弹窗、普通页面、分区页面和多 Tab 表单的“全部/仅必填”快速填写能力。
 
 - **页面级能力闭环**：共享 `useFormRequiredOnly`，只过滤渲染项、不删除表单值，并同步清理隐藏字段校验。
-- **生成与检查一致**：页面模板直接生成有效过滤逻辑；R17 逐表单检查弹窗、`BaseForm` 和 `c_formSections`，避免只生成无效开关。
+- **生成与检查一致**：页面模板直接生成有效过滤逻辑；K17 逐表单检查弹窗、`BaseForm` 和 `c_formSections`，避免只生成无效开关。
 - **依赖边界明确**：校验库继续由业务项目按需安装，kit 仅检查 `@robot-admin/form-validate` 3.4.1+，不与其运行时耦合。
 
 **v2.16.3**：Kilo Code 原生适配、标准表单校验库闭环和 MCP 风险声明进一步收口。
 
-- **表单校验标准化**：生成表单先检查 `@robot-admin/form-validate`；Element 页面复用 `ELEMENT_RULES / ELEMENT_COMBOS`，跨 UI 与提交前校验使用 `RuleSpec` 单一真相源，R18 阻断缺依赖、退役包和 Naive API 混入。
+- **表单校验标准化**：生成表单先检查 `@robot-admin/form-validate`；Element 页面复用 `ELEMENT_RULES / ELEMENT_COMBOS`，跨 UI 与提交前校验使用 `RuleSpec` 单一真相源，K18 阻断缺依赖、退役包和 Naive API 混入。
 - **Kilo Code 原生兼容**：识别根目录 `kilo.jsonc / kilo.json` 与 `.kilo/kilo.jsonc`，无损保留 JSONC 注释、GLM provider、团队指令和既有 MCP，仅增量注册 wl-skills。
 - **MCP 契约强化**：23 个 Tool 逐项登记唯一风险画像，协议协商、参数校验与结构化输出统一收口；未来新增 Tool 漏配风险声明会直接失败。
 - **安全与可维护性**：拆分编辑器适配、表单字段分析和共享项目配置模块，移除 CLI 包误导性 `main` 入口，并升级存在安全公告的传递依赖。
 
-**v2.16.2**：表单仅必填切换完整闭环（composable + c_formModal prop + R17 检测 + F6 修复 + 模板默认 + 文档）。
+**v2.16.2**：表单仅必填切换完整闭环（composable + c_formModal prop + K17 检测 + F6 修复 + 模板默认 + 文档）。
 
 - **Mock 三态策略**：`disabled` 明确禁用、`optional` 默认按需、`required` 严格全量；不做 Mock 的团队不会再被生成规则或 strict 门禁误伤。
 - **真实接口优先模板**：缺主键不再隐式切入本地假数据；表单空值、履历、导入和详情占位都先遵循项目策略与已确认契约。
@@ -128,15 +128,15 @@ wl-skills contract compare --left contracts/mdm-task.json \
   `.wl-skills-validate.json.definitionValidators` 再执行项目级语义校验，避免“跳过误报”演变为“跳过验证”。
 - `excludePagePaths` 显式排除样式入口等非业务页面，不按目录名或客户项目硬编码。
 - 普通 `validate` 仅由 error 阻断，warn 保留提示；`--strict` 仍对 error/warn 零容忍。
-- R14 将业务源码类型错误与 `node_modules` 依赖源码错误分层，前者阻断、后者汇总提示，
+- K14 将业务源码类型错误与 `node_modules` 依赖源码错误分层，前者阻断、后者汇总提示，
   防止依赖噪声掩盖真实业务错误。
 
 **v2.14.0**：页面、接口、字段边界和字典形成通用确定性闭环。
 
 - **字段来源优先**：字符串长度、正则、数值范围和精度只读取机器契约及其 `constraintSource`，不按字段名、页面名或业务域猜测。
 - **页面/API 精确对齐**：仅在页面存在机器 API 契约时启用 S6，核对查询、列表、表单、创建必填、固定上下文和多资源绑定；纯展示字段可用 `contractField:false` 单点豁免。
-- **分页安全默认值**：无项目配置时回退 `current=1,size=10,maxSize=200`；R15 按生效 Profile 同时检查状态初值和实际请求，合理的项目覆盖不误报，越界请求才阻断。
-- **运行时可理解性**：R16 提示直接 `structuredClone` 的兼容风险和直接展示原始异常消息的用户体验风险，引导使用项目级克隆与错误映射能力。
+- **分页安全默认值**：无项目配置时回退 `current=1,size=10,maxSize=200`；K15 按生效 Profile 同时检查状态初值和实际请求，合理的项目覆盖不误报，越界请求才阻断。
+- **运行时可理解性**：K16 提示直接 `structuredClone` 的兼容风险和直接展示原始异常消息的用户体验风险，引导使用项目级克隆与错误映射能力。
 - **字典精确闭环**：D1/D2 比对结构化字典契约与真实字面量引用，不依赖 `status/type/flag` 等命名启发式。
 - **通用性边界**：执行器不内置客户、模块、表名、页面路径或业务状态；没有足够机器证据时报告“待补契约”，不会猜测并修改业务代码。
 
@@ -217,9 +217,9 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 **v2.11.3**：确定性闭环再加固 —— 编码最佳实践从"文档约定"接线到执行器，特殊场景豁免可配置。
 
-- **新增 R13 圈复杂度执行器（standard 04）**：对每个函数计 McCabe 圈复杂度（与 ESLint `complexity` 一致），`>10` 报 error 阻断；补"降复杂度手法"示例
-- **新增 R14 类型错误零容忍（standard 09 升级为 🔴必遵）**：委托 `vue-tsc/tsc --noEmit` 解析 TS error，`validate --typecheck` / MCP `typecheck:true` 触发，无 checker 优雅降级；ESLint 管风格、R14 管正确性，职责分离
-- **新增 validate 项目级豁免配置**：`.wl-skills-validate.json` 对表单设计器/行内编辑明细表等 BaseTable 受限场景批量豁免 R3/R10，零功能影响（kit 不主动创建）；与单文件注释豁免互补
+- **新增 K13 圈复杂度执行器（standard 04）**：对每个函数计 McCabe 圈复杂度（与 ESLint `complexity` 一致），`>10` 报 error 阻断；补"降复杂度手法"示例
+- **新增 K14 类型错误零容忍（standard 09 升级为 🔴必遵）**：委托 `vue-tsc/tsc --noEmit` 解析 TS error，`validate --typecheck` / MCP `typecheck:true` 触发，无 checker 优雅降级；ESLint 管风格、K14 管正确性，职责分离
+- **新增 validate 项目级豁免配置**：`.wl-skills-validate.json` 对表单设计器/行内编辑明细表等 BaseTable 受限场景批量豁免 K3/K10，零功能影响（kit 不主动创建）；与单文件注释豁免互补
 
 **v2.11.1**：精准卡控闭环 —— 把"约定"接线到确定性执行器，生成即精准。
 
@@ -467,12 +467,12 @@ pnpm dlx @agile-team/wl-skills-kit check
 pnpm dlx @agile-team/wl-skills-kit diff
 
 # 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui；mock 按 mockPolicy 检查
-# 内含 AST 语义级检测 R1~R18（正则覆盖不到的语义约束）
-# R13 圈复杂度、R15 分页边界、R16 运行时边界默认执行；R14 类型错误需 --typecheck 开启
+# 内含 AST 语义级检测 K1~K18（正则覆盖不到的语义约束）
+# K13 圈复杂度、K15 分页边界、K16 运行时边界默认执行；K14 类型错误需 --typecheck 开启
 # 默认 error 阻断、warn 提示；--strict 下 error/warn 都阻断
 pnpm dlx @agile-team/wl-skills-kit validate
 
-# 含类型检查 R14（vue-tsc/tsc --noEmit，CI / 发版前用）
+# 含类型检查 K14（vue-tsc/tsc --noEmit，CI / 发版前用）
 pnpm dlx @agile-team/wl-skills-kit validate --typecheck --strict
 
 # 单页/指定目录校验

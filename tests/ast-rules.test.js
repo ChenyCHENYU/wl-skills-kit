@@ -130,7 +130,7 @@ describe("getStagedFiles", () => {
   });
 });
 
-describe("R15 分页边界", () => {
+describe("K15 分页边界", () => {
   it("只识别同一对象中明确声明的 current/size 数值对", () => {
     expect(explicitPaginationPairs("const page = ref({ current: 1, size: 10, total: 0 })"))
       .toEqual([{ current: 1, size: 10 }]);
@@ -152,8 +152,8 @@ describe("R15 分页边界", () => {
     fs.writeFileSync(path.join(badDir, "data.ts"), "const page = ref({ current: 1, size: 1000, total: 0 });");
     fs.writeFileSync(path.join(goodDir, "data.ts"), "const page = ref({ current: 1, size: 10, total: 0 });");
     const result = runAstRules(dir, "src/views");
-    expect(result.issues.filter((item) => item.rule === "R15")).toHaveLength(1);
-    expect(result.issues.find((item) => item.rule === "R15")?.dir).toContain("bad");
+    expect(result.issues.filter((item) => item.rule === "K15")).toHaveLength(1);
+    expect(result.issues.find((item) => item.rule === "K15")?.dir).toContain("bad");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -170,13 +170,13 @@ describe("R15 分页边界", () => {
     fs.writeFileSync(path.join(requestDir, "data.ts"), "postAction(url, { current: 2, size: 20 });");
     fs.writeFileSync(path.join(stateDir, "data.ts"), "const pagination = reactive({ current: 2, size: 20 });");
     const result = runAstRules(dir, "src/views");
-    expect(result.issues.filter((item) => item.rule === "R15")).toHaveLength(1);
-    expect(result.issues.find((item) => item.rule === "R15")?.dir).toContain("state");
+    expect(result.issues.filter((item) => item.rule === "K15")).toHaveLength(1);
+    expect(result.issues.find((item) => item.rule === "K15")?.dir).toContain("state");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 
-describe("R16 运行时边界", () => {
+describe("K16 运行时边界", () => {
   it("识别 structuredClone 与直接展示技术异常，正常中文兜底不误报", () => {
     const findings = runtimeBoundaryFindings([
       "const payload = structuredClone(form.value);",
@@ -190,8 +190,8 @@ describe("R16 运行时边界", () => {
   });
 });
 
-// ─── R13 圈复杂度 ────────────────────────────────────────────────────
-describe("computeFunctionComplexity (R13)", () => {
+// ─── K13 圈复杂度 ────────────────────────────────────────────────────
+describe("computeFunctionComplexity (K13)", () => {
   const parseFn = (src) => {
     const ast = parseScriptAst(src);
     const fns = collectFunctions(ast);
@@ -224,7 +224,7 @@ describe("computeFunctionComplexity (R13)", () => {
   });
 });
 
-describe("runAstRules R13 阻断", () => {
+describe("runAstRules K13 阻断", () => {
   it("超阈值函数报 error", () => {
     const fs = require("fs");
     const os = require("os");
@@ -241,7 +241,7 @@ describe("runAstRules R13 阻断", () => {
     fs.writeFileSync(path.join(pageDir, "index.vue"), vue);
 
     const r = runAstRules(dir, "src/views");
-    const r13 = r.issues.filter((i) => i.rule === "R13");
+    const r13 = r.issues.filter((i) => i.rule === "K13");
     expect(r13.length).toBeGreaterThanOrEqual(1);
     expect(r13[0].level).toBe("error");
     expect(r13[0].text).toContain("圈复杂度");
@@ -270,7 +270,7 @@ describe("loadExemptions (配置豁免)", () => {
     const dir = setup(undefined);
     const ex = loadExemptions(dir);
     expect(ex.source).toBeNull();
-    expect(ex.isExempt("src/views/x", "R3")).toBe(false);
+    expect(ex.isExempt("src/views/x", "K3")).toBe(false);
     rm(dir);
   });
 
@@ -285,11 +285,11 @@ describe("loadExemptions (配置豁免)", () => {
       ],
     });
     const ex = loadExemptions(dir);
-    expect(ex.isExempt("src/views/designer", "R3")).toBe(true);
-    expect(ex.isExempt("src/views/designer/sub/x", "R3")).toBe(true);
-    expect(ex.isExempt("src/views/builder/x", "R3")).toBe(true);
-    expect(ex.isExempt("src/views/sale/list", "R3")).toBe(false);
-    expect(ex.isExempt("src/views/designer", "R10")).toBe(false);
+    expect(ex.isExempt("src/views/designer", "K3")).toBe(true);
+    expect(ex.isExempt("src/views/designer/sub/x", "K3")).toBe(true);
+    expect(ex.isExempt("src/views/builder/x", "K3")).toBe(true);
+    expect(ex.isExempt("src/views/sale/list", "K3")).toBe(false);
+    expect(ex.isExempt("src/views/designer", "K10")).toBe(false);
     rm(dir);
   });
 
@@ -300,11 +300,11 @@ describe("loadExemptions (配置豁免)", () => {
     fs.writeFileSync(path.join(dir, ".wl-skills-validate.json"), "{ broken");
     const ex = loadExemptions(dir);
     expect(ex.warnings.length).toBe(1);
-    expect(ex.isExempt("src/x", "R3")).toBe(false);
+    expect(ex.isExempt("src/x", "K3")).toBe(false);
     rm(dir);
   });
 
-  it("runAstRules 中 R3 命中豁免不报错", () => {
+  it("runAstRules 中 K3 命中豁免不报错", () => {
     const fs = require("fs");
     const os = require("os");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r3ex-"));
@@ -312,7 +312,7 @@ describe("loadExemptions (配置豁免)", () => {
       path.join(dir, ".wl-skills-validate.json"),
       JSON.stringify({
         exemptions: [
-          { paths: ["src/views/designer"], rules: ["R3"], reason: "x" },
+          { paths: ["src/views/designer"], rules: ["K3"], reason: "x" },
         ],
       }),
     );
@@ -323,12 +323,12 @@ describe("loadExemptions (配置豁免)", () => {
       '<template><el-table><el-table-column/></el-table></template>',
     );
     const r = runAstRules(dir, "src/views");
-    const r3 = r.issues.filter((i) => i.rule === "R3");
+    const r3 = r.issues.filter((i) => i.rule === "K3");
     expect(r3.length).toBe(0);
     rm(dir);
   });
 });
-describe("runTypeCheck (R14) 优雅降级", () => {
+describe("runTypeCheck (K14) 优雅降级", () => {
   it("无 tsconfig.json 时降级为 warn 不阻断", () => {
     const fs = require("fs");
     const os = require("os");
@@ -337,7 +337,7 @@ describe("runTypeCheck (R14) 优雅降级", () => {
     expect(tc.ran).toBe(false);
     expect(tc.issues.length).toBe(1);
     expect(tc.issues[0].level).toBe("warn");
-    expect(tc.issues[0].rule).toBe("R14");
+    expect(tc.issues[0].rule).toBe("K14");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -378,7 +378,7 @@ exit 1`;
     expect(tc.errorCount).toBe(1);
     expect(tc.issues.length).toBe(1);
     expect(tc.issues[0].level).toBe("error");
-    expect(tc.issues[0].rule).toBe("R14");
+    expect(tc.issues[0].rule).toBe("K14");
     expect(tc.issues[0].text).toContain("TS2322");
     expect(tc.issues[0].text).toContain("x.ts:10");
     fs.rmSync(dir, { recursive: true, force: true });
@@ -413,5 +413,51 @@ exit 1`;
     expect(tc.issues.filter((item) => item.level === "warn")).toHaveLength(1);
     expect(tc.issues.find((item) => item.level === "warn")?.text).toMatch(/依赖包源码存在 1 个类型错误/);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("K/R 规则编号别名兼容（2.18.0 起 K 前缀，R 为兼容别名）", () => {
+  it("hasIgnoreMarker：新 K 标记与旧 R 标记等价命中", () => {
+    expect(astRules.hasIgnoreMarker("<!-- wl-skills:ignore K3 -->", "K3")).toBe(true);
+    expect(astRules.hasIgnoreMarker("<!-- wl-skills:ignore R3 -->", "K3")).toBe(true);
+    expect(astRules.hasIgnoreMarker("<!-- wl-skills:ignore K3 -->", "R3")).toBe(true);
+    expect(astRules.hasIgnoreMarker("<!-- wl-skills:ignore K4 -->", "K3")).toBe(false);
+    expect(astRules.hasIgnoreMarker("<!-- wl-skills: ignore k3 -->", "K3")).toBe(true);
+  });
+
+  it("配置豁免：旧 R 前缀配置豁免新 K 编号（存量项目零改动）", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-alias-"));
+    fs.writeFileSync(
+      path.join(dir, ".wl-skills-validate.json"),
+      JSON.stringify({
+        exemptions: [{ paths: ["src/views/legacy"], rules: ["R3", "K10"] }],
+      }),
+    );
+    const ex = astRules.loadExemptions(dir);
+    // 旧 R3 豁免 K3
+    expect(ex.isExempt("src/views/legacy", "K3")).toBe(true);
+    // 新 K10 豁免（自反）
+    expect(ex.isExempt("src/views/legacy", "K10")).toBe(true);
+    // 未配置的编号不豁免
+    expect(ex.isExempt("src/views/legacy", "K4")).toBe(false);
+    // 目录前缀不匹配
+    expect(ex.isExempt("src/views/other", "K3")).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("规则源码不再出现 R 前缀编号字面量（防回流守门）", () => {
+    const fs = require("fs");
+    const pathMod = require("path");
+    const source = fs.readFileSync(
+      pathMod.join(__dirname, "../lib/ast-rules.js"),
+      "utf8",
+    );
+    // 只拦字符串字面量（运行时输出）；解释性注释允许提及旧编号
+    const offender = /pushIssue\(\s*context,\s*"[^"]*",\s*"R\d+"/.exec(source);
+    expect(offender).toBeNull();
+    const offenders = (source.match(/["']R\d{1,2}["']/g) ?? []).filter((m) => m !== '"R$1"');
+    expect(offenders).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.17.0
+ * wl-skills-kit CLI v2.18.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -199,8 +199,8 @@ if (showHelp) {
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
     diff       对比已安装文件与当前 kit 版本的差异
     validate   静态检查 src/views 页面文件、AGGrid、skills-ui runtime、mock
-               集成 AST 语义级检测（R1~R18），覆盖正则无法检测的规则
-               R13 圈复杂度 / R14 类型错误（R14 需 --typecheck 开启）
+               集成 AST 语义级检测（K1~K18），覆盖正则无法检测的规则
+               K13 圈复杂度 / K14 类型错误（K14 需 --typecheck 开启）
     validate-page validate 的别名，适用于单页/目录检查
     doctor-ui  检查 @agile-team/wl-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
@@ -219,7 +219,7 @@ if (showHelp) {
     --all            component ensure 落盘全部组件；mock-clean 清理全部 mock
     --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
-    --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（R14 类型错误零容忍）
+    --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（K14 类型错误零容忍）
                      体积较大，CI / pre-push 必跑，pre-commit 不建议开启
     --profile <name> standard-env 使用的内置环境 Profile，如 walsin
     --profile-file   standard-env 使用自定义完整五环境 Profile JSON
@@ -246,7 +246,7 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit check                 检查本地环境
     pnpm dlx @agile-team/wl-skills-kit diff                  查看当前项目与最新 kit 差异
     pnpm dlx @agile-team/wl-skills-kit validate              检查 src/views 页面文件
-    pnpm dlx @agile-team/wl-skills-kit validate --typecheck  含类型检查 R14（CI 用）
+    pnpm dlx @agile-team/wl-skills-kit validate --typecheck  含类型检查 K14（CI 用）
     pnpm dlx @agile-team/wl-skills-kit validate-page src/views/mdata/model/demo
     pnpm dlx @agile-team/wl-skills-kit doctor-ui             检查 wl-skills-ui 接入
     pnpm dlx @agile-team/wl-skills-kit component check       检查已引用组件
@@ -929,11 +929,11 @@ function ensurePreCommitHook(targetDir) {
 
 /**
  * 确保 .husky/pre-push 包含 wl-skills validate --typecheck
- * — pre-push 跑全量类型检查（R14），补 pre-commit 不跑 R14 的缺口
+ * — pre-push 跑全量类型检查（K14），补 pre-commit 不跑 K14 的缺口
  *
  * 设计理由：pre-commit 跑全量 vue-tsc 太慢（拖慢日常提交），
  * 但 pre-push 频率低、可接受耗时，且 CI 也跑相同命令。
- * 这样 R14 在"推送到远程"和"CI"两个节点都有确定性执行器兜底。
+ * 这样 K14 在"推送到远程"和"CI"两个节点都有确定性执行器兜底。
  *
  * 策略同 pre-commit：不存在则创建，存在但无 marker 则追加。
  */
@@ -946,14 +946,14 @@ function ensurePrePushHook(targetDir) {
   const pushContent =
     "#!/usr/bin/env sh\n" +
     HOOK_VERSION_TAG + "\n" +
-    "# wl-skills-kit 自动管理：推送前全量类型检查（R14，error 阻断推送）\n" +
+    "# wl-skills-kit 自动管理：推送前全量类型检查（K14，error 阻断推送）\n" +
     "# 含 vue-tsc/tsc --noEmit，体积较大故放 pre-push 而非 pre-commit\n" +
     "# 如果 node_modules 不存在或 kit 未安装，优雅跳过，不阻断推送\n" +
     'if [ -f "node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js" ]; then\n' +
     '  node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --typecheck\n' +
     "  if [ $? -ne 0 ]; then\n" +
     '    echo ""\n' +
-    '    echo "  ✖ 类型检查/规范检测未通过，推送已阻断（R14 类型错误零容忍）"\n' +
+    '    echo "  ✖ 类型检查/规范检测未通过，推送已阻断（K14 类型错误零容忍）"\n' +
     '    echo "  → 修复后重新 git push，或单独 commit 后用 --no-verify 跳过（CI 仍会拦截）"\n' +
     "    exit 1\n" +
     "  fi\n" +
@@ -966,7 +966,7 @@ function ensurePrePushHook(targetDir) {
     fs.writeFileSync(pushFile, pushContent, "utf8");
     try { fs.chmodSync(pushFile, 0o755); } catch {}
     console.log("  ✔ 已创建 .husky/pre-push（推送前自动运行 wl-skills validate --typecheck）");
-    console.log("    → R14 类型检查在 pre-push 兜底（pre-commit 太慢不放这）");
+    console.log("    → K14 类型检查在 pre-push 兜底（pre-commit 太慢不放这）");
     console.log("");
   } else {
     const existing = fs.readFileSync(pushFile, "utf8");
@@ -974,7 +974,7 @@ function ensurePrePushHook(targetDir) {
     const addition = "\n" + pushContent.replace("#!/usr/bin/env sh\n", "");
     fs.writeFileSync(pushFile, existing.trimEnd() + "\n" + addition, "utf8");
     try { fs.chmodSync(pushFile, 0o755); } catch {}
-    console.log("  ✔ 已在 .husky/pre-push 追加 wl-skills validate --typecheck（R14 类型检查）");
+    console.log("  ✔ 已在 .husky/pre-push 追加 wl-skills validate --typecheck（K14 类型检查）");
     console.log("");
   }
 }
@@ -1816,7 +1816,7 @@ function runValidate() {
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
 
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
-  // 补充正则无法覆盖的 AST 语义规则（R1~R18），与正则规则合并输出
+  // 补充正则无法覆盖的 AST 语义规则（K1~K18），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
   const astResult = runValidationAst(issues, scanPath, stagedSet);
 
@@ -1830,7 +1830,7 @@ function runValidate() {
     validationConfig,
   );
 
-  // ── 类型检查 R14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
+  // ── 类型检查 K14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
   // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
   // 无 tsconfig / 无 checker → 优雅降级为 warn，不阻断。
   const typeCheckResult = appendTypeCheckIssues(issues);
@@ -1883,20 +1883,20 @@ const FIX_SUGGESTIONS = {
 };
 
 const AST_FIX_SUGGESTIONS = {
-  R1: { fix: '\u5c06\u4e1a\u52a1\u903b\u8f91\u8fc1\u79fb\u5230 data.ts\uff0cindex.vue \u53ea\u4fdd\u7559\u6a21\u677f+\u89e3\u6784', ref: 'standards/02-code-structure.md', auto: false },
-  R2: { fix: '\u5c06 getAction/postAction/sessionStorage \u79fb\u5230 data.ts \u4e2d\u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
-  R3: { fix: '\u66ff\u6362 <el-table> \u4e3a <BaseTable render-type="agGrid" :cid="xxx">', ref: 'standards/12-base-table.md', auto: true },
-  R4: { fix: '\u4fee\u6539\u91cd\u590d cid \u4e3a\u5168\u5c40\u552f\u4e00\u503c\uff08\u683c\u5f0f: {\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}\uff09', ref: 'standards/12-base-table.md', auto: true },
-  R5: { fix: 'data.ts \u4e2d class extends AbstractPageQueryHook\uff0c\u5b9e\u73b0 queryDef/columnsDef', ref: 'standards/02-code-structure.md', auto: false },
-  R6: { fix: '\u5220\u9664 import axios\uff0c\u6539\u7528 getAction/postAction', ref: 'standards/06-security.md', auto: true },
-  R7: { fix: '\u5220\u9664 eval/new Function\uff0c\u7528\u5b89\u5168\u7684\u66ff\u4ee3\u65b9\u6848', ref: 'standards/06-security.md', auto: false },
-  R8: { fix: '\u521b\u5efa data.ts\uff0c\u5c06\u63a5\u53e3\u8c03\u7528\u548c\u4e1a\u52a1\u903b\u8f91\u79fb\u5165\uff1b\u786e\u4fdd index.vue \u65e0 API \u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
-  R9: { fix: '\u66f4\u65b0 api.md\uff0c\u786e\u4fdd URL \u4e0e data.ts API_CONFIG \u4e00\u81f4', ref: 'standards/02-code-structure.md', auto: true },
-  R10: { fix: '\u66ff\u6362\u539f\u751f el-* \u7ec4\u4ef6\u4e3a\u5e73\u53f0\u5c01\u88c5\uff08jh-select/jh-date/jh-pagination \u7b49\uff09', ref: 'standards/13-platform-components.md', auto: true },
-  R11: { fix: '\u4ece data.ts \u4e2d\u79fb\u9664 Pinia Store import\uff0cStore \u5e94\u5728\u7ec4\u4ef6\u5c42\u4f7f\u7528', ref: 'standards/10-pinia.md', auto: true },
-  R12: { fix: '\u5c06\u786c\u7f16\u7801 IP/URL \u79fb\u81f3 .env.* \u73af\u5883\u53d8\u91cf', ref: 'standards/07-config.md', auto: true },
-  R13: { fix: '\u62c6\u5206\u9ad8\u590d\u6742\u5ea6\u51fd\u6570\uff1a\u6309\u804c\u8d23\u62bd\u53d6\u5b50\u51fd\u6570\u3001\u7528\u63d0\u524d return \u4ee3\u66ff\u5d4c\u5957 if\u3001\u67e5\u8868\u9a71\u52a8\u53d6\u4ee3 if-else \u94fe\u3001\u7b56\u7565\u6a21\u5f0f\u6d88\u9664\u591a\u5206\u652f', ref: 'standards/04-coding-basics.md', auto: false },
-  R14: { fix: '\u6309 TS \u9519\u8bef\u4fee\u590d\u7c7b\u578b\uff08\u8865\u7c7b\u578b\u6807\u6ce8 / \u4fee\u6b63\u8c03\u7528\u53c2\u6570 / \u8865 any \u8fb9\u754c\u6ce8\u91ca\uff09\uff1b\u672a\u88c5 vue-tsc \u65f6\u5b89\u88c5\u540e\u7eb3\u5165 CI', ref: 'standards/09-typescript.md', auto: false },
+  K1: { fix: '\u5c06\u4e1a\u52a1\u903b\u8f91\u8fc1\u79fb\u5230 data.ts\uff0cindex.vue \u53ea\u4fdd\u7559\u6a21\u677f+\u89e3\u6784', ref: 'standards/02-code-structure.md', auto: false },
+  K2: { fix: '\u5c06 getAction/postAction/sessionStorage \u79fb\u5230 data.ts \u4e2d\u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
+  K3: { fix: '\u66ff\u6362 <el-table> \u4e3a <BaseTable render-type="agGrid" :cid="xxx">', ref: 'standards/12-base-table.md', auto: true },
+  K4: { fix: '\u4fee\u6539\u91cd\u590d cid \u4e3a\u5168\u5c40\u552f\u4e00\u503c\uff08\u683c\u5f0f: {\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}\uff09', ref: 'standards/12-base-table.md', auto: true },
+  K5: { fix: 'data.ts \u4e2d class extends AbstractPageQueryHook\uff0c\u5b9e\u73b0 queryDef/columnsDef', ref: 'standards/02-code-structure.md', auto: false },
+  K6: { fix: '\u5220\u9664 import axios\uff0c\u6539\u7528 getAction/postAction', ref: 'standards/06-security.md', auto: true },
+  K7: { fix: '\u5220\u9664 eval/new Function\uff0c\u7528\u5b89\u5168\u7684\u66ff\u4ee3\u65b9\u6848', ref: 'standards/06-security.md', auto: false },
+  K8: { fix: '\u521b\u5efa data.ts\uff0c\u5c06\u63a5\u53e3\u8c03\u7528\u548c\u4e1a\u52a1\u903b\u8f91\u79fb\u5165\uff1b\u786e\u4fdd index.vue \u65e0 API \u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
+  K9: { fix: '\u66f4\u65b0 api.md\uff0c\u786e\u4fdd URL \u4e0e data.ts API_CONFIG \u4e00\u81f4', ref: 'standards/02-code-structure.md', auto: true },
+  K10: { fix: '\u66ff\u6362\u539f\u751f el-* \u7ec4\u4ef6\u4e3a\u5e73\u53f0\u5c01\u88c5\uff08jh-select/jh-date/jh-pagination \u7b49\uff09', ref: 'standards/13-platform-components.md', auto: true },
+  K11: { fix: '\u4ece data.ts \u4e2d\u79fb\u9664 Pinia Store import\uff0cStore \u5e94\u5728\u7ec4\u4ef6\u5c42\u4f7f\u7528', ref: 'standards/10-pinia.md', auto: true },
+  K12: { fix: '\u5c06\u786c\u7f16\u7801 IP/URL \u79fb\u81f3 .env.* \u73af\u5883\u53d8\u91cf', ref: 'standards/07-config.md', auto: true },
+  K13: { fix: '\u62c6\u5206\u9ad8\u590d\u6742\u5ea6\u51fd\u6570\uff1a\u6309\u804c\u8d23\u62bd\u53d6\u5b50\u51fd\u6570\u3001\u7528\u63d0\u524d return \u4ee3\u66ff\u5d4c\u5957 if\u3001\u67e5\u8868\u9a71\u52a8\u53d6\u4ee3 if-else \u94fe\u3001\u7b56\u7565\u6a21\u5f0f\u6d88\u9664\u591a\u5206\u652f', ref: 'standards/04-coding-basics.md', auto: false },
+  K14: { fix: '\u6309 TS \u9519\u8bef\u4fee\u590d\u7c7b\u578b\uff08\u8865\u7c7b\u578b\u6807\u6ce8 / \u4fee\u6b63\u8c03\u7528\u53c2\u6570 / \u8865 any \u8fb9\u754c\u6ce8\u91ca\uff09\uff1b\u672a\u88c5 vue-tsc \u65f6\u5b89\u88c5\u540e\u7eb3\u5165 CI', ref: 'standards/09-typescript.md', auto: false },
   // S 系列：page-spec 约定 vs 代码确定性核对（v2.11.1+）
   S0: { fix: '\u4fee\u6b63 page-spec.json \u7ed3\u6784\uff08page/query/columns/toolbar/operations\uff09', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: false },
   S1: { fix: '\u8c03\u6574 queryDef() \u67e5\u8be2\u5b57\u6bb5\u987a\u5e8f\u4e0e page-spec.json query \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },

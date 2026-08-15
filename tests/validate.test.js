@@ -6,7 +6,7 @@
  * Closes the "dog food" gap: the AST/regex engines scan src/views, but the kit
  * repo has no src/views. These tests build a temp project and run the real CLI
  * binary end-to-end, covering regex checks (agGrid/cid/defineColumns/renderOps)
- * and AST checks (R3 el-table / R13 cyclomatic complexity), plus the compliant
+ * and AST checks (K3 el-table / K13 cyclomatic complexity), plus the compliant
  * path and the project-level exemption config.
  *
  * NOTE: assertions use ASCII-only patterns. The validate CLI prints Chinese
@@ -235,7 +235,7 @@ describe("validate end-to-end integration", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("compliant list page: no R3/R13 errors in output", () => {
+  it("compliant list page: no K3/K13 errors in output", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/ok", COMPLIANT_INDEX, COMPLIANT_DATA);
     fs.mkdirSync(path.join(root, "mock"), { recursive: true });
@@ -246,13 +246,13 @@ describe("validate end-to-end integration", () => {
     const out = res.stdout + res.stderr;
     // Page was detected
     expect(out).toMatch(/src\/views\/acme\/ok/);
-    // No R3 error (el-table replacement) and no R13 error (complexity)
+    // No K3 error (el-table replacement) and no K13 error (complexity)
     expect(out).not.toMatch(/el-table/);
     expect(out).not.toMatch(/big\(\)/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("R3: list page uses el-table without BaseTable -> reports error", () => {
+  it("K3: list page uses el-table without BaseTable -> reports error", () => {
     const root = makeProject();
     writePage(
       root,
@@ -262,13 +262,13 @@ describe("validate end-to-end integration", () => {
     );
     const res = runValidate(root);
     const out = res.stdout + res.stderr;
-    // R3 issue text mentions el-table and BaseTable
+    // K3 issue text mentions el-table and BaseTable
     expect(out).toMatch(/el-table/);
     expect(out).toMatch(/BaseTable/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("R13: high cyclomatic complexity function -> reports error", () => {
+  it("K13: high cyclomatic complexity function -> reports error", () => {
     const root = makeProject();
     // 12 nested ifs -> complexity 13 > 10
     const ifs = "if(1){".repeat(12) + "}".repeat(12);
@@ -280,9 +280,9 @@ describe("validate end-to-end integration", () => {
     );
     const res = runValidate(root);
     const out = res.stdout + res.stderr;
-    // R13 issue text includes the function name; fix box includes "R13"
+    // K13 issue text includes the function name; fix box includes "K13"
     expect(out).toMatch(/big\(\)/);
-    expect(out).toMatch(/R13/);
+    expect(out).toMatch(/K13/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -304,13 +304,13 @@ describe("validate end-to-end integration", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("project-level exemption: R3 exempted for designer dir -> no el-table error", () => {
+  it("project-level exemption: K3 exempted for designer dir -> no el-table error", () => {
     const root = makeProject();
     fs.writeFileSync(
       path.join(root, ".wl-skills-validate.json"),
       JSON.stringify({
         exemptions: [
-          { paths: ["src/views/designer"], rules: ["R3"], reason: "form designer" },
+          { paths: ["src/views/designer"], rules: ["K3"], reason: "form designer" },
         ],
       }),
     );
@@ -322,7 +322,7 @@ describe("validate end-to-end integration", () => {
     );
     const res = runValidate(root);
     const out = res.stdout + res.stderr;
-    // R3 exempted: el-table should NOT appear in issue output (only in R3 message)
+    // K3 exempted: el-table should NOT appear in issue output (only in K3 message)
     expect(out).not.toMatch(/el-table/);
     fs.rmSync(root, { recursive: true, force: true });
   });

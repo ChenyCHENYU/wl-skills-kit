@@ -136,12 +136,12 @@ subColumnsDef(): TableColumnDesc<any>[] {
 
 #### 优先级：标准列表 vs 特殊场景
 
-| 场景类型 | 渲染要求 | R3（el-table）/ AGGrid 卡控 |
+| 场景类型 | 渲染要求 | K3（el-table）/ AGGrid 卡控 |
 |---|---|---|
 | **标准列表页**（分页查询、台账、核心业务列表） | `BaseTable` + `render-type="agGrid"` + `cid` | 🔴 强制，不可豁免 |
-| **BaseTable 可胜任的特殊表格**（弹窗小表、只读展示、嵌套子表） | `BaseTable`（非 AGGrid 也可），尽量带 `cid` | 🟢 豁免 AGGrid（R3 仍建议改 BaseTable） |
-| **BaseTable 受限的复杂场景**（表单/设计器内嵌表格、行内编辑明细表、特殊合并单元格/复杂行列布局） | 优先 `BaseTable`；确实受限时降级 `el-table` | 🟢 可豁免 R3（需登记豁免原因） |
-| **平台封装组件内部** | 按需 | 🟢 豁免 R3（封装层单独评审） |
+| **BaseTable 可胜任的特殊表格**（弹窗小表、只读展示、嵌套子表） | `BaseTable`（非 AGGrid 也可），尽量带 `cid` | 🟢 豁免 AGGrid（K3 仍建议改 BaseTable） |
+| **BaseTable 受限的复杂场景**（表单/设计器内嵌表格、行内编辑明细表、特殊合并单元格/复杂行列布局） | 优先 `BaseTable`；确实受限时降级 `el-table` | 🟢 可豁免 K3（需登记豁免原因） |
+| **平台封装组件内部** | 按需 | 🟢 豁免 K3（封装层单独评审） |
 
 > 判定原则：**先用 BaseTable**；BaseTable 确实受限不能满足时，才降级 `el-table`，不直接裸用。
 
@@ -151,7 +151,7 @@ subColumnsDef(): TableColumnDesc<any>[] {
 
 ```vue
 <!-- index.vue -->
-<!-- wl-skills:ignore R3 -->   ← 整页豁免 R3（el-table 检测）
+<!-- wl-skills:ignore K3 -->   ← 整页豁免 K3（el-table 检测）
 <template>
   <el-table> ... </el-table>   <!-- 表单设计器内嵌表格，AGGrid 内联编辑受限 -->
 </template>
@@ -159,7 +159,7 @@ subColumnsDef(): TableColumnDesc<any>[] {
 
 ```typescript
 // data.ts
-// wl-skills:ignore R10         ← 豁免该文件的 R10
+// wl-skills:ignore K10         ← 豁免该文件的 K10
 ```
 
 #### 豁免方式二：项目级配置（批量到目录，推荐用于整片特殊场景）
@@ -171,12 +171,12 @@ subColumnsDef(): TableColumnDesc<any>[] {
   "exemptions": [
     {
       "paths": ["src/views/produce/designer"],
-      "rules": ["R3", "R10"],
+      "rules": ["K3", "K10"],
       "reason": "表单设计器内嵌表格，BaseTable AGGrid 内联编辑受限"
     },
     {
       "paths": ["src/views/sale/order-edit/**"],
-      "rules": ["R3"],
+      "rules": ["K3"],
       "reason": "订单行内编辑明细表，AGGrid 行编辑成本高于收益"
     }
   ]
@@ -184,7 +184,7 @@ subColumnsDef(): TableColumnDesc<any>[] {
 ```
 
 - `paths`：页面目录前缀，支持 `/**` glob；命中该目录及其子目录
-- `rules`：规则编号（`R3`/`R10` 等），大小写不敏感
+- `rules`：规则编号（`K3`/`K10` 等），大小写不敏感
 - `reason`：**必填审计字段**，避免滥用
 
 > ⚠️ 豁免不是放任。豁免项升级为主列表页时，必须迁移回 `BaseTable + AGGrid`。`convention-audit` 审计时列出所有豁免项供人工复核。
@@ -197,12 +197,12 @@ subColumnsDef(): TableColumnDesc<any>[] {
 | 主列表 `BaseTable` 但非 AGGrid | 🔴/🟡 |
 | 弹窗小表格 `BaseTable` 非 AGGrid | 🟢 可豁免 |
 | 弹窗小表格 `el-table` | 🟡 建议改 BaseTable |
-| 弹窗内 `BaseTable` 使用 AGGrid 但无 `v-if` | 🔴 **严重（R19）** |
+| 弹窗内 `BaseTable` 使用 AGGrid 但无 `v-if` | 🔴 **严重（K19）** |
 | 封装组件内部 `el-table` | ⚠️ 需确认，不直接报红 |
 
 ---
 
-## 弹窗内 AG Grid 延迟挂载（R19）
+## 弹窗内 AG Grid 延迟挂载（K19）
 
 > AG Grid 依赖容器高度初始化。弹窗在打开动画期间容器高度为 0，AG Grid 会"有数据但不渲染行"。
 
@@ -222,7 +222,7 @@ subColumnsDef(): TableColumnDesc<any>[] {
 </jh-dialog>
 ```
 
-**AST 检测**：R19 自动检测弹窗内 AG Grid 是否有 `v-if` 包裹，缺失时报 error。
+**AST 检测**：K19 自动检测弹窗内 AG Grid 是否有 `v-if` 包裹，缺失时报 error。
 
 ---
 

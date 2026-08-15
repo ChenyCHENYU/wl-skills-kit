@@ -62,9 +62,9 @@ pipeline {
           when { expression { fileExists('node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js') } }
           steps {
             // wl-skills validate --strict --typecheck:
-            //   正则 + AST 全量检测（R1~R13）+ vue-tsc/tsc 类型检查（R14）
+            //   正则 + AST 全量检测（K1~K13）+ vue-tsc/tsc 类型检查（K14）
             //   --strict 模式下 error 和 warn 都导致 CI 失败
-            //   --typecheck 把 R14 类型错误零容忍纳入合并门禁（与 validate 合一，不再割裂）
+            //   --typecheck 把 K14 类型错误零容忍纳入合并门禁（与 validate 合一，不再割裂）
             //   这是 git --no-verify 绕过 pre-commit 后的唯一机器拦截
             sh 'node node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js validate --strict --typecheck || exit 1'
           }
@@ -146,7 +146,7 @@ pipeline {
 
 关键约束（无论用哪个平台）：
 
-1. `Lint` + `Convention Validate --strict --typecheck`（含 R14 类型检查）必须阻断 PR 合并
+1. `Lint` + `Convention Validate --strict --typecheck`（含 K14 类型检查）必须阻断 PR 合并
 2. PROD 部署必须**人工审批 + 双人 release manager**
 3. 制品保留 ≥ 30 天，便于回滚
 4. 失败通知 ≤ 5 分钟内到群

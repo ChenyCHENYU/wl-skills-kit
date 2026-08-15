@@ -14,7 +14,7 @@
 3. 为 `features.definitionSource` 绑定项目已有的集中定义语义校验脚本。
 4. 明确团队的 Mock 策略，避免“无 Mock 即失败”或禁止 Mock 项目被生成器污染。
 
-与单文件注释豁免（`<!-- wl-skills:ignore R3 -->`）互补：
+与单文件注释豁免（`<!-- wl-skills:ignore K3 -->`）互补：
 
 | 机制 | 粒度 | 适用 |
 |---|---|---|
@@ -51,7 +51,7 @@
   "exemptions": [
     {
       "paths": ["<页面目录前缀，支持 /**>"],
-      "rules": ["<规则编号，如 R3 R10，大小写不敏感>"],
+      "rules": ["<规则编号，如 K3 K10，大小写不敏感；旧 R 前缀等价兼容>"],
       "reason": "<必填，审计用途，说明为何豁免>"
     }
   ]
@@ -69,7 +69,7 @@
 | `definitionValidators[].script` | string | 是 | 已存在的安全脚本名，只允许字母、数字、`:`、`_`、`-` |
 | `exemptions` | array | 是 | 豁免条目数组 |
 | `exemptions[].paths` | string[] | 是 | 页面目录前缀。支持 `/**` glob；命中该目录**及其子目录**下所有页面 |
-| `exemptions[].rules` | string[] | 是 | 规则编号（`R3`/`R10` 等），大小写不敏感 |
+| `exemptions[].rules` | string[] | 是 | 规则编号（`K3`/`K10` 等），大小写不敏感；2.18.0 前的旧 `R3`/`R10` 写法等价兼容，存量配置无需修改 |
 | `exemptions[].reason` | string | 是 | 审计字段，说明豁免原因，避免滥用 |
 
 ### 路径匹配规则
@@ -94,10 +94,10 @@
 
 | 规则 | 检测内容 | 典型豁免场景 |
 |---|---|---|
-| `R3` | el-table 未用 BaseTable | 表单设计器内嵌表格、行内编辑明细表 |
-| `R10` | el-form/el-select 等原生组件未用平台封装 | 设计器/自定义编辑器内部 |
+| `K3` | el-table 未用 BaseTable | 表单设计器内嵌表格、行内编辑明细表 |
+| `K10` | el-form/el-select 等原生组件未用平台封装 | 设计器/自定义编辑器内部 |
 
-> 其他规则（R1/R2/R4~R9/R11~R14）原则上不豁免；确有需要时用单文件注释豁免。
+> 其他规则（K1/K2/K4~K9/K11~K14）原则上不豁免；确有需要时用单文件注释豁免。
 
 ---
 
@@ -118,17 +118,17 @@
   "exemptions": [
     {
       "paths": ["src/views/produce/designer"],
-      "rules": ["R3", "R10"],
+      "rules": ["K3", "K10"],
       "reason": "表单设计器内嵌表格 + 自定义编辑器，BaseTable AGGrid 内联编辑受限"
     },
     {
       "paths": ["src/views/sale/order-edit/**"],
-      "rules": ["R3"],
+      "rules": ["K3"],
       "reason": "订单行内编辑明细表，AGGrid 行编辑成本高于收益"
     },
     {
       "paths": ["src/components/business/rich-table"],
-      "rules": ["R3"],
+      "rules": ["K3"],
       "reason": "复杂合并单元格/自定义行列布局，AGGrid 不易实现"
     }
   ]
