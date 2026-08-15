@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.18.0** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.18.1** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -70,11 +70,27 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 ## 版本亮点
 
-**v2.18.0**：纯文档、规则快照或依赖升级提交不再被页面门禁误拦截；项目显式交付契约在强制更新时仍不会被通用基线覆盖。
+**v2.18.1**：文档债务清偿——版本叙事与真实发布对齐。
 
-- `update --force` 识别已修改的 `.wl-skills/contracts/wl-delivery-profile.v1.json` 并原样保留。
-- 防止 query 参数删除、POST 查询、分页默认值等项目事实被误改回包内默认口径。
-- 新项目和未定制 profile 仍正常跟随包升级，不影响既有更新行为。
+- README 版本亮点历史条目标号修正（此前 v2.16.7/2.16.8 内容被误挂在更高版本标签下）。
+- `guides/architecture.md` 版本表补齐 2.16.7–2.18.0 演进记录，`当前版本` 行同步真实日期。
+- `docs/legacy-migration-lessons.md` 交叉引用 wl-skills-ui 存量改造十条沉淀（K/R 编号速查表）。
+
+**v2.18.0**：规则编号 K 前缀化，与 wl-skills-ui 编号空间解耦。
+
+- kit 全部规则 `R1~R19` → `K1~K19`（K=Kit）；wl-skills-ui scanner 保持 `R001~R040`，混合报告/跨包沟通不再歧义。
+- `wl-skills:ignore` 行内标记与 `.wl-skills-validate.json` 豁免**同号等价**接受旧 R 前缀，存量项目配置零改动。
+- 源码防回流守门（测试拦截字符串字面量旧编号）；MCP 风险等级 R0~R4 语义不受影响。
+
+**v2.17.0**：status-column-audit 技能——存量列表字典列升级语义 Tag 全流程。
+
+- 审计分级报告（P1 状态/类型类 / P2 中性 / P5 `logicType:"dict"` 配置列），`--fix` 自动转换并补 import 清残留，`--init-bridge` 一键桥接 wl-skills-ui `renderAutoTagByLabel`（≥1.10.0）。
+
+**v2.16.7–2.16.9**：门禁健壮性三连修。
+
+- v2.16.9：K19（时称 R19）弹窗内 AG Grid 必须 `v-if` 延迟挂载，防动画期零高度渲染。
+- v2.16.8：`validate --pre-commit` 不再误拦截纯文档、规则快照或依赖升级提交。
+- v2.16.7：`update --force` 保留项目显式定制的 delivery profile，通用基线不覆盖项目事实（query 参数删除、POST 查询、分页默认值等项目事实不被误改）。
 
 **v2.16.6**：进阶查询/选择回填从页面隐式行为升级为可选机器契约。
 
