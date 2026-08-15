@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `scripts/sync-version.js`（`npm run version:sync`）：版本号四处同步自动化（package.json description / bin CLI 头注释 / architecture 当前版本行含日期 / README 标题），单一事实源为 `package.json#version`，锚点缺失即报错。内部维护脚本，不随包发布（scripts/ 不在 files 白名单），无运行时影响。
+
 ## [2.18.1] - 2026-08-15
 
 ### Fixed

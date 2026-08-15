@@ -53,7 +53,8 @@
     "ci": "pnpm install --frozen-lockfile && pnpm verify",
     "pack:dry": "npm pack --dry-run --ignore-scripts",
     "release:check": "pnpm verify && npm pack --dry-run --ignore-scripts",
-    "prepublishOnly": "node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run"
+    "prepublishOnly": "node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run",
+    "version:sync": "node scripts/sync-version.js"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.20.0",
