@@ -2,9 +2,13 @@
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- `scripts/sync-version.js`（`npm run version:sync`）：版本号四处同步自动化（package.json description / bin CLI 头注释 / architecture 当前版本行含日期 / README 标题），单一事实源为 `package.json#version`，锚点缺失即报错。内部维护脚本，不随包发布（scripts/ 不在 files 白名单），无运行时影响。
+- 修复 `scripts/sync-version.js` 被误覆盖的事故（b9bbda7 曾以简化重写替换既有实现，丢失 headers 同步与 Skill/MCP 数量统计逻辑）；已从 0de303b 完整恢复原实现。
+
+### Changed
+
+- 版本同步自动化接线：`package.json` 补上缺失的 `npm version` 生命周期钩子（`"version": "node scripts/sync-version.js"`）。原脚本早已存在但从未接线——这是版本号长期需要手动四处同步的真实根因；此后 `npm version patch|minor|major` 一条命令完成全部锚点同步（含 `_compat/headers/` 三文件与 Skill 数自动统计），变更自动进入版本提交。内部维护链路，不影响随包产物。
 
 ## [2.18.1] - 2026-08-15
 
