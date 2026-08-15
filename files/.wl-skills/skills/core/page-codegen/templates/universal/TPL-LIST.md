@@ -173,7 +173,7 @@ export function createPage(editModalRef?: any) {
       @reset="search"
     />
     <!-- 固定结构：工具栏在列表标题上方，二者均独占一行 -->
-    <BaseToolbar :items="toolbars" />
+    <BaseToolbar size="small" :items="toolbars" />
     <div class="list-title">[列表标题]</div>
     <BaseTable
       ref="tableRef"

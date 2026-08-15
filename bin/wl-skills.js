@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.18.1
+ * wl-skills-kit CLI v2.18.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1421,15 +1421,29 @@ function selectValidationPages(allPages, stagedSet, validationConfig) {
   );
 }
 
-function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig) {
+/**
+ * staged 文件是否"可被校验管线实际覆盖"。
+ * 判定口径与 selectValidationPages 的可选范围严格对齐：
+ *   1. 位于某个含 index.vue 的页面目录内；或
+ *   2. 页面契约文件（dicts.ts / api.md）；或
+ *   3. 位于 definitionValidators 登记的集中定义/共享目录内。
+ * 注意：不再把「位于 src/views 下」本身视为可校验——共享模块等无 index.vue 的
+ * 目录不属于任何页面，校验管线对它们无从下手（2.18.2 修复：此前这种 staged
+ * 文件会落入"未发现包含 index.vue 的页面目录"误报并阻断提交）。
+ */
+function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig, allPages) {
   if (!stagedSet) return true;
   const stagedFiles = Array.from(stagedSet);
-  if (stagedFiles.some((file) => isPathWithin(file, scanPath))) return true;
   if (stagedFiles.some((file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"))) {
     return true;
   }
-  return Array.from(validationConfig.definitionValidators.keys()).some((source) =>
+  if (Array.from(validationConfig.definitionValidators.keys()).some((source) =>
     stagedFiles.some((file) => isPathWithin(file, source)),
+  )) {
+    return true;
+  }
+  return allPages.some((page) =>
+    stagedFiles.some((file) => isPathWithin(file, page.dir)),
   );
 }
 
@@ -1766,6 +1780,30 @@ function countValidationIssues(issues, level) {
   return issues.filter((issue) => issue.level === level).length;
 }
 
+/**
+ * 零页面分支处理（2.18.2 从 runValidate 抽出，保持圈复杂度 ≤10）。
+ * 返回 true 表示已处理完毕（调用方直接 return），false 表示无页面且需报错阻断。
+ */
+function handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPages) {
+  if (preCommit && stagedSet) {
+    const relevant = hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig, allPages);
+    if (!relevant) {
+      console.log("  ✔ staged 变更不涉及页面、页面契约或集中定义，跳过页面检测");
+      const nonPageCode = Array.from(stagedSet).some((file) => isPathWithin(file, scanPath));
+      if (nonPageCode) {
+        console.log("  ℹ staged 含扫描范围内的非页面代码（共享模块等无 index.vue 的目录），默认不校验");
+        console.log("    如需纳入校验，在 .wl-skills-validate.json 的 definitionValidators 登记该目录");
+      }
+      console.log("");
+      return true;
+    }
+  }
+  console.log("  ⚠ 未发现包含 index.vue 的页面目录");
+  console.log("");
+  process.exitCode = 1;
+  return true;
+}
+
 function runValidate() {
   const scanPath = validationScanPath();
   const stagedSet = getValidationStagedSet();
@@ -1777,18 +1815,7 @@ function runValidate() {
   printValidationHeader(scanPath);
 
   if (pages.length === 0) {
-    if (
-      preCommit &&
-      stagedSet &&
-      !hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig)
-    ) {
-      console.log("  ✔ staged 变更不涉及页面、页面契约或集中定义，跳过页面检测");
-      console.log("");
-      return;
-    }
-    console.log("  ⚠ 未发现包含 index.vue 的页面目录");
-    console.log("");
-    process.exitCode = 1;
+    handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPages);
     return;
   }
 

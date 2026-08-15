@@ -182,6 +182,7 @@ src/views/[域]/[模块]/dicts.ts
 39. **请求字段白名单**：表单提交只从 `wl-api-contract.models.createRequest/updateRequest` 构造 DTO；禁止把整份响应式页面状态或通用宽 DTO 原样发送。页面字段多于契约会被后端拒绝，少于必填契约会造成数据丢失。
 40. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
 41. **大量表单快速填写闭环**：page-spec 中表单字段 ≥10 且混合必填/非必填时必须生成有效“全部/仅必填”切换。弹窗用 `show-required-toggle`，分区页面用 `show-required-filter`，页面 `BaseForm` 用 `useFormRequiredOnly + visibleItems`，多 Tab 页由父级传递受控状态且每个子表单真实过滤。禁止只生成开关或 prop 而未改变渲染 items；完整实现只读 `references/form-ui.md`。
+42. **按钮尺寸显式稳定**：生成的直接 `el-button` / `ElButton` 与 `BaseToolbar` 默认必须显式写 `size="small"`，避免项目 ConfigProvider 或部署环境默认值不同造成视觉漂移；原型或既有代码已明确设置 `default`、`large` 或动态 `:size` 时保留其业务意图，不得强改。
 
 ### 禁止事项（严格遵守）
 

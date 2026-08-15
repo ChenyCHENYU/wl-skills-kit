@@ -21,8 +21,8 @@
             <span class="page-header__title">[主档维护]</span>
           </div>
           <div class="page-header__right">
-            <el-button type="primary" @click="handleSave">保存</el-button>
-            <el-button @click="handleCancel">取消</el-button>
+            <el-button type="primary" size="small" @click="handleSave">保存</el-button>
+            <el-button size="small" @click="handleCancel">取消</el-button>
           </div>
         </div>
 
@@ -371,12 +371,13 @@ export async function initPage() {
       </el-row>
     </el-form>
     <template #footer>
-      <el-button @click="handleClose">{{
+      <el-button size="small" @click="handleClose">{{
         mode === "view" ? "关闭" : "取消"
       }}</el-button>
       <el-button
         v-if="mode !== 'view'"
         type="primary"
+        size="small"
         :loading="loading"
         @click="handleSubmit"
         >确定</el-button
@@ -467,7 +468,7 @@ defineExpose({ open });
       @select="select"
       @reset="select"
     />
-    <BaseToolbar :items="toolbars" />
+    <BaseToolbar size="small" :items="toolbars" />
     <BaseTable
       ref="tableRef"
       render-type="agGrid"
@@ -647,7 +648,7 @@ export function createPage(editModalRef?: any) {
       @select="select"
       @reset="select"
     />
-    <BaseToolbar :items="toolbars" />
+    <BaseToolbar size="small" :items="toolbars" />
     <el-tabs v-model="activeView">
       <el-tab-pane label="管理视角" name="management">
         <BaseTable
@@ -849,11 +850,11 @@ const Page = createPage();
       >
     </div>
     <div class="page-toolbar">
-      <el-button type="danger" @click="handleSaveAndChange"
+      <el-button type="danger" size="small" @click="handleSaveAndChange"
         >保存并变更</el-button
       >
-      <el-button type="warning" @click="handleSave">保存</el-button>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button type="warning" size="small" @click="handleSave">保存</el-button>
+      <el-button size="small" @click="handleCancel">取消</el-button>
     </div>
     <!-- local 组件必须显式 import；子组件必须真实过滤自己的 formItems -->
     <c_customerTabs

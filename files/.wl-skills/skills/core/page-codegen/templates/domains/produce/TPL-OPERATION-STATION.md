@@ -218,6 +218,7 @@ export async function handleCancelAction(form: any, onSuccess: () => void) {
                 <el-button
                   v-show="currentListType === 'pending'"
                   type="primary"
+                  size="small"
                   :disabled="!canDoAction"
                   @click="handleDoActionClick"
                 >
@@ -227,6 +228,7 @@ export async function handleCancelAction(form: any, onSuccess: () => void) {
                 <el-button
                   v-show="currentListType === 'completed'"
                   type="danger"
+                  size="small"
                   :disabled="!canCancelAction"
                   @click="handleCancelActionClick"
                 >

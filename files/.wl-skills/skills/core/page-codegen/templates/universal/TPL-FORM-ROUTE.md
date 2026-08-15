@@ -85,8 +85,8 @@ export function use[PageName]Form(tabsRef: any) {
       >
     </div>
     <div class="page-toolbar">
-      <el-button type="primary" @click="handleSave">保存</el-button>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button type="primary" size="small" @click="handleSave">保存</el-button>
+      <el-button size="small" @click="handleCancel">取消</el-button>
     </div>
     <c_[业务名]Tabs
       ref="tabsRef"
@@ -261,9 +261,9 @@ export function use[PageName]Detail() {
 
     <!-- 工具栏 -->
     <div class="page-toolbar">
-      <el-button type="primary" @click="handleSave">保存</el-button>
+      <el-button type="primary" size="small" @click="handleSave">保存</el-button>
       <!-- ...其他按钮 -->
-      <el-button @click="handleCancel">返回</el-button>
+      <el-button size="small" @click="handleCancel">返回</el-button>
     </div>
 
     <el-form :model="form" label-position="top" class="detail-form">
@@ -507,7 +507,7 @@ export function createEntryBottomPage(rejectForm: any) {
             <jh-pagination ... />
           </template>
           <template #bottom>
-            <BaseToolbar v-if="selectedRow" :items="..." />
+            <BaseToolbar v-if="selectedRow" size="small" :items="..." />
             <el-empty
               v-if="!selectedRow"
               description="请先在上方列表中选择一行数据"

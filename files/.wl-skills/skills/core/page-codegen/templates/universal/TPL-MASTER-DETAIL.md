@@ -85,7 +85,7 @@ export function createBottomPage() {
           @select="select"
           @reset="select"
         />
-        <BaseToolbar :items="toolbars" />
+        <BaseToolbar size="small" :items="toolbars" />
         <BaseTable
           ref="tableRef"
           render-type="agGrid"
@@ -107,7 +107,7 @@ export function createBottomPage() {
         />
       </template>
       <template #bottom>
-        <BaseToolbar :items="bottomToolbars" />
+        <BaseToolbar size="small" :items="bottomToolbars" />
         <BaseTable
           ref="bottomTableRef"
           render-type="agGrid"

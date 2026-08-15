@@ -1,6 +1,17 @@
 # Changelog
 
+## [2.18.2] - 2026-08-15
+
+### Fixed
+
+- **pre-commit 共享模块误报根治**：`validate --pre-commit` 遇到仅 staged `src/views` 下无 `index.vue` 目录（共享模块/definitions/运行时工具）的提交时，此前误报"未发现包含 index.vue 的页面目录"并以 exit 1 阻断（只能 `--no-verify` 绕过）。根因是"staged 相关性判定"（宽口径：位于 src/views 即相关）与"页面选择"（窄口径：仅页面目录内文件）不对称——相关性判定现与可选范围严格对齐（页面目录 / 页面契约 / definitionValidators 登记目录三者为可校验），不可校验的 staged 变更跳过页面检测并提示登记方式；全量 validate（pre-push/CI）语义不变。附 3 个端到端回归测试（仅共享跳过 / 混合 staged 正常校验页面 / 全量无页面仍报错）。
+- `docs/validate-exempt.md` 新增"共享模块 / 非页面代码"章节：默认跳过行为与 `definitionValidators` 深度校验登记两种方式的适用说明。
+
 ## [Unreleased]
+
+### Added
+
+- `page-codegen` 新增按钮尺寸生成契约与全模板回归测试：直接 `el-button` / `ElButton` 与 `BaseToolbar` 默认显式生成 `size="small"`；显式其他或动态尺寸保持原意。
 
 ### Fixed
 

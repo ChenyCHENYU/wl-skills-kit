@@ -23,7 +23,7 @@
           @select="select"
           @reset="select"
         />
-        <BaseToolbar :items="toolbars" />
+        <BaseToolbar size="small" :items="toolbars" />
         <BaseTable
           ref="tableRef"
           render-type="agGrid"

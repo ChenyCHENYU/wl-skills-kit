@@ -152,3 +152,37 @@ wl-skills validate src/views --strict
 
 > 豁免项升级为主列表页时，必须迁移回 `BaseTable + AGGrid` 并从本文件移除豁免。
 > `convention-audit` 审计会列出所有豁免项供人工复核。
+
+---
+
+## 共享模块 / 非页面代码（v2.18.2）
+
+`src/views` 下不含 `index.vue` 的目录（共享模块、definitions、运行时工具等）不属于任何页面，
+页面级规则对它们无从下手。两种处理方式：
+
+### 默认行为（零配置）
+
+`validate --pre-commit` 遇到仅含此类目录的 staged 变更时**跳过页面检测**（exit 0），
+并提示可登记；全量 validate（pre-push / CI）不受影响，仍按页面规则扫描。
+
+### 深度校验（推荐，按需）
+
+在 `definitionValidators` 登记该目录后，此类 staged 变更会触发**全量页面校验** +
+项目自定义语义脚本：
+
+```json
+{
+  "definitionValidators": [
+    {
+      "source": "src/views/produce/steelmaking/shared",
+      "script": "validate:steelmaking"
+    }
+  ]
+}
+```
+
+- `source`：共享目录路径（相对项目根，支持 `/**` 后缀）；
+- `script`：`package.json` scripts 中已存在的校验脚本，validate 会一并执行。
+
+> 历史：2.18.1 及之前，未登记的共享目录 staged 变更会误报
+> "未发现包含 index.vue 的页面目录" 并阻断提交（需 `--no-verify` 绕过），2.18.2 已根治。

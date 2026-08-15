@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.18.1** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.18.2** — 一键将 14 条规范、12 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -69,6 +69,11 @@ wl-skills contract compare --left contracts/mdm-task.json \
 ---
 
 ## 版本亮点
+
+**待发布**：页面生成按钮尺寸稳定化。
+
+- `page-codegen` 所有直接 `el-button` / `ElButton` 和 `BaseToolbar` 模板默认显式生成 `size="small"`，避免本地与线上 ConfigProvider 默认值不同。
+- 原型或存量代码已显式设置 `default` / `large` / 动态 `:size` 时保留业务意图；新增模板扫描测试防止生成回退。
 
 **v2.18.1**：文档债务清偿——版本叙事与真实发布对齐。
 

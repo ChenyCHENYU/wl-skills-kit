@@ -198,7 +198,7 @@ export const bottomTableColumns: TableColumnDesc<any>[] = defineColumns([
     />
     <div class="form-table-content">
       <!-- 工具栏（传入 formRef 用于校验） -->
-      <BaseToolbar :items="toolbars(formRef)" />
+      <BaseToolbar size="small" :items="toolbars(formRef)" />
       <!-- 表单区（可编辑字段） -->
       <BaseForm
         ref="formRef"

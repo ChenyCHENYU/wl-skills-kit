@@ -427,3 +427,49 @@ describe("validate end-to-end integration", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 });
+
+describe("pre-commit 共享模块误报修复（2.18.2）", () => {
+  it("仅 staged src/views 下无 index.vue 的共享目录时应跳过而非阻断", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/existing", COMPLIANT_INDEX, COMPLIANT_DATA);
+    const sharedDir = path.join(root, "src/views/acme/shared");
+    fs.mkdirSync(sharedDir, { recursive: true });
+    fs.writeFileSync(path.join(sharedDir, "runtime.ts"), "export const x = 1;\n");
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "src/views/acme/shared/runtime.ts"]).status).toBe(0);
+
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).toMatch(/跳过页面检测/);
+    expect(output).toMatch(/definitionValidators/);
+    expect(output).not.toMatch(/未发现包含 index/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("共享目录与页面文件同时 staged 时页面仍正常校验", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/mixed", COMPLIANT_INDEX, COMPLIANT_DATA);
+    const sharedDir = path.join(root, "src/views/acme/shared");
+    fs.mkdirSync(sharedDir, { recursive: true });
+    fs.writeFileSync(path.join(sharedDir, "runtime.ts"), "export const x = 1;\n");
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "."]).status).toBe(0);
+
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).not.toMatch(/跳过页面检测|未发现包含 index/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("全量（非 pre-commit）无页面时仍保留错误信号", () => {
+    const root = makeProject();
+    fs.mkdirSync(path.join(root, "src/views/empty"), { recursive: true });
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toMatch(/未发现包含 index/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+});

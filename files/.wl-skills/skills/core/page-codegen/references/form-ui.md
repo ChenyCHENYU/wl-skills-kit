@@ -166,9 +166,9 @@ K17 同时检查 `c_formModal`、页面 `BaseForm` 与 `c_formSections`。F6 只
   <el-checkbox v-model="showRequiredOnly" class="only-required-check">只看必填项</el-checkbox>
 </div>
 <div class="page-toolbar">
-  <el-button type="danger" @click="handleSaveAndChange">保存并变更</el-button>
-  <el-button type="warning" @click="handleSave">保存</el-button>
-  <el-button @click="handleCancel">取消</el-button>
+  <el-button type="danger" size="small" @click="handleSaveAndChange">保存并变更</el-button>
+  <el-button type="warning" size="small" @click="handleSave">保存</el-button>
+  <el-button size="small" @click="handleCancel">取消</el-button>
 </div>
 ```
 

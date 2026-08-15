@@ -121,7 +121,7 @@ export function useChangeHistory(tabsRef: any) {
         <span class="page-tag page-tag--status">未审核</span>
       </div>
       <div class="page-toolbar">
-        <el-button @click="handleCancel">取消</el-button>
+        <el-button size="small" @click="handleCancel">取消</el-button>
       </div>
       <div class="detail-panel__body">
         <c_[domainTabs] ref="tabsRef" mode="view" />

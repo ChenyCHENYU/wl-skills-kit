@@ -19,6 +19,10 @@
 
 > **`name` vs `type` 属性**：`name` 为按钮提供默认的颜色（`type`）和图标（`icon`）；`type` 可单独覆盖颜色，两者可共存，`type` 优先级更高。工具栏按钮优先使用 `name`，只在需要与 `name` 默认颜色不同时才加 `type` 覆盖。
 
+> **尺寸稳定**：直接生成的 `el-button` / `ElButton` 和承载工具栏按钮的
+> `BaseToolbar` 默认显式设置 `size="small"`。若原型或存量代码已经明确使用
+> `default`、`large` 或动态 `:size`，保留显式值；不得用全局 CSS 强压业务尺寸。
+
 **语义自动推断**（仅当原型未标颜色时使用，原型明确颜色时以原型为准）：
 - 新增/新增申请/新建/添加/创建 → `name: "primary"`（蓝色填充，禁止 `plain: true`）
 - 保存 → `name: "primary"`（蓝色填充）
