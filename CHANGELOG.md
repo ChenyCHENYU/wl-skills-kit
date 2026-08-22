@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.18.3] - 2026-08-22
+
+### Added
+
+- `page-codegen` 增加 wl-skills-ui 生成闭环：输入控件间距与 placeholder、数字框 controls、分页器容器、操作列固定/宽度/图标语义及状态 Tag 规范。
+- 列表和表单模板同步生成 `.list-page__pager`、合理操作列宽度、`size="small"` 与标准 placeholder，并新增闭环回归测试。
+
 ## [2.18.2] - 2026-08-15
 
 ### Fixed

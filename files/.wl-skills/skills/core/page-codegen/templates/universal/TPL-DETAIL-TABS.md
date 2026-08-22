@@ -42,19 +42,24 @@
                     <el-input
                       v-if="!item.type || item.type === 'input'"
                       v-model="form[item.name]"
+                      size="small"
                       :placeholder="item.placeholder || '请输入'"
                     />
                     <jh-select
                       v-else-if="item.type === 'select'"
                       v-model="form[item.name]"
+                      size="small"
                       :items="item.options"
                       label=""
+                      placeholder="请选择"
                       style="width: 100%"
                     />
                     <jh-date
                       v-else-if="item.type === 'date'"
                       v-model="form[item.name]"
+                      size="small"
                       label=""
+                      placeholder="请选择"
                       style="width: 100%"
                     />
                   </el-form-item>
@@ -90,14 +95,16 @@
             :columns="itemColumns"
             showToolbar
           />
-          <jh-pagination
-            v-show="itemPage.total > 0"
-            :total="itemPage.total"
-            v-model:currentPage="itemPage.current"
-            v-model:pageSize="itemPage.size"
-            @current-change="loadItems"
-            @size-change="loadItems"
-          />
+          <div class="list-page__pager">
+            <jh-pagination
+              v-show="itemPage.total > 0"
+              :total="itemPage.total"
+              v-model:currentPage="itemPage.current"
+              v-model:pageSize="itemPage.size"
+              @current-change="loadItems"
+              @size-change="loadItems"
+            />
+          </div>
         </div>
       </el-card>
       </template>
@@ -281,6 +288,12 @@ export async function initPage() {
 .app-page-container {
   overflow-y: auto;
 
+  .list-page__pager {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
   :deep(.my-splitter-container) {
     height: 100%;
   }
@@ -360,12 +373,12 @@ export async function initPage() {
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="[字段名]" prop="[fieldKey]">
-            <el-input v-model="form.[fieldKey]" placeholder="请输入[字段名]" />
+            <el-input v-model="form.[fieldKey]" size="small" placeholder="请输入[字段名]" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="[状态]" prop="[statusField]">
-            <jh-select v-model="form.[statusField]" dict="[dictCode]" />
+          <jh-select v-model="form.[statusField]" dict="[dictCode]" size="small" placeholder="请选择" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -477,14 +490,16 @@ defineExpose({ open });
       :columns="columns"
       showToolbar
     />
-    <jh-pagination
-      v-show="page.total && page.total > 0"
-      :total="page.total || 0"
-      v-model:currentPage="page.current"
-      v-model:pageSize="page.size"
-      @current-change="select"
-      @size-change="select"
-    />
+    <div class="list-page__pager">
+      <jh-pagination
+        v-show="page.total && page.total > 0"
+        :total="page.total || 0"
+        v-model:currentPage="page.current"
+        v-model:pageSize="page.size"
+        @current-change="select"
+        @size-change="select"
+      />
+    </div>
   </div>
   <!-- 弹窗放在根 div 之外 -->
   <AddModal ref="addModalRef" @ok="select" />
@@ -669,7 +684,7 @@ export function createPage(editModalRef?: any) {
         />
       </el-tab-pane>
     </el-tabs>
-    <jh-pagination ... />
+    <div class="list-page__pager"><jh-pagination ... /></div>
     <c_formModal ref="editModalRef" v-bind="modalConfig" show-required-toggle @ok="select" />
   </div>
 </template>
@@ -939,7 +954,7 @@ onMounted(() => {
 <div class="status-info-section">
   <el-form disabled label-width="100px">
     <el-row :gutter="20">
-      <el-col :span="6"><el-form-item label="创建时间"><el-input v-model="statusInfo.createTime" /></el-form-item></el-col>
+      <el-col :span="6"><el-form-item label="创建时间"><el-input v-model="statusInfo.createTime" size="small" /></el-form-item></el-col>
       <!-- ... -->
     </el-row>
   </el-form>

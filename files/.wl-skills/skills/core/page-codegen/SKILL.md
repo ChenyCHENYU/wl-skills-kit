@@ -135,6 +135,19 @@ src/views/[域]/[模块]/dicts.ts
 - **`reports/SYS_MENU_INFO.md`** — 集中式菜单配置，**追加写入**（见下方 §SYS_MENU_INFO 生成规则）
 - `mock/[业务域]/[模块].ts`（仅当 `.wl-skills-validate.json.mockPolicy` 为 `required`，或 `optional` 且需求明确需要 mock 时生成；`disabled` 时禁止生成。详见 `.wl-skills/docs/mock-architecture.md`）
 
+## wl-skills-ui 生成闭环契约
+
+生成代码应直接遵守 `@agile-team/wl-skills-ui` 的控件几何和列表布局契约，避免让业务页再用 CSS 补救：
+
+- 所有直接生成的 `el-input`、`el-input-number`、`jh-select`、`jh-date` 等输入控件显式使用 `size="small"`（或等价的 `size` 配置），保留标准 `placeholder`；不得在页面样式中把 `.el-input__inner`、`.el-input__wrapper` 的 `padding` 清零。展示值、只读值与 placeholder 必须复用同一控件结构和间距。
+- 数字输入框只声明业务语义（`controls`、`textAlign` 等）；不得在页面中隐藏步进按钮、重写箭头的绝对定位或高度。UI 包统一负责右侧上下箭头的几何。
+- 复杂表单控件在表单列中统一 `width: 100%`，避免选择器、日期、数字框宽度漂移。
+- 列表分页必须位于表格之后的独立 `.list-page__pager` 容器，并右对齐；不要把分页器塞进表格或工具栏布局。
+- 操作列必须 `fixed: "right"`、`align: "center"`，使用 `renderOps` 图标语义；宽度按同时可见按钮最大数量确定（2 个约 140px，3 个约 200px），查看/编辑/删除不得生成裸文字按钮。
+- 状态/字典列必须使用 `logicType: BusLogicDataType.dict` 或 runtime Tag 渲染，不生成无语义的纯文本状态列。
+
+生成完成后的页面自检除既有 K1~K18/S1~S6/C1~C4 外，还必须确认：分页器容器和位置、操作列固定/对齐/宽度、状态 Tag、输入控件 `size`/placeholder/间距，以及数字框未被业务 CSS 改写。
+
 ---
 
 ## 约束（严格遵守）

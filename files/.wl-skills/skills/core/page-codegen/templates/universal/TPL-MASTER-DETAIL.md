@@ -97,14 +97,16 @@ export function createBottomPage() {
             (row) => handleRowDblclick(row, bottomSelect, BottomPage)
           "
         />
-        <jh-pagination
-          v-show="page.total && page.total > 0"
-          :total="page.total || 0"
-          v-model:currentPage="page.current"
-          v-model:pageSize="page.size"
-          @current-change="select"
-          @size-change="select"
-        />
+        <div class="list-page__pager">
+          <jh-pagination
+            v-show="page.total && page.total > 0"
+            :total="page.total || 0"
+            v-model:currentPage="page.current"
+            v-model:pageSize="page.size"
+            @current-change="select"
+            @size-change="select"
+          />
+        </div>
       </template>
       <template #bottom>
         <BaseToolbar size="small" :items="bottomToolbars" />
@@ -168,6 +170,12 @@ onMounted(() => select());
 
 .base-toolbar-box {
   margin-bottom: 4px;
+}
+
+.list-page__pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 ```
 

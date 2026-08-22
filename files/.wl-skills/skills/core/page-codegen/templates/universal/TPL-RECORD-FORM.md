@@ -351,8 +351,9 @@ defineExpose({ loadData, collectFormData, validate, loadDiffData, clearDiffData 
     <jh-select
       v-model="basicInfo.taxCategory"
       dict="tax_category"
-      label=""
+      size="small"
       placeholder="请选择"
+      label=""
     />
     <span
       v-if="diffBasicInfo && diffBasicInfo.taxCategory !== basicInfo.taxCategory"

@@ -9,6 +9,12 @@
 > 适用于使用 el-form + el-row/col 布局的复杂表单页（如客户申请新增/变更）。
 > 所有样式规则**写在组件或页面的 index.scss** 中，便于未来复用和移动，避免内联 style 散落。
 
+### 0. 输入间距、placeholder 与数字框
+
+- 直接生成的输入、选择器、日期和数字控件显式使用 `size="small"`，并保留“请输入…”/“请选择”等标准 placeholder；只读展示也复用同一控件，不另起贴边文本节点。
+- 不得在页面 `index.scss` 中覆盖 `.el-input__inner` 或 `.el-input__wrapper` 的左右 padding（尤其是 `padding: 0`）。统一间距由 wl-skills-ui 提供，placeholder 与输入值自然共享该间距。
+- `el-input-number`/`jh-input-number` 只配置 `controls`、`textAlign` 等业务语义，不隐藏或绝对定位步进箭头；箭头的尺寸和上下布局由 UI 包统一治理。
+
 ### 1. 平台组件 label 隐藏
 
 `jh-select`、`jh-date`、`jh-file-upload` 等平台组件自带 `label` prop（默认会渲染"下拉选择框："、"日期："等文字）。

@@ -30,6 +30,11 @@ import {
 } from "@/types/page";
 import { postAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { defineColumns } from "@agile-team/wl-skills-ui/runtime";
+
+export const PENDING_TABLE_CID = "[pageAbbr]-[base36Timestamp]-pending";
+export const COMPLETED_TABLE_CID = "[pageAbbr]-[base36Timestamp]-completed";
+export const DETAIL_TABLE_CID = "[pageAbbr]-[base36Timestamp]-detail";
 
 export const API_CONFIG = {
   pendingList: "/[服务缩写]/[资源名]/pendingList",   // 待处理清单
@@ -67,10 +72,10 @@ export function createPendingPage() {
     }
     toolbarDef(): ActionButtonDesc[] { return []; }
     columnsDef(): TableColumnDesc<any>[] {
-      return [
+      return defineColumns([
         { type: "index" },
-        { label: "[列名]", name: "[fieldName]", minWidth: 120 }
-      ];
+        { label: "[列名]", name: "[fieldName]", minWidth: 120, showOverflowTooltip: true }
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
   return (Page as any).create() as any;
@@ -85,10 +90,10 @@ export function createCompletedPage() {
     queryDef(): BaseQueryItemDesc<any>[] { return []; }
     toolbarDef(): ActionButtonDesc[] { return []; }
     columnsDef(): TableColumnDesc<any>[] {
-      return [
+      return defineColumns([
         { type: "index" },
-        { label: "[列名]", name: "[fieldName]", minWidth: 120 }
-      ];
+        { label: "[列名]", name: "[fieldName]", minWidth: 120, showOverflowTooltip: true }
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
   return (Page as any).create() as any;
@@ -103,7 +108,10 @@ export function createDetailPage() {
     queryDef(): BaseQueryItemDesc<any>[] { return []; }
     toolbarDef(): ActionButtonDesc[] { return []; }
     columnsDef(): TableColumnDesc<any>[] {
-      return [{ type: "index" }, { label: "[明细列]", name: "[fieldName]", minWidth: 120 }];
+      return defineColumns([
+        { type: "index" },
+        { label: "[明细列]", name: "[fieldName]", minWidth: 120, showOverflowTooltip: true }
+      ] as any) as TableColumnDesc<any>[];
     }
   })();
   const created = (Page as any).create() as any;
@@ -157,20 +165,24 @@ export async function handleCancelAction(form: any, onSuccess: () => void) {
           </div>
           <BaseTable
             ref="pendingTableRef"
+            render-type="agGrid"
+            :cid="PENDING_TABLE_CID"
             :data="pendingList"
             :columns="pendingColumns"
             showToolbar
             highlight-current-row
             @current-change="handlePendingCurrentChange"
           />
-          <jh-pagination
-            v-show="pendingPage.total > 0"
-            :total="pendingPage.total || 0"
-            v-model:currentPage="pendingPage.current"
-            v-model:pageSize="pendingPage.size"
-            @current-change="pendingSelect"
-            @size-change="pendingSelect"
-          />
+          <div class="list-page__pager">
+            <jh-pagination
+              v-show="pendingPage.total > 0"
+              :total="pendingPage.total || 0"
+              v-model:currentPage="pendingPage.current"
+              v-model:pageSize="pendingPage.size"
+              @current-change="pendingSelect"
+              @size-change="pendingSelect"
+            />
+          </div>
         </div>
       </template>
 
@@ -185,20 +197,24 @@ export async function handleCancelAction(form: any, onSuccess: () => void) {
               </div>
               <BaseTable
                 ref="completedTableRef"
+                render-type="agGrid"
+                :cid="COMPLETED_TABLE_CID"
                 :data="completedList"
                 :columns="completedColumns"
                 showToolbar
                 highlight-current-row
                 @current-change="handleCompletedCurrentChange"
               />
-              <jh-pagination
-                v-show="completedPage.total > 0"
-                :total="completedPage.total || 0"
-                v-model:currentPage="completedPage.current"
-                v-model:pageSize="completedPage.size"
-                @current-change="completedSelect"
-                @size-change="completedSelect"
-              />
+              <div class="list-page__pager">
+                <jh-pagination
+                  v-show="completedPage.total > 0"
+                  :total="completedPage.total || 0"
+                  v-model:currentPage="completedPage.current"
+                  v-model:pageSize="completedPage.size"
+                  @current-change="completedSelect"
+                  @size-change="completedSelect"
+                />
+              </div>
             </div>
           </template>
 
@@ -244,7 +260,14 @@ export async function handleCancelAction(form: any, onSuccess: () => void) {
                 <div v-if="!selectedRow" class="empty-tip">
                   <el-empty description="请先在上方选择一行数据" />
                 </div>
-                <BaseTable v-else :data="detailList" :columns="detailColumns" showToolbar />
+                <BaseTable
+                  v-else
+                  render-type="agGrid"
+                  :cid="DETAIL_TABLE_CID"
+                  :data="detailList"
+                  :columns="detailColumns"
+                  showToolbar
+                />
               </div>
             </div>
           </template>
@@ -261,6 +284,9 @@ import {
   createPendingPage,
   createCompletedPage,
   createDetailPage,
+  PENDING_TABLE_CID,
+  COMPLETED_TABLE_CID,
+  DETAIL_TABLE_CID,
   handleDoAction,
   handleCancelAction,
   operationFormItems,
@@ -372,6 +398,12 @@ onMounted(() => handleQuery());
 ```scss
 .[page-class] {
   .list-section {
+    .list-page__pager {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
     .section-header {
       display: flex;
       align-items: center;

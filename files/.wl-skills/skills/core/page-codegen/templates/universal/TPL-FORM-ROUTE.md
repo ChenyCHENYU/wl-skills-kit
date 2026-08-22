@@ -272,7 +272,7 @@ export function use[PageName]Detail() {
         <el-row :gutter="12">
           <el-col :span="4">
             <el-form-item label="[字段名]">
-              <el-input v-model="form.[字段]" disabled />
+              <el-input v-model="form.[字段]" size="small" placeholder="请输入[字段名]" disabled />
             </el-form-item>
           </el-col>
           <!-- ...更多头部字段 -->
@@ -285,7 +285,7 @@ export function use[PageName]Detail() {
         <el-row :gutter="12">
           <el-col :span="[n]">
             <el-form-item label="[字段名]">
-              <el-input v-model="form.[字段]" />
+              <el-input v-model="form.[字段]" size="small" placeholder="请输入[字段名]" />
             </el-form-item>
           </el-col>
           <!-- ...更多字段 -->
@@ -342,6 +342,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  .list-page__pager {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
 
   .title-bar {
     /* 标题 + 状态 Tag，灰色背景 */
@@ -504,7 +510,7 @@ export function createEntryBottomPage(rejectForm: any) {
               highlight-current-row
               @current-change="handleRowClick"
             />
-            <jh-pagination ... />
+            <div class="list-page__pager"><jh-pagination ... /></div>
           </template>
           <template #bottom>
             <BaseToolbar v-if="selectedRow" size="small" :items="..." />
@@ -513,7 +519,7 @@ export function createEntryBottomPage(rejectForm: any) {
               description="请先在上方列表中选择一行数据"
             />
             <BaseTable v-else ref="..." :data="..." :columns="..." />
-            <jh-pagination ... />
+            <div class="list-page__pager"><jh-pagination ... /></div>
           </template>
         </jh-drag-row>
       </el-tab-pane>

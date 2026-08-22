@@ -2,6 +2,13 @@
 
 > 命中工具栏按钮、条件操作列、状态标签、viewSwitch 或 tabSwitch 时读取。
 
+## 列表布局闭环
+
+- `jh-pagination` 始终放在 `BaseTable` 后的独立 `<div class="list-page__pager">` 中，并保持右对齐；生成器不得把分页器直接挂在页面根节点或工具栏内部。
+- 操作列始终设置 `fixed: "right"`、`align: "center"`，并通过 `renderOps` 生成图标型操作。宽度按同时可见按钮最大数量配置：2 个约 140px，3 个约 200px；条件显示取按钮并集后再计算宽度。
+- “查看/编辑/删除”等常用动作使用 `renderOps` 的 `view`/`edit`/`del` 语义，不生成裸文字 `el-button`。
+- 状态列必须使用 `logicType: BusLogicDataType.dict` 或 `defaultSlot` + `ElTag`/runtime 状态渲染，禁止纯文本状态列。
+
 ### 按钮颜色映射表
 
 > **原型颜色优先**：当原型明确展示按钮颜色时，**必须以原型为准**，不可用语义推断覆盖。下方语义推断仅在原型未标颜色时使用。
