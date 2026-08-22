@@ -25,8 +25,8 @@ function formItems(total: number, required: number, field = "name") {
     `{ ${field}: "f${index}", required: ${index < required} },`).join("\n");
 }
 
-describe("R17 + F6: 表单仅必填切换闭环", () => {
-  it("R17 同时识别弹窗、BaseForm 页面和分区表单页面", () => {
+describe("K17 + F6: 表单仅必填切换闭环", () => {
+  it("K17 同时识别弹窗、BaseForm 页面和分区表单页面", () => {
     const template = `<template>
       <c_formModal v-bind="modalConfig" />
       <BaseForm :items="pageItems" />
@@ -48,7 +48,7 @@ describe("R17 + F6: 表单仅必填切换闭环", () => {
     ]);
   });
 
-  it("R17 逐个判断能力，不被页面中另一个已开启弹窗误抑制", () => {
+  it("K17 逐个判断能力，不被页面中另一个已开启弹窗误抑制", () => {
     const template = `<template>
       <c_formModal v-bind="firstConfig" show-required-toggle />
       <c_formModal v-bind="secondConfig" />
@@ -61,7 +61,7 @@ describe("R17 + F6: 表单仅必填切换闭环", () => {
     expect(forms.map((form) => form.enabled)).toEqual([true, false]);
   });
 
-  it("BaseForm 页面接入 composable 后 R17 完整通过", () => {
+  it("BaseForm 页面接入 composable 后 K17 完整通过", () => {
     const template = `<template>
       <el-switch v-model="showRequiredOnly" />
       <BaseForm :items="visibleItems" />
@@ -80,7 +80,7 @@ describe("R17 + F6: 表单仅必填切换闭环", () => {
     });
   });
 
-  it("c_formSections 页面开启 show-required-filter 后 R17 完整通过", () => {
+  it("c_formSections 页面开启 show-required-filter 后 K17 完整通过", () => {
     const template = `<template><c-form-sections :sections="sections" show-required-filter /></template>`;
     const source = `const sections = [
       { name: "base", fieldsConfig: [${formItems(10, 4, "prop")}] }
@@ -100,7 +100,7 @@ describe("R17 + F6: 表单仅必填切换闭环", () => {
     expect(form).toMatchObject({ kind: "form-sections", enabled: false, eligible: true });
   });
 
-  it("R17 已接入页面 AST 扫描并提示 BaseForm composable", () => {
+  it("K17 已接入页面 AST 扫描并提示 BaseForm composable", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "kit-r17-page-"));
     writeFormPage(
       root,
@@ -111,7 +111,7 @@ describe("R17 + F6: 表单仅必填切换闭环", () => {
 
     const result = runAstRules(root, "src/views");
     expect(result.issues).toContainEqual(expect.objectContaining({
-      rule: "R17",
+      rule: "K17",
       level: "warn",
       text: expect.stringMatching(/useFormRequiredOnly \+ visibleItems/),
     }));
