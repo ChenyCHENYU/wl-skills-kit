@@ -9,7 +9,12 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 const FILES = path.join(ROOT, "files");
 const require = createRequire(import.meta.url);
-const { buildEditorConfigs, canonicalSkills, parseSkillMetadata } = require(
+const {
+  buildEditorConfigs,
+  canonicalSkills,
+  parseSkillMetadata,
+  registeredSkillPaths,
+} = require(
   path.join(ROOT, "lib", "editor-adapters.js"),
 );
 
@@ -27,7 +32,12 @@ describe("Kilo Code 原生适配", () => {
   });
 
   it("为全部规范源生成同名薄适配器，且不复制流程正文", () => {
-    expect(skills.length).toBeGreaterThan(0);
+    expect(skills.length).toBe(13);
+    expect(skills.map((skill) => skill.canonicalPath).sort()).toEqual(
+      registeredSkillPaths(FILES)
+        .map((sourcePath) => `.wl-skills/${sourcePath}`)
+        .sort(),
+    );
     for (const skill of skills) {
       const rel = `.kilo/skills/${skill.name}/SKILL.md`;
       const adapter = configs.get(rel);

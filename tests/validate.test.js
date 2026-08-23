@@ -165,7 +165,7 @@ describe("validate end-to-end integration", () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  it("显式排除非页面入口，并运行集中定义语义校验脚本", () => {
+  it("显式排除非页面入口，并按脚本去重运行集中定义语义校验", () => {
     const root = makeProject();
     const pageDir = writePage(
       root,
@@ -182,28 +182,47 @@ describe("validate end-to-end integration", () => {
       page: "任务",
       features: { definitionSource: "src/views/acme/definitions" },
     }));
+    const secondPageDir = writePage(
+      root,
+      "src/views/acme/second-page",
+      "<template><div/></template><script setup lang=\"ts\"></script>",
+      [
+        'import { secondDefinition as pageDefinition } from "@/views/acme/other-definitions";',
+        "export { pageDefinition };",
+      ].join("\n"),
+    );
+    fs.writeFileSync(path.join(secondPageDir, "index.scss"), "");
+    fs.writeFileSync(path.join(secondPageDir, "api.md"), "# API\n");
+    fs.writeFileSync(path.join(secondPageDir, "page-spec.json"), JSON.stringify({
+      page: "任务二",
+      features: { definitionSource: "src/views/acme/other-definitions" },
+    }));
     writePage(
       root,
       "src/views/acme/style",
       "<template><span/></template><script setup lang=\"ts\"></script>",
     );
     fs.mkdirSync(path.join(root, "scripts"), { recursive: true });
-    fs.writeFileSync(path.join(root, "scripts", "validate-definitions.js"), "process.exit(0);\n");
+    fs.writeFileSync(
+      path.join(root, "scripts", "validate-definitions.js"),
+      'require("fs").appendFileSync("definition-validator-runs.txt", "x");\nprocess.exit(0);\n',
+    );
     fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({
       scripts: { "validate:definitions": "node scripts/validate-definitions.js" },
     }));
     fs.writeFileSync(path.join(root, ".wl-skills-validate.json"), JSON.stringify({
       excludePagePaths: ["src/views/acme/style"],
-      definitionValidators: [{
-        source: "src/views/acme/definitions",
-        script: "validate:definitions",
-      }],
+      definitionValidators: [
+        { source: "src/views/acme/definitions", script: "validate:definitions" },
+        { source: "src/views/acme/other-definitions", script: "validate:definitions" },
+      ],
     }));
 
     const result = runValidate(root);
     const output = result.stdout + result.stderr;
     expect(result.status, output).toBe(0);
     expect(output).toMatch(/定义语义校验已通过/);
+    expect(fs.readFileSync(path.join(root, "definition-validator-runs.txt"), "utf8")).toBe("x");
     expect(output).not.toMatch(/src\/views\/acme\/style/);
     expect(output).not.toMatch(/未解析到对应实现/);
     fs.rmSync(root, { recursive: true, force: true });

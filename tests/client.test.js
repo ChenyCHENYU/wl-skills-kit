@@ -5,7 +5,12 @@ import http from "node:http";
 const require = createRequire(import.meta.url);
 const client = require("../mcp/api/client");
 const { wlsFetch } = client;
-const { buildRequest, parseResponse } = client._internal;
+const {
+  buildRequest,
+  parseResponse,
+  retryAfterMilliseconds,
+  retryDelayMilliseconds,
+} = client._internal;
 const servers = [];
 
 async function listen(handler) {
@@ -76,6 +81,13 @@ describe("MCP backend client", () => {
     expect(() => parseResponse("token=secret", 502, "request-3")).toThrow(
       /HTTP 502，requestId=request-3/,
     );
+  });
+
+  it("优先遵守后端 Retry-After，并对异常值回退指数退避", () => {
+    expect(retryAfterMilliseconds("1.5", 0)).toBe(1500);
+    expect(retryAfterMilliseconds("not-a-date", 0)).toBeNull();
+    expect(retryDelayMilliseconds("0", 200, 2)).toBe(0);
+    expect(retryDelayMilliseconds(undefined, 200, 2)).toBe(800);
   });
 
   it("GET 对临时 503 做有界退避重试", async () => {

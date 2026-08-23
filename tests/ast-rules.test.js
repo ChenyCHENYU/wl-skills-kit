@@ -190,6 +190,34 @@ describe("K16 运行时边界", () => {
   });
 });
 
+describe("K12 硬编码端点", () => {
+  it("检测真实字符串中的 URL/IP，但忽略注释里的示例地址", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-r12-"));
+    const pageDir = path.join(dir, "src", "views", "m", "endpoint");
+    fs.mkdirSync(pageDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pageDir, "index.vue"),
+      [
+        "<template><div/></template>",
+        "<script setup lang=\"ts\">",
+        "// https://comment.example.com/ignored",
+        "const endpoint = \"https://api.example.com/users\";",
+        "const internal = \"http://10.0.0.8:8080/api\";",
+        "</script>",
+      ].join("\n"),
+    );
+
+    const result = runAstRules(dir, "src/views");
+    const findings = result.issues.filter((item) => item.rule === "K12");
+    expect(findings.some((item) => item.level === "warn" && item.text.includes("https://api.example.com/users"))).toBe(true);
+    expect(findings.some((item) => item.level === "error" && item.text.includes("10.0.0.8:8080"))).toBe(true);
+    expect(findings.every((item) => !item.text.includes("comment.example.com"))).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
 // ─── K13 圈复杂度 ────────────────────────────────────────────────────
 describe("computeFunctionComplexity (K13)", () => {
   const parseFn = (src) => {

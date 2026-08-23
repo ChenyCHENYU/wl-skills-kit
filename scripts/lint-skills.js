@@ -9,10 +9,10 @@
  *  2. 每个 sync SKILL.md 必须显式列出"严禁/不得 curl"等纪律条款
  *  3. 每个有写操作的 core SKILL.md 必须包含 Pre-flight 声明
  *  4. 每个有写操作的 core SKILL.md 必须引用 standards（防止脱离基线）
- *  5. `_registry.md` 中列出的 Skill 路径必须存在
+ *  5. `_registry.md` 与实际 Skill 文件必须一一对应（注册表为唯一事实源）
  *  6. `_best-practices.md` / `_pipeline.md` / `_mcp-guardrail.md` 三个公共文件存在
  *  7. 三个 sync SKILL.md 不得保留旧版"TODO_CONFIRM"占位
- *  8. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 R/S 规则必须在执行器中真实存在
+ *  8. 规则覆盖矩阵：rule-coverage.md 标记「阻断」的 K/S/D/C 规则必须在执行器中真实存在
  *  9. SKILL.md 主文件不超过 500 行，且声明的一级 references 必须存在
  * 10. 所有 Skill 的 name/description 合法，且 name 与文件夹名一致（原生发现前提）
  *
@@ -24,6 +24,7 @@
 const fs = require("fs");
 const path = require("path");
 const { parseSkillMetadata } = require("../lib/editor-adapters");
+const { AST_RULE_IDS, AST_RULE_RANGE } = require("../lib/rule-registry");
 
 const ROOT = path.resolve(__dirname, "..");
 const SKILLS = path.join(ROOT, "files", ".wl-skills", "skills");
@@ -144,6 +145,9 @@ function walkAll(dir, list = []) {
 const SKILL_FILES = walkAll(SKILLS).filter((fp) => path.basename(fp) === "SKILL.md");
 for (const skillPath of SKILL_FILES) {
   const rel = path.relative(SKILLS, skillPath).replace(/\\/g, "/");
+  if (!seen.has(rel)) {
+    errors.push(`${rel}: 存在但未登记到 _registry.md；注册表必须是唯一事实源`);
+  }
   const content = fs.readFileSync(skillPath, "utf8");
   try {
     const metadata = parseSkillMetadata(content, rel);
@@ -170,7 +174,7 @@ for (const skillPath of SKILL_FILES) {
   }
 }
 
-// 8. 规则覆盖矩阵：标记「阻断」的 R*/S*/D*/C* 规则必须在执行器代码中真实存在
+// 8. 规则覆盖矩阵：标记「阻断」的 K*/S*/D*/C* 规则必须在执行器代码中真实存在
 //    防止矩阵与 AST/page-spec/字典/组件执行器漂移
 function readOptionalSource(rel) {
   const filePath = path.join(ROOT, rel);
@@ -179,7 +183,13 @@ function readOptionalSource(rel) {
 
 function rulesInCoverageLine(line) {
   if (!/^\|/.test(line) || !/\|\s*是\s*\|?\s*$/.test(line)) return [];
-  return [...new Set([...line.matchAll(/\b([RSDC]\d{1,2})\b/g)].map((match) => match[1]))];
+  const rules = new Set([...line.matchAll(/\b([KRSDC]\d{1,2})\b/g)].map((match) => match[1]));
+  for (const match of line.matchAll(/\b([KRSDC])(\d{1,2})~\1(\d{1,2})\b/g)) {
+    const start = Number(match[2]);
+    const end = Number(match[3]);
+    for (let value = start; value <= end; value += 1) rules.add(`${match[1]}${value}`);
+  }
+  return [...rules];
 }
 
 function assertRuleImplemented(rule, sources) {
@@ -208,11 +218,32 @@ function assertRuleImplemented(rule, sources) {
   ]
     .map(readOptionalSource);
 
-  // 解析矩阵中「阻断=是」的行，提取执行器列里的 R*/S*/D*/C* 编号
+  // 解析矩阵中「阻断=是」的行，提取执行器列里的 K*/S*/D*/C* 编号
   for (const line of coverage.split("\n")) {
     for (const rule of rulesInCoverageLine(line)) assertRuleImplemented(rule, sources);
   }
+
+  // 编号注册表中的每条 AST 规则都必须能在执行器中被实际报告。
+  // 这可防止仅更新帮助/文档而忘记接线，或新增实现后遗漏治理注册。
+  const astSource = [readOptionalSource("lib/ast-rules.js")];
+  for (const rule of AST_RULE_IDS) assertRuleImplemented(rule, astSource);
 })();
+
+// 当前面向用户的规则范围不应落后于规则注册表。历史变更记录不纳入本检查。
+for (const rel of [
+  "README.md",
+  "bin/wl-skills.js",
+  "lib/ast-rules.js",
+  "files/.wl-skills/copilot-instructions-full.md",
+  "kit-internal/rule-coverage.md",
+]) {
+  const content = readOptionalSource(rel);
+  for (const range of content.match(/\bK1~K\d+\b/g) || []) {
+    if (range !== AST_RULE_RANGE) {
+      errors.push(`${rel}: 规则范围 ${range} 已漂移，当前应为 ${AST_RULE_RANGE}`);
+    }
+  }
+}
 
 // 9. npm 包 import 路径不得被 .wl-skills 目录迁移误伤。
 for (const filePath of walkAll(path.join(ROOT, "files"))) {

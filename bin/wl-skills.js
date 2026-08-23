@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.18.3
+ * wl-skills-kit CLI v2.18.4
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -17,6 +17,7 @@
  *   standard-env 标准环境配置扫描、迁移与验证
  *   component 按需检查并落盘标准业务组件
  *   --help    帮助
+ *   --version / -v 输出版本号
  *   --dry-run 预览模式（所有命令均支持）
  */
 
@@ -58,6 +59,7 @@ const {
 const { componentIssues } = require("../lib/component-catalog");
 const { runComponentCommand } = require("../lib/component-cli");
 const { buildEditorConfigs } = require("../lib/editor-adapters");
+const { AST_RULE_RANGE } = require("../lib/rule-registry");
 const {
   desiredSharedProjectConfig,
   isSharedProjectConfig,
@@ -102,6 +104,8 @@ const KNOWN_FLAGS = new Set([
   "--force",
   "--help",
   "-h",
+  "--version",
+  "-v",
   "--domain",
   "--all",
   "--pre-commit",
@@ -140,6 +144,7 @@ const KNOWN_FLAGS = new Set([
 
 const dryRun = args.includes("--dry-run");
 const showHelp = args.includes("--help") || args.includes("-h");
+const showVersion = args.includes("--version") || args.includes("-v");
 const keepReports = args.includes("--keep-reports");
 const force = args.includes("--force");
 const preCommit = args.includes("--pre-commit");
@@ -154,6 +159,17 @@ function readOption(name, fallback = "") {
   const idx = args.indexOf(arg);
   const value = args[idx + 1];
   return value && !value.startsWith("-") ? value : fallback;
+}
+
+// 标准 CLI 版本查询必须是纯输出，避免 "--version" 被误判为 init。
+if (showVersion) {
+  const unexpectedArgs = args.filter((arg) => arg !== "--version" && arg !== "-v");
+  if (unexpectedArgs.length > 0) {
+    console.error("\n  ✖ --version / -v 不能与其他命令或选项同时使用\n");
+    process.exit(1);
+  }
+  console.log(PKG.version);
+  process.exit(0);
 }
 
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
@@ -199,7 +215,7 @@ if (showHelp) {
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
     diff       对比已安装文件与当前 kit 版本的差异
     validate   静态检查 src/views 页面文件、AGGrid、skills-ui runtime、mock
-               集成 AST 语义级检测（K1~K18），覆盖正则无法检测的规则
+               集成 AST 语义级检测（${AST_RULE_RANGE}），覆盖正则无法检测的规则
                K13 圈复杂度 / K14 类型错误（K14 需 --typecheck 开启）
     validate-page validate 的别名，适用于单页/目录检查
     doctor-ui  检查 @agile-team/wl-skills-ui 接入完整性
@@ -212,6 +228,7 @@ if (showHelp) {
     env        旧环境命令，已停用并提示迁移
 
   选项:
+    --version, -v     输出当前版本号
     --dry-run        预览模式，不实际写入/删除任何文件
     --keep-reports   clean 命令保留 .wl-skills/reports/（默认一起删除）
     --force          强制执行，跳过同版本检测（忽略已安装状态）
@@ -1310,6 +1327,7 @@ function inspectPageDirectory(dir, names) {
   const dataContent = readPageSource(dir, "data.ts");
   return {
     dir,
+    dataContent,
     hasDataTs: names.has("data.ts"),
     hasIndexScss: names.has("index.scss"),
     hasApiMd: names.has("api.md"),
@@ -1518,8 +1536,7 @@ function appendPageTableIssues(issues, page) {
 }
 
 function appendRenderOpsIssue(issues, page) {
-  const dataContent = page.hasDataTs ? readPageSource(page.dir, "data.ts") : "";
-  if (page.baseTableCount > 0 && !page.hasRenderOps && /操作|_action/.test(dataContent)) {
+  if (page.baseTableCount > 0 && !page.hasRenderOps && /操作|_action/.test(page.dataContent)) {
     issues.push({ level: "warn", dir: page.dir, text: "疑似存在操作列但未使用 renderOps()" });
   }
 }
@@ -1613,8 +1630,17 @@ function runDefinitionValidator(script) {
   });
 }
 
+function runDefinitionValidatorOnce(resultsByScript, script) {
+  const previous = resultsByScript.get(script);
+  if (previous) return { result: previous, executed: false };
+  const result = runDefinitionValidator(script);
+  resultsByScript.set(script, result);
+  return { result, executed: true };
+}
+
 function appendDefinitionValidatorIssues(issues, definitionSources, validationConfig) {
   const scripts = readProjectScripts();
+  const resultsByScript = new Map();
   let executed = 0;
   for (const source of definitionSources) {
     const script = validationConfig.definitionValidatorFor(source);
@@ -1655,8 +1681,9 @@ function appendDefinitionValidatorIssues(issues, definitionSources, validationCo
       });
       continue;
     }
-    const result = runDefinitionValidator(script);
-    executed++;
+    const validation = runDefinitionValidatorOnce(resultsByScript, script);
+    const { result } = validation;
+    executed += Number(validation.executed);
     if (result.error || result.status !== 0) {
       const reason = result.error
         ? result.error.message
@@ -1843,7 +1870,7 @@ function runValidate() {
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
 
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
-  // 补充正则无法覆盖的 AST 语义规则（K1~K18），与正则规则合并输出
+  // 补充正则无法覆盖的 AST 语义规则（K1~K19），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
   const astResult = runValidationAst(issues, scanPath, stagedSet);
 

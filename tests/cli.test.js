@@ -85,14 +85,25 @@ describe("CLI 参数防护（A1）", () => {
     expect(res.stdout).toMatch(/用法:/);
   });
 
-  it("未知 flag --version 应退出非零并提示未知选项（不再误走 init）", () => {
+  it("--version 应输出纯版本号且绝不执行 init", () => {
     const dir = makeIsolatedDir();
     const res = runCli(["--version"], { cwd: dir });
-    expect(res.status).not.toBe(0);
-    expect(res.stderr + res.stdout).toMatch(/未知选项/);
-    // 防止误装：临时目录内不应被写入任何 .github / src / demo
+    expect(res.status).toBe(0);
+    expect(res.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    // 防止误装：临时目录内不应被写入任何 .github / src / demo。
     const after = fs.readdirSync(dir);
     expect(after.length).toBe(0);
+    fs.rmdirSync(dir);
+  });
+
+  it("-v 等价于 --version，且不接受与写入命令混用", () => {
+    const dir = makeIsolatedDir();
+    const version = runCli(["-v"], { cwd: dir });
+    const invalid = runCli(["--version", "init"], { cwd: dir });
+    expect(version.status).toBe(0);
+    expect(version.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(invalid.status).not.toBe(0);
+    expect(fs.readdirSync(dir)).toHaveLength(0);
     fs.rmdirSync(dir);
   });
 

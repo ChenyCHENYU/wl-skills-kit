@@ -4,6 +4,11 @@ const https = require('https')
 const http = require('http')
 const crypto = require('crypto')
 
+// MCP Server 是长驻进程。复用同一网关的连接可降低字典/菜单同步中多次
+// 安全回查的 TCP/TLS 建连开销；socket 数量保持有界，避免突发占满后端。
+const HTTP_AGENT = new http.Agent({ keepAlive: true, maxSockets: 8, maxFreeSockets: 4, scheduling: 'lifo' })
+const HTTPS_AGENT = new https.Agent({ keepAlive: true, maxSockets: 8, maxFreeSockets: 4, scheduling: 'lifo' })
+
 function errorHint(code, message) {
   if (code === 401 || /token|未登录|鉴权/i.test(message || '')) {
     return '（Token 可能已过期，请重新登录后更新 env.local.json 的 token 字段，仅填纯 JWT 不含 bearer 前缀）'
@@ -72,6 +77,7 @@ function buildRequest(fullUrl, options, config, requestId) {
       port: urlObj.port || (isHttps ? 443 : 80),
       path: urlObj.pathname + urlObj.search,
       method: options.method || 'GET',
+      agent: isHttps ? HTTPS_AGENT : HTTP_AGENT,
       headers: buildHeaders(config, bodyStr, requestId, options.headers),
     },
   }
@@ -106,7 +112,7 @@ function requestOnce(fullUrl, options, config, requestId, timeoutMs) {
     const req = request.lib.request(request.requestOptions, (res) => {
       let data = ''
       res.on('data', (chunk) => { data += chunk })
-      res.on('end', () => resolve({ data, statusCode: res.statusCode || 0 }))
+      res.on('end', () => resolve({ data, statusCode: res.statusCode || 0, headers: res.headers }))
     })
 
     req.on('error', (error) => reject(new Error(`请求失败: ${error.message}`)))
@@ -123,6 +129,26 @@ function retryableStatus(statusCode) {
   return statusCode === 429 || [502, 503, 504].includes(statusCode)
 }
 
+function retryAfterMilliseconds(value, now = Date.now()) {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (raw == null || String(raw).trim() === '') return null
+  const seconds = Number(raw)
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(Math.round(seconds * 1000), 60000)
+  const timestamp = Date.parse(String(raw))
+  if (Number.isNaN(timestamp)) return null
+  return Math.min(Math.max(0, timestamp - now), 60000)
+}
+
+function retryDelayMilliseconds(retryAfter, fallback, attempt) {
+  const hinted = retryAfterMilliseconds(retryAfter)
+  if (hinted != null) return hinted
+  return Math.min(fallback * (2 ** attempt), 2000)
+}
+
+function retryDelayForResponse(response, fallback, attempt) {
+  return retryDelayMilliseconds(response.headers && response.headers['retry-after'], fallback, attempt)
+}
+
 async function wlsFetch(urlPath, options, config) {
   const fullUrl = config.gatewayPath + urlPath
   const requestId = crypto.randomUUID()
@@ -137,7 +163,7 @@ async function wlsFetch(urlPath, options, config) {
     try {
       const response = await requestOnce(fullUrl, requestOptions, config, requestId, timeoutMs)
       if (attempt < retries && retryableStatus(response.statusCode)) {
-        await wait(Math.min(retryDelayMs * (2 ** attempt), 2000))
+        await wait(retryDelayForResponse(response, retryDelayMs, attempt))
         continue
       }
       return parseResponse(response.data, response.statusCode, requestId)
@@ -159,6 +185,9 @@ module.exports = {
     normalizeCustomHeaders,
     parseResponse,
     requestOnce,
+    retryAfterMilliseconds,
+    retryDelayMilliseconds,
+    retryDelayForResponse,
     retryableStatus,
   },
 }

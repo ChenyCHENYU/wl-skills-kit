@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.18.3** — 一键将 14 条规范、12 个 AI Skill、19 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.18.4** — 一键将 14 条规范、13 个 AI Skill、23 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 让 AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae / Qoder / 通用 Agents）**真正理解项目规范**，从原型/详设到完整页面代码全流程自动化。
 
@@ -406,7 +406,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 14 条)
 │   │   └── 14-layout-containers.md
-│   ├── skills/                           12 个启用 Skill（全部激活）
+│   ├── skills/                           13 个启用 Skill（全部激活）
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -488,7 +488,7 @@ pnpm dlx @agile-team/wl-skills-kit check
 pnpm dlx @agile-team/wl-skills-kit diff
 
 # 静态检查 src/views 页面文件完整性 + AGGrid/cid/skills-ui；mock 按 mockPolicy 检查
-# 内含 AST 语义级检测 K1~K18（正则覆盖不到的语义约束）
+# 内含 AST 语义级检测 K1~K19（正则覆盖不到的语义约束）
 # K13 圈复杂度、K15 分页边界、K16 运行时边界默认执行；K14 类型错误需 --typecheck 开启
 # 默认 error 阻断、warn 提示；--strict 下 error/warn 都阻断
 pnpm dlx @agile-team/wl-skills-kit validate

@@ -12,7 +12,7 @@
 
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
-| `K1~K18` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
+| `K1~K19` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S7` | page-spec、机器 API 契约与进阶查询回填比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
@@ -47,6 +47,7 @@
 | standards/05/11 | structuredClone 响应式对象与 error.message 直出风险 | **K16** | warn | 否 |
 | standards/11 | 弹窗、BaseForm、分区页面的大型混合必填表单缺少快速切换 | **K17** | warn | 弹窗 F6 |
 | standards/11 | form-validate 依赖/版本、Element API 与手写规则混用检查 | **K18** | error/warn/info | 是 |
+| standards/12 | 弹窗内 AG Grid 必须通过 v-if 延迟挂载 | **K19** | error | 是 |
 | page-codegen 10 | 查询字段顺序 = 原型顺序 | **S1** | warn | 否 |
 | page-codegen 11 | 表格列顺序 = 原型顺序 | **S2** | error | 是 |
 | page-codegen 12 | 工具栏按钮顺序/颜色 = 原型 | **S3** | error | 是 |
@@ -85,7 +86,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `K1~K18` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
+- `K1~K19` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

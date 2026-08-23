@@ -63,7 +63,7 @@
       "outputPath": ".kilo/rules/wl-skills.md",
       "skillDiscoveryPath": ".kilo/skills",
       "enabled": true,
-      "_note": "Kilo Code / CLI：规则写入 .kilo/rules，12 个原生 Skill 适配器写入 .kilo/skills；流程正文仍唯一指向 .wl-skills/skills，避免双份维护。"
+      "_note": "Kilo Code / CLI：规则写入 .kilo/rules，13 个原生 Skill 适配器写入 .kilo/skills；流程正文仍唯一指向 .wl-skills/skills，避免双份维护。"
     },
     {
       "name": "qoder",
