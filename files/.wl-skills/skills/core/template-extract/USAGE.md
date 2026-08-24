@@ -7,7 +7,7 @@
 
 ## 这个 Skill 解决什么问题
 
-把项目里**已经写得很好的页面**抽取成可复用模板，沉淀到 `skills/core/page-codegen/templates/domains/` 下。下次 codegen 时同类页面优先复用。
+把项目里**已经写得很好的页面**先抽取成不含业务代码的 Page Blueprint JSON，沉淀到 `.wl-skills/templates/blueprints/` 下。下次 codegen 时同类页面优先复用；只有确实需要代码骨架时才继续生成 Markdown/TPL。
 
 ---
 
@@ -29,14 +29,12 @@
 
 ```
 你：把 src/views/produce/aiflow/mmwr-customer-archive/ 这个页面抽取成模板
-AI：[Pre-flight]
+    AI：[Pre-flight]
+    先调用 wls_template_extract 生成结构化预览，不读取完整源码到上下文
     源：mmwr-customer-archive (LIST 类型，含审批工作流)
     建议落位：templates/domains/produce/customer/list-with-approval/
     将抽取：
-    - data.ts.tpl  （EColumn 字段保留 + 字段名占位化）
-    - index.vue.tpl
-    - index.scss.tpl
-    - meta.json    （记录适用场景、字段规则、字典）
+    - blueprint.json（页面模式、槽位、组件能力、API/字典依赖、fingerprint）
     占位约定：
     - 资源名 → {{resourceName}}
     - 服务缩写 → {{serviceShort}}
@@ -44,17 +42,16 @@ AI：[Pre-flight]
     通过 convention-audit 后才落盘。
 ```
 
+批量项目建议按 `wls_project_snapshot → wls_template_search → wls_template_extract → wls_template_audit` 顺序执行；模板升级前用 `wls_template_diff` 检查结构变化。检索默认只返回摘要，选定候选后再读取完整 Blueprint。
+
 ---
 
 ## 输出物
 
 ```
 templates/domains/<域>/<场景>/
-├── data.ts.tpl
-├── index.vue.tpl
-├── index.scss.tpl
-├── meta.json    适用条件 / 占位字段说明 / 字典依赖
-└── README.md   场景说明 + 何时复用 + 已知限制
+├── blueprint.json  结构事实（默认产物）
+└── README.md       场景说明 + 何时复用 + 已知限制
 ```
 
 ---
@@ -66,7 +63,7 @@ templates/domains/<域>/<场景>/
 | `universal/` | `templates/universal/<类型>/`    | 跨业务通用（LIST/DETAIL/TREE_LIST） |
 | `domains/`   | `templates/domains/<域>/<场景>/` | 同域同场景                          |
 
-抽取的模板**默认进 domains/**。如果发现真的全员通用，可由维护者升级到 universal/。
+抽取的蓝图**默认进 `.wl-skills/templates/blueprints/<domain>/<scene>/`**。只有需要代码骨架时才进入 `templates/domains/`；如果发现真的全员通用，可由维护者升级到 universal/。
 
 ---
 

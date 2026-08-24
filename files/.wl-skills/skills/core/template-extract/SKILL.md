@@ -5,9 +5,9 @@ description: "Use when: extracting domain-specific page templates from existing 
 
 # Skill: 模板提取（template-extract）
 
-从现有项目的成熟页面提取领域模板，沉淀到 `.wl-skills/skills/core/page-codegen/templates/domains/`，扩充团队 AI 模板库。
+从现有项目的成熟页面提取领域模板，优先沉淀为不含业务代码的 `Page Blueprint JSON`，扩充团队 AI 模板库。
 
-> **核心理念**：模板贡献门槛极低 — 开发者只需说出一个页面目录路径，AI 完成 90% 的分析和写作。
+> **核心理念**：确定性脚本先提取结构事实，AI 只负责命名、归类和人工确认；开发者只需提供页面路径，避免把完整源码塞入上下文。
 
 ---
 
@@ -39,7 +39,11 @@ description: "Use when: extracting domain-specific page templates from existing 
 "提取模板，目标页：src/views/produce/sjgl/mmwr-rolling-management/"
 ```
 
-### 步骤 2：AI 读取目标页文件
+### 步骤 2：优先调用确定性工具
+
+优先调用 `wls_project_snapshot` 获取低 token 项目摘要，再调用 `wls_template_search` 找相似蓝图，最后用 `wls_template_extract`（或 `wl-skills template extract`）生成预览。落盘前必须调用 `wls_template_audit`；两个蓝图演进时用 `wls_template_diff`。工具只读取本地文件，不上传源码。
+
+### 步骤 3：必要时读取目标页文件
 
 ```
 ✅ 读取 {target}/index.vue
@@ -48,7 +52,7 @@ description: "Use when: extracting domain-specific page templates from existing 
 ✅ 读取 {target}/api.md（如存在）
 ```
 
-### 步骤 3：AI 自动识别交互模式
+### 步骤 4：AI 自动识别交互模式
 
 输出识别结论：
 
@@ -64,7 +68,7 @@ description: "Use when: extracting domain-specific page templates from existing 
               （或：本页面是**独立新模式**，建议提取为 TPL-XXX）
 ```
 
-### 步骤 4：AI 问答确认（最多 4 个问题）
+### 步骤 5：AI 问答确认（最多 4 个问题）
 
 ```
 ❓ 问题 1：领域归属？
@@ -84,7 +88,19 @@ description: "Use when: extracting domain-specific page templates from existing 
    选项：A. 增强现有模板（追加章节）  B. 提取为独立新模板
 ```
 
-### 步骤 5：生成 TPL 文件
+### 步骤 6：生成 Page Blueprint JSON
+
+默认输出：
+
+```text
+.wl-skills/templates/blueprints/{domain}/{scene}/blueprint.json
+```
+
+蓝图只保留页面模式、查询/列/按钮/操作槽位、组件能力、API/字典依赖、约束和质量信号，不保留 `index.vue` / `data.ts` 业务代码；`fingerprint` 用于防止内容被手工误改。
+
+生成后执行 `wls_template_audit`：结构、真实 URL、真实字典编码和源码正文任一泄露都不得进入共享模板库。检索默认只返回摘要，只有选定候选后才请求完整 Blueprint，避免模板库反向制造 token 峰值。
+
+### 步骤 7：如确需人工模板，再生成 TPL 文件
 
 按 `templates/domains/_CONTRIBUTING.md` 格式生成，必须包含：
 
@@ -93,14 +109,14 @@ description: "Use when: extracting domain-specific page templates from existing 
 - 完整 index.vue / data.ts / index.scss 代码（脱敏后）
 - 注意事项
 
-### 步骤 6：写入并注册
+### 步骤 8：写入并注册
 
 ```
 ✅ 写入 templates/domains/{domain}/TPL-{NAME}.md
 ✅ 更新 templates/_index.md（追加注册条目）
 ```
 
-### 步骤 7：输出后续步骤
+### 步骤 9：输出后续步骤
 
 ```
 📦 模板提取完成

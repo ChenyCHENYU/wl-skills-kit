@@ -71,6 +71,72 @@ function makeLegacyEnvProject() {
   return dir;
 }
 
+function makeBlueprintProject() {
+  const dir = makeIsolatedDir();
+  const page = path.join(dir, "src/views/produce/order");
+  fs.mkdirSync(page, { recursive: true });
+  fs.writeFileSync(
+    path.join(page, "index.vue"),
+    "<template><BaseTable render-type=\"agGrid\" cid=\"business-order-list\"/><jh-pagination/></template>",
+  );
+  fs.writeFileSync(
+    path.join(page, "data.ts"),
+    'function columnsDef(){return defineColumns([{name:"businessOrderNo",label:"业务单号"}])}; const API="/produce/order/list"; const D={dictCode:"business_order_status"};',
+  );
+  return dir;
+}
+
+describe("CLI 页面蓝图与项目快照", () => {
+  it("template extract --json 只预览且不输出业务源码", () => {
+    const dir = makeBlueprintProject();
+    const res = runCli(["template", "extract", "--path", "src/views/produce/order", "--json"], { cwd: dir });
+    expect(res.status).toBe(0);
+    expect(res.stdout).not.toContain("businessOrderNo");
+    expect(res.stdout).not.toContain("/produce/order/list");
+    expect(fs.existsSync(path.join(dir, ".wl-skills/templates"))).toBe(false);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("template extract --confirm 写入蓝图，template validate 可复核 fingerprint", () => {
+    const dir = makeBlueprintProject();
+    const output = ".wl-skills/templates/blueprints/produce/list.json";
+    const extracted = runCli(["template", "extract", "--path", "src/views/produce/order", "--confirm", "--output", output], { cwd: dir });
+    expect(extracted.status).toBe(0);
+    expect(fs.existsSync(path.join(dir, output))).toBe(true);
+    const validated = runCli(["template", "validate", "--path", output, "--json"], { cwd: dir });
+    expect(validated.status).toBe(0);
+    expect(JSON.parse(validated.stdout).ok).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("snapshot --json 输出结构摘要而非源码", () => {
+    const dir = makeBlueprintProject();
+    const res = runCli(["snapshot", "--json"], { cwd: dir });
+    expect(res.status).toBe(0);
+    const snapshot = JSON.parse(res.stdout);
+    expect(snapshot.pages[0].summary.columnSlots).toBe(1);
+    expect(res.stdout).not.toContain("businessOrderNo");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("template search/audit/diff 形成 Blueprint 治理闭环", () => {
+    const dir = makeBlueprintProject();
+    const extracted = runCli(["template", "extract", "--path", "src/views/produce/order", "--confirm"], { cwd: dir });
+    expect(extracted.status).toBe(0);
+    const blueprintPath = ".wl-skills/templates/blueprints/produce/list/blueprint.json";
+    const search = runCli(["template", "search", "--domain", "produce", "--scene", "list", "--json"], { cwd: dir });
+    expect(search.status).toBe(0);
+    expect(JSON.parse(search.stdout).total).toBe(1);
+    const audit = runCli(["template", "audit", "--path", blueprintPath, "--json"], { cwd: dir });
+    expect(audit.status).toBe(0);
+    expect(JSON.parse(audit.stdout).ok).toBe(true);
+    const diff = runCli(["template", "diff", "--left", blueprintPath, "--right", blueprintPath, "--json"], { cwd: dir });
+    expect(diff.status).toBe(0);
+    expect(JSON.parse(diff.stdout).equal).toBe(true);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
 describe("CLI 参数防护（A1）", () => {
   it("--help 应正常退出（exit 0）并打印用法", () => {
     const res = runCli(["--help"]);

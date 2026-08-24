@@ -119,6 +119,23 @@ describe("runAstRules 优雅降级", () => {
     // 无论 AST 是否可用，不存在的目录不应该报错
     expect(result.pages).toBe(0);
   });
+
+  it("第二次扫描命中项目缓存，源码变化后只重扫页面", () => {
+    const fs = require("fs");
+    const os = require("os");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wl-cache-"));
+    const pageDir = path.join(dir, "src", "views", "m", "p");
+    fs.mkdirSync(pageDir, { recursive: true });
+    fs.writeFileSync(path.join(pageDir, "index.vue"), "<template><div/></template>");
+    const first = runAstRules(dir, "src/views");
+    const second = runAstRules(dir, "src/views");
+    expect(first.cacheMisses).toBe(1);
+    expect(second.cacheHits).toBe(1);
+    fs.writeFileSync(path.join(pageDir, "index.vue"), "<template><span/></template>");
+    const third = runAstRules(dir, "src/views");
+    expect(third.cacheMisses).toBe(1);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 describe("getStagedFiles", () => {

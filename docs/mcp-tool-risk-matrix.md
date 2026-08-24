@@ -1,8 +1,8 @@
 # MCP Tool 风险矩阵
 
-> **版本基线**：wl-skills-kit v2.16.6
+> **版本基线**：wl-skills-kit v2.19.0
 > **数据源**：`mcp/registry.js`（v2.7.0+ 引入 auto-discovery，新增 Tool 仅改 registry）  
-> **定位**：统一说明 23 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
+> **定位**：统一说明 29 个 MCP Tool 的风险等级、自动化边界、人工确认点和适用场景，避免 Agent 在企业项目中越权执行有副作用动作。
 
 ---
 
@@ -26,6 +26,12 @@
 | `wls_route_check` | 项目感知 | R0 | 否 | 是 | 无 |
 | `wls_git_log_extract` | 项目感知 | R0 | 否 | 是 | 无 |
 | `wls_validate_page` | 本地检查 | R1 | 否 | 是 | 无 |
+| `wls_project_snapshot` | 项目感知 | R0 | 否 | 是 | 无；单页失败会隔离在 snapshot.errors |
+| `wls_template_validate` | 本地检查 | R1 | 否 | 是 | 无 |
+| `wls_template_extract` | 本地产物 | R2 | 否 | 否 | 默认预览；写入蓝图必须传 `confirmWrite: true` |
+| `wls_template_search` | 本地检查 | R1 | 否 | 是 | 默认仅返回摘要；`includeBlueprint` 仅扩大本地返回内容 |
+| `wls_template_diff` | 本地检查 | R1 | 否 | 是 | 只比较 Blueprint 结构，不读取业务源码 |
+| `wls_template_audit` | 本地检查 | R1 | 否 | 是 | 不通过时禁止进入共享模板库 |
 | `wls_doctor_ui` | 本地检查 | R1 | 否 | 是 | 无 |
 | `wls_standard_env_scan` | 环境扫描 | R1 | 否 | 是 | 无，只读识别项目形态和历史配置 |
 | `wls_standard_env_apply` | 环境迁移 | R2 | 否 | 否 | 默认只生成计划；正式写入必须确认 Profile、模块名、文件计划并传 `confirmApply: true` |
@@ -59,6 +65,11 @@ wls_code_scan
 wls_route_check
 wls_git_log_extract
 wls_validate_page
+wls_project_snapshot
+wls_template_validate
+wls_template_search
+wls_template_diff
+wls_template_audit
 wls_doctor_ui
 wls_standard_env_scan
 wls_standard_env_verify
@@ -85,6 +96,7 @@ wls_role_assign_menus
 wls_action_upsert
 wls_audit_report_push
 wls_standard_env_apply
+wls_template_extract
 ```
 
 确认信息至少包含：

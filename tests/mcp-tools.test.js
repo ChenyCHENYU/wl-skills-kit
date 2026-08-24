@@ -23,6 +23,7 @@ const dictSync = require(path.join(ROOT, "mcp/tools/dictSync.js"));
 const permSync = require(path.join(ROOT, "mcp/tools/permissionSync.js"));
 const projectTools = require(path.join(ROOT, "mcp/tools/projectTools.js"));
 const standardEnvTools = require(path.join(ROOT, "mcp/tools/standardEnvTools.js"));
+const templateTools = require(path.join(ROOT, "mcp/tools/templateTools.js"));
 
 const {
   cleanCell,
@@ -64,6 +65,62 @@ describe("menuSync.cleanCell", () => {
     expect(cleanCell(undefined)).toBe("");
     expect(cleanCell(null)).toBe("");
     expect(cleanCell("")).toBe("");
+  });
+});
+
+describe("templateTools", () => {
+  it("返回结构化页面蓝图而不是源码正文", async () => {
+    const root = makeTempRoot();
+    const page = path.join(root, "src/views/produce/order");
+    fs.mkdirSync(page, { recursive: true });
+    fs.writeFileSync(path.join(page, "index.vue"), "<template><BaseTable render-type=\"agGrid\" cid=\"x\"/></template>");
+    fs.writeFileSync(path.join(page, "data.ts"), "function columnsDef(){return defineColumns([{name: \"code\", label: \"编码\"}])}");
+    const previous = process.env.WL_PROJECT_ROOT;
+    process.env.WL_PROJECT_ROOT = root;
+    const result = await templateTools.handleTemplateExtract({ path: "src/views/produce/order" });
+    expect(result.structuredContent.state).toBe("preview");
+    expect(result.structuredContent.blueprint.shape.slots.columns).toHaveLength(1);
+    expect(result.text).not.toContain("defineColumns");
+    if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
+    else process.env.WL_PROJECT_ROOT = previous;
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("项目快照和蓝图校验均返回结构化状态", () => {
+    const root = makeTempRoot();
+    const page = path.join(root, "src/views/produce/order");
+    fs.mkdirSync(page, { recursive: true });
+    fs.writeFileSync(path.join(page, "index.vue"), "<template><BaseTable /></template>");
+    const previous = process.env.WL_PROJECT_ROOT;
+    process.env.WL_PROJECT_ROOT = root;
+    const snapshot = templateTools.handleProjectSnapshot({});
+    expect(snapshot.structuredContent.state).toBe("snapshot");
+    expect(snapshot.structuredContent.count).toBe(1);
+
+    const blueprint = require(path.join(ROOT, "lib/page-blueprint.js")).buildPageBlueprint(
+      root,
+      "src/views/produce/order",
+    );
+    const file = path.join(root, "blueprint.json");
+    fs.writeFileSync(file, JSON.stringify(blueprint));
+    const valid = templateTools.handleTemplateValidate({ inputPath: "blueprint.json" });
+    expect(valid.structuredContent.state).toBe("valid");
+    blueprint.scene = "tampered";
+    fs.writeFileSync(file, JSON.stringify(blueprint));
+    const invalid = templateTools.handleTemplateValidate({ inputPath: "blueprint.json" });
+    expect(invalid.structuredContent.state).toBe("invalid");
+    expect(invalid.isError).toBe(true);
+    fs.writeFileSync(file, JSON.stringify(require(path.join(ROOT, "lib/page-blueprint.js")).buildPageBlueprint(root, "src/views/produce/order")));
+    const search = templateTools.handleTemplateSearch({ scanPath: ".", domain: "produce" });
+    expect(search.structuredContent.state).toBe("search");
+    expect(search.structuredContent.total).toBe(1);
+    const audit = templateTools.handleTemplateAudit({ inputPath: "blueprint.json" });
+    expect(audit.structuredContent.state).toBe("audited");
+    const diff = templateTools.handleTemplateDiff({ leftPath: "blueprint.json", rightPath: "blueprint.json" });
+    expect(diff.structuredContent.equal).toBe(true);
+    if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
+    else process.env.WL_PROJECT_ROOT = previous;
+    fs.rmSync(root, { recursive: true, force: true });
   });
 });
 

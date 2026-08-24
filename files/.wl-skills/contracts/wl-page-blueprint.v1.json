@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wl-skills.dev/contracts/wl-page-blueprint.v1.json",
+  "title": "WL Page Blueprint",
+  "description": "不含业务代码的页面结构蓝图，供 AI / codegen 消费。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "blueprintId", "domain", "scene", "source", "shape", "constraints", "quality", "fingerprint"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "wl-page-blueprint" },
+    "blueprintId": { "type": "string", "pattern": "^[a-z0-9-]+\\.[a-z0-9-]+$" },
+    "domain": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "scene": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pagePath", "sourceHash"],
+      "properties": {
+        "pagePath": { "type": "string" },
+        "sourceHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "components", "slots", "apiOperations", "dictionaries", "formSections"],
+      "properties": {
+        "mode": { "type": "string" },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["capability", "count"],
+            "properties": {
+              "capability": { "type": "string" },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["query", "columns", "toolbar", "operations"],
+          "properties": {
+            "query": { "$ref": "#/$defs/slotItems" },
+            "columns": { "$ref": "#/$defs/slotItems" },
+            "toolbar": { "$ref": "#/$defs/slotItems" },
+            "operations": { "$ref": "#/$defs/slotItems" }
+          }
+        },
+        "apiOperations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operation", "method", "request", "pathTemplate"],
+            "properties": {
+              "operation": { "type": "string" },
+              "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "UNKNOWN"] },
+              "request": { "enum": ["path", "query", "body", "unknown"] },
+              "pathTemplate": { "const": "/<service>/<resource>/<operation>" }
+            }
+          }
+        },
+        "dictionaries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "dependencyId", "usage"],
+            "properties": {
+              "code": { "type": "string" },
+              "dependencyId": { "type": "string", "pattern": "^dep_[a-f0-9]{10}$" },
+              "usage": { "const": "explicit" }
+            }
+          }
+        },
+        "formSections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "fieldCount", "hasRequiredAndOptional"],
+            "properties": {
+              "slot": { "type": "string", "pattern": "^form_section_[0-9]+$" },
+              "fieldCount": { "type": "integer", "minimum": 0 },
+              "hasRequiredAndOptional": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usesAgGrid", "hasPagination", "hasPageSpec", "requiresVIfForDialogGrid"],
+      "properties": {
+        "usesAgGrid": { "type": "boolean" },
+        "hasPagination": { "type": "boolean" },
+        "hasPageSpec": { "type": "boolean" },
+        "requiresVIfForDialogGrid": { "type": "boolean" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "warnings"],
+      "properties": {
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "slotItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot", "role", "required", "control", "hasDictionary"],
+        "properties": {
+          "slot": { "type": "string" },
+          "role": { "type": "string" },
+          "required": { "type": ["boolean", "null"] },
+          "control": { "type": ["string", "null"] },
+          "hasDictionary": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

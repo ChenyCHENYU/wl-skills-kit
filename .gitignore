@@ -9,3 +9,4 @@ package-lock.json
 *.local.npmrc
 nul
 _test_dir/
+.wl-skills-cache/

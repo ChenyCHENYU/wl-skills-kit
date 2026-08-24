@@ -159,6 +159,11 @@ const REQUIRED_LIB_FILES = [
   "lib/page-spec.js",
   "lib/safe-fix.js",
   "lib/api-contract.js",
+  "lib/page-blueprint.js",
+  "lib/project-snapshot.js",
+  "lib/blueprint-registry.js",
+  "lib/blueprint-audit.js",
+  "lib/validation-cache.js",
   "lib/component-catalog.js",
   "lib/component-cli.js",
   "lib/standard-env/index.js",
@@ -167,6 +172,15 @@ for (const rel of REQUIRED_LIB_FILES) {
   const fullPath = path.join(ROOT, rel);
   if (!fs.existsSync(fullPath)) {
     errors.push(`${rel}: 文件不存在 — 发布后 require/import 将失败`);
+  }
+}
+
+for (const rel of [
+  "mcp/tools/templateTools.js",
+  "files/.wl-skills/contracts/wl-page-blueprint.v1.json",
+]) {
+  if (!fs.existsSync(path.join(ROOT, rel))) {
+    errors.push(`${rel}: 文件不存在 — 模板提取/项目感知能力无法随包发布`);
   }
 }
 

@@ -54,7 +54,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 ────────────────────────────────────────────────
 🔍 强制自检（不可跳过）：
    wl-skills validate src/views/{生成的页面目录}
-   → 同时执行 K1~K18（AST 语义）+ S1~S6（page-spec/机器契约比对）+ C1~C4（组件契约）
+   → 同时执行 K1~K19（AST 语义）+ S1~S6（page-spec/机器契约比对）+ C1~C4（组件契约）
    → 结果：{0 error / N warn} 或列出 error 待修复
 ────────────────────────────────────────────────
 📌 后续步骤：
@@ -146,7 +146,7 @@ src/views/[域]/[模块]/dicts.ts
 - 操作列必须 `fixed: "right"`、`align: "center"`，使用 `renderOps` 图标语义；宽度按同时可见按钮最大数量确定（2 个约 140px，3 个约 200px），查看/编辑/删除不得生成裸文字按钮。
 - 状态/字典列必须使用 `logicType: BusLogicDataType.dict` 或 runtime Tag 渲染，不生成无语义的纯文本状态列。
 
-生成完成后的页面自检除既有 K1~K18/S1~S6/C1~C4 外，还必须确认：分页器容器和位置、操作列固定/对齐/宽度、状态 Tag、输入控件 `size`/placeholder/间距，以及数字框未被业务 CSS 改写。
+生成完成后的页面自检除既有 K1~K19/S1~S6/C1~C4 外，还必须确认：分页器容器和位置、操作列固定/对齐/宽度、状态 Tag、输入控件 `size`/placeholder/间距，以及数字框未被业务 CSS 改写。
 
 ---
 

@@ -47,6 +47,14 @@ const {
   handleStandardEnvScan,
   handleStandardEnvVerify,
 } = require("./tools/standardEnvTools");
+const {
+  handleProjectSnapshot,
+  handleTemplateExtract,
+  handleTemplateValidate,
+  handleTemplateSearch,
+  handleTemplateDiff,
+  handleTemplateAudit,
+} = require("./tools/templateTools");
 
 const STRUCTURED_RESULT_SCHEMA = {
   type: "object",
@@ -57,10 +65,30 @@ const STRUCTURED_RESULT_SCHEMA = {
     planHash: { type: "string" },
     currentPlanHash: { type: "string" },
     count: { type: "number" },
+    failedCount: { type: "number" },
     items: { type: "array", items: { type: "object" } },
     actions: { type: "array", items: { type: "object" } },
     results: { type: "array", items: { type: "object" } },
     menuIds: { type: "array", items: { type: "string" } },
+  },
+  required: ["ok", "state"],
+};
+
+const BLUEPRINT_RESULT_SCHEMA = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
+    state: { type: "string" },
+    summary: { type: "object" },
+    blueprint: { type: "object" },
+    outputPath: { type: "string" },
+    count: { type: "number" },
+    failedCount: { type: "number" },
+    errors: { type: "array", items: { type: "string" } },
+    snapshot: { type: "object" },
+    items: { type: "array", items: { type: "object" } },
+    changes: { type: "array", items: { type: "object" } },
+    audit: { type: "object" },
   },
   required: ["ok", "state"],
 };
@@ -605,6 +633,103 @@ const DESCRIPTORS = [
     handle: (args) => handleValidatePage(args),
   },
   {
+    name: "wls_project_snapshot",
+    description:
+      "生成项目页面的紧凑结构化快照：文件完整性、页面模式、组件能力、字段槽位数量、API/字典依赖和 fingerprint。优先调用它获得项目事实，避免 AI 逐页读取源码消耗 token。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scanPath: { type: "string", description: "扫描路径，默认 src/views" },
+        limit: { type: "number", description: "最多返回页面数，默认 200，最大 1000" },
+      },
+      required: [],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleProjectSnapshot(args),
+  },
+  {
+    name: "wls_template_extract",
+    description:
+      "从项目页面提取不含业务代码的结构化 Page Blueprint JSON：页面模式、字段槽位、操作、组件能力、接口/字典依赖和质量信号。默认只预览；confirmWrite=true 才写入 .wl-skills/templates/blueprints/<domain>/<scene>/blueprint.json。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "页面目录或 index.vue 路径，默认 src/views" },
+        domain: { type: "string", description: "可选领域名；不传则从 src/views/<domain>/ 推断" },
+        scene: { type: "string", description: "可选场景名；不传则从 page-spec/页面结构推断" },
+        confirmWrite: { type: "boolean", description: "默认 false，仅预览；true 才写本地蓝图" },
+        outputPath: { type: "string", description: "可选项目相对输出路径" },
+      },
+      required: [],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleTemplateExtract(args),
+  },
+  {
+    name: "wls_template_validate",
+    description: "校验 Page Blueprint JSON 的版本、结构和 fingerprint，确保它能作为 AI/codegen 的稳定输入。",
+    inputSchema: {
+      type: "object",
+      properties: { inputPath: { type: "string", description: "项目相对蓝图 JSON 路径" } },
+      required: ["inputPath"],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleTemplateValidate(args),
+  },
+  {
+    name: "wls_template_search",
+    description:
+      "在项目本地 Blueprint JSON 中按 domain/scene/mode/component/质量分检索。默认只返回摘要，避免把整个模板库一次性放入 AI 上下文。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        scanPath: { type: "string", description: "Blueprint 根目录，默认 .wl-skills/templates/blueprints" },
+        domain: { type: "string" },
+        scene: { type: "string" },
+        mode: { type: "string" },
+        component: { type: "string" },
+        query: { type: "string", description: "按领域、场景、模式或组件能力进行宽匹配" },
+        minQuality: { type: "number", minimum: 0, maximum: 100 },
+        limit: { type: "number", description: "最多返回 100 个摘要，默认 20" },
+        includeBlueprint: { type: "boolean", description: "是否返回完整蓝图；默认 false" },
+      },
+      required: [],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleTemplateSearch(args),
+  },
+  {
+    name: "wls_template_diff",
+    description: "比较两份本地 Blueprint 的结构变化，忽略源码来源 hash、fingerprint 和质量元数据，不读取业务源码。",
+    inputSchema: {
+      type: "object",
+      properties: {
+        leftPath: { type: "string", description: "项目相对 Blueprint 路径" },
+        rightPath: { type: "string", description: "项目相对 Blueprint 路径" },
+      },
+      required: ["leftPath", "rightPath"],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleTemplateDiff(args),
+  },
+  {
+    name: "wls_template_audit",
+    description: "执行 Blueprint 脱敏与质量门禁：校验结构、真实 URL、字典编码和源码正文是否泄露。",
+    inputSchema: {
+      type: "object",
+      properties: { inputPath: { type: "string", description: "项目相对 Blueprint JSON 路径" } },
+      required: ["inputPath"],
+    },
+    outputSchema: BLUEPRINT_RESULT_SCHEMA,
+    needsBackendConfig: false,
+    handle: (args) => handleTemplateAudit(args),
+  },
+  {
     name: "wls_doctor_ui",
     description:
       "检查 @agile-team/wl-skills-ui 是否真正接入：依赖、tokens、styles preset、installCommonPreset、defineColumns、renderOps。",
@@ -717,6 +842,13 @@ const TOOL_RISK_PROFILE = Object.freeze({
   wls_standard_env_apply: "writeLocalDestructiveIdempotent",
   wls_standard_env_verify: "readLocal",
   wls_validate_page: "readLocal",
+  // 默认 preview，但 confirmWrite=true 会生成本地蓝图文件，因此按 R2 记录。
+  wls_template_extract: "writeLocalIdempotent",
+  wls_template_validate: "readLocal",
+  wls_project_snapshot: "readLocal",
+  wls_template_search: "readLocal",
+  wls_template_diff: "readLocal",
+  wls_template_audit: "readLocal",
   wls_doctor_ui: "readLocal",
   wls_git_log_extract: "readLocal",
   wls_audit_report_push: "writeRemoteNonIdempotent",

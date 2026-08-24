@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.18.4
+ * wl-skills-kit CLI v2.19.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -58,6 +58,19 @@ const {
 } = require("../lib/api-contract");
 const { componentIssues } = require("../lib/component-catalog");
 const { runComponentCommand } = require("../lib/component-cli");
+const {
+  buildPageBlueprint,
+  readPageBlueprint,
+  summarizeBlueprint,
+  validatePageBlueprint,
+  writePageBlueprint,
+} = require("../lib/page-blueprint");
+const { buildProjectSnapshot } = require("../lib/project-snapshot");
+const {
+  searchBlueprints,
+  diffBlueprintFiles,
+} = require("../lib/blueprint-registry");
+const { auditPageBlueprint } = require("../lib/blueprint-audit");
 const { buildEditorConfigs } = require("../lib/editor-adapters");
 const { AST_RULE_RANGE } = require("../lib/rule-registry");
 const {
@@ -97,6 +110,8 @@ const KNOWN_COMMANDS = new Set([
   "standard-env",
   "contract",
   "component",
+  "template",
+  "snapshot",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -140,6 +155,14 @@ const KNOWN_FLAGS = new Set([
   "--json",
   "--components",
   "--plan-hash",
+  "--path",
+  "--scene",
+  "--mode",
+  "--component",
+  "--min-quality",
+  "--query",
+  "--include-blueprint",
+  "--limit",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -225,6 +248,8 @@ if (showHelp) {
     standard-env 标准环境配置（scan/plan/apply/verify）
     contract   独立 API 契约（init/validate/compare/render/profile），不依赖 design 或 bd
     component  标准业务组件（list/check/ensure），按需落盘且绝不覆盖
+    template   页面蓝图（extract/validate/search/diff/audit），仅输出结构化 JSON，不复制业务代码
+    snapshot   生成紧凑项目结构快照，供 AI/MCP 消费，避免逐页读取源码
     env        旧环境命令，已停用并提示迁移
 
   选项:
@@ -254,6 +279,15 @@ if (showHelp) {
     --json           contract 命令输出机器可读结果
     --components     component 指定组件，逗号分隔；省略时检查源码实际引用
     --plan-hash      component ensure 预览返回的计划哈希
+    --path <dir>     template extract/validate 的页面或蓝图路径
+    --scene <name>   template extract 的场景名（可选）
+    --mode <name>    template search 的页面模式
+    --component <n>  template search 的组件能力
+    --min-quality <n> template search 的最低质量分
+    --query <text>   template search 的宽匹配关键词
+    --include-blueprint  template search 同时返回完整蓝图（默认仅摘要）
+    --left/--right   template diff 的两份 Blueprint 路径
+    --limit <n>      snapshot 最多返回页面数（默认 200）
     --help           显示帮助
 
   示例:
@@ -284,6 +318,12 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit contract init --contract-id task --service mdm --resource task --module task --permission-prefix mdm_task
     pnpm dlx @agile-team/wl-skills-kit contract validate --input wl-api-contract.json --strict --json
     pnpm dlx @agile-team/wl-skills-kit contract compare --left frontend-contract.json --right backend-contract.json --strict
+    pnpm dlx @agile-team/wl-skills-kit template extract --path src/views/produce/order
+    pnpm dlx @agile-team/wl-skills-kit template extract --path src/views/produce/order --confirm --output .wl-skills/templates/blueprints/produce/order/blueprint.json
+    pnpm dlx @agile-team/wl-skills-kit template validate --path .wl-skills/templates/blueprints/produce/order/blueprint.json
+    pnpm dlx @agile-team/wl-skills-kit template search --domain produce --scene list --min-quality 70 --json
+    pnpm dlx @agile-team/wl-skills-kit template audit --path .wl-skills/templates/blueprints/produce/order/blueprint.json --json
+    pnpm dlx @agile-team/wl-skills-kit snapshot --json
 
   保护路径（init / update 不覆盖已存在的）:
     .wl-skills/reports/   AI 生成报告（团队累积数据，存在则跳过）
@@ -454,6 +494,8 @@ function printInstallHeader(label) {
 
 function ensureInstallInfrastructure() {
   if (dryRun) return;
+  // validate 增量缓存只保存问题摘要，不应进入业务仓库；幂等追加且不覆盖既有规则。
+  ensureGitIgnoreEntry(TARGET_DIR, ".wl-skills-cache/");
   ensurePreCommitHook(TARGET_DIR);
   ensurePrePushHook(TARGET_DIR);
   ensureEslintConfig(TARGET_DIR);
@@ -1790,6 +1832,9 @@ function validationTypeSummary(result) {
 function printValidationSummary(context) {
   const parts = [
     context.astPages ? `（AST 扫描 ${context.astPages}）` : "",
+    context.astCacheHits || context.astCacheMisses
+      ? `（AST 缓存命中 ${context.astCacheHits || 0} / 重扫 ${context.astCacheMisses || 0}）`
+      : "",
     context.specPages ? `（spec-align ${context.specPages}）` : "",
     context.dictContracts ? `（字典契约 ${context.dictContracts}）` : "",
     context.components ? `（标准组件 ${context.components}）` : "",
@@ -1893,6 +1938,8 @@ function runValidate() {
   printValidationSummary({
     pages: pages.length,
     astPages: astResult.pages,
+    astCacheHits: astResult.cacheHits,
+    astCacheMisses: astResult.cacheMisses,
     specPages: specResult.alignedPages,
     dictContracts: dictContractCount,
     components: componentResult.selected.length,
@@ -2530,6 +2577,120 @@ function runContract() {
   }
 }
 
+function templateAction() {
+  return positional.slice(1).find((value) => ["extract", "validate", "search", "diff", "audit"].includes(value)) || "extract";
+}
+
+function reportBlueprint(blueprint, extra = {}) {
+  const payload = { ...extra, summary: summarizeBlueprint(blueprint), blueprint };
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+  const { summary } = payload;
+  console.log("  ✔ 页面蓝图预览（不含业务代码）");
+  console.log(`  blueprintId: ${summary.blueprintId}`);
+  console.log(`  domain/scene: ${summary.domain}/${summary.scene}`);
+  console.log(`  mode: ${summary.mode}`);
+  console.log(`  slots: query=${summary.querySlots}, columns=${summary.columnSlots}, toolbar=${summary.toolbarSlots}, operations=${summary.operationSlots}`);
+  console.log(`  dependencies: api=${summary.apiOperations}, dict=${summary.dictionarySlots}`);
+  console.log(`  quality: ${summary.qualityScore}`);
+}
+
+function runTemplate() {
+  try {
+    const { action } = { action: templateAction() };
+    const inputPath = readOption("path", "src/views");
+    if (action === "validate") {
+      const blueprint = readPageBlueprint(TARGET_DIR, inputPath);
+      const errors = validatePageBlueprint(blueprint);
+      reportBlueprint(blueprint, { ok: errors.length === 0, errors });
+      if (errors.length) process.exitCode = 1;
+      return;
+    }
+    if (action === "search") {
+      runTemplateSearch();
+      return;
+    }
+    if (action === "diff") {
+      runTemplateDiff();
+      return;
+    }
+    if (action === "audit") {
+      runTemplateAudit(inputPath);
+      return;
+    }
+    const blueprint = buildPageBlueprint(TARGET_DIR, inputPath, {
+      domain: readOption("domain"),
+      scene: readOption("scene"),
+    });
+    if (args.includes("--confirm") && !dryRun) {
+      const written = writePageBlueprint(TARGET_DIR, blueprint, readOption("output"));
+      reportBlueprint(blueprint, { ok: true, state: "written", outputPath: written });
+      console.log(`  ✔ 已写入：${written}`);
+      return;
+    }
+    reportBlueprint(blueprint, { ok: true, state: "preview" });
+    console.log("  ℹ 传 --confirm 才写入蓝图；传 --json 获取完整机器可读结果");
+  } catch (error) {
+    console.error(`  ✖ 页面蓝图失败：${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
+function runTemplateSearch() {
+  const result = searchBlueprints(TARGET_DIR, {
+    scanPath: readOption("path") || undefined,
+    domain: readOption("domain"), scene: readOption("scene"), mode: readOption("mode"),
+    component: readOption("component"), minQuality: readOption("min-quality"),
+    query: readOption("query"), limit: readOption("limit", "20"),
+    includeBlueprint: args.includes("--include-blueprint"),
+  });
+  if (args.includes("--json")) return console.log(JSON.stringify(result, null, 2));
+  console.log(`  ✔ Blueprint 检索完成：命中 ${result.total} 个，返回 ${result.returned} 个${result.truncated ? "（结果已截断）" : ""}`);
+  for (const item of result.items) console.log(`  - ${item.path}: ${item.blueprintId}, quality=${item.summary.qualityScore}`);
+}
+
+function runTemplateDiff() {
+  const result = diffBlueprintFiles(TARGET_DIR, readOption("left"), readOption("right"));
+  if (args.includes("--json")) console.log(JSON.stringify(result, null, 2));
+  else console.log(result.equal ? "  ✔ 两份 Blueprint 结构一致" : `  ⚠ Blueprint 差异：${result.changedCount} 处`);
+  if (!result.equal && args.includes("--strict")) process.exitCode = 1;
+}
+
+function runTemplateAudit(inputPath) {
+  const blueprint = readPageBlueprint(TARGET_DIR, inputPath);
+  const result = auditPageBlueprint(blueprint);
+  if (args.includes("--json")) console.log(JSON.stringify({ ok: result.ok, state: result.ok ? "audited" : "invalid", audit: result }, null, 2));
+  else console.log(result.ok ? `  ✔ Blueprint 脱敏与质量门禁通过：${result.score} 分` : `  ✖ Blueprint 门禁失败：${result.errors.join("；")}`);
+  if (!result.ok) process.exitCode = 1;
+}
+
+function runSnapshot() {
+  try {
+    const snapshot = buildProjectSnapshot(TARGET_DIR, {
+      scanPath: readOption("path", "src/views"),
+      limit: readOption("limit", "200"),
+    });
+    if (args.includes("--json")) {
+      console.log(JSON.stringify(snapshot, null, 2));
+      return;
+    }
+    console.log(`  ✔ 项目快照完成：${snapshot.pageCount} 个页面，成功 ${snapshot.returnedCount - snapshot.failedCount}，失败 ${snapshot.failedCount}${snapshot.truncated ? "（结果已截断）" : ""}`);
+    for (const page of snapshot.pages) {
+      if (!page.ok) {
+        console.log(`  - ${page.path}: 失败（${page.error}）`);
+        continue;
+      }
+      const { summary } = page;
+      console.log(`  - ${page.path}: ${summary.mode}, slots=${summary.querySlots}/${summary.columnSlots}/${summary.toolbarSlots}/${summary.operationSlots}, api=${summary.apiOperations}, dict=${summary.dictionarySlots}`);
+    }
+  } catch (error) {
+    console.error(`  ✖ 项目快照失败：${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
 function requestedComponentNames() {
   return readOption("components")
     .split(",")
@@ -2601,6 +2762,12 @@ switch (command) {
       console.error(`  ✖ 标准业务组件处理失败：${error.message}`);
       process.exitCode = 1;
     });
+    break;
+  case "template":
+    runTemplate();
+    break;
+  case "snapshot":
+    runSnapshot();
     break;
   default:
     console.error(

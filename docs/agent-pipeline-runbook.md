@@ -1,6 +1,6 @@
 # Agent Pipeline 运行手册
 
-> **版本基线**：wl-skills-kit v2.12.5
+> **版本基线**：wl-skills-kit v2.19.0
 > **定位**：给 AI 编辑器、团队成员和 CI 统一一套可追踪、可回退、可复扫的 Agent Pipeline 执行方法。
 
 ---
@@ -93,6 +93,19 @@ wls_standard_env_scan
 
 适用场景：旧网关、旧 `172 + 9000` 或自定义 Vite 子应用迁移为单 `.env`、五环境、三开发模式和模块化配置。新项目直接从最新模板创建，后端环境配置不在本链路内。
 
+### 2.6 低 token 项目感知与领域模板沉淀
+
+```text
+wls_project_snapshot
+→ wls_template_search（先查重，只返回摘要）
+→ wls_template_extract（默认预览）
+→ wls_template_audit（脱敏与质量门禁）
+→ 人工 review 和 universal/domain/project-private 分层
+→ wls_template_diff（后续结构演进）
+```
+
+适用场景：从成熟项目中提取可复用页面模式。默认不把完整源码或模板库放入 AI 上下文；只有选中候选后才读取完整 Blueprint 或必要的局部源码。
+
 ---
 
 ## 3. Pipeline 运行报告
@@ -161,9 +174,11 @@ pnpm dlx @agile-team/wl-skills-kit doctor-ui
 ### MCP 项目感知
 
 ```text
+wls_project_snapshot({ scanPath: "src/views", limit: 200 })
 wls_code_scan({ path: "src/views" })
 wls_route_check({ path: "src/views" })
 wls_git_log_extract({ n: 20 })
+wls_template_search({ domain: "produce", scene: "list", minQuality: 70 })
 ```
 
 ### 标准环境配置

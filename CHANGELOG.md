@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.19.0] - 2026-08-24
+
+### Added
+
+- 增量 validate 缓存、`wls_project_snapshot` 项目快照和 Page Blueprint JSON 提取/校验能力，优先让 AI 消费页面结构事实，减少逐页源码上下文和 token 消耗。
+- 快照按页面隔离异常，单页结构损坏时返回 `failedCount/errors`，不阻断其他页面；蓝图默认脱敏真实字段、接口地址和字典编码，并用 fingerprint 防止内容漂移。
+- `page-codegen` 新增按钮尺寸生成契约与全模板回归测试：直接 `el-button` / `ElButton` 与 `BaseToolbar` 默认显式生成 `size="small"`；显式其他或动态尺寸保持原意。
+
+### Changed
+
+- MCP 工具总数更新为 29；`wls_template_extract` 只有显式 `confirmWrite=true` 才生成本地文件，新增 Blueprint 检索、差异比较和脱敏门禁，风险矩阵与安装流程同步登记缓存目录。
+- 版本同步自动化接线：`package.json` 补上缺失的 `npm version` 生命周期钩子（`"version": "node scripts/sync-version.js"`）。此后 `npm version patch|minor|major` 会同步 README、架构文档、CLI 和发布描述。
+
+### Fixed
+
+- 修复 `scripts/sync-version.js` 被误覆盖的事故（b9bbda7 曾以简化重写替换既有实现，丢失 headers 同步与 Skill/MCP 数量统计逻辑）；已从 0de303b 完整恢复原实现。
+
 ## [2.18.4] - 2026-08-24
 
 ### Added
@@ -27,20 +44,6 @@
 
 - **pre-commit 共享模块误报根治**：`validate --pre-commit` 遇到仅 staged `src/views` 下无 `index.vue` 目录（共享模块/definitions/运行时工具）的提交时，此前误报"未发现包含 index.vue 的页面目录"并以 exit 1 阻断（只能 `--no-verify` 绕过）。根因是"staged 相关性判定"（宽口径：位于 src/views 即相关）与"页面选择"（窄口径：仅页面目录内文件）不对称——相关性判定现与可选范围严格对齐（页面目录 / 页面契约 / definitionValidators 登记目录三者为可校验），不可校验的 staged 变更跳过页面检测并提示登记方式；全量 validate（pre-push/CI）语义不变。附 3 个端到端回归测试（仅共享跳过 / 混合 staged 正常校验页面 / 全量无页面仍报错）。
 - `docs/validate-exempt.md` 新增"共享模块 / 非页面代码"章节：默认跳过行为与 `definitionValidators` 深度校验登记两种方式的适用说明。
-
-## [Unreleased]
-
-### Added
-
-- `page-codegen` 新增按钮尺寸生成契约与全模板回归测试：直接 `el-button` / `ElButton` 与 `BaseToolbar` 默认显式生成 `size="small"`；显式其他或动态尺寸保持原意。
-
-### Fixed
-
-- 修复 `scripts/sync-version.js` 被误覆盖的事故（b9bbda7 曾以简化重写替换既有实现，丢失 headers 同步与 Skill/MCP 数量统计逻辑）；已从 0de303b 完整恢复原实现。
-
-### Changed
-
-- 版本同步自动化接线：`package.json` 补上缺失的 `npm version` 生命周期钩子（`"version": "node scripts/sync-version.js"`）。原脚本早已存在但从未接线——这是版本号长期需要手动四处同步的真实根因；此后 `npm version patch|minor|major` 一条命令完成全部锚点同步（含 `_compat/headers/` 三文件与 Skill 数自动统计），变更自动进入版本提交。内部维护链路，不影响随包产物。
 
 ## [2.18.1] - 2026-08-15
 
