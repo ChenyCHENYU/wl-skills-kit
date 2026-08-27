@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "wl-scenario-template.schema.json",
+  "title": "wl-scenario",
+  "description": "领域场景模板/实例契约：结构与展示方式以 JSON 呈现（单一事实源），实现由 wl-skills-kit 按最佳实践确定性渲染（codegen 轨全代码 / runtime 轨 definition+薄壳）。模板 = 同一结构 + matchHints + params 占位；实例 = 填充后的具体页面。",
+  "type": "object",
+  "required": ["kind", "schemaVersion", "page", "pattern", "renderTrack"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "wl-scenario" },
+    "schemaVersion": { "const": 1 },
+    "templateId": {
+      "type": "string",
+      "description": "模板标识（如 universal.list / produce.workstation-record）；实例化自模板时保留，自由编写时可自拟"
+    },
+    "domain": { "type": "string", "description": "业务域（produce/sale/mdata...）" },
+    "title": { "type": "string", "description": "场景标题（模板层说明，编译时忽略）" },
+    "matchHints": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "模板层：帮助 AI/选择器命中本场景的提示词，编译时忽略"
+    },
+    "pattern": {
+      "type": "string",
+      "description": "模式注册表键（files/.wl-skills/skills/core/page-codegen/templates/patterns.json）"
+    },
+    "renderTrack": { "enum": ["codegen", "runtime"] },
+    "page": { "type": "string", "minLength": 1, "description": "页面中文名（与 page-spec.page 同源）" },
+    "pageId": { "type": "string", "description": "项目内稳定唯一页面标识（strict page-spec 必填）" },
+    "dir": { "type": "string", "description": "页面目录（相对项目根，如 src/views/sale/customer）" },
+    "profileId": { "type": "string", "description": "API 契约 Profile，默认 jh4j3-openapi3" },
+    "serviceShort": { "type": "string", "description": "codegen 轨：服务缩写，用于推导 API 路径" },
+    "resourceName": { "type": "string", "description": "codegen 轨：资源名，用于推导 API 路径" },
+    "treeResource": { "type": "string", "description": "tree-list：树资源名，推导 /{serviceShort}/{treeResource}/tree（或 apiConfig.tree 显式覆盖）" },
+    "pageAbbr": { "type": "string", "description": "页面缩写，TABLE_CID 未显式给出时用于生成 cid 前缀" },
+    "tableCid": { "type": "string", "description": "AGGrid 表格 cid（缺省由 pageAbbr+时间戳生成；确定性渲染/测试场景建议显式提供）" },
+    "listTitle": { "type": "string", "description": "列表标题文案，缺省用 page" },
+    "apiConfig": {
+      "type": "object",
+      "description": "端点覆盖；缺省按 /{serviceShort}/{resourceName}/{操作} 推导",
+      "additionalProperties": { "type": "string" },
+      "properties": {
+        "list": { "type": "string" },
+        "remove": { "type": "string" },
+        "getById": { "type": "string" },
+        "save": { "type": "string" },
+        "update": { "type": "string" },
+        "export": { "type": "string" }
+      }
+    },
+    "deliveryProfile": {
+      "type": "object",
+      "description": "查询传输与分页基线（无项目 Delivery Profile 时的包基线：post/1/10）",
+      "properties": {
+        "method": { "enum": ["post", "get"] },
+        "current": { "type": "integer", "minimum": 1 },
+        "size": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "query": {
+      "type": "array",
+      "description": "查询字段（左→右、上→下顺序即原型顺序，与 page-spec.query 同源）",
+      "items": { "$ref": "#/definitions/queryItem" }
+    },
+    "columns": {
+      "type": "array",
+      "description": "表格列（左→右顺序即表头顺序；selection/index/_action 由编译器自动补齐，不需要声明）",
+      "items": { "$ref": "#/definitions/columnItem" }
+    },
+    "toolbar": {
+      "type": "array",
+      "description": "工具栏按钮（左→右顺序）",
+      "items": { "$ref": "#/definitions/toolbarItem" }
+    },
+    "operations": {
+      "type": "array",
+      "description": "操作列按钮（与原型严格一一对应，禁止增减）",
+      "items": { "$ref": "#/definitions/operationItem" }
+    },
+    "formSections": {
+      "type": "array",
+      "description": "表单分区（弹窗或分区表单；存在时 codegen 轨生成 modalConfig + c_formModal）",
+      "items": {
+        "type": "object",
+        "required": ["name", "label", "fields"],
+        "properties": {
+          "name": { "type": "string" },
+          "label": { "type": "string" },
+          "fields": { "type": "array", "items": { "$ref": "#/definitions/queryItem" } }
+        }
+      }
+    },
+    "subTables": { "type": "array", "description": "子表/多资源声明（与 page-spec.subTables 同源）" },
+    "features": { "type": "object", "description": "与 page-spec.features 同源（lookupFlows/listLifecycle/tabSwitch/responseMapping 等；record-form 必须含 responseMapping={main,details}）" },
+    "requires": {
+      "type": "object",
+      "description": "运行时轨依赖声明",
+      "properties": {
+        "renderer": {
+          "type": "string",
+          "description": "渲染器组件路径（如 @/components/pattern/PatternPageRenderer.vue）；runtime 轨必填，render 前检查项目内存在"
+        },
+        "components": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "extensions": {
+      "type": "array",
+      "description": "非声明式定制代码逐字保留区：编译时原样嵌入并打 @wl-scenario-ext 标记，提取时按标记字节级回捞，保证往返无损",
+      "items": {
+        "type": "object",
+        "required": ["slot", "code"],
+        "properties": {
+          "slot": {
+            "enum": ["customImports", "customMethods", "template.afterToolbar"]
+          },
+          "code": { "type": "string", "description": "逐字嵌入的代码文本（禁止 import/export 语句，imports 走 customImports 逐行）" }
+        }
+      }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "definitions": {
+    "queryItem": {
+      "type": "object",
+      "required": ["name", "label"],
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "type": { "enum": ["input", "dict", "select", "dateRange", "number"] },
+        "dictCode": { "type": "string", "description": "type=dict 时必填，显式字典编码，禁止按字段名猜" },
+        "options": {
+          "type": "array",
+          "description": "type=select 时的静态选项",
+          "items": {
+            "type": "object",
+            "required": ["label", "value"],
+            "properties": { "label": { "type": "string" }, "value": { "type": "string" } }
+          }
+        },
+        "startName": { "type": "string", "description": "type=dateRange 时必填" },
+        "endName": { "type": "string", "description": "type=dateRange 时必填" },
+        "placeholder": { "type": "string", "description": "缺省按类型推导（输入=请输入<label>，选择=请选择）" },
+        "multiple": { "type": "boolean" },
+        "defaultValue": {},
+        "required": { "type": "boolean" },
+        "readonly": { "type": "boolean" }
+      }
+    },
+    "columnItem": {
+      "type": "object",
+      "required": ["name", "label"],
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "type": { "enum": ["input", "dict"], "description": "dict 表示字典列（需 dictCode）" },
+        "dictCode": { "type": "string" },
+        "minWidth": { "type": "integer", "description": "缺省 120" },
+        "align": { "enum": ["left", "center", "right"] }
+      }
+    },
+    "toolbarItem": {
+      "type": "object",
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string" },
+        "color": { "enum": ["primary", "danger", "warning", "success", "default"] },
+        "plain": { "type": "boolean" },
+        "action": {
+          "description": "openModal=创建类打开表单弹窗；custom=必须提供 handler",
+          "enum": ["openModal", "custom"]
+        },
+        "handler": {
+          "type": "string",
+          "description": "action=custom 时的 onClick 箭头函数源码文本，逐字嵌入"
+        }
+      }
+    },
+    "operationItem": {
+      "type": "object",
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string" },
+        "action": {
+          "description": "标准动作由编译器按最佳实践接线；custom 必须提供 handler",
+          "enum": ["edit", "del", "view", "custom"]
+        },
+        "handler": { "type": "string", "description": "action=custom 时的 onClick 源码文本（参数 (row: any)），逐字嵌入" }
+      }
+    }
+  }
+}

@@ -224,6 +224,7 @@ src/views/[域]/[模块]/dicts.ts
 
 | 命中场景 | 必读 reference |
 | --- | --- |
+| pattern 已实现且规格能落进 scenario JSON（确定性渲染前置层） | `references/scenario-templates.md` |
 | CRUD 弹窗、蓝色链接列或 FORM_ROUTE 隐藏路由 | `references/modal-and-navigation.md` |
 | 按钮交互、条件操作列、状态标签或视角/Tab | `references/table-interactions.md` |
 | Excel 导入导出或 Mock 写操作 | `references/import-export-and-mock.md` |

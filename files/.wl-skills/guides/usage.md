@@ -53,20 +53,23 @@ AI 会自动识别意图，触发对应的 Skill。
 
 ---
 
-## 10 个 Skill 速览
+## 13 个 Skill 速览
 
 | Skill              | 触发关键词                     | 用途                                                 |
 | ------------------ | ------------------------------ | ---------------------------------------------------- |
 | `prototype-scan`   | 扫描原型 / 解析原型 / 口述需求 | 原型 / 详设 → page-spec JSON                         |
+| `spec-doc-parse`   | 解析说明书 / IPO 转页面        | 标准说明书 → page-spec JSON（与原型线二选一）        |
 | `api-contract`     | 接口约定 / api.md / 字段定义   | 生成接口约定文档                                     |
-| `page-codegen`     | 生成页面 / 帮我生成            | 生成页面骨架 + 菜单注册                              |
+| `page-codegen`     | 生成页面 / 帮我生成            | 生成页面骨架 + 菜单注册（pattern 已实现时优先 scenario render） |
 | `menu-sync`        | 创建菜单 / 同步菜单            | 菜单数据同步到后端（MCP 自动 / prompt 手动两种模式） |
 | `dict-sync`        | 同步字典 / 创建字典 / 字典审计 | 字典基线同步到后端（MCP 自动 / prompt 手动两种模式） |
 | `convention-audit` | 规范审计 / 代码审计            | 14 条规范扫描 + 偏差报告                             |
 | `business-doc-extract` | 语义级智能触发（无关键词列表） | 原型/详设/字段/字典/现有页面 → .wl-skills/docs/business 业务文档 |
-| `template-extract` | 提取模板 / 抄取模板            | 从现有页面沉淀领域专属模板                         |
+| `template-extract` | 提取模板 / 提取场景            | 成熟页面 → wl-scenario JSON 场景模板（确定性提取） |
 | `permission-sync`  | 创建角色 / 角色授权 / 同步权限 | 角色+授权+动作权限同步（MCP）                        |
 | `code-fix`         | 自动修复 / 整改偏差 / 规范整改 | 受控自动修复审计报告中的偏差                         |
+| `standard-env-config` | 标准环境配置 / 五套环境     | 存量子应用环境标准化迁移与验证                       |
+| `status-column-audit` | 状态列审计 / 字典列Tag      | 存量字典列升级语义自动判色 Tag                       |
 
 完整调度规则见 `.wl-skills/skills/_registry.md`。
 
@@ -81,10 +84,10 @@ AI 会自动识别意图，触发对应的 Skill。
 ├── .wl-skills/                       统一隔离目录（所有 Skill/规范/指南/报告/模板）
 │   ├── copilot-instructions-full.md  AI 主入口完整指令
 │   ├── standards/                    14 条模块化规范
-│   ├── skills/                       12 个启用 Skill + 多编辑器适配
+│   ├── skills/                       13 个启用 Skill + 多编辑器适配
 │   ├── guides/                       使用指南 + 架构设计
-│   ├── docs/                         组件 API 文档（jh-* / request 等）+ validate 豁免说明
-│   ├── templates/                    领域样例（生产 + 销售）
+│   ├── docs/                         组件 API 文档 + 场景模板契约（scenario-template.md）
+│   ├── templates/                    领域样例 + 场景模板库（scenarios/*.scenario.json）
 │   └── reports/                      AI 生成报告（SYS_MENU_INFO 等）
 ├── .wl-skills-validate.json          可选：validate 项目级豁免配置（kit 不创建）
 └── src/
@@ -100,11 +103,13 @@ AI 会自动识别意图，触发对应的 Skill。
 1. 原型/详设 → prototype-scan          → page-spec JSON
 2. page-spec → api-contract            → api.md
 3. api.md    → page-codegen            → 页面骨架 + reports/SYS_MENU_INFO.md
+   ↳ 确定性捷径：交互模式已实现（查 patterns.json）时，规格写成 scenario JSON
+      → wl-skills scenario render --confirm（零 AI 代码生成，毫秒级出标准页面）
 4. SYS_MENU_INFO → menu-sync           → 后端菜单表
 5. 代码完成  → dict-sync               → 字典基线同步到后端字典表
 6. 完成      → convention-audit        → 偏差报告（reports/规范审查报告.md）
 7. 报告      → code-fix                → 受控自动修复 🟡/🟢 偏差，逐条 diff 确认
-8. 沉淀      → template-extract        → 从标杆页面提取领域专属模板
+8. 沉淀      → template-extract        → 标杆页面提取为 wl-scenario JSON 场景模板
 ```
 
 > **说明**：每一步都可以单独触发，也可以按用户意图自动接续。
@@ -129,6 +134,37 @@ AI 会自动识别意图，触发对应的 Skill。
 wl-skills validate-page src/views/<页面目录>
 wl-skills doctor-ui
 ```
+
+### 确定性页面生成（wl-scenario，推荐）
+
+交互模式已在 `patterns.json` 标 `implemented`（当前：标准列表页 / 工位实绩）时，
+页面代码可以**完全不经 AI** 生成——AI 只负责写/审 scenario JSON：
+
+```bash
+# 从种子模板起步（.wl-skills/templates/scenarios/universal/list.scenario.json）
+cp .wl-skills/templates/scenarios/universal/list.scenario.json contracts/customer.scenario.json
+# 填充 pageId/page/字段/字典码/apiConfig 后：
+wl-skills scenario validate --input contracts/customer.scenario.json
+wl-skills scenario render   --input contracts/customer.scenario.json            # 预览
+wl-skills scenario render   --input contracts/customer.scenario.json --confirm # 落盘四件套
+wl-skills validate-page src/views/<目标目录>                                    # 门禁复扫
+
+# 产物被手改时随时校验漂移（JSON 是唯一事实源）：
+wl-skills scenario verify   --input contracts/customer.scenario.json --page src/views/<目标目录>
+# validate 已内置 W1：带 scenarioRef 的页面提交/CI 时自动逐字节核对，手改即拦截
+
+# 存量成熟页面反向沉淀：
+wl-skills scenario extract  --page src/views/<页面目录> --output contracts/x.scenario.json
+
+# 已有 page-spec（原型扫描/说明书解析产物）零手写引导为 scenario：
+wl-skills scenario from-spec --input <page-spec.json> --service sale --resource customer \
+  --table-cid cust-0001 --output contracts/customer.scenario.json --confirm
+```
+
+收益（scripts/benchmark-scenario.js 实测，可重复执行）：同 JSON 永远得到同一份标准代码
+（字节级可复现）；单页 render ~0.5ms、批量 20 页 ~8ms；**模型 token 消耗 0**
+（对比 AI 主流程每页输入 ~2 万 + 输出 ~3.5 千 token）；review 对象从几百行代码缩小为
+一份结构化 JSON。契约详见 `.wl-skills/docs/scenario-template.md`。
 
 ---
 

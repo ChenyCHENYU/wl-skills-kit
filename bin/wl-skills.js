@@ -83,6 +83,13 @@ const {
   isPathWithin,
   loadValidationConfig,
 } = require("../lib/validate-config");
+const {
+  validateScenario,
+} = require("../lib/scenario-template");
+const { compileScenario, verifyScenarioRender } = require("../lib/scenario-compiler");
+const { extractScenario } = require("../lib/scenario-extract");
+const { scenarioFromPageSpec } = require("../lib/scenario-fromspec");
+const { readPageSpec } = require("../lib/page-spec");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -112,6 +119,7 @@ const KNOWN_COMMANDS = new Set([
   "component",
   "template",
   "snapshot",
+  "scenario",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -163,6 +171,10 @@ const KNOWN_FLAGS = new Set([
   "--query",
   "--include-blueprint",
   "--limit",
+  "--track",
+  "--page",
+  "--page-abbr",
+  "--table-cid",
 ]);
 
 const dryRun = args.includes("--dry-run");
@@ -250,6 +262,7 @@ if (showHelp) {
     component  标准业务组件（list/check/ensure），按需落盘且绝不覆盖
     template   页面蓝图（extract/validate/search/diff/audit），仅输出结构化 JSON，不复制业务代码
     snapshot   生成紧凑项目结构快照，供 AI/MCP 消费，避免逐页读取源码
+    scenario   领域场景模板（validate/render/extract/verify/from-spec）：JSON 事实源 → 双轨确定性渲染
     env        旧环境命令，已停用并提示迁移
 
   选项:
@@ -272,8 +285,10 @@ if (showHelp) {
     --local-routes   routes 模式映射，格式 match=rewrite,...
     --confirm        standard-env apply 正式写入确认
     --build          standard-env verify 执行五环境临时构建
-    --input <file>   contract validate/render 的输入 JSON
-    --output <file>  contract init/render 输出路径
+    --input <file>   contract validate/render 的输入 JSON；scenario validate/render 的 scenario JSON
+    --output <file>  contract init/render 输出路径；scenario render 输出目录 / extract 输出 JSON
+    --track <name>   scenario render 指定轨道（codegen/runtime），缺省用 scenario 声明
+    --page <dir>     scenario extract 目标页面目录
     --left/--right   contract compare 的前后端契约
     --confirm        contract init/render 确认写入；默认只预览
     --json           contract 命令输出机器可读结果
@@ -1647,6 +1662,60 @@ function appendSpecIssues(issues, pages) {
   return { alignedPages, definitionSources };
 }
 
+// ── scenario 防漂移 W1：page-spec.scenarioRef 指向事实源时自动逐字节核对 ──
+function appendScenarioDriftIssues(issues, pages) {
+  let verified = 0;
+  for (const page of pages) {
+    const absDir = path.join(TARGET_DIR, page.dir);
+    const { spec } = readPageSpec(absDir);
+    const ref = spec && spec.scenarioRef;
+    if (!ref) continue;
+    verified++;
+    const scenarioAbs = path.resolve(absDir, ref);
+    if (!fs.existsSync(scenarioAbs)) {
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        rule: "W1",
+        text: `page-spec.scenarioRef 指向的 scenario JSON 不存在：${ref}`,
+      });
+      continue;
+    }
+    let doc;
+    try {
+      doc = JSON.parse(fs.readFileSync(scenarioAbs, "utf8"));
+    } catch (e) {
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        rule: "W1",
+        text: `scenario JSON 解析失败（${ref}）：${e.message}`,
+      });
+      continue;
+    }
+    const result = verifyScenarioRender(doc, {
+      readFile: (name) => {
+        const target = path.join(absDir, name);
+        return fs.existsSync(target) ? fs.readFileSync(target, "utf8") : null;
+      },
+    }, { scenarioRef: ref });
+    for (const error of result.errors) {
+      issues.push({ level: "error", dir: page.dir, rule: "W1", text: error });
+    }
+    for (const drift of result.issues) {
+      issues.push({
+        level: "error",
+        dir: page.dir,
+        rule: "W1",
+        text: drift.kind === "missing"
+          ? `scenario 渲染产物缺失：${drift.file}（事实源 ${ref}）`
+          : `${drift.file} 与 scenario 事实源漂移：手改产物必须回写 ${ref} 后重新 render`,
+      });
+    }
+  }
+  return verified;
+}
+
 function readProjectScripts() {
   const packagePath = path.join(TARGET_DIR, "package.json");
   if (!fs.existsSync(packagePath)) return {};
@@ -1928,6 +1997,9 @@ function runValidate() {
     specResult.definitionSources,
     validationConfig,
   );
+
+  // ── scenario 防漂移 W1（v2.19+）：scenarioRef 页面自动核对事实源 ──────
+  appendScenarioDriftIssues(issues, pages);
 
   // ── 类型检查 K14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
   // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
@@ -2713,6 +2785,244 @@ async function runComponent() {
   if (!result.ok) process.exitCode = 1;
 }
 
+// ─── scenario：领域场景模板（JSON 事实源 → 双轨确定性渲染） ───────────────
+
+function readScenarioInput() {
+  const input = readOption("input") || positional[2];
+  if (!input) throw new Error("scenario 缺少 --input <scenario.json>");
+  const abs = path.resolve(TARGET_DIR, input);
+  if (!fs.existsSync(abs)) throw new Error(`scenario 输入不存在：${input}`);
+  return { abs, doc: JSON.parse(fs.readFileSync(abs, "utf8")) };
+}
+
+function reportScenarioValidation(doc) {
+  const errors = validateScenario(doc);
+  if (errors.length) {
+    console.log("  ✖ scenario 校验失败：");
+    for (const error of errors) console.log(`    - ${error}`);
+    process.exitCode = 1;
+    return false;
+  }
+  console.log("  ✔ scenario 结构合法");
+  return true;
+}
+
+function runScenarioValidate() {
+  const { doc } = readScenarioInput();
+  reportScenarioValidation(doc);
+}
+
+function resolveRendererAbs(renderer) {
+  if (renderer.startsWith("@/")) return path.join(TARGET_DIR, "src", renderer.slice(2));
+  return path.resolve(TARGET_DIR, renderer);
+}
+
+function checkRuntimeRenderer(doc) {
+  const renderer = doc.requires && doc.requires.renderer;
+  const rendererAbs = resolveRendererAbs(renderer);
+  if (fs.existsSync(rendererAbs)) return [];
+  return [
+    `runtime 轨渲染器不存在：${renderer}（${path.relative(TARGET_DIR, rendererAbs)}）`,
+    "请先在项目内提供 PatternPageRenderer 组件，或改用 --track codegen 生成全代码",
+  ];
+}
+
+function previewScenarioRender(files, output, track) {
+  console.log(`  预览（track=${track}）：将写入 ${files.length} 个文件到 ${output}`);
+  for (const file of files) console.log(`    - ${file.name}`);
+  console.log("  默认不写入；确认后执行同一命令并加 --confirm");
+}
+
+function writeScenarioRender(files) {
+  for (const file of files) {
+    const abs = path.resolve(TARGET_DIR, file.name);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, file.content);
+    console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, abs).replace(/\\/g, "/")}`);
+  }
+  console.log("  下一步：wl-skills validate-page 按既有 S/K 门禁复扫本页面");
+}
+
+function scenarioRefFor(outputDir, input) {
+  // page-spec 内的 scenarioRef 以页面目录为基准（项目移动/重命名 cwd 无关）
+  return path
+    .relative(path.resolve(TARGET_DIR, outputDir), path.resolve(TARGET_DIR, input))
+    .replace(/\\/g, "/");
+}
+
+function runScenarioRender() {
+  const { doc } = readScenarioInput();
+  if (!reportScenarioValidation(doc)) return;
+  const output = readOption("output") || doc.dir;
+  if (!output) throw new Error("scenario render 需要 --output <dir> 或 scenario 声明 dir");
+  const ref = scenarioRefFor(output, readOption("input") || positional[2]);
+  const result = compileScenarioOrReport(doc, ref);
+  if (!result) return;
+  if (result.track === "runtime" && !checkRuntimeRendererPass(doc)) {
+    process.exitCode = 1;
+    return;
+  }
+  const files = Object.entries(result.files).map(([name, content]) => ({
+    name: path.join(output, name),
+    content,
+  }));
+  if (dryRun || !args.includes("--confirm")) {
+    previewScenarioRender(files, output, result.track);
+    return;
+  }
+  writeScenarioRender(files);
+}
+
+function compileScenarioOrReport(doc, scenarioRef) {
+  const result = compileScenario(doc, {
+    track: readOption("track") || undefined,
+    scenarioRef,
+  });
+  if (result.ok) return result;
+  console.log("  ✖ scenario render 失败：");
+  for (const error of result.errors) console.log(`    - ${error}`);
+  process.exitCode = 1;
+  return null;
+}
+
+function checkRuntimeRendererPass(doc) {
+  const errors = checkRuntimeRenderer(doc);
+  if (errors.length === 0) return true;
+  console.log("  ✖ runtime 轨前置检查失败：");
+  for (const error of errors) console.log(`    - ${error}`);
+  return false;
+}
+
+function runScenarioExtract() {
+  const pageDir = readOption("page");
+  if (!pageDir) throw new Error("scenario extract 缺少 --page <dir>");
+  const abs = path.resolve(TARGET_DIR, pageDir);
+  const readIfExists = (name) => {
+    const p = path.join(abs, name);
+    return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
+  };
+  const inputs = {
+    dataContent: readIfExists("data.ts"),
+    vueContent: readIfExists("index.vue"),
+    definitionContent: readIfExists("definition.ts"),
+    pageSpec: readPageSpec(abs).spec,
+  };
+  if (!inputs.dataContent) throw new Error(`页面目录缺少 data.ts：${pageDir}`);
+  const pageAbbr = path.basename(abs).replace(/[^a-z0-9]+/gi, "").slice(0, 8) || "page";
+  const { doc, warnings } = extractScenario({
+    ...inputs,
+    options: { tableCid: `${pageAbbr}-${Date.now().toString(36)}` },
+  });
+  for (const warning of warnings) console.log(`  ⚠ ${warning}`);
+  const output = readOption("output");
+  const json = JSON.stringify(doc, null, 2) + "\n";
+  if (output && !dryRun) {
+    const absOut = path.resolve(TARGET_DIR, output);
+    fs.mkdirSync(path.dirname(absOut), { recursive: true });
+    fs.writeFileSync(absOut, json);
+    console.log(`  ✔ 已提取：${path.relative(TARGET_DIR, absOut).replace(/\\/g, "/")}`);
+    return;
+  }
+  if (args.includes("--json")) {
+    console.log(json);
+    return;
+  }
+  console.log(`  预览：scenario JSON（${doc.pattern}/${doc.renderTrack} 轨）已提取，加 --output <file> 落盘`);
+  console.log(`  定点验证：scenario render --input <file> 后与源页面 diff`);
+}
+
+function runScenarioVerify() {
+  const { doc } = readScenarioInput();
+  const pageDir = readOption("page");
+  if (!pageDir) throw new Error("scenario verify 缺少 --page <dir>");
+  const ref = scenarioRefFor(pageDir, readOption("input") || positional[2]);
+  const result = verifyScenarioRender(doc, {
+    readFile: (name) => {
+      const abs = path.resolve(TARGET_DIR, pageDir, name);
+      return fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
+    },
+  }, { scenarioRef: ref });
+  reportScenarioVerify(result, pageDir);
+}
+
+function writeFromSpecOutput(output, json) {
+  const absOut = path.resolve(TARGET_DIR, output);
+  fs.mkdirSync(path.dirname(absOut), { recursive: true });
+  fs.writeFileSync(absOut, json);
+  console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, absOut).replace(/\\/g, "/")}`);
+  console.log("  下一步：实现 notes 中的 TODO handler → scenario validate → render --confirm");
+}
+
+function reportFromSpecErrors(errors) {
+  console.log("  ✖ 转换后校验未通过（补齐参数后重试）：");
+  for (const error of errors) console.log(`    - ${error}`);
+  process.exitCode = 1;
+}
+
+function runScenarioFromSpec() {
+  const input = readOption("input") || positional[2];
+  if (!input) throw new Error("scenario from-spec 缺少 --input <page-spec.json>");
+  const abs = path.resolve(TARGET_DIR, input);
+  if (!fs.existsSync(abs)) throw new Error(`page-spec 不存在：${input}`);
+  const { normalizePageSpec } = require("../lib/page-spec");
+  const spec = normalizePageSpec(JSON.parse(fs.readFileSync(abs, "utf8")));
+  const result = scenarioFromPageSpec(spec, {
+    serviceShort: readOption("service"),
+    resourceName: readOption("resource"),
+    tableCid: readOption("table-cid"),
+    pageAbbr: readOption("page-abbr"),
+  });
+  for (const warning of result.warnings) console.log(`  ⚠ ${warning}`);
+  if (result.errors.length) {
+    reportFromSpecErrors(result.errors);
+    return;
+  }
+  const json = JSON.stringify(result.doc, null, 2) + "\n";
+  const output = readOption("output");
+  if (output && args.includes("--confirm") && !dryRun) {
+    writeFromSpecOutput(output, json);
+    return;
+  }
+  if (args.includes("--json")) {
+    console.log(json);
+    return;
+  }
+  console.log(`  预览：scenario JSON（${result.doc.pattern}/${result.doc.renderTrack} 轨）转换成功；加 --output <file> --confirm 落盘`);
+}
+
+function reportScenarioVerify(result, pageDir) {
+  for (const error of result.errors || []) console.log(`  ✖ ${error}`);
+  for (const issue of result.issues || []) {
+    const reason = issue.kind === "missing" ? "产物缺失" : "与 JSON 事实源漂移（疑似手改产物未回写 scenario JSON）";
+    console.log(`  ✖ ${path.posix.join(pageDir, issue.file)}：${reason}`);
+  }
+  if (result.ok) {
+    console.log(`  ✔ scenario 渲染产物与 ${pageDir} 字节级一致（零漂移）`);
+    return;
+  }
+  process.exitCode = 1;
+}
+
+function runScenario() {
+  try {
+    const actions = {
+      validate: runScenarioValidate,
+      render: runScenarioRender,
+      extract: runScenarioExtract,
+      verify: runScenarioVerify,
+      "from-spec": runScenarioFromSpec,
+    };
+    const action = positional[1];
+    if (!actions[action]) {
+      throw new Error("用法：wl-skills scenario <validate|render|extract|verify|from-spec>（见 --help）");
+    }
+    actions[action]();
+  } catch (error) {
+    console.error(`  ✖ scenario 命令失败：${error.message}`);
+    process.exitCode = 1;
+  }
+}
+
 switch (command) {
   case "init":
     runInstall(false);
@@ -2768,6 +3078,9 @@ switch (command) {
     break;
   case "snapshot":
     runSnapshot();
+    break;
+  case "scenario":
+    runScenario();
     break;
   default:
     console.error(

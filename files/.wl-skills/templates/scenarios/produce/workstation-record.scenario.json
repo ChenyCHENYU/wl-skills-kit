@@ -1,0 +1,64 @@
+{
+  "kind": "wl-scenario",
+  "schemaVersion": 1,
+  "templateId": "produce.workstation-record",
+  "domain": "produce",
+  "title": "工位实绩：进阶查询回填 + 分区表单 + 标准动作（runtime 轨）",
+  "pattern": "workstation",
+  "renderTrack": "runtime",
+  "matchHints": ["工位", "实绩", "进阶查询回填", "炉号闭环"],
+  "page": "【工位】实绩管理",
+  "pageId": "【项目内稳定唯一，如 PLPM002】",
+  "dir": "src/views/produce/【子域】/【工位】",
+  "requires": {
+    "renderer": "@/components/pattern/PatternPageRenderer.vue",
+    "components": []
+  },
+  "apiConfig": {
+    "list": "/pl/【资源名】/queryPage",
+    "remove": "/pl/【资源名】/deleteById/{id}",
+    "getById": "/pl/【资源名】/getById/{id}",
+    "save": "/pl/【资源名】/save",
+    "update": "/pl/【资源名】/updateById"
+  },
+  "deliveryProfile": { "method": "post", "current": 1, "size": 10 },
+  "query": [
+    { "name": "heat_no", "label": "炉号", "type": "input" },
+    { "name": "plan_status", "label": "计划状态", "type": "dict", "dictCode": "【显式字典码】" }
+  ],
+  "columns": [
+    { "name": "heat_no", "label": "炉号", "minWidth": 120 },
+    { "name": "steel_code", "label": "钢种", "minWidth": 120 }
+  ],
+  "toolbar": [{ "label": "新增", "color": "primary" }],
+  "operations": [
+    { "label": "编辑", "action": "edit" },
+    { "label": "删除", "action": "del" }
+  ],
+  "formSections": [
+    {
+      "name": "identity",
+      "label": "身份信息",
+      "fields": [{ "name": "heat_no", "label": "炉号", "required": true }]
+    }
+  ],
+  "features": {
+    "lookupFlows": [
+      {
+        "name": "releasedPlan",
+        "triggerAction": "advanced-query",
+        "queryOperation": "releasedPlanPage",
+        "refreshOnOpen": true,
+        "cancelIsolation": true,
+        "selectionMode": "single",
+        "bindings": [
+          { "source": "planNo", "target": "planNo", "lockAfterSelect": true }
+        ]
+      }
+    ]
+  },
+  "notes": [
+    "runtime 轨 v1 仅支持标准动作（openModal/edit/del/view），定制动作走 codegen 轨",
+    "渲染器由项目提供；render 前置检查 requires.renderer 存在性"
+  ]
+}

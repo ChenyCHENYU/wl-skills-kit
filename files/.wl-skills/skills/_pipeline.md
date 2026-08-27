@@ -23,11 +23,14 @@ prototype-scan                       // 原型线：Axure / 截图 / 口述 / �
 spec-doc-parse                       // 规范线：wl-skills-design 标准说明书（二者二选一，汇聚同一 page-spec）
   → business-doc-extract（可选，资料达模块级时推荐）
   → api-contract
-  → page-codegen
+  → page-codegen                     // 主流程：TPL + AI 填充
+  │   ↳ 确定性捷径：patterns.json 中该模式为 implemented 且规格能完整落进
+  │      scenario JSON 时，改走 wl-skills scenario render --confirm
+  │      （AI 只写 JSON，代码由编译器生成，产物同样过 validate-page 门禁）
   → convention-audit（规范线可追加 --mode spec-align 生成 GAP 报告）
   → code-fix（可选）
   → menu-sync / dict-sync / permission-sync（按页面需要选择）
-  → template-extract（成熟页面沉淀，可选）
+  → template-extract（成熟页面沉淀为 scenario JSON，可选）
 ```
 
 > **双线隔离**：`prototype-scan`（原型线）与 `spec-doc-parse`（规范线）是互斥的两个入口，按输入类型二选一（详见 `_registry.md` 调度规则优先级 0），输出格式完全相同，下游无感知。
@@ -65,7 +68,7 @@ spec-doc-parse                       // 规范线：wl-skills-design 标准说�
 | `dict-sync` | 自动发现 `src/views/**/dicts.ts`；旧项目可从 `api.md dict-contract` bootstrap；`SYS_DICT_INFO.md` 仅线上快照 | safe-additive 项目计划 + 后端新增数据 + 项目级回查摘要 | `convention-audit` 复扫（如页面依赖字典） |
 | `permission-sync` | `.wl-skills/reports/SYS_PERMISSION_INFO.md` 或用户口述权限需求 | 后端角色/授权/动作数据 + 同步摘要 | `convention-audit` 复扫权限码使用 |
 | `standard-env-config` | 当前 Vite 子应用、显式目标 Profile、确认后的模块名和本地联调参数 | 单 `.env` + 标准 `vite/config/*.ts` + 文件计划与备份 | `wls_standard_env_verify` 静态验证、五环境构建、二次 no-op |
-| `template-extract` | 成熟页面目录 | `templates/domains/**/TPL-*.md` 或模板草案 | `page-codegen` 复用新模板 |
+| `template-extract` | 成熟页面目录 | `.wl-skills/templates/scenarios/<域>/<场景>.scenario.json`（wl-scenario JSON，确定性提取 + AI 脱敏补 matchHints） | `wl-skills scenario render` 确定性复用；pattern 未实现时 `page-codegen` 主流程 |
 
 ---
 
@@ -109,6 +112,8 @@ AI 每完成一个 Skill，必须输出：
 | `wl-skills check` | 新成员接入/问题排查 | 本地工具链与 MCP 配置预检 |
 | `wl-skills diff` | `update` 前 | 预览 kit 文件变化 |
 | `wl-skills validate` | CI 或审计前 | 无 AI 静态检查页面文件完整性 |
+| `wl-skills scenario validate/render/verify` | pattern 已实现的页面生成与产物守护 | JSON 事实源 → 双轨确定性渲染（零 AI、零 MCP、毫秒级）；render 后接 validate-page 门禁复扫 |
+| `wl-skills scenario extract` | 成熟页面沉淀 | 存量页面 → scenario JSON（旧形态兼容，产物 canonical 升级） |
 
 ---
 

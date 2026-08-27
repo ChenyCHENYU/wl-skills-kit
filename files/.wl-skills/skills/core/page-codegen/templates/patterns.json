@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "description": "场景模式注册表（patterns registry）：pattern id 到双轨实现状态的唯一数据源。track=codegen 由 lib/scenario-compiler.js 确定性渲染全代码（index.vue/data.ts/index.scss）；track=runtime 渲染 definition.ts + 12 行薄壳，渲染器组件由项目提供（scenario.requires.renderer 指向，缺失时 render 阻断并提示降级 codegen 轨）。status=planned 的模式只允许 validate，不允许 render；新增模式必须先在本表登记再接编译器。",
+  "patterns": [
+    {
+      "id": "list",
+      "modes": ["LIST"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "标准列表页",
+      "matchHints": ["单表格", "查询+工具栏+分页", "CRUD 弹窗", "列表查询"]
+    },
+    {
+      "id": "master-detail",
+      "modes": ["MASTER_DETAIL"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "主从表（上表下详情）",
+      "matchHints": ["主从", "上表下详情", "主子资源联动", "双击主行加载从表"]
+    },
+    {
+      "id": "tree-list",
+      "modes": ["TREE_LIST"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "左树右表",
+      "matchHints": ["左树右表", "组织树", "分类树", "树节点过滤列表"]
+    },
+    {
+      "id": "detail-tabs",
+      "modes": ["DETAIL_TABS"],
+      "track": "runtime",
+      "status": "planned",
+      "title": "上 Tab 表单 + 下子表",
+      "matchHints": ["多分区表单", "子表行内编辑", "详情页签"]
+    },
+    {
+      "id": "form-route",
+      "modes": ["FORM_ROUTE"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "独立路由复杂表单（平铺分区变体）",
+      "matchHints": ["隐藏路由", "分步表单", "路由 query.id 编辑", "FLAT_DETAIL"]
+    },
+    {
+      "id": "record-form",
+      "modes": ["RECORD_FORM"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "录入型实绩页（无分页）",
+      "matchHints": ["实绩录入", "无分页", "composable 表单", "主键查询回填"]
+    },
+    {
+      "id": "change-history",
+      "modes": ["CHANGE_HISTORY"],
+      "track": "codegen",
+      "status": "implemented",
+      "title": "变更历史（时间线+差异）",
+      "matchHints": ["变更历史", "时间线", "差异对比", "变更记录双栏"]
+    },
+    {
+      "id": "workstation",
+      "modes": ["WORKSTATION"],
+      "track": "runtime",
+      "status": "implemented",
+      "title": "工位实绩（进阶查询回填+分区表单+行内子表）",
+      "matchHints": ["工位", "实绩", "进阶查询回填", "炉号闭环"]
+    },
+    {
+      "id": "tabs",
+      "modes": ["FORM_TAB"],
+      "track": "runtime",
+      "status": "planned",
+      "title": "多 Tab 编排页",
+      "matchHints": ["多页签", "Tab 切换", "嵌套二级 Tab"]
+    }
+  ]
+}

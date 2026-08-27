@@ -1,6 +1,30 @@
 # 模板注册表（page-codegen 模板单一数据源）
 
 > AI 在生成页面前，**先读取本文件**，定位匹配的 TPL 路径，再读取该 TPL。
+>
+> **双轨优先级**：模式在下方"确定性渲染状态"中标 `implemented` 时，**必须优先走
+> `wl-skills scenario render`**（JSON → 编译器，零 AI 代码生成）；本表 TPL 仅作该模式的
+> 人类可读参考与 AI 兜底。`planned` 模式仍走 TPL + AI 主流程。
+
+---
+
+## 确定性渲染状态（与 patterns.json 同源）
+
+| 交互模式 | pattern | 轨道 | 状态 | 生成入口 |
+| --- | --- | --- | --- | --- |
+| LIST | `list` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；TPL-LIST 降为参考） |
+| MASTER_DETAIL | `master-detail` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；TPL-MASTER-DETAIL 降为参考） |
+| TREE_LIST | `tree-list` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；需 treeResource；TPL-TREE-LIST 降为参考） |
+| FORM_ROUTE | `form-route` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；平铺分区变体 FLAT_DETAIL；多 Tab Tabs 变体仍走 TPL） |
+| RECORD_FORM | `record-form` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；需显式 getByKey/saveOrUpdate + responseMapping） |
+| CHANGE_HISTORY | `change-history` | codegen | ✅ implemented | `wl-skills scenario render`（**优先**；需 requires.components[0] 业务 Tabs 组件） |
+| WORKSTATION | `workstation` | runtime | ✅ implemented | `wl-skills scenario render`（需项目渲染器；产物 = definition + 薄壳） |
+| DETAIL_TABS | `detail-tabs` | runtime | planned | TPL + AI 主流程 |
+| FORM_TAB | `tabs` | runtime | planned | TPL + AI 主流程 |
+
+> TPL 退役判据：某 pattern 的编译器实现 + 真实页面提取往返锁定（tests/scenario-roundtrip）
+> 合入后，对应 TPL 标注"降为参考"，生成入口只保留 scenario render。
+> TEMPLATE_DRIVEN 与领域模板 OPERATION_STATION 暂无对应 pattern，仍走 TPL 主流程。
 
 ---
 

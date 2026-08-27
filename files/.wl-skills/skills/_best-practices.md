@@ -37,6 +37,9 @@ prototype-scan
   → business-doc-extract（资料完整时）
   → api-contract
   → page-codegen           ← 产物：src/views/.../{index.vue,data.ts,api.md,SYS_MENU_INFO.md}
+  │   ↳ 确定性捷径（优先检查）：交互模式在 patterns.json 为 implemented 时，
+  │      规格写成 scenario JSON → wl-skills scenario render --confirm（AI 只写 JSON，
+  │      代码由编译器生成，零 token 零 MCP）→ wl-skills validate-page 复扫
   → menu-sync              ← 推荐工具：wls_menu_sync_from_report
   → dict-sync（页面用到字典时）
   → permission-sync（需角色授权 / 动作按钮时）
@@ -238,7 +241,7 @@ wls_standard_env_scan
 | menu-sync | 后端菜单同步（MCP）|
 | dict-sync | 后端字典同步（MCP）|
 | permission-sync | 角色 / 授权 / 动作（MCP）|
-| template-extract | 成熟页面沉淀为模板 |
+| template-extract | 成熟页面沉淀为 wl-scenario JSON 场景模板（`wl-skills scenario extract` 确定性提取） |
 
 ### MCP 工具（详见 `mcp/registry.js`）
 

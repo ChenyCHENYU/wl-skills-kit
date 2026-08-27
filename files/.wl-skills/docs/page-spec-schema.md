@@ -20,6 +20,12 @@ src/views/[域]/[模块]/[页面]/
 
 > `page-spec.json` 是**约定真值**，data.ts 是**实现**。validate 比对二者，偏差即报。
 
+> **与 wl-scenario 的关系**：scenario JSON（`.wl-skills/contracts/wl-scenario-template.schema.json`）
+> 是 page-spec 的**超集事实源**——多了 apiConfig/tableCid/deliveryProfile/extensions 等编译参数。
+> `wl-skills scenario render` 产出的 page-spec.json 由 scenario 投影生成，仍作为 S1~S7 的比对真值；
+> 手写 page-spec 的存量页面不受影响。逆向可用 `wl-skills scenario extract` 把页面沉淀为 scenario JSON。
+> 详见 `.wl-skills/docs/scenario-template.md`。
+
 ---
 
 ## Schema

@@ -1,0 +1,59 @@
+{
+  "kind": "wl-scenario",
+  "schemaVersion": 1,
+  "templateId": "universal.list",
+  "domain": "universal",
+  "title": "标准列表页：查询 + 工具栏 + 表格 + 分页 + CRUD 弹窗",
+  "pattern": "list",
+  "renderTrack": "codegen",
+  "matchHints": ["单表格", "查询+工具栏+分页", "CRUD 弹窗", "列表查询"],
+  "page": "【页面中文名】",
+  "pageId": "【项目内稳定唯一，如 CUST001】",
+  "dir": "src/views/【域】/【模块】/【kebab 页面名】",
+  "serviceShort": "【服务缩写，如 sale】",
+  "resourceName": "【资源名，如 customer】",
+  "tableCid": "【pageAbbr】-【base36 时间戳，确定环境建议显式固定】",
+  "query": [
+    { "name": "code", "label": "编码", "type": "input" },
+    { "name": "status", "label": "状态", "type": "dict", "dictCode": "【显式字典码，禁止按字段名猜】" },
+    {
+      "name": "billDate",
+      "label": "单据日期",
+      "type": "dateRange",
+      "startName": "startDate",
+      "endName": "endDate"
+    }
+  ],
+  "columns": [
+    { "name": "code", "label": "编码", "minWidth": 150 },
+    { "name": "status", "label": "状态", "type": "dict", "dictCode": "【显式字典码】" },
+    { "name": "weight", "label": "重量", "minWidth": 100, "align": "right" }
+  ],
+  "toolbar": [
+    { "label": "新增", "color": "primary" },
+    {
+      "label": "【业务动作】",
+      "color": "default",
+      "plain": true,
+      "action": "custom",
+      "handler": "() => { /* 契约确认后实现；禁止 import/export */ }"
+    }
+  ],
+  "operations": [
+    { "label": "编辑", "action": "edit" },
+    { "label": "删除", "action": "del" },
+    { "label": "查看", "action": "view" }
+  ],
+  "formSections": [
+    {
+      "name": "base",
+      "label": "基本信息",
+      "fields": [
+        { "name": "code", "label": "编码", "required": true },
+        { "name": "status", "label": "状态" }
+      ]
+    }
+  ],
+  "features": {},
+  "notes": ["复制本模板后替换所有【】占位；openQuestions 清零后再 render --confirm"]
+}

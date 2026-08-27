@@ -89,10 +89,13 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 1. 首先匹配上表触发词，结合 `_best-practices.md` 场景索引判断用户意图
 2. 双线隔离：输入含 `.wl-skills/docs/spec/` / 功能编码 / IPO 表 → 强制路由 `spec-doc-parse`，禁止 `prototype-scan` 接管
-3. 匹配 2+ Skill 时必须列出候选并询问用户意图（误触发防护）
-4. 本地代码写入以用户当前请求和明确范围为授权，不重复追问；后端写操作必须执行“查询 → 预览 planHash → 明确确认 → 写入”
-5. `code-fix` 完成后必须自动 `wl-skills validate` 复扫（闭环强制）
-6. sync 类任务必须额外加载 `.wl-skills/skills/sync/_mcp-guardrail.md`
+3. **确定性渲染优先**：生成页面前先读 `.wl-skills/skills/core/page-codegen/templates/patterns.json`——目标交互模式为 `implemented` 时，必须把页面规格写成 scenario JSON（契约见 `.wl-skills/docs/scenario-template.md`）并执行 `wl-skills scenario render --input x.scenario.json --confirm` 确定性生成，**AI 只写 JSON 不写页面代码**；`planned` 模式才走 page-codegen 主流程（TPL + AI 填充）
+4. 匹配 2+ Skill 时必须列出候选并询问用户意图（误触发防护）
+5. 本地代码写入以用户当前请求和明确范围为授权，不重复追问；后端写操作必须执行“查询 → 预览 planHash → 明确确认 → 写入”
+6. `code-fix` 完成后必须自动 `wl-skills validate` 复扫（闭环强制）
+7. sync 类任务必须额外加载 `.wl-skills/skills/sync/_mcp-guardrail.md`
+8. scenario 渲染产物禁止手改；改动需求必须改 scenario JSON 后重新 render；`wl-skills validate` 遇到带 `scenarioRef` 的 page-spec 会自动逐字节核对事实源（W1），手改产物在提交/CI 即被拦截
+9. 已有 page-spec（prototype-scan / spec-doc-parse 产出）的页面，优先用 `wl-skills scenario from-spec` 引导为 scenario JSON 再确定性渲染；业务按钮 handler 以 TODO stub 提示人工实现，禁止 AI 猜测语义
 
 ---
 
@@ -136,6 +139,8 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 9 | 标准环境配置 | standard-env-config → scan → apply 计划 → 确认后 apply → verify |
 | 10 | Git 提交 | pnpm cz / wl-skills validate |
 | 11 | 规范线闭环 | spec-doc-parse → api-contract → page-codegen → convention-audit --mode spec-align |
+| 12 | 确定性页面生成（pattern 已实现） | 规格写成 scenario JSON → `wl-skills scenario render --confirm` → validate-page 复扫（零 AI 代码生成） |
+| 13 | 存量页面沉淀为场景模板 | `wl-skills scenario extract --page <dir>` → 脱敏 → 场景库（template-extract） |
 
 ---
 
@@ -148,6 +153,8 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 | 组件 README（BaseTable 等） | `.wl-skills/src/components/remote/{Name}/README.md` |
 | 局部组件模板/README | `.wl-skills/src/components/local/{c_xxx}/`（运行时按需落盘到 `src/components/local/`） |
 | 页面模板 | `.wl-skills/templates/` |
+| 场景模板库（wl-scenario JSON） | `.wl-skills/templates/scenarios/` |
+| 场景模板契约与双轨说明 | `.wl-skills/docs/scenario-template.md` |
 | 使用指南 | `.wl-skills/guides/usage.md` |
 | 架构设计 | `.wl-skills/guides/architecture.md` |
 | MCP 配置 | `.wl-skills/guides/mcp-setup.md` |

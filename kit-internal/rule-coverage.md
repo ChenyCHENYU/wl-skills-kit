@@ -16,6 +16,8 @@
 | `S1~S7` | page-spec、机器 API 契约与进阶查询回填比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
+| `scenario 契约` | wl-scenario JSON 结构/handler 安全边界/轨道与模式状态校验 | `lib/scenario-template.js` | ✅ 确定性 |
+| `scenario 防漂移` | 渲染产物与 JSON 事实源逐字节比对 | `lib/scenario-compiler.js#verifyScenarioRender` | ✅ 确定性 |
 | `regex` | 正则/文件完整性 | `bin/wl-skills.js#runValidate` | ✅ 确定性 |
 | `AI` | 仅 SKILL.md 约定 | 各 `SKILL.md` | ⚠️ 非确定性（靠 AI 自觉） |
 
@@ -63,6 +65,11 @@
 | page-codegen / component | 目标路径无效或新落盘/补齐缺依赖时禁止产生残缺组件 | **C2** | error | 是 |
 | page-codegen / component | kit 同契约新实现仅提示评估，不自动升级项目组件 | **C3** | info | 否 |
 | page-codegen / component | 已有或已打磨项目组件优先复用，生成前读取真实契约 | **C4** | info | 否 |
+| scenario 契约 | custom 动作缺 handler、extensions/handler 混入 import/export（含动态）、runtime 轨非标准动作、renderTrack 与注册表不一致、planned 模式 render | `wl-skills scenario validate` | error | 是 |
+| scenario 渲染 | 渲染产物被手改且未回写 scenario JSON（事实源漂移） | `wl-skills scenario verify` | error | 是 |
+| scenario 防漂移 | validate 自动核对 scenarioRef 页面（手改产物提交/CI 即拦截） | `W1@validate` | error | 是 |
+| scenario 往返 | 声明式核心 extract(render(doc)) 定点、三产物字节级一致 | `tests/scenario-roundtrip.test.js` | error | 是 |
+| scenario 性能 | 确定性渲染字节级一致、耗时毫秒级、模型 token 恒为 0 | `tests/scenario-benchmark.test.js` + `scripts/benchmark-scenario.js` | error | 是 |
 
 ---
 

@@ -31,6 +31,31 @@
 > 按时间倒序。每条 ADR 记录"做了什么决策、为什么、影响面"。
 > 实施细节 / 当前状态参见上方"单一数据源"。
 
+### ADR-011（Unreleased）— wl-scenario 双轨确定性渲染：JSON 成为页面事实源
+
+**做了什么**：
+
+- 引入 `wl-scenario` JSON 契约（`contracts/wl-scenario-template.schema.json`）与模式注册表（`templates/patterns.json`，9 种 pattern × codegen/runtime 双轨 × implemented/planned 状态）。
+- 新增确定性编译器 `lib/scenario-compiler.js`：codegen 轨产出与 TPL-LIST canonical 形态逐字符对齐的四件套；runtime 轨产出 definition.ts + 10 行薄壳（走既有 `features.definitionSource` 委托链校验，渲染器由项目提供，render 前置检查存在性）。
+- 新增确定性提取器 `lib/scenario-extract.js`：存量页面（含 `operations:` 旧写法、无 cid 旧形态）→ scenario JSON，非 canonical 能力进 warnings 不静默丢弃。
+- CLI `wl-skills scenario validate/render/extract/verify`：render 默认预览 `--confirm` 才落盘；verify 重编译并逐字节比对磁盘产物，锁定"JSON 是唯一事实源，手改产物即漂移"。
+- 往返等价性由 `tests/scenario-roundtrip.test.js`（21 用例）机器锁定：声明式核心 `extract(render(doc)) === doc` 定点、三产物字节级一致、extensions 逐字回捞。
+- `template-extract` 产物口径统一为 scenario JSON；`_pipeline.md` / `copilot-instructions` / `_index.md` / `_best-practices.md` 全链路登记确定性渲染优先规则。
+
+**为什么**：
+
+- 平台 `AbstractPageQueryHook` 是单资源单表格模型，复杂嵌套页的样板代码呈 N 倍乘法增长（对照实测 1101 行 vs 薄壳 15 行）；靠"更好的模板"治标，靠"JSON 事实源 + 确定性编译"治本。
+- TPL markdown 模板 90% 是硬编码样板，AI 逐占位符替换既耗算力又有漂移风险；声明式规格已存在（page-spec），缺的只是"规格 → 代码"的确定性执行器。
+- AI 职责收缩为"写/审 JSON"（结构化、可 diff、可评审），代码生成零 token 零 MCP；`validate`/`verify` 门禁继续兜底。
+
+**影响面**：
+
+- 业务项目：新增确定性生成路径为**增量能力**——planned 模式与存量页面零影响；implemented 模式（list/workstation）生成入口切换为 scenario render。
+- 维护者：新增 pattern 必须先登记 patterns.json 再接编译器；render 前置校验阻断 planned 模式与缺失渲染器；runtime 轨 v1 限标准动作（防 eval）。
+- TPL 模板：按 pattern 逐个降级为"参考实现"，退役判据 = 编译器实现 + 往返锁定合入。
+
+---
+
 ### ADR-010（Unreleased）— MCP 契约执行与 Skill 渐进披露
 
 **做了什么**：
