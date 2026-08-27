@@ -230,6 +230,22 @@ describe("codegen 轨：canonical 编译与门禁", () => {
     expect(compareSpecToCode(spec, compiled.files["data.ts"], "src/views/sale/customer")).toEqual([]);
   });
 
+  it("BaseQuery 显式发射 :columns=4（缺省），queryColumns 覆盖生效且定点往返", () => {
+    expect(compiled.files["index.vue"]).toContain(':columns="4"');
+    const withCols = { ...canonicalFixture(), queryColumns: 5 };
+    const compiled5 = compileScenario(withCols);
+    expect(compiled5.files["index.vue"]).toContain(':columns="5"');
+    const spec5 = scenarioToPageSpec(withCols, { quiet: true });
+    const { doc: doc5 } = extractScenario({
+      dataContent: compiled5.files["data.ts"],
+      vueContent: compiled5.files["index.vue"],
+      pageSpec: spec5,
+    });
+    expect(doc5.queryColumns).toBe(5);
+    const compiled5b = compileScenario(doc5);
+    expect(compiled5b.files["index.vue"]).toBe(compiled5.files["index.vue"]);
+  });
+
   it("extract(compile(doc)) 定点：三产物字节级一致", () => {
     const spec = scenarioToPageSpec(doc, { quiet: true });
     const { doc: doc2, warnings } = extractScenario({

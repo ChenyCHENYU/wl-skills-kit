@@ -34,6 +34,10 @@
     "treeResource": { "type": "string", "description": "tree-list：树资源名，推导 /{serviceShort}/{treeResource}/tree（或 apiConfig.tree 显式覆盖）" },
     "pageAbbr": { "type": "string", "description": "页面缩写，TABLE_CID 未显式给出时用于生成 cid 前缀" },
     "tableCid": { "type": "string", "description": "AGGrid 表格 cid（缺省由 pageAbbr+时间戳生成；确定性渲染/测试场景建议显式提供）" },
+    "queryColumns": {
+      "enum": [4, 5, 6, 7, 8, 9],
+      "description": "BaseQuery 每行查询字段列数（缺省 4；显式发射避免组件缺省行为差异导致查询区单列堆叠）"
+    },
     "listTitle": { "type": "string", "description": "列表标题文案，缺省用 page" },
     "apiConfig": {
       "type": "object",

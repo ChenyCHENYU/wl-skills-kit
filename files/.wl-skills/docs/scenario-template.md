@@ -24,6 +24,7 @@
 | `page` / `pageId` / `dir` | 页面中文名 / 项目内稳定唯一 ID / 输出目录 |
 | `serviceShort` / `resourceName` / `apiConfig` | API 路径推导（`/{service}/{resource}/{op}`）或显式覆盖 |
 | `treeResource` | tree-list：树资源名（推导 `/{service}/{treeResource}/tree`） |
+| `queryColumns` | BaseQuery 每行查询字段列数（4~9，缺省 4）；编译器始终显式发射 `:columns`，避免组件缺省行为差异导致查询区单列堆叠 |
 | `tableCid` / `pageAbbr` | AGGrid cid（确定性渲染建议显式固定 tableCid；change-history 豁免） |
 | `deliveryProfile` | 查询传输与分页基线（缺省包基线 post/1/10） |
 | `query` / `columns` / `toolbar` / `operations` | 四大顺序数组，语义与 page-spec 完全同源 |

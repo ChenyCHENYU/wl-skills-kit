@@ -47,6 +47,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **scenario 渲染页面查询区单列堆叠修复**：编译器此前省略 `BaseQuery :columns`（忠实复刻 TPL），部分项目 BaseQuery 缺省时按单列渲染，导致查询字段垂直堆叠。现在所有 codegen 轨 pattern 的 BaseQuery 均显式发射 `:columns`（scenario 新增可选 `queryColumns` 字段，4~9，缺省 4；超出枚举校验阻断），提取器同步从 index.vue 的 BaseQuery 块回捞该字段保证往返定点；record-form 的 `:columns="3"`（超出文档枚举）同步修正。
+
 ### Added
 
 - **wl-scenario 场景模板体系（JSON 事实源 + 双轨确定性渲染）**：领域场景的"结构 + 展示方式"以 `wl-scenario` JSON 呈现，实现由 kit 编译器确定性生成，AI 零自由度。新增 `contracts/wl-scenario-template.schema.json`（契约）、`templates/patterns.json`（模式注册表，9 种 pattern 双轨登记）、场景库 `templates/scenarios/`（universal/list + produce/workstation-record 种子）。runtime 轨（workstation）产出 definition.ts + 10 行薄壳，`features.definitionSource` 走既有委托链校验，渲染器由项目提供（`requires.renderer` 前置检查，缺失阻断并建议降级）。
