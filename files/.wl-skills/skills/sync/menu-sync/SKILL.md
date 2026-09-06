@@ -19,10 +19,10 @@ description: "Use when: creating system menus for newly generated pages, batch r
 
 | 数据                                             | 来源                       | 说明                                    |
 | ------------------------------------------------ | -------------------------- | --------------------------------------- |
-| 菜单名称、路径、组件、权限、隐藏、排序、应用编码 | `.wl-skills/reports/SYS_MENU_INFO*.md` | 由 page-codegen 追加写入，AI 直接读取 |
+| 菜单名称、路径、组件、可选权限、隐藏、排序、应用编码 | `.wl-skills/reports/SYS_MENU_INFO*.md` | 由 page-codegen 追加写入，AI 直接读取 |
 | `parentMenuNameCode`                             | `wls_menu_query` 查询菜单树 | 从父级节点获取，无需手填               |
 | **gatewayPath、parentMenuId、sysAppNo、token**   | `env.local.json`           | 可通过 token/接口辅助提取               |
-| **domainId**                                     | 用户确认 / 菜单后台 Network | 当前权限下无法总是自动获取，需确认     |
+| **domainId**                                     | `wls_domain_query` / 自动解析 | 优先查应用域列表，必要时回退权限树     |
 
 ### 配置文件（统一维护，菜单/字典/权限共用）
 
@@ -95,8 +95,10 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 | type | 含义         | 必填字段                                      |
 | ---- | ------------ | --------------------------------------------- |
 | `M`  | 目录         | `menuName`, `path`                            |
-| `C`  | 菜单（页面） | `menuName`, `path`, `permission`, `component` |
-| `A`  | 动作按钮     | `menuName`, `path`                            |
+| `C`  | 菜单（页面） | `menuName`, `path`, `component`               |
+| `A`  | 动作按钮     | `menuName`, `permission`, `parentId`          |
+
+> 当前平台动作节点的真实枚举是 `A`（部分其他平台称为 `F`，本项目不要传 `F`）。动作节点本身是可选元数据：不做按钮级权限控制时无需创建；需要控制按钮时交给 `permission-sync` 创建。
 
 ### 执行流程（首选：一步到位）
 
@@ -116,6 +118,15 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 工具：wls_menu_query   （无参，自动读 env.local.json → menu.domainId）
 返回：当前应用域完整菜单树
 ```
+
+这里存在两棵用途不同的树：
+
+- **完整域树**：`getMenuTreeByDomainId`，是菜单管理的结构事实，用于查重、更新和父子关系；`wls_menu_query` 返回此树。
+- **当前用户权限树**：`getPermissionMenuTree`，会按登录用户的角色与 `permission` 过滤，用于判断菜单是否真的可见。
+
+完整域树里存在只代表“已保存”，不代表当前用户能看见。`wls_menu_upsert` 和 `wls_menu_sync_from_report` 写入后会自动查询权限树；未出现时返回 `MENU_NOT_VISIBLE` 警告。
+
+部分后端版本可能在新增时自行补默认 `permission`；客户端“不传”也不等于服务端最终一定为空。因此写后回查不可省略：若命中警告，先用完整域树确认实际值，再经预览更新清空 `permission`，或通过 `permission-sync` 把该权限码完整授予目标角色。
 
 #### Step 2: 先创建一级目录（type=M），再创建二级页面菜单（type=C）
 
@@ -143,12 +154,11 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
   "menuName": "客户档案",
   "menuNameCode": "{parentMenuNameCode}:{pinyinName}",
   "path": "mmwrCustomerArchive",
-  "permission": "mmwrCustomerArchive",
   "component": "produce/production-mmwr/aiflow/mmwr-customer-archive/index.vue"
 }
 ```
 
-> **MCP 内部说明**（AI 不可据此自行调接口）：底层走 `POST /system/menu/save`，成功码 `code: 2000`。
+> **MCP 内部说明**（AI 不可据此自行调接口）：新增走 `POST /system/menu/save`，更新走 `PUT /system/menu/update`，成功码 `code: 2000`；写后还会回查当前用户权限树。
 
 #### Step 3: 记录结果
 
@@ -166,7 +176,7 @@ SYS_MENU_INFO.md 是 menu-sync Skill 的输入数据源：
 | `menuName`     | 取 pages.ts 的 `label`                                                                       |
 | `path`         | 页面目录名转 camelCase（如 `mmwr-customer-archive` → `mmwrCustomerArchive`）                 |
 | `component`    | 取 pages.ts 的 `name`（如 `produce/production-mmwr/aiflow/mmwr-customer-archive/index.vue`） |
-| `permission`   | `{域}:{path}:list`（如 `produce:mmwrCustomerArchive:list`）                                  |
+| `permission`   | **可选的可见性过滤器**。默认不生成、不提交；只有业务明确要求角色隔离且权限码已纳入授权链路时才显式填写 |
 | `menuNameCode` | `{父级menuNameCode}:{菜单名拼音}`（小写连续拼接）                                            |
 | `hidden`       | 表单页/详情页等隐藏路由设为 `true`，菜单可见页面设为 `false`                                 |
 | `orderNum`     | 从父级已有菜单最大 orderNum + 1 开始递增                                                     |
@@ -186,7 +196,6 @@ pages.ts 条目:
     menuName: "客户档案",
     path: "mmwrCustomerArchive",
     component: "produce/production-mmwr/aiflow/mmwr-customer-archive/index.vue",
-    permission: "produce:mmwrCustomerArchive:list",
     hidden: false
   }
 
@@ -199,7 +208,6 @@ pages.ts 条目:
     menuName: "客户申请新增表单",
     path: "mmwrCustomerApplyAddForm",
     component: "produce/production-mmwr/aiflow/mmwr-customer-apply-add-form/index.vue",
-    permission: "produce:mmwrCustomerApplyAddForm:list",
     hidden: true    // ← 表单页隐藏
   }
 ```
@@ -241,7 +249,7 @@ pages.ts 条目:
 | 执行者   | AI                  | `pnpm run menu:push` 脚本    |
 | 更新能力 | 只增不删（方案 C）  | upsert 覆盖（方案 D）        |
 | 改名支持 | ❌ 会产生重复       | ✅ 按 componentPath 匹配更新 |
-| 权限影响 | 无                  | 无（只写结构字段）           |
+| 权限影响 | 页面 permission 默认留空；显式传入会触发可见性过滤 | 不碰 permission/角色绑定字段 |
 | 依赖     | Token + 网关地址    | 后端 `batchPush` 接口        |
 
 ### 所需后端接口

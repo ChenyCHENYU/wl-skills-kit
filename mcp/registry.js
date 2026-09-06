@@ -70,6 +70,11 @@ const STRUCTURED_RESULT_SCHEMA = {
     actions: { type: "array", items: { type: "object" } },
     results: { type: "array", items: { type: "object" } },
     menuIds: { type: "array", items: { type: "string" } },
+    warnings: { type: "array", items: { type: "object" } },
+    visibility: { type: "object" },
+    domainId: { type: "string" },
+    source: { type: "string" },
+    fallbackUsed: { type: "boolean" },
   },
   required: ["ok", "state"],
 };
@@ -110,8 +115,9 @@ const DESCRIPTORS = [
   {
     name: "wls_menu_query",
     description:
-      "查询当前应用的完整菜单树。自动从 .wl-skills/skills/sync/env.local.json 读取 domainId，" +
-      "无需传参。在 wls_menu_upsert 前调用，用于判断哪些菜单需要新增、哪些需要更新。",
+      "查询当前应用域的完整菜单树（管理域树，不按当前用户 permission 过滤）。自动从 " +
+      ".wl-skills/skills/sync/env.local.json 读取 domainId，无需传参。在 wls_menu_upsert 前调用，" +
+      "用于判断哪些菜单需要新增、哪些需要更新；它不等同于登录用户最终可见的权限树。",
     inputSchema: { type: "object", properties: {}, required: [] },
     outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
@@ -121,7 +127,9 @@ const DESCRIPTORS = [
     name: "wls_menu_upsert",
     description:
       "批量新增或更新菜单项。有 id 字段 → 更新；无 id 字段 → 新增。" +
-      "默认只预览并返回 planHash；正式写入必须同时传 confirmApply: true 和相同 planHash。",
+      "permission 是可选的可见性过滤条件，不会自动按 path 生成；无角色授权需求时不要传。" +
+      "默认只预览并返回 planHash；正式写入必须同时传 confirmApply: true 和相同 planHash，" +
+      "写入后会回查当前用户权限树并对不可见菜单给出警告。",
     inputSchema: {
       type: "object",
       properties: {
@@ -132,7 +140,7 @@ const DESCRIPTORS = [
             "id(更新时传), sysAppNo, menuName, menuNameCode, parentId, " +
             'type("M"=目录/"C"=菜单), path, icon, orderNum, ' +
             "useCache(1), common(2), hidden(false), editMode(false), " +
-            "component(type=C时传), permission(type=C时传)",
+            "component(type=C时传), permission(可选；传入后当前角色无此权限码会看不到菜单)",
           items: { type: "object" },
         },
         confirmApply: {
@@ -191,6 +199,7 @@ const DESCRIPTORS = [
     name: "wls_menu_sync_from_report",
     description:
       "读取 .wl-skills/reports/SYS_MENU_INFO*.md（兼容旧 .github/reports），按一级目录(type=M)优先、二级菜单(type=C)随后同步到后端菜单。" +
+      "页面 permission 默认不生成；正式写入后自动回查当前用户权限树并警告不可见项。" +
       "默认只预览并返回 planHash；正式写入必须携带相同 planHash，状态漂移时零写入。",
     inputSchema: {
       type: "object",
@@ -412,6 +421,7 @@ const DESCRIPTORS = [
     name: "wls_assignable_menus_query",
     description:
       "查询全量可授权菜单列表（扁平结构，含菜单 id/menuName/permission）。" +
+      "优先调用可授权菜单接口；接口不可用时自动按 domainId 回退到完整域菜单树并展平。" +
       "在 wls_role_assign_menus 前调用，AI 据此选出要分配给角色的 menuIds。",
     inputSchema: { type: "object", properties: {}, required: [] },
     outputSchema: STRUCTURED_RESULT_SCHEMA,
@@ -421,7 +431,8 @@ const DESCRIPTORS = [
   {
     name: "wls_role_assign_menus",
     description:
-      "给指定角色批量分配菜单权限。menuIds 传字符串数组，内部自动拼成逗号分隔字符串提交后端。" +
+      "给指定角色批量分配菜单权限。工具自动解析并提交后端必填的 domainId；menuIds 传字符串数组，" +
+      "内部自动拼成逗号分隔字符串。可授权菜单主接口不可用时自动回退域菜单树。" +
       "该接口为全量覆盖式，应包含该角色所有菜单（含已有的，否则会被移除）；正式提交必须同时传 confirmFullReplace: true 和预览 planHash。",
     inputSchema: {
       type: "object",

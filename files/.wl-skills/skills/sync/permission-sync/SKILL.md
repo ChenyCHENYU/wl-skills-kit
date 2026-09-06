@@ -19,11 +19,12 @@ description: "Use when: managing roles, authorizing menus to roles, attaching ac
 {
   "gatewayPath": "http://你的网关地址:端口",
   "sysAppNo": "应用编码",
-  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）"
+  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）",
+  "menu": { "domainId": "应用域ID（可省略，工具会自动解析）" }
 }
 ```
 
-**permission-sync 不需要额外字段**——角色和动作的 `parentId` 由 AI 在执行流程中通过查询接口动态获取。
+角色授权接口要求 `domainId`。工具优先读取 `menu.domainId`，缺失时自动解析；角色和动作的 `parentId` 仍由 AI 在执行流程中通过查询接口动态获取。
 
 ---
 
@@ -106,7 +107,7 @@ permission-sync 通过 6 个 MCP 工具完成所有操作（无需手动 fetch�
 ### 流程
 
 1. **查询角色 id**：`wls_role_query` → 找到 `roleName="档案普通人员"` 对应的 `id`
-2. **查询可授权菜单**：`wls_assignable_menus_query` → 获取全部菜单清单
+2. **查询可授权菜单**：`wls_assignable_menus_query` → 优先查可授权菜单接口；接口异常时自动回退到当前 `domainId` 的完整域树并展平
 3. **匹配 menuIds**：在结果中找到「客户档案」「客户申请」对应的 menu id
 4. 调用 `wls_role_assign_menus` 预览完整覆盖集合并保存 `planHash`
 5. **⚠️ 二次确认**：在 Pre-flight 中列出"将给角色 X 分配菜单 [A, B]"，得到用户 yes 才执行
@@ -123,6 +124,7 @@ permission-sync 通过 6 个 MCP 工具完成所有操作（无需手动 fetch�
 ### ⚠️ 全量覆盖式陷阱
 
 后端 `saveRoleMenus` 是**全量覆盖**：
+- 请求必须携带 `domainId`；MCP 会从配置或应用域查询自动解析并提交
 - 传 `[A, B]` 后，原先 `[A, B, C]` 中的 C 会被移除
 - AI 在执行前**必须先告知用户**："此操作会替换该角色全部菜单，原有未列出的将被移除"
 - 若用户只是想"追加 C"，AI 应自行合并：取出旧 menuIds + 新增的 → 一起传
@@ -222,8 +224,8 @@ permission-sync 通过 6 个 MCP 工具完成所有操作（无需手动 fetch�
 | --- | --- | --- |
 | 查询角色列表 | GET | `/system/role/list?current=1&size=100` |
 | 新增角色 | POST | `/system/role/save` |
-| 查询可授权菜单 | GET | `/system/menu/get/subMenu?size=999` |
-| 角色分配菜单 | POST | `/system/role/saveRoleMenus`（`menuIds` 逗号字符串）|
+| 查询可授权菜单 | GET | `/system/menu/get/subMenu?size=999`；失败时回退 `/system/menu/getMenuTreeByDomainId?domainId=X` 并展平 |
+| 角色分配菜单 | POST | `/system/role/saveRoleMenus`（必传 `domainId`；`menuIds` 为逗号字符串）|
 | 查询页面下动作 | GET | `/system/menu/children?menuId=X` |
 | 新增动作 type=A | POST | `/system/menu/save` |
 

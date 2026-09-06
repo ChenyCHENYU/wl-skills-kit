@@ -2,7 +2,13 @@
 
 const fs = require("fs");
 const path = require("path");
-const { queryMenuTree, saveMenu, querySysDomainList, deleteMenu } = require("../api/menuApi");
+const {
+  queryMenuTree,
+  queryPermissionMenuTree,
+  saveMenu,
+  querySysDomainList,
+  deleteMenu,
+} = require("../api/menuApi");
 const { writeBlockReason } = require("../write-guard");
 const { createPlanHash } = require("../../lib/plan-hash");
 const {
@@ -45,6 +51,52 @@ async function queryMenuState(config) {
   const query = await queryMenuTree(domain.domainId, config);
   if (!query.ok) throw new Error(`查询菜单树失败: ${query.error} (code: ${query.code})`);
   return { domainId: domain.domainId, tree: query.data, flatMenus: flattenMenus(query.data, null, []) };
+}
+
+function stableMenuSnapshot(tree) {
+  return flattenMenus(normalizeTree(tree), null, [])
+    .map((menu) => ({
+      id: stringValue(menu.id),
+      parentId: stringValue(menu.parentId),
+      sysAppNo: stringValue(menu.sysAppNo),
+      menuName: stringValue(menu.menuName),
+      menuNameCode: stringValue(menu.menuNameCode),
+      permission: stringValue(menu.permission),
+      path: stringValue(menu.path),
+      component: stringValue(menu.component),
+      type: stringValue(menu.type),
+      orderNum: numberValue(menu.orderNum),
+      useCache: numberValue(menu.useCache),
+      common: numberValue(menu.common),
+      hidden: booleanValue(menu.hidden),
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+function stringValue(value) {
+  return value == null ? "" : String(value);
+}
+
+function numberValue(value) {
+  return value == null ? null : Number(value);
+}
+
+function booleanValue(value) {
+  return value == null ? null : Boolean(value);
+}
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (value != null && value !== "") return value;
+  }
+  return "";
+}
+
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null) return value;
+  }
+  return undefined;
 }
 
 async function handleDomainQuery(config) {
@@ -203,7 +255,7 @@ function directMenuPlan(args, config, menuState) {
     sysAppNo: config.sysAppNo || "",
     domainId: String(menuState.domainId),
     items: args.items,
-    remoteTree: menuState.tree,
+    remoteTree: stableMenuSnapshot(menuState.tree),
   };
   return {
     ...value,
@@ -234,14 +286,89 @@ function formatDirectMenuPreview(plan) {
 async function saveMenuRow(item, config) {
   const action = item.id ? "更新" : "新增";
   const result = await saveMenu(item, config);
-  const savedId = result.data?.id || item.id || "(新增)";
+  const savedData = Object(result.data);
+  const savedId = firstNonEmpty(savedData.id, item.id, "(新增)");
   return {
     action,
-    menuName: item.menuName || "(未命名)",
+    menuName: firstNonEmpty(item.menuName, "(未命名)"),
     id: savedId,
+    parentId: firstNonEmpty(item.parentId, savedData.parentId),
+    path: firstNonEmpty(item.path, savedData.path),
+    type: firstNonEmpty(item.type, savedData.type),
+    permission: firstDefined(savedData.permission, item.permission, ""),
     ok: result.ok,
     status: result.ok ? "✅ 成功" : `❌ 失败: ${result.error}`,
   };
+}
+
+function visibilityCandidate(row) {
+  return row.ok && row.type !== "A";
+}
+
+function menuIdentity(menu) {
+  return `${menu.parentId || ""}\u0000${menu.path || ""}\u0000${menu.menuName || ""}`;
+}
+
+async function verifyPermissionTreeVisibility(rows, config) {
+  const candidates = rows.filter(visibilityCandidate);
+  if (candidates.length === 0) {
+    return { checked: true, visibleCount: 0, missingCount: 0, missing: [] };
+  }
+  const result = await queryPermissionMenuTree(config);
+  if (!result.ok) {
+    return {
+      checked: false,
+      visibleCount: 0,
+      missingCount: 0,
+      missing: [],
+      error: `${result.error} (code: ${result.code})`,
+    };
+  }
+  const visibleMenus = flattenMenus(normalizeTree(result.data), null, []);
+  const visibleIds = new Set(visibleMenus.map((menu) => String(menu.id || "")).filter(Boolean));
+  const visibleIdentities = new Set(visibleMenus.map(menuIdentity));
+  const missing = candidates
+    .filter((row) => {
+      const concreteId = row.id && row.id !== "(新增)" ? String(row.id) : "";
+      return concreteId
+        ? !visibleIds.has(concreteId)
+        : !visibleIdentities.has(menuIdentity(row));
+    })
+    .map((row) => ({
+      id: row.id,
+      menuName: row.menuName,
+      path: row.path,
+      permission: row.permission || "",
+    }));
+  return {
+    checked: true,
+    visibleCount: candidates.length - missing.length,
+    missingCount: missing.length,
+    missing,
+  };
+}
+
+function visibilityAppendix(visibility) {
+  if (!visibility.checked) {
+    return `\n\n⚠️ 菜单已写入，但当前用户权限树可见性回查失败：${visibility.error}。请勿据此认定页面可见。`;
+  }
+  if (visibility.missingCount === 0) {
+    return `\n\n✅ 当前用户权限树可见性回查通过（${visibility.visibleCount} 条）。`;
+  }
+  const details = visibility.missing
+    .map((item) => `${item.menuName}(id=${item.id}, path=${item.path}, permission=${item.permission || "<空>"})`)
+    .join("、");
+  return `\n\n⚠️ 写入成功，但有 ${visibility.missingCount} 条未出现在当前用户权限树：${details}。` +
+    "permission 是可见性过滤条件；请清空该字段，或先把对应权限码授予当前角色后再回查。";
+}
+
+function visibilityWarnings(visibility) {
+  if (!visibility.checked) {
+    return [{ code: "MENU_VISIBILITY_UNVERIFIED", message: visibility.error }];
+  }
+  return visibility.missingCount > 0
+    ? [{ code: "MENU_NOT_VISIBLE", message: "菜单已持久化，但当前用户权限树不可见", items: visibility.missing }]
+    : [];
 }
 
 function formatMenuRows(rows) {
@@ -282,7 +409,13 @@ async function handleMenuUpsert(args = {}, config) {
   const rows = [];
   for (const item of args.items) rows.push(await saveMenuRow(item, config));
   const ok = rows.every((row) => row.ok);
-  const result = completedResult(formatMenuRows(rows), { planHash: plan.planHash, results: rows });
+  const visibility = await verifyPermissionTreeVisibility(rows, config);
+  const result = completedResult(`${formatMenuRows(rows)}${visibilityAppendix(visibility)}`, {
+    planHash: plan.planHash,
+    results: rows,
+    visibility,
+    warnings: visibilityWarnings(visibility),
+  });
   return ok ? result : { ...result, isError: true, structuredContent: { ...result.structuredContent, ok: false, state: "partial" } };
 }
 
@@ -340,7 +473,7 @@ async function buildReportPlan(args, config) {
   const menuState = await queryMenuState(config);
   const rows = reportPlanRows(parsed, config, parentId, menuState.flatMenus);
   const rel = path.relative(getProjectRoot(), reportPath).replace(/\\/g, "/");
-  const value = { schemaVersion: 1, sysAppNo: config.sysAppNo, domainId: String(menuState.domainId), parentId: String(parentId), reportPath: rel, parsed, remoteTree: menuState.tree };
+  const value = { schemaVersion: 1, sysAppNo: config.sysAppNo, domainId: String(menuState.domainId), parentId: String(parentId), reportPath: rel, parsed, remoteTree: stableMenuSnapshot(menuState.tree) };
   return { ...value, planHash: createPlanHash("menu-report-sync", value), rows, parsed, menuState };
 }
 
@@ -348,9 +481,12 @@ async function saveDirectoryPlans(plan, config, rows) {
   const dirIds = new Map();
   for (const entry of plan.rows.filter((row) => row.item.type === "M")) {
     const saved = await saveMenu(entry.item, config);
-    const id = saved.data?.id || entry.item.id;
+    const savedData = Object(saved.data);
+    const id = firstNonEmpty(savedData.id, entry.item.id);
     if (saved.ok && id) dirIds.set(entry.item.menuName, id);
-    rows.push({ ...entry, ok: saved.ok, status: saved.ok ? "✅ 成功" : `❌ ${saved.error}` });
+    rows.push({ ...entry, id: firstNonEmpty(id, "(新增)"),
+      permission: firstDefined(savedData.permission, entry.item.permission, ""),
+      ok: saved.ok, status: saved.ok ? "✅ 成功" : `❌ ${saved.error}` });
   }
   return dirIds;
 }
@@ -361,7 +497,10 @@ async function savePagePlans(plan, config, dirIds, rows) {
     const source = plan.parsed.pages.find((page) => page.menuName === item.menuName);
     if (source && dirIds.has(source.parentMenuName)) item.parentId = dirIds.get(source.parentMenuName);
     const saved = await saveMenu(item, config);
-    rows.push({ ...entry, item, ok: saved.ok, status: saved.ok ? "✅ 成功" : `❌ ${saved.error}` });
+    const savedData = Object(saved.data);
+    rows.push({ ...entry, item, id: firstNonEmpty(savedData.id, item.id, "(新增)"),
+      permission: firstDefined(savedData.permission, item.permission, ""),
+      ok: saved.ok, status: saved.ok ? "✅ 成功" : `❌ ${saved.error}` });
   }
 }
 
@@ -396,8 +535,19 @@ async function handleMenuSyncFromReport(args = {}, config) {
   const dirIds = await saveDirectoryPlans(plan, config, rows);
   await savePagePlans(plan, config, dirIds, rows);
   const ok = rows.every((row) => row.ok);
-  const result = completedResult(formatReportRows(plan, rows, "apply"), {
-    planHash: plan.planHash, summary: { directories: plan.parsed.dirs.length, pages: plan.parsed.pages.length }, results: rows,
+  const visibilityRows = rows.map((row) => ({
+    ...row.item,
+    id: row.id,
+    permission: row.permission,
+    ok: row.ok,
+  }));
+  const visibility = await verifyPermissionTreeVisibility(visibilityRows, config);
+  const result = completedResult(`${formatReportRows(plan, rows, "apply")}${visibilityAppendix(visibility)}`, {
+    planHash: plan.planHash,
+    summary: { directories: plan.parsed.dirs.length, pages: plan.parsed.pages.length },
+    results: rows,
+    visibility,
+    warnings: visibilityWarnings(visibility),
   });
   return ok ? result : { ...result, isError: true, structuredContent: { ...result.structuredContent, ok: false, state: "partial" } };
 }

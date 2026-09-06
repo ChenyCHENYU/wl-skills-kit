@@ -49,6 +49,9 @@
 
 ### Fixed
 
+- 菜单同步不再自动生成页面 `permission`，写入后自动回查当前用户权限树并报告不可见项；菜单更新改用 `PUT /system/menu/update`，避免误走新增接口。
+- 角色菜单授权自动解析并提交必填 `domainId`；可授权菜单接口异常时回退完整域菜单树。菜单计划哈希仅采集稳定结构字段，避免用户态字段和树顺序变化造成误报过期。
+
 - **scenario 渲染页面查询区单列堆叠修复**：编译器此前省略 `BaseQuery :columns`（忠实复刻 TPL），部分项目 BaseQuery 缺省时按单列渲染，导致查询字段垂直堆叠。现在所有 codegen 轨 pattern 的 BaseQuery 均显式发射 `:columns`（scenario 新增可选 `queryColumns` 字段，4~9，缺省 4；超出枚举校验阻断），提取器同步从 index.vue 的 BaseQuery 块回捞该字段保证往返定点；record-form 的 `:columns="3"`（超出文档枚举）同步修正。
 
 ### Added

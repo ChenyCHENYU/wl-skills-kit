@@ -333,8 +333,9 @@ function buildMenuBody(item, config, parentId, parentMenuNameCode, orderNum) {
     menuNameCode: item.menuNameCode || `${codePrefix}${camelPath}`,
     path: camelPath,
     component: item.type === "C" ? item.component : undefined,
-    // permission 默认 = path（camelCase），确保权限标识不遗漏
-    permission: item.type === "C" ? (item.permission || camelPath) : undefined,
+    // permission 是菜单可见性过滤条件，不是普通标记。
+    // 仅在调用方显式提供时提交；空值表示不由权限码过滤。
+    permission: item.type === "C" ? (item.permission || undefined) : undefined,
   };
 }
 

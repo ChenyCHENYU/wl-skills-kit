@@ -38,12 +38,12 @@ try {
 assert.ok(threw, "斜杠 path 必须抛错");
 ok("斜杠路径被拦截（不再传到后端导致'该权限标识已存在'）");
 
-console.log("\n=== permission 默认值（闭环）===");
+console.log("\n=== permission 可见性过滤（闭环）===");
 
-// 4. permission 未传时默认 = path
+// 4. permission 未传时保持为空，不自动制造可见性门槛
 const ok3 = buildMenuBody({ type: "C", menuName: "页面", path: "lgPlanningDispatch", component: "x.vue" }, config, "P3", "parent");
-assert.strictEqual(ok3.permission, "lgPlanningDispatch");
-ok("permission 未传时默认 = path（不遗漏）");
+assert.strictEqual(ok3.permission, undefined);
+ok("permission 未传时保持为空（不自动过滤菜单）");
 
 // 5. permission 显式传则用传入值
 const ok4 = buildMenuBody({ type: "C", menuName: "页面", path: "lgPlanning", permission: "produce:lgPlanning:list", component: "x.vue" }, config, "P4", "parent");
@@ -58,4 +58,4 @@ assert.ok(!ok5.menuNameCode.includes("-"), "menuNameCode 不应含连字符");
 assert.ok(ok5.menuNameCode.includes("mmwrBaseData"));
 ok("menuNameCode 基于 camelCase path（不含连字符）");
 
-console.log("\n✅ buildMenuBody 闭环校验全部通过（path 格式拦截 + camelCase 转换 + permission 默认 + menuNameCode 正确生成）");
+console.log("\n✅ buildMenuBody 闭环校验全部通过（path 格式拦截 + camelCase 转换 + permission 显式策略 + menuNameCode 正确生成）");

@@ -42,14 +42,19 @@ function queryMenuTree(domainId, config) {
 
 /**
  * 新增或更新菜单
- * POST /system/menu/save
- * 有 id → 更新；无 id → 新增（响应 data 含服务端生成的完整对象包括 id）
+ * 无 id → POST /system/menu/save
+ * 有 id → PUT /system/menu/update
  *
  * @param {object} body - MenuSaveBody
  * @param {{ gatewayPath: string, token: string }} config
  */
 function saveMenu(body, config) {
-  return wlsFetch('/system/menu/save', { method: 'POST', body }, config)
+  const updating = Boolean(body && body.id)
+  return wlsFetch(
+    updating ? '/system/menu/update' : '/system/menu/save',
+    { method: updating ? 'PUT' : 'POST', body },
+    config,
+  )
 }
 
 /**

@@ -8,6 +8,7 @@ const {
   queryMenuChildren,
 } = require("../api/roleApi");
 const { saveMenu } = require("../api/menuApi");
+const { resolveDomainId } = require("../menu/menu-support");
 const { writeBlockReason } = require("../write-guard");
 const { createPlanHash } = require("../../lib/plan-hash");
 const {
@@ -20,6 +21,27 @@ const {
 
 function pageRecords(result) {
   return result.data?.page?.records || result.data?.records || (Array.isArray(result.data) ? result.data : []);
+}
+
+async function resolvePermissionDomain(config) {
+  const configured = config.menu?.domainId;
+  if (configured && !String(configured).includes("domainId")) return String(configured);
+  const resolved = await resolveDomainId(config);
+  if (!resolved.ok) throw new Error(`未能自动获取 domainId：${resolved.error}`);
+  return String(resolved.domainId);
+}
+
+function stableAssignableMenus(records) {
+  return records
+    .map((item) => ({
+      id: item.id == null ? "" : String(item.id),
+      parentId: item.parentId == null ? "" : String(item.parentId),
+      menuName: item.menuName || "",
+      permission: item.permission || "",
+      path: item.path || "",
+      type: item.type || "",
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
 }
 
 function formatTable(rows, keys, headers) {
@@ -131,11 +153,13 @@ function validateRoleAssignment(args) {
 
 async function buildRoleAssignmentPlan(args, config) {
   validateRoleAssignment(args);
-  const query = await queryAssignableMenus(config);
+  const domainId = await resolvePermissionDomain(config);
+  const query = await queryAssignableMenus(config, domainId);
   if (!query.ok) throw new Error(`查询可授权菜单失败: ${query.error}`);
   const value = { schemaVersion: 1, sysAppNo: config.sysAppNo || "", roleId: args.roleId,
-    menuIds: [...args.menuIds].sort(), assignableMenus: query.data };
-  return { ...value, planHash: createPlanHash("role-menu-assignment", value) };
+    domainId, menuIds: [...args.menuIds].sort(), assignableMenus: stableAssignableMenus(pageRecords(query)) };
+  return { ...value, assignableSource: query.source, fallbackUsed: query.fallbackUsed,
+    planHash: createPlanHash("role-menu-assignment", value) };
 }
 
 async function handleRoleAssignMenus(args = {}, config) {
@@ -152,23 +176,43 @@ async function handleRoleAssignMenus(args = {}, config) {
   } catch (error) {
     return blockedResult(error.message, "blocked", { mode: args.confirmFullReplace === true ? "apply" : "preview" });
   }
-  const preview = `角色授权全量覆盖预览：roleId=${args.roleId}，菜单/动作 ${args.menuIds.length} 个\nplanHash: ${plan.planHash}\n确认 menuIds 为完整保留集合后，携带 planHash 并传 confirmFullReplace: true。`;
-  if (args.confirmFullReplace !== true) return previewResult(preview, plan, { menuIds: args.menuIds });
+  const preview = `角色授权全量覆盖预览：domainId=${plan.domainId}，roleId=${args.roleId}，菜单/动作 ${args.menuIds.length} 个\nplanHash: ${plan.planHash}\n确认 menuIds 为完整保留集合后，携带 planHash 并传 confirmFullReplace: true。`;
+  if (args.confirmFullReplace !== true) return previewResult(preview, plan, {
+    domainId: plan.domainId,
+    source: plan.assignableSource,
+    fallbackUsed: plan.fallbackUsed,
+    menuIds: args.menuIds,
+  });
   const stale = validatePlanHash(args, plan);
   if (stale) return stale;
-  const saved = await saveRoleMenus({ roleId: args.roleId, menuIds: args.menuIds.join(",") }, config);
+  const saved = await saveRoleMenus({ domainId: plan.domainId, roleId: args.roleId, menuIds: args.menuIds.join(",") }, config);
   if (!saved.ok) return blockedResult(`角色授权失败: ${saved.error} (code: ${saved.code})`, "apply-failed", { mode: "apply" });
-  return completedResult(`✅ 角色授权成功（roleId=${args.roleId}，已分配 ${args.menuIds.length} 个菜单/动作）`, { planHash: plan.planHash });
+  return completedResult(`✅ 角色授权成功（domainId=${plan.domainId}，roleId=${args.roleId}，已分配 ${args.menuIds.length} 个菜单/动作）`, {
+    planHash: plan.planHash,
+    domainId: plan.domainId,
+    source: plan.assignableSource,
+    fallbackUsed: plan.fallbackUsed,
+  });
 }
 
 async function handleAssignableMenusQuery(_args, config) {
-  const result = await queryAssignableMenus(config);
+  let domainId;
+  try {
+    domainId = await resolvePermissionDomain(config);
+  } catch (error) {
+    return blockedResult(error.message, "query-failed", { mode: "query" });
+  }
+  const result = await queryAssignableMenus(config, domainId);
   if (!result.ok) return blockedResult(`查询可授权菜单失败: ${result.error} (code: ${result.code})`, "query-failed", { mode: "query" });
   const records = pageRecords(result);
+  const fallbackNote = result.fallbackUsed
+    ? `\n\n⚠️ 主可授权菜单接口不可用，已回退到 domainId=${domainId} 的完整域菜单树。`
+    : "";
   const text = records.length === 0
-    ? "✅ 查询成功，当前无可授权菜单"
-    : `✅ 可授权菜单查询成功，共 ${records.length} 条\n\n${JSON.stringify(records, null, 2)}`;
-  return toolResult(text, { ok: true, state: "completed", mode: "query", count: records.length, items: records });
+    ? `✅ 查询成功，当前无可授权菜单${fallbackNote}`
+    : `✅ 可授权菜单查询成功，共 ${records.length} 条${fallbackNote}\n\n${JSON.stringify(records, null, 2)}`;
+  return toolResult(text, { ok: true, state: "completed", mode: "query", domainId,
+    source: result.source, fallbackUsed: result.fallbackUsed, count: records.length, items: records });
 }
 
 function slimAction(action) {

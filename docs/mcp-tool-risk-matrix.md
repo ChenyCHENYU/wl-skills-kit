@@ -37,18 +37,18 @@
 | `wls_standard_env_apply` | 环境迁移 | R2 | 否 | 否 | 默认只生成计划；正式写入必须确认 Profile、模块名、文件计划并传 `confirmApply: true` |
 | `wls_standard_env_verify` | 环境验证 | R1 | 否 | 是 | 静态验证可自动调用；五环境构建仅在依赖已安装时启用 |
 | `wls_domain_query` | 应用域查询 | R0 | 是 | 是 | 无 |
-| `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无 |
+| `wls_menu_query` | 菜单查询 | R0 | 是 | 是 | 无；返回完整域树，不代表当前用户可见 |
 | `wls_dict_query` | 字典查询 | R0 | 是 | 是 | 无 |
 | `wls_dict_bootstrap` | 本地字典契约 | R2 | 否 | 否 | 默认只预览；创建本地 `dicts.ts` 必须携带预览 `planHash` 并传 `confirmWrite:true`，绝不覆盖已有文件 |
 | `wls_role_query` | 权限查询 | R0 | 是 | 是 | 无 |
-| `wls_assignable_menus_query` | 权限查询 | R0 | 是 | 是 | 无 |
+| `wls_assignable_menus_query` | 权限查询 | R0 | 是 | 是 | 无；主接口异常时按 domainId 回退完整域树 |
 | `wls_action_query` | 权限查询 | R0 | 是 | 是 | 无 |
-| `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
-| `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
+| `wls_menu_sync_from_report` | 菜单同步 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash`；写后回查当前用户权限树 |
+| `wls_menu_upsert` | 菜单写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash`；写后回查当前用户权限树 |
 | `wls_menu_delete` | 菜单删除 | R3 | 是 | 否 | 默认预览；必须展示递归影响范围，正式删除需 `confirmApply:true` 和预览 `planHash` |
 | `wls_dict_upsert` | 字典协调 | R3 | 是 | 否 | 默认只预览；确认项目级 safe-additive 计划后必须同时传 `confirmApply:true` 和有效 `planHash` |
 | `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
-| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并同时传 `confirmFullReplace:true` 和预览 `planHash` |
+| `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并同时传 `confirmFullReplace:true` 和预览 `planHash`；自动携带 domainId |
 | `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
 | `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 默认预览；确认推送报告和目标 webhook 后传 `confirmPush:true` |
 
@@ -119,6 +119,7 @@ wls_domain_query
 → wls_menu_sync_from_report（默认预览）
 → 用户确认
 → wls_menu_sync_from_report(confirmApply: true, planHash)
+→ 自动回查 getPermissionMenuTree；不可见时处理 permission/角色授权
 → wls_route_check
 ```
 
@@ -169,6 +170,8 @@ wls_standard_env_scan
 - `wls_standard_env_apply` 不调用后端，但会事务式更新本地前端环境与 Vite 配置；未确认时不得传 `confirmApply: true`。
 - 华新 Profile 不得静默套用；非华新项目必须提供完整五环境 Profile，避免客户地址混用。
 - 菜单、角色、动作和角色授权执行前都会重读线上；必须携带最近一次预览 `planHash`，漂移后旧计划自动失效。
+- 页面菜单的 `permission` 是可见性过滤器而非普通标记，默认不得自动生成；显式填写前必须确认权限码已进入角色授权链路。
+- `getMenuTreeByDomainId` 是完整管理域树，`getPermissionMenuTree` 是当前登录用户过滤后的权限树；写入成功必须以后者回查可见性。
 - 菜单删除必须展示全部递归子节点，自底向上执行；不得仅凭菜单名称直接删除。
 - 角色授权是全量覆盖式操作，必须展示最终 `menuIds` 集合，并显式传 `confirmFullReplace: true` 与预览 `planHash`。
 - 飞书 webhook 缺失时应跳过，不阻断主流程。
