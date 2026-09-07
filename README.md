@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.20.1** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.20.2** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
