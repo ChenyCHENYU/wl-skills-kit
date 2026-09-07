@@ -75,6 +75,28 @@ function writePage(root, relDir, indexVue, dataTs) {
   return dir;
 }
 
+const LONG_WORKBENCH_INDEX =
+  '<template>\n' +
+  '  <div class="app-container app-page-container long-workbench">\n' +
+  '    <BaseTable render-type="agGrid" cid="long-one" :data="[]" :columns="columns" :height="300" />\n' +
+  '    <BaseTable render-type="agGrid" cid="long-two" :data="[]" :columns="columns" :height="260" />\n' +
+  '    <BaseTable render-type="agGrid" cid="long-three" :data="[]" :columns="columns" height="240" />\n' +
+  '  </div>\n' +
+  '</template>\n' +
+  '<script setup lang="ts">\n' +
+  'import { columns } from "./data";\n' +
+  '</script>\n';
+
+const LONG_WORKBENCH_DATA =
+  'import { defineColumns } from "@agile-team/wl-skills-ui/runtime";\n' +
+  'export const columns = defineColumns([{ label: "name", name: "name" }]);\n';
+
+function writeLongWorkbench(root, scss, indexVue = LONG_WORKBENCH_INDEX) {
+  const pageDir = writePage(root, "src/views/acme/long-workbench", indexVue, LONG_WORKBENCH_DATA);
+  fs.writeFileSync(path.join(pageDir, "index.scss"), scss);
+  return pageDir;
+}
+
 describe("validate end-to-end integration", () => {
   it("pre-commit 遇到纯文档变更时应跳过页面检测", () => {
     const root = makeProject();
@@ -489,6 +511,76 @@ describe("pre-commit 共享模块误报修复（2.18.2）", () => {
     const output = result.stdout + result.stderr;
     expect(result.status, output).not.toBe(0);
     expect(output).toMatch(/未发现包含 index/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe("K20 长工作台滚动所有权", () => {
+  it("阻断多个固定高度表格被 app-page-container 裁切", () => {
+    const root = makeProject();
+    writeLongWorkbench(root,
+      "/* .long-workbench { overflow: auto; } */\n.long-workbench { min-height: 600px; }\n");
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toMatch(/K20/);
+    expect(output).toMatch(/overflow:auto\/scroll/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("根容器本地样式声明纵向滚动后通过", () => {
+    const root = makeProject();
+    writeLongWorkbench(root, ".long-workbench { min-height: 0; overflow-y: auto; }\n");
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(output).not.toMatch(/K20/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("递归识别通过 @/ 引入的共享 SCSS", () => {
+    const root = makeProject();
+    writeLongWorkbench(root, '@import "@/components/layout/long-page.scss";\n');
+    const sharedDir = path.join(root, "src/components/layout");
+    fs.mkdirSync(sharedDir, { recursive: true });
+    fs.writeFileSync(path.join(sharedDir, "long-page.scss"), ".long-workbench { overflow: auto; }\n");
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(output).not.toMatch(/K20/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("jh-drag 分栏页面不套用长工作台规则", () => {
+    const root = makeProject();
+    const splitIndex = LONG_WORKBENCH_INDEX
+      .replace('<div class="app-container app-page-container long-workbench">',
+        '<div class="app-container app-page-container long-workbench"><jh-drag-row>')
+      .replace("  </div>\n</template>", "    </jh-drag-row></div>\n</template>");
+    writeLongWorkbench(root, ".long-workbench { min-height: 600px; }\n", splitIndex);
+    const result = runValidate(root);
+    expect(result.stdout + result.stderr).not.toMatch(/K20/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit 能从仅暂存的共享 SCSS 反查受影响页面", () => {
+    const root = makeProject();
+    writeLongWorkbench(root, '@import "@/components/layout/long-page.scss";\n');
+    const sharedDir = path.join(root, "src/components/layout");
+    fs.mkdirSync(sharedDir, { recursive: true });
+    const sharedFile = path.join(sharedDir, "long-page.scss");
+    fs.writeFileSync(sharedFile, ".long-workbench { overflow: auto; }\n");
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "."]).status).toBe(0);
+    expect(runGit(root, ["-c", "user.name=wl-skills", "-c", "user.email=wl-skills@example.com",
+      "commit", "-m", "baseline"]).status).toBe(0);
+    const baseline = runValidate(root);
+    expect(baseline.stdout + baseline.stderr).not.toMatch(/K20/);
+    fs.writeFileSync(sharedFile, ".long-workbench { min-height: 600px; }\n");
+    expect(runGit(root, ["add", "src/components/layout/long-page.scss"]).status).toBe(0);
+
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toMatch(/K20/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

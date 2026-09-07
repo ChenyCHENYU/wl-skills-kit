@@ -66,7 +66,55 @@
 
 ---
 
-## 3. FAQ
+## 3. 长工作台滚动所有权（K20）
+
+`app-page-container` 通常受外层工作区高度约束并裁切溢出内容。一个页面纵向连续放置多个固定高度表格时，内容总高度很容易超过可视区；此时必须由**页面根容器**承担纵向滚动，不能只依赖浏览器或表格内部滚动条。
+
+以下条件同时成立时，`wl-skills validate` 的 K20 会阻断：
+
+- 根元素包含 `app-page-container`；
+- 页面包含至少 3 个 `BaseTable`，其中至少 2 个使用固定数值 `height` / `:height`；
+- 页面不是 `jh-drag-row` / `jh-drag-col` 分栏布局；
+- 根元素的静态 class 在 `index.scss` 或其递归引入的本地 SCSS 中没有 `overflow:auto/scroll` 或 `overflow-y:auto/scroll`。
+
+错误写法：页面整体被裁切，右侧滚动条无法到达下部表格。
+
+```scss
+.transfer-page {
+  min-height: calc(100vh - 132px);
+}
+```
+
+正确写法：复用页面级公共容器作为唯一纵向滚动所有者。
+
+```vue
+<div class="app-container app-page-container steel-page transfer-page">
+  <!-- 多个固定高度 BaseTable -->
+</div>
+```
+
+```scss
+// index.scss
+@import "@/components/steelmaking/steel-page.scss";
+
+// 被引入的共享 SCSS
+.steel-page {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+```
+
+约束：
+
+- 页面纵向滚动只放在根容器；表格保留自身固定高度和内部行滚动。
+- 不额外给中间卡片、Tab 内容或左右子区制造第二条页面级纵向滚动条。
+- K20 支持相对路径、`@/` 路径、扩展名省略及 SCSS partial 的递归 `@import` / `@use`。
+- 特殊布局必须使用 `<!-- wl-skills:ignore K20 -->` 或项目豁免配置并写明原因，禁止无编号全局放行。
+
+---
+
+## 4. FAQ
 
 **Q1：`jh-drag-col` 没有 `min-left-width` 怎么办？**
 内部默认 200~600 阈值已可用；如需自定义，传 `:minLeftWidth` / `:maxLeftWidth`（数值，单位 px）。
@@ -80,3 +128,9 @@
 
 - `12-base-table.md` — BaseTable 内部高度撑满依赖父容器有明确高度，jh-drag-col/row 已正确给子区设 `height: 100%`
 - 真实场景案例：`.wl-skills/templates/produce/aiflow/mmwr-customer-detail/`（master-detail 使用 jh-drag-row）
+
+---
+
+## 变更记录
+
+- 2026-09-07：新增 K20 长工作台滚动所有权门禁，覆盖多固定高度表格被 `app-page-container` 裁切、共享 SCSS 引入和 pre-commit 样式变更反查。

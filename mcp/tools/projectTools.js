@@ -5,6 +5,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const https = require("https");
 const { runAstRules, runTypeCheck } = require("../../lib/ast-rules");
+const { AST_RULE_RANGE } = require("../../lib/rule-registry");
 const { alignPage } = require("../../lib/page-spec");
 const { componentIssues } = require("../../lib/component-catalog");
 
@@ -204,7 +205,7 @@ function addLocalPageIssues(root, pages, mockFiles, mockContent, issues) {
 function addAstIssues(root, scanPath, issues) {
   const result = runAstRules(root, scanPath);
   if (result.astAvailable === false) {
-    issues.push([scanPath, "warn", "AST 引擎不可用，跳过语义级规则（K1~K19）"]);
+    issues.push([scanPath, "warn", `AST 引擎不可用，跳过语义级规则（${AST_RULE_RANGE}）`]);
     return;
   }
   for (const issue of result.issues) {

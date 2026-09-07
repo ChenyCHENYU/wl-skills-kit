@@ -49,6 +49,8 @@
 
 ### Fixed
 
+- 新增 K20 长工作台滚动所有权门禁：当 `app-page-container` 内存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器缺少 `overflow:auto/scroll` 将阻断，防止工作区裁切后页面下部不可达。
+- K20 会递归解析 `index.scss` 的相对路径与 `@/` 本地共享 SCSS；validate 缓存纳入样式内容，`validate --pre-commit` 纳入 `.scss` 并可从仅暂存的共享样式反查受影响页面。
 - 菜单同步不再自动生成页面 `permission`，写入后自动回查当前用户权限树并报告不可见项；菜单更新改用 `PUT /system/menu/update`，避免误走新增接口。
 - 角色菜单授权自动解析并提交必填 `domainId`；可授权菜单接口异常时回退完整域菜单树。菜单计划哈希仅采集稳定结构字段，避免用户态字段和树顺序变化造成误报过期。
 

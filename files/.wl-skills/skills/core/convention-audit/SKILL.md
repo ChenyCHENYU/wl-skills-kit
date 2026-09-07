@@ -117,7 +117,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 11 | 表单校验 | AI 场景判断 | FORM_ROUTE 缺 validate / resetFields → 🔴 |
 | 12 | BaseTable + cid | 静态 + 场景判断 | 主列表用 el-table → 🔴；cid 缺失/重复 → 🔴；弹窗小表格见豁免规则 |
 | 13 | 平台组件合规 | 静态扫描 | 业务页面用 el-form/el-table/el-date-picker 替代封装 → 🔴；封装组件内部 → ⚠️ 待确认；3+ 复用 → 提取建议 |
-| 14 | 布局容器 | 静态扫描 | 分栏未使用 `jh-drag-row`/`jh-drag-col` → 🔴 |
+| 14 | 布局容器 | 静态扫描 | 分栏未使用 `jh-drag-row`/`jh-drag-col` → 🔴；多固定高度表格长工作台根容器无纵向滚动所有者 → 🔴（K20） |
 
 ---
 
@@ -387,6 +387,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 - 历史提交信息不规范
 - 弹窗小表格 AGGrid 待确认
 - 弹窗内 AG Grid 缺少 v-if 延迟挂载（K19，自动检测）
+- 长工作台根容器缺少 overflow:auto/scroll，导致页面下部被裁切（K20，自动检测）
 
 ---
 
@@ -403,6 +404,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | 页面是否需要 data.ts | 中（需人工确认） |
 | AGGrid 是否适配弹窗表格 | 中（需人工确认） |
 | 弹窗内 AGGrid 是否有 v-if 延迟挂载 | 高（K19 自动检测） |
+| 多固定高度表格长工作台是否有根级纵向滚动 | 高（K20 自动检测） |
 | 复杂业务逻辑是否应提取 | 中 |
 
 ---

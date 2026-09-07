@@ -1,9 +1,9 @@
 # 规则 → 执行器 覆盖矩阵（治理基线）
 
 > **目的**：回答一个关键问题——*每条"必遵"约定，到底是谁在兜底？*
-> 是 AST 规则（R*）、page-spec 比对（S*）、正则（regex）、还是仅靠 AI 自觉？
+> 是 AST 规则（K*）、page-spec 比对（S*）、正则（regex）、还是仅靠 AI 自觉？
 >
-> **治理规则**：标记为「阻断」的约定必须至少有一个**确定性执行器**（R*/S*/regex），
+> **治理规则**：标记为「阻断」的约定必须至少有一个**确定性执行器**（K*/S*/regex），
 > 否则 `lint-skills.js` 报错。这逼着"文档约定"持续向"代码卡控"收敛，不再退化为纯文档。
 
 ---
@@ -12,7 +12,7 @@
 
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
-| `K1~K19` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
+| `K1~K20` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S7` | page-spec、机器 API 契约与进阶查询回填比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
@@ -42,6 +42,7 @@
 | standards/10 | data.ts 禁止 import Pinia Store | K11 | error | 是 |
 | standards/07 | 禁止硬编码 IP/URL | K12 | error/warn | 是 |
 | standards/14 | 布局容器必须用 jh-drag-col/row | regex | error | 是 |
+| standards/14 | 多固定高度表格长工作台根容器必须拥有纵向滚动；递归识别本地共享 SCSS | **K20** | error | 是 |
 | standards/04 | 禁止空 onClick | regex | error | 是 |
 | standards/04 | 单函数圈复杂度 ≤ 10（McCabe） | **K13** | error | 是 |
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **K14** | error | 是 |
@@ -84,7 +85,7 @@
 - 非目录组件是否应抽取为项目通用组件 —— 依赖跨页面复用语义
 - Mock 端点必须修改 dataPool —— 需深度语义分析
 
-> 收敛策略：每次实战发现某条 AI 约定被违反，评估能否写成 R*/S*/regex；
+> 收敛策略：每次实战发现某条 AI 约定被违反，评估能否写成 K*/S*/regex；
 > 能则接入并在上表登记，不能则保留在本节并记录原因。
 
 ---
@@ -93,7 +94,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `K1~K19` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
+- `K1~K20` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

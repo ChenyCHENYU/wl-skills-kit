@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 让 AI 理解项目 | 14 条规范、组件文档、项目扫描、Page Blueprint | 少猜项目结构，减少反复读取源码和上下文 token |
 | 从需求生成页面 | 原型/详设解析、API 契约、Vue 页面生成、Mock 策略 | 输入和产物有明确契约，生成结果更稳定 |
-| 阻止低质量代码进入仓库 | K1~K19 AST 规则、spec-align、类型检查、Git hooks | 生成后立即验证，错误在提交或 CI 前暴露 |
+| 阻止低质量代码进入仓库 | K1~K20 AST 规则、spec-align、类型检查、Git hooks | 生成后立即验证，错误在提交或 CI 前暴露 |
 | 整改存量项目 | 规范审计、安全机械修复、状态列审计、UI 接入诊断 | 区分可自动修复与需人工判断，降低批量改造风险 |
 | 沉淀领域模板 | snapshot、Blueprint extract/search/diff/audit | 模板以脱敏 JSON 保存，不复制整页业务代码 |
 | 完成交付配置 | 菜单、字典、角色、动作权限 MCP | 查询、预览、确认、写入、复查形成闭环 |
@@ -109,7 +109,7 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 
 **v2.18.0**：规则编号 K 前缀化，与 wl-skills-ui 编号空间解耦。
 
-- kit 全部规则 `R1~R19` → `K1~K19`（K=Kit）；wl-skills-ui scanner 保持 `R001~R040`，混合报告/跨包沟通不再歧义。
+- kit 规则在 v2.18.0 由 `R` 前缀迁移为 `K` 前缀（当时覆盖 1 至 19，当前范围以注册表为准）；wl-skills-ui scanner 保持 `R001~R040`，混合报告/跨包沟通不再歧义。
 - `wl-skills:ignore` 行内标记与 `.wl-skills-validate.json` 豁免**同号等价**接受旧 R 前缀，存量项目配置零改动。
 - 源码防回流守门（测试拦截字符串字面量旧编号）；MCP 风险等级 R0~R4 语义不受影响。
 
@@ -540,7 +540,7 @@ wl-skills validate --typecheck      # CI 或交付前
 ### 4. 校验、审计和修复
 
 ```bash
-# 全量页面检查：AST K1~K19、spec-align、Mock、组件契约
+# 全量页面检查：AST K1~K20、spec-align、Mock、组件契约
 wl-skills validate
 
 # 仅检查指定页面或目录
@@ -558,6 +558,8 @@ wl-skills validate
 ```
 
 validate 使用 `.wl-skills-cache/` 内容哈希缓存。第二次扫描复用未变化页面的问题摘要；页面、规则、配置、page-spec 或 package.json 变化时自动失效，不缓存源码正文。
+
+K20 专门防止长工作台下部内容被裁切：当 `app-page-container` 中同时存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器必须在 `index.scss` 或其递归引入的本地共享 SCSS 中声明 `overflow:auto/scroll`。`validate --pre-commit` 会识别仅暂存的 SCSS，并从共享样式反查受影响页面。
 
 AI 层还有三类治理能力：
 
