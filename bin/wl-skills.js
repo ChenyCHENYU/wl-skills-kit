@@ -555,19 +555,18 @@ function shouldIncludeStaticFile(relPath, validationConfig) {
   return projectHasBusinessMockFiles();
 }
 
-function isInstallPreserved(relPath, dest) {
-  return (isReportFile(relPath) && fs.existsSync(dest)) || isForeignGeneratedFile(dest);
-}
-
 const DELIVERY_PROFILE_RELATIVE = ".wl-skills/contracts/wl-delivery-profile.v1.json";
+
+function isInstallPreserved(relPath, dest) {
+  const projectOwned = relPath === DELIVERY_PROFILE_RELATIVE || isReportFile(relPath);
+  return (projectOwned && fs.existsSync(dest)) || isForeignGeneratedFile(dest);
+}
 
 function preserveCustomizedDeliveryProfile(relPath, dest, context) {
   if (relPath !== DELIVERY_PROFILE_RELATIVE || !fs.existsSync(dest)) return false;
-  const oldHash = manifestInstalledHash(context.oldManifest, relPath);
-  if (!oldHash || fileMd5(dest) === oldHash) return false;
   context.manifest.files[relPath] = fileMd5(dest);
   updateInstallCounter(context.stats, "preserved");
-  if (dryRun) console.log(`  保留  ${relPath}  (项目已显式定制交付 Profile)`);
+  if (dryRun) console.log(`  保留  ${relPath}  (项目交付 Profile 始终优先)`);
   return true;
 }
 
@@ -1309,6 +1308,14 @@ function runCheck() {
   if (failed > 0) process.exitCode = 1;
 }
 
+function expectedInstallState(relPath, expectedHash) {
+  const target = path.join(TARGET_DIR, relPath);
+  if (!fs.existsSync(target)) return "added";
+  if (fileMd5(target) === expectedHash) return "same";
+  if (isInstallPreserved(relPath, target)) return "preserved";
+  return "changed";
+}
+
 function runDiff() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [diff]");
@@ -1320,18 +1327,13 @@ function runDiff() {
   const current = manifest && manifest.files ? manifest.files : {};
   const added = [];
   const changed = [];
+  const preserved = [];
   const removed = [];
   const same = [];
+  const buckets = { added, changed, preserved, same };
 
   for (const relPath of Object.keys(expected).sort()) {
-    const target = path.join(TARGET_DIR, relPath);
-    if (!fs.existsSync(target)) {
-      added.push(relPath);
-    } else if (fileMd5(target) !== expected[relPath]) {
-      changed.push(relPath);
-    } else {
-      same.push(relPath);
-    }
+    buckets[expectedInstallState(relPath, expected[relPath])].push(relPath);
   }
 
   for (const relPath of Object.keys(current).sort()) {
@@ -1346,6 +1348,7 @@ function runDiff() {
   console.log("  最新 kit: v" + PKG.version);
   console.log("  新增/缺失: " + added.length);
   console.log("  内容不同: " + changed.length);
+  console.log("  本地保留: " + preserved.length);
   console.log("  旧版残留: " + removed.length);
   console.log("  相同: " + same.length);
   console.log("");
@@ -1360,7 +1363,8 @@ function runDiff() {
   }
 
   printGroup("新增/缺失（update 会写入）", added);
-  printGroup("内容不同（update 会覆盖，reports 除外）", changed);
+  printGroup("内容不同（update 会覆盖）", changed);
+  printGroup("本地保留（update 不覆盖）", preserved);
   printGroup("旧版残留（update 会迁移清理）", removed);
 }
 

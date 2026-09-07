@@ -154,7 +154,7 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 - **真实接口优先模板**：缺主键不再隐式切入本地假数据；表单空值、履历、导入和详情占位都先遵循项目策略与已确认契约。
 - **安装冲突零写入**：`init/update` 先完整预检受管文件；发现本地改动时不创建 hook、配置或 manifest，显式 `--force` 才覆盖并逐文件备份。
 - **只清理本包拥有的文件**：旧版目录不再递归清空；只有旧 manifest 证明由本包安装且内容未修改的退役文件才会移除，本地定制和所有权不明文件全部保留。
-- **项目交付 Profile 优先**：项目已显式修改 `.wl-skills/contracts/wl-delivery-profile.v1.json` 时，`update --force` 也会保留该项目契约，避免把 query 参数删除、POST 查询等真实项目口径覆盖回通用基线。
+- **项目交付 Profile 优先**：项目中的 `.wl-skills/contracts/wl-delivery-profile.v1.json` 视为项目事实源，连续多次 `update --force` 也始终保留，避免把 query 参数删除、POST 查询等真实项目口径覆盖回通用基线。
 - **Profile 口径一致**：文档、Skill、Mock 示例统一声明 GET/POST、载荷位置和分页来自生效 Delivery Profile，`POST + 1/10/200` 只作无配置基线。
 
 **v2.15.0**：补齐“项目口径优先、通用基线兜底”的接口与交互闭环。
