@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.20.3
+ * wl-skills-kit CLI v2.20.4
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1991,7 +1991,7 @@ function runValidate() {
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
 
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
-  // 补充正则无法覆盖的 AST 语义规则（K1~K20），与正则规则合并输出
+  // 补充正则无法覆盖的 AST 语义规则（K1~K21），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
   const astResult = runValidationAst(issues, scanPath, stagedSet);
 
@@ -2078,6 +2078,7 @@ const AST_FIX_SUGGESTIONS = {
   K13: { fix: '\u62c6\u5206\u9ad8\u590d\u6742\u5ea6\u51fd\u6570\uff1a\u6309\u804c\u8d23\u62bd\u53d6\u5b50\u51fd\u6570\u3001\u7528\u63d0\u524d return \u4ee3\u66ff\u5d4c\u5957 if\u3001\u67e5\u8868\u9a71\u52a8\u53d6\u4ee3 if-else \u94fe\u3001\u7b56\u7565\u6a21\u5f0f\u6d88\u9664\u591a\u5206\u652f', ref: 'standards/04-coding-basics.md', auto: false },
   K14: { fix: '\u6309 TS \u9519\u8bef\u4fee\u590d\u7c7b\u578b\uff08\u8865\u7c7b\u578b\u6807\u6ce8 / \u4fee\u6b63\u8c03\u7528\u53c2\u6570 / \u8865 any \u8fb9\u754c\u6ce8\u91ca\uff09\uff1b\u672a\u88c5 vue-tsc \u65f6\u5b89\u88c5\u540e\u7eb3\u5165 CI', ref: 'standards/09-typescript.md', auto: false },
   K20: { fix: '\u5728 app-page-container \u6839\u5bb9\u5668\u6837\u5f0f\u6216\u5176\u5f15\u5165\u7684\u5171\u4eab SCSS \u4e2d\u8bbe\u7f6e overflow:auto/scroll\uff0c\u4fdd\u7559\u552f\u4e00\u9875\u9762\u7eb5\u5411\u6eda\u52a8\u6240\u6709\u8005', ref: 'standards/14-layout-containers.md', auto: false },
+  K21: { fix: '\u8865\u9f50\u9875\u9762\u6839\u5bb9\u5668\u3001Tabs\u3001el-tabs__content\u3001el-tab-pane\u3001jh-drag \u7236\u5bb9\u5668\u4e0e drager_row/col \u7684 height/min-height/flex \u9ad8\u5ea6\u94fe', ref: 'standards/14-layout-containers.md', auto: false },
   // S 系列：page-spec 约定 vs 代码确定性核对（v2.11.1+）
   S0: { fix: '\u4fee\u6b63 page-spec.json \u7ed3\u6784\uff08page/query/columns/toolbar/operations\uff09', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: false },
   S1: { fix: '\u8c03\u6574 queryDef() \u67e5\u8be2\u5b57\u6bb5\u987a\u5e8f\u4e0e page-spec.json query \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },

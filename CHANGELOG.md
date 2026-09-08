@@ -49,6 +49,8 @@
 
 ### Fixed
 
+- 新增 K21 Tabs 分栏表格高度链门禁：`el-tabs + jh-drag-row/col + AG Grid` 页面缺少任一级 `height/min-height/flex` 传递时直接阻断，避免接口有数据但表格因零高度空白。
+- AST 样式分析补齐 Vue SFC `<style>` 及其递归 `@import/@use`；`validate --pre-commit` 可从 SFC 引入的共享 SCSS 反查受影响页面。
 - 修复项目交付 Profile 只在首次 `update --force` 保留、后续更新又被通用模板覆盖的状态丢失问题；现有项目 Profile 始终作为项目事实源保留，`diff` 也单独列入“本地保留”而不再误称“update 会覆盖”。
 - 新增 K20 长工作台滚动所有权门禁：当 `app-page-container` 内存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器缺少 `overflow:auto/scroll` 将阻断，防止工作区裁切后页面下部不可达。
 - K20 会递归解析 `index.scss` 的相对路径与 `@/` 本地共享 SCSS；validate 缓存纳入样式内容，`validate --pre-commit` 纳入 `.scss` 并可从仅暂存的共享样式反查受影响页面。

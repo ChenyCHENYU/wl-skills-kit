@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.20.3** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.20.4** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 让 AI 理解项目 | 14 条规范、组件文档、项目扫描、Page Blueprint | 少猜项目结构，减少反复读取源码和上下文 token |
 | 从需求生成页面 | 原型/详设解析、API 契约、Vue 页面生成、Mock 策略 | 输入和产物有明确契约，生成结果更稳定 |
-| 阻止低质量代码进入仓库 | K1~K20 AST 规则、spec-align、类型检查、Git hooks | 生成后立即验证，错误在提交或 CI 前暴露 |
+| 阻止低质量代码进入仓库 | K1~K21 AST 规则、spec-align、类型检查、Git hooks | 生成后立即验证，错误在提交或 CI 前暴露 |
 | 整改存量项目 | 规范审计、安全机械修复、状态列审计、UI 接入诊断 | 区分可自动修复与需人工判断，降低批量改造风险 |
 | 沉淀领域模板 | snapshot、Blueprint extract/search/diff/audit | 模板以脱敏 JSON 保存，不复制整页业务代码 |
 | 完成交付配置 | 菜单、字典、角色、动作权限 MCP | 查询、预览、确认、写入、复查形成闭环 |
@@ -100,6 +100,11 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 
 生成后执行：
+
+**v2.20.4**：补齐 Tabs 分栏表格高度链门禁。
+
+- 新增 K21：同时使用 `el-tabs`、`jh-drag-row/col` 和 AG Grid 的页面，必须完整声明页面根容器、Tabs 内容、Tab Pane、分栏父容器及 drager 的 `height/min-height/flex` 高度链，缺任一级直接阻断。
+- 校验器现在读取 Vue SFC 的 `<style>` 及其递归 `@import/@use` 共享 SCSS；`validate --pre-commit` 能从共享样式变更反查受影响页面，防止样式合并导致表格再次折叠为空白。
 
 **v2.18.1**：文档债务清偿——版本叙事与真实发布对齐。
 
@@ -540,7 +545,7 @@ wl-skills validate --typecheck      # CI 或交付前
 ### 4. 校验、审计和修复
 
 ```bash
-# 全量页面检查：AST K1~K20、spec-align、Mock、组件契约
+# 全量页面检查：AST K1~K21、spec-align、Mock、组件契约
 wl-skills validate
 
 # 仅检查指定页面或目录
@@ -560,6 +565,8 @@ wl-skills validate
 validate 使用 `.wl-skills-cache/` 内容哈希缓存。第二次扫描复用未变化页面的问题摘要；页面、规则、配置、page-spec 或 package.json 变化时自动失效，不缓存源码正文。
 
 K20 专门防止长工作台下部内容被裁切：当 `app-page-container` 中同时存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器必须在 `index.scss` 或其递归引入的本地共享 SCSS 中声明 `overflow:auto/scroll`。`validate --pre-commit` 会识别仅暂存的 SCSS，并从共享样式反查受影响页面。
+
+K21 专门防止分栏表格“接口有数据但画面空白”：页面同时包含 `el-tabs`、`jh-drag-row/col` 和 AG Grid/`SteelListPanel` 时，页面根容器、Tabs、`el-tabs__content`、`el-tab-pane`、分栏直接父容器和 `drager_row/col` 必须形成连续高度链。规则同时解析 `index.scss`、SFC `<style>` 和递归引入的本地共享 SCSS，任何一级缺失均以 error 阻断。
 
 AI 层还有三类治理能力：
 

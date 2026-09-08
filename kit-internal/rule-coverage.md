@@ -12,7 +12,7 @@
 
 | 执行器 | 类型 | 位置 | 确定性 |
 |---|---|---|---|
-| `K1~K20` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
+| `K1~K21` | AST 语义级 / 工具链委托 | `lib/ast-rules.js` | ✅ 确定性 |
 | `S1~S7` | page-spec、机器 API 契约与进阶查询回填比对 | `lib/page-spec.js` | ✅ 确定性 |
 | `D1~D2` | 页面字典契约、发布清单与代码字典引用比对 | `lib/dict-contract.js` / `lib/dict-project.js` | ✅ 确定性 |
 | `C1~C4` | 标准业务组件引用、落盘锁、更新与项目实现优先级 | `lib/component-catalog.js` | ✅ 确定性 |
@@ -43,6 +43,7 @@
 | standards/07 | 禁止硬编码 IP/URL | K12 | error/warn | 是 |
 | standards/14 | 布局容器必须用 jh-drag-col/row | regex | error | 是 |
 | standards/14 | 多固定高度表格长工作台根容器必须拥有纵向滚动；递归识别本地共享 SCSS | **K20** | error | 是 |
+| standards/14 | Tabs + jh-drag + AG Grid 页面必须具备完整高度链；解析 SFC 与共享 SCSS | **K21** | error | 是 |
 | standards/04 | 禁止空 onClick | regex | error | 是 |
 | standards/04 | 单函数圈复杂度 ≤ 10（McCabe） | **K13** | error | 是 |
 | standards/09 | 文件类型错误零容忍（vue-tsc/tsc --noEmit） | **K14** | error | 是 |
@@ -94,7 +95,7 @@
 
 `scripts/lint-skills.js` 读取本文件，对标记「阻断」的行校验其执行器是否真实存在：
 
-- `K1~K20` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
+- `K1~K21` / `S1~S7` / `D1~D3` / 阻断级 `C1~C2` → 检查对应执行器中存在同名规则
 - `regex` → 不强校验（散落在 runValidate，人工维护）
 
 执行器缺失则 CI 报错，确保矩阵与代码不漂移。

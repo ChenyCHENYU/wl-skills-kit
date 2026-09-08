@@ -14,12 +14,12 @@
 - `standards/` 14 条模块化规范 + `skills/core/convention-audit`（偏差审计）
 - `skills/core/status-column-audit`（2.17.0+）：字典列纯文本 → 自动判色 Tag 的
   扫描/分级/自动转换全流程，桥接 wl-skills-ui `renderAutoTagByLabel`（≥1.10.0）
-- `lib/ast-rules.js` K1~K20（2.18.0 起 K 前缀，与 wl-skills-ui 的 R001~R040 解耦，
+- `lib/ast-rules.js` K1~K21（2.18.0 起 K 前缀，与 wl-skills-ui 的 R001~R040 解耦，
   旧 R 前缀豁免配置兼容）
 
 ## 规则编号速查
 
 | 前缀 | 归属 | 范围 | 说明 |
 |---|---|---|---|
-| `K1~K20` | wl-skills-kit | AST/流程/结构门禁 | 2.18.0 起；旧 `R*` 同号等价兼容 |
+| `K1~K21` | wl-skills-kit | AST/流程/结构门禁 | 2.18.0 起；旧 `R*` 同号等价兼容 |
 | `R001~R040` | wl-skills-ui | 模板/样式扫描 | `wl-scan` / `wl-ui` CLI 输出 |

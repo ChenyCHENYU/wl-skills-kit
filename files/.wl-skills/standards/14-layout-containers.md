@@ -114,7 +114,39 @@
 
 ---
 
-## 4. FAQ
+## 4. Tabs 分栏表格高度链（K21）
+
+`el-tabs` 内嵌 `jh-drag-row/col` 和 AG Grid 时，高度必须从页面根容器逐级传到表格。只给最外层 `min-height: calc(...)`，或只给表格本身 `height: 100%`，都无法建立可计算高度；最终会出现接口已有数据、分页总数正常，但 AG Grid 高度为 0、表头和行均不可见。
+
+K21 在以下条件同时成立时启用：页面包含 `el-tabs`、`jh-drag-row/col`，并包含 `render-type="agGrid"` 的 `BaseTable` 或 `SteelListPanel`。以下六段高度链缺任一级都会 error 阻断：
+
+1. 页面根容器：`height: 100%; min-height: 0; display: flex; flex-direction: column`；
+2. Tabs 静态 class：`min-height: 0; display: flex; flex: 1; flex-direction: column`；
+3. `.el-tabs__content`：`min-height: 0; flex: 1`；
+4. `.el-tab-pane`：`height: 100%; min-height: 0`；
+5. `jh-drag-*` 的直接父容器：`min-height: 0; flex: 1`；
+6. `.drager_row` / `.drager_col`：`height: 100%`。
+
+```vue
+<div class="app-container app-page-container split-grid-page">
+  <el-tabs class="split-grid-page__tabs">
+    <el-tab-pane>
+      <div class="split-grid-page__split">
+        <jh-drag-row :top-height="320">
+          <template #top><BaseTable render-type="agGrid" ... /></template>
+          <template #bottom><BaseTable render-type="agGrid" ... /></template>
+        </jh-drag-row>
+      </div>
+    </el-tab-pane>
+  </el-tabs>
+</div>
+```
+
+样式可放在 `index.scss`、Vue SFC `<style>`，或由它们以相对路径/`@/` 递归引入的共享 SCSS。`validate --pre-commit` 会反查共享样式影响的页面。特殊布局仅可用 `<!-- wl-skills:ignore K21 -->` 或项目级豁免，并必须记录原因。
+
+---
+
+## 5. FAQ
 
 **Q1：`jh-drag-col` 没有 `min-left-width` 怎么办？**
 内部默认 200~600 阈值已可用；如需自定义，传 `:minLeftWidth` / `:maxLeftWidth`（数值，单位 px）。
@@ -133,4 +165,5 @@
 
 ## 变更记录
 
+- 2026-09-08：新增 K21 Tabs 分栏表格高度链门禁，补齐 SFC style 与共享 SCSS 反查。
 - 2026-09-07：新增 K20 长工作台滚动所有权门禁，覆盖多固定高度表格被 `app-page-container` 裁切、共享 SCSS 引入和 pre-commit 样式变更反查。

@@ -97,6 +97,40 @@ function writeLongWorkbench(root, scss, indexVue = LONG_WORKBENCH_INDEX) {
   return pageDir;
 }
 
+const SPLIT_GRID_INDEX =
+  '<template>\n' +
+  '  <div class="app-container app-page-container split-grid-page">\n' +
+  '    <el-tabs class="split-grid-page__tabs">\n' +
+  '      <el-tab-pane>\n' +
+  '        <div class="split-grid-page__split">\n' +
+  '          <jh-drag-row :top-height="320">\n' +
+  '            <template #top><SteelListPanel /></template>\n' +
+  '            <template #bottom><SteelListPanel /></template>\n' +
+  '          </jh-drag-row>\n' +
+  '        </div>\n' +
+  '      </el-tab-pane>\n' +
+  '    </el-tabs>\n' +
+  '  </div>\n' +
+  '</template>\n' +
+  '<style scoped lang="scss">\n' +
+  '@import "@/components/layout/split-grid.scss";\n' +
+  '</style>\n';
+
+const SPLIT_GRID_STYLES =
+  '.split-grid-page { height: 100%; min-height: 0; display: flex; flex-direction: column; }\n' +
+  '.split-grid-page__tabs { min-height: 0; display: flex; flex: 1; flex-direction: column; }\n' +
+  '.split-grid-page__tabs :deep(.el-tabs__content) { min-height: 0; flex: 1; }\n' +
+  '.split-grid-page__tabs :deep(.el-tab-pane) { height: 100%; min-height: 0; }\n' +
+  '.split-grid-page__split { min-height: 0; flex: 1; }\n' +
+  '.split-grid-page__split :deep(.drager_row) { height: 100%; }\n';
+
+function writeSplitGrid(root, sharedStyles) {
+  writePage(root, "src/views/acme/split-grid", SPLIT_GRID_INDEX);
+  const sharedDir = path.join(root, "src/components/layout");
+  fs.mkdirSync(sharedDir, { recursive: true });
+  fs.writeFileSync(path.join(sharedDir, "split-grid.scss"), sharedStyles);
+}
+
 describe("validate end-to-end integration", () => {
   it("pre-commit 遇到纯文档变更时应跳过页面检测", () => {
     const root = makeProject();
@@ -581,6 +615,44 @@ describe("K20 长工作台滚动所有权", () => {
     const output = result.stdout + result.stderr;
     expect(result.status, output).not.toBe(0);
     expect(output).toMatch(/K20/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe("K21 Tabs 分栏表格高度链", () => {
+  it("阻断缺少高度传递的 Tabs + jh-drag + AG Grid 页面", () => {
+    const root = makeProject();
+    writeSplitGrid(root, ".split-grid-page { min-height: calc(100vh - 132px); }\n");
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toMatch(/K21/);
+    expect(output).toMatch(/height:100%/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("识别 SFC style 引入的共享 SCSS，完整高度链通过", () => {
+    const root = makeProject();
+    writeSplitGrid(root, SPLIT_GRID_STYLES);
+    const result = runValidate(root);
+    expect(result.stdout + result.stderr).not.toMatch(/K21/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit 能从 SFC 引入的共享 SCSS 反查高度链回退", () => {
+    const root = makeProject();
+    writeSplitGrid(root, SPLIT_GRID_STYLES);
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "."]).status).toBe(0);
+    expect(runGit(root, ["-c", "user.name=wl-skills", "-c", "user.email=wl-skills@example.com",
+      "commit", "-m", "baseline"]).status).toBe(0);
+    const sharedFile = path.join(root, "src/components/layout/split-grid.scss");
+    fs.writeFileSync(sharedFile, ".split-grid-page { min-height: calc(100vh - 132px); }\n");
+    expect(runGit(root, ["add", "src/components/layout/split-grid.scss"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toMatch(/K21/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });
