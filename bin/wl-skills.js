@@ -26,53 +26,102 @@ const path = require("path");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
-// ─── AST 规则引擎（v2.10.1+，语义级约束检测）──────────────────────────
-const {
-  runAstRules,
-  getStagedFiles,
-  getPageStyleFiles,
-  runTypeCheck,
-} = require("../lib/ast-rules");
+// ─── 重引擎按命令懒加载（v2.21.0）───────────────────────────────────────
+// --version / --help / check / clean / diff / export 等轻命令不再为全部
+// 引擎付加载成本；各命令入口调用对应 load*Engines() 完成绑定，调用点不变。
+let runAstRules, getStagedFiles, getPageStyleFiles, runTypeCheck;
+let alignPage, readPageSpec, normalizePageSpec;
+let validateContractAlignment, validateDictionaryReferences;
+let componentIssues, verifyScenarioRender;
+let runSafeFix;
+let applyStandardEnv, formatStandardEnvResult, planStandardEnv, scanStandardEnv, verifyStandardEnv;
+let resolveStandardEnvProfile;
+let DEFAULT_DELIVERY_PROFILE, buildStandaloneContract, compareApiContracts;
+let readApiContract, renderApiMarkdown, validateApiContract;
+let runComponentCommand;
+let buildPageBlueprint, readPageBlueprint, summarizeBlueprint, validatePageBlueprint, writePageBlueprint;
+let buildProjectSnapshot, searchBlueprints, diffBlueprintFiles, auditPageBlueprint;
+let buildEditorConfigs;
+let validateScenario, compileScenario, extractScenario, scenarioFromPageSpec;
 
-// ─── page-spec 比对引擎（v2.11.1+，"约定 vs 代码"确定性核对）────────────
-const { alignPage } = require("../lib/page-spec");
-const { validateContractAlignment } = require("../lib/dict-contract");
-const { validateDictionaryReferences } = require("../lib/dict-project");
+// validate / validate-page：AST + spec-align + 字典契约 + 组件目录 + W1 核对
+function loadValidateEngines() {
+  ({
+    runAstRules,
+    getStagedFiles,
+    getPageStyleFiles,
+    runTypeCheck,
+  } = require("../lib/ast-rules"));
+  ({ alignPage, readPageSpec } = require("../lib/page-spec"));
+  ({ validateContractAlignment } = require("../lib/dict-contract"));
+  ({ validateDictionaryReferences } = require("../lib/dict-project"));
+  ({ componentIssues } = require("../lib/component-catalog"));
+  ({ verifyScenarioRender } = require("../lib/scenario-compiler"));
+}
 
-// ─── 安全修复引擎（v2.11.1+，确定性机械修复 F1~F5）────────────────────────
-const { runSafeFix } = require("../lib/safe-fix");
-const {
-  applyStandardEnv,
-  formatStandardEnvResult,
-  planStandardEnv,
-  scanStandardEnv,
-  verifyStandardEnv,
-} = require("../lib/standard-env");
-const { resolveProfile: resolveStandardEnvProfile } = require("../lib/standard-env/profiles");
-const {
-  DEFAULT_PROFILE: DEFAULT_DELIVERY_PROFILE,
-  buildStandaloneContract,
-  compareApiContracts,
-  readApiContract,
-  renderApiMarkdown,
-  validateApiContract,
-} = require("../lib/api-contract");
-const { componentIssues } = require("../lib/component-catalog");
-const { runComponentCommand } = require("../lib/component-cli");
-const {
-  buildPageBlueprint,
-  readPageBlueprint,
-  summarizeBlueprint,
-  validatePageBlueprint,
-  writePageBlueprint,
-} = require("../lib/page-blueprint");
-const { buildProjectSnapshot } = require("../lib/project-snapshot");
-const {
-  searchBlueprints,
-  diffBlueprintFiles,
-} = require("../lib/blueprint-registry");
-const { auditPageBlueprint } = require("../lib/blueprint-audit");
-const { buildEditorConfigs } = require("../lib/editor-adapters");
+// init / update：编辑器适配（含 jsonc-parser 依赖链）
+function loadInstallEngines() {
+  ({ buildEditorConfigs } = require("../lib/editor-adapters"));
+}
+
+// fix：安全机械修复引擎
+function loadFixEngines() {
+  ({ runSafeFix } = require("../lib/safe-fix"));
+}
+
+// standard-env：五环境 Profile 迁移
+function loadStandardEnvEngines() {
+  ({
+    applyStandardEnv,
+    formatStandardEnvResult,
+    planStandardEnv,
+    scanStandardEnv,
+    verifyStandardEnv,
+  } = require("../lib/standard-env"));
+  ({ resolveProfile: resolveStandardEnvProfile } = require("../lib/standard-env/profiles"));
+}
+
+// contract：独立 API 契约
+function loadContractEngines() {
+  ({
+    DEFAULT_PROFILE: DEFAULT_DELIVERY_PROFILE,
+    buildStandaloneContract,
+    compareApiContracts,
+    readApiContract,
+    renderApiMarkdown,
+    validateApiContract,
+  } = require("../lib/api-contract"));
+}
+
+// component：标准业务组件
+function loadComponentEngines() {
+  ({ runComponentCommand } = require("../lib/component-cli"));
+}
+
+// template / snapshot：Blueprint 模板与项目快照
+function loadTemplateEngines() {
+  ({
+    buildPageBlueprint,
+    readPageBlueprint,
+    summarizeBlueprint,
+    validatePageBlueprint,
+    writePageBlueprint,
+  } = require("../lib/page-blueprint"));
+  ({ buildProjectSnapshot } = require("../lib/project-snapshot"));
+  ({ searchBlueprints, diffBlueprintFiles } = require("../lib/blueprint-registry"));
+  ({ auditPageBlueprint } = require("../lib/blueprint-audit"));
+}
+
+// scenario：确定性场景渲染五件套
+function loadScenarioEngines() {
+  ({ validateScenario } = require("../lib/scenario-template"));
+  ({ compileScenario, verifyScenarioRender } = require("../lib/scenario-compiler"));
+  ({ extractScenario } = require("../lib/scenario-extract"));
+  ({ scenarioFromPageSpec } = require("../lib/scenario-fromspec"));
+  ({ readPageSpec, normalizePageSpec } = require("../lib/page-spec"));
+}
+
+// ─── 轻量基础模块（多命令共用、体量小，保持即时加载）─────────────────────
 const { AST_RULE_RANGE } = require("../lib/rule-registry");
 const {
   desiredSharedProjectConfig,
@@ -84,13 +133,6 @@ const {
   isPathWithin,
   loadValidationConfig,
 } = require("../lib/validate-config");
-const {
-  validateScenario,
-} = require("../lib/scenario-template");
-const { compileScenario, verifyScenarioRender } = require("../lib/scenario-compiler");
-const { extractScenario } = require("../lib/scenario-extract");
-const { scenarioFromPageSpec } = require("../lib/scenario-fromspec");
-const { readPageSpec } = require("../lib/page-spec");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -835,6 +877,7 @@ function stopForInstallConflicts(conflicts) {
 }
 
 function runInstall(incremental) {
+  loadInstallEngines();
   const label = incremental ? "update" : "init";
   printInstallHeader(label);
   if (!fs.existsSync(FILES_DIR)) {
@@ -1660,21 +1703,24 @@ function appendAllPageIssues(issues, pages, mockFiles, mockContent, mockPolicy) 
 function appendSpecIssues(issues, pages) {
   let alignedPages = 0;
   const definitionSources = new Set();
+  const specsByDir = new Map();
   for (const page of pages) {
     const result = alignPage(path.join(TARGET_DIR, page.dir), page.dir, { strict });
     if (result.hasSpec) alignedPages++;
     if (result.definitionSource) definitionSources.add(result.definitionSource);
+    // 复用 alignPage 已读取的 spec，供 W1 漂移核对免于二次读盘
+    if (result.spec) specsByDir.set(page.dir, result.spec);
     issues.push(...result.issues);
   }
-  return { alignedPages, definitionSources };
+  return { alignedPages, definitionSources, specsByDir };
 }
 
 // ── scenario 防漂移 W1：page-spec.scenarioRef 指向事实源时自动逐字节核对 ──
-function appendScenarioDriftIssues(issues, pages) {
+function appendScenarioDriftIssues(issues, pages, specsByDir) {
   let verified = 0;
   for (const page of pages) {
     const absDir = path.join(TARGET_DIR, page.dir);
-    const { spec } = readPageSpec(absDir);
+    const spec = specsByDir ? specsByDir.get(page.dir) : null;
     const ref = spec && spec.scenarioRef;
     if (!ref) continue;
     verified++;
@@ -1954,6 +2000,7 @@ function handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPa
 
 function runValidate() {
   const scanPath = validationScanPath();
+  loadValidateEngines();
   const stagedSet = getValidationStagedSet();
   if (preCommit && stagedSet === undefined) return;
   const validationConfig = loadValidationConfig(TARGET_DIR);
@@ -2006,7 +2053,7 @@ function runValidate() {
   );
 
   // ── scenario 防漂移 W1（v2.19+）：scenarioRef 页面自动核对事实源 ──────
-  appendScenarioDriftIssues(issues, pages);
+  appendScenarioDriftIssues(issues, pages, specResult.specsByDir);
 
   // ── 类型检查 K14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
   // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
@@ -2450,6 +2497,7 @@ function isStandardEnvAction(action) {
 }
 
 function runStandardEnv() {
+  loadStandardEnvEngines();
   const action = positional[1] || "scan";
   if (!isStandardEnvAction(action)) {
     console.error("");
@@ -2482,6 +2530,7 @@ function runStandardEnv() {
 }
 
 function runFix() {
+  loadFixEngines();
   const scanPath =
     args.find((a) => !a.startsWith("-") && a !== command) || "src/views";
   console.log("");
@@ -2650,6 +2699,7 @@ function runContractAction(action, profile) {
 }
 
 function runContract() {
+  loadContractEngines();
   try {
     runContractAction(positional[1] || "profile", loadDeliveryProfile());
   } catch (error) {
@@ -2679,6 +2729,7 @@ function reportBlueprint(blueprint, extra = {}) {
 }
 
 function runTemplate() {
+  loadTemplateEngines();
   try {
     const { action } = { action: templateAction() };
     const inputPath = readOption("path", "src/views");
@@ -2748,6 +2799,7 @@ function runTemplateAudit(inputPath) {
 }
 
 function runSnapshot() {
+  loadTemplateEngines();
   try {
     const snapshot = buildProjectSnapshot(TARGET_DIR, {
       scanPath: readOption("path", "src/views"),
@@ -2780,6 +2832,7 @@ function requestedComponentNames() {
 }
 
 async function runComponent() {
+  loadComponentEngines();
   const result = await runComponentCommand({
     action: positional[1] || "check",
     projectRoot: TARGET_DIR,
@@ -2973,7 +3026,6 @@ function runScenarioFromSpec() {
   if (!input) throw new Error("scenario from-spec 缺少 --input <page-spec.json>");
   const abs = path.resolve(TARGET_DIR, input);
   if (!fs.existsSync(abs)) throw new Error(`page-spec 不存在：${input}`);
-  const { normalizePageSpec } = require("../lib/page-spec");
   const spec = normalizePageSpec(JSON.parse(fs.readFileSync(abs, "utf8")));
   const result = scenarioFromPageSpec(spec, {
     serviceShort: readOption("service"),
@@ -3013,6 +3065,7 @@ function reportScenarioVerify(result, pageDir) {
 }
 
 function runScenario() {
+  loadScenarioEngines();
   try {
     const actions = {
       validate: runScenarioValidate,

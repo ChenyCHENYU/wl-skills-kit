@@ -101,6 +101,13 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 
 生成后执行：
 
+**v2.21.0**：性能与安全加固——validate I/O 优化 + CLI 按命令懒加载。
+
+- **validate 提速**：K18 表单校验依赖探测按项目根缓存（此前每页重读 package.json，200 页项目每轮少约 400 次同步读盘）；W1 漂移核对复用 spec-align 已读的 page-spec，单页少一次读盘；AST 目录遍历改 `withFileTypes`，消除逐条目 `statSync`；扫描目标不存在时不再写缓存（修复残留目录）。
+- **CLI 启动瘦身**：AST / page-spec / scenario / 契约 / Blueprint / 标准环境等重引擎改为进入对应命令时才加载，`--version`、`check`、`clean`、`diff`、`export` 等轻命令零引擎成本；`api-contract` 默认 Profile 改为首次使用时读取。
+- **生产闸门扩展**：write-guard 识别 `prd`/`PRD` 环境名与网关变体（`api-prd.*` 不再漏判）；`wls_audit_report_push` 审计报告外发纳入同一生产阻断。
+- **口径门禁补全**：`version:verify` 同时校验 MCP Tool 数（registry ↔ README/描述）与编码规范条数（standards ↔ README/描述）；lint-staged 补覆盖 `mcp/`。
+
 **v2.20.4**：补齐 Tabs 分栏表格高度链门禁。
 
 - 新增 K21：同时使用 `el-tabs`、`jh-drag-row/col` 和 AG Grid 的页面，必须完整声明页面根容器、Tabs 内容、Tab Pane、分栏父容器及 drager 的 `height/min-height/flex` 高度链，缺任一级直接阻断。
@@ -818,7 +825,7 @@ wl-skills --version
 - `.wl-skills/contracts/wl-delivery-profile.v1.json`：查询方法、载荷位置、分页和交付口径；
 - `.wl-skills/skills/sync/env.local.json`：本地后端连接凭据，禁止提交；
 - 所有 apply/upsert/sync 类能力默认先预览；
-- 生产环境后端写入默认阻断；
+- 生产环境后端写入与审计报告外发默认阻断（`prd` 缩写环境同样命中，`allowProductionWrites` 显式审批可放行）；
 - `clean` 不删除 `src/components/`、`src/types/` 和项目维护的业务源码；
 - npm token 不应写入仓库、README、MCP 配置或项目 env 文件。
 

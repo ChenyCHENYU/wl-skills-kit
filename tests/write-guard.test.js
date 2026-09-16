@@ -19,4 +19,13 @@ describe("MCP backend write guard", () => {
       allowProductionWrites: true,
     })).toBe("");
   });
+
+  it("prd 缩写环境与网关同样命中生产阻断（v2.21.0 收紧）", () => {
+    expect(productionHint({ environment: "prd", gatewayPath: "https://gateway.internal" })).toBe(true);
+    expect(productionHint({ environment: "PRD", gatewayPath: "https://gateway.internal" })).toBe(true);
+    expect(productionHint({ environment: "uat", gatewayPath: "https://api-prd.internal/uac" })).toBe(true);
+    expect(writeBlockReason({ environment: "uat", gatewayPath: "https://api-prd.internal/uac" })).toMatch(/默认禁止/);
+    // 缩写不误伤：thunderbird-style 域名片段不得命中
+    expect(productionHint({ environment: "sit", gatewayPath: "https://replica-hyprd.example.com" })).toBe(false);
+  });
 });

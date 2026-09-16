@@ -111,13 +111,18 @@ describe("hasAstAvailable", () => {
 });
 
 describe("runAstRules 优雅降级", () => {
-  it("目录不存在时返回空结果", () => {
+  it("目录不存在时返回空结果，且不凭空创建缓存目录", () => {
+    const target = path.join(__dirname, "nonexistent-dir-xyz");
     const result = runAstRules(
-      path.join(__dirname, "nonexistent-dir-xyz"),
+      target,
       "src/views",
     );
     // 无论 AST 是否可用，不存在的目录不应该报错
     expect(result.pages).toBe(0);
+    // v2.21.0：扫描目标不存在时不得落缓存，避免凭空创建目录链
+    expect(
+      require("node:fs").existsSync(path.join(target, ".wl-skills-cache")),
+    ).toBe(false);
   });
 
   it("第二次扫描命中项目缓存，源码变化后只重扫页面", () => {

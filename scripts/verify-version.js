@@ -99,6 +99,34 @@ if (enabledCount === 0) {
   errors.push("_registry.md: 未解析到任何启用 Skill，可能正则失配");
 }
 
+// ─── MCP Tool 数量一致性检查（v2.21.0：README/description 对齐 registry）──
+
+function countMcpTools() {
+  try {
+    const registry = require(path.join(ROOT, "mcp", "registry.js"));
+    return Array.isArray(registry.TOOLS) ? registry.TOOLS.length : 0;
+  } catch (e) {
+    errors.push(`mcp/registry.js: 加载失败 - ${e.message}`);
+    return 0;
+  }
+}
+
+const mcpToolCount = countMcpTools();
+
+// ─── 编码规范条数一致性检查（v2.21.0：对齐 standards/*.md 实际数量）──────
+
+function countStandards() {
+  const dir = path.join(ROOT, "files", ".wl-skills", "standards");
+  try {
+    return fs.readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "index.md").length;
+  } catch (e) {
+    errors.push(`files/.wl-skills/standards: 读取失败 - ${e.message}`);
+    return 0;
+  }
+}
+
+const standardsCount = countStandards();
+
 const readmeContent = read("README.md");
 const skillCountMatches = readmeContent.match(/(\d+)\s*个 AI Skill/g) || [];
 if (skillCountMatches.length === 0) {
@@ -119,6 +147,42 @@ if (descSkillMatch && parseInt(descSkillMatch[1], 10) !== enabledCount) {
   errors.push(
     `package.json#description: '${descSkillMatch[0]}' 与 _registry.md ✅ 启用 (${enabledCount}) 不一致`,
   );
+}
+
+// README / description 中的 N 个 MCP Tool 与 registry 实际数量比对
+const mcpCountMatches = readmeContent.match(/(\d+)\s*个 MCP Tool/g) || [];
+for (const m of mcpCountMatches) {
+  const n = parseInt(m.match(/(\d+)/)[1], 10);
+  if (n !== mcpToolCount) {
+    errors.push(
+      `README.md: '${m}' 与 mcp/registry.js TOOLS (${mcpToolCount}) 不一致`,
+    );
+  }
+}
+const descMcpMatch = (PKG.description || "").match(/(\d+) 个 MCP Tool/);
+if (descMcpMatch && parseInt(descMcpMatch[1], 10) !== mcpToolCount) {
+  errors.push(
+    `package.json#description: '${descMcpMatch[0]}' 与 mcp/registry.js TOOLS (${mcpToolCount}) 不一致`,
+  );
+}
+
+// README / description / headers 中的 "N 条(编码)规范" 与 standards/*.md 数量比对
+const standardsMatches = readmeContent.match(/(\d+)\s*条(?:编码)?规范/g) || [];
+for (const m of standardsMatches) {
+  const n = parseInt(m.match(/(\d+)/)[1], 10);
+  if (n !== standardsCount) {
+    errors.push(
+      `README.md: '${m}' 与 standards/*.md 实际条数 (${standardsCount}) 不一致`,
+    );
+  }
+}
+if (standardsCount > 0) {
+  const descStdMatch = (PKG.description || "").match(/(\d+) 条(?:编码)?规范/);
+  if (descStdMatch && parseInt(descStdMatch[1], 10) !== standardsCount) {
+    errors.push(
+      `package.json#description: '${descStdMatch[0]}' 与 standards/*.md 实际条数 (${standardsCount}) 不一致`,
+    );
+  }
 }
 
 // headers/*.txt 中 "14 条标准 + N 个 Skill" 描述也校验
@@ -198,5 +262,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `[verify-version] ✔ v${VERSION} 在所有位置一致；启用 Skill 数 = ${enabledCount}；npm files 完整`,
+  `[verify-version] ✔ v${VERSION} 在所有位置一致；启用 Skill 数 = ${enabledCount}；MCP Tool 数 = ${mcpToolCount}；编码规范 = ${standardsCount} 条；npm files 完整`,
 );

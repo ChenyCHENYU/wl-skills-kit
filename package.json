@@ -99,6 +99,9 @@
     "lib/**/*.js": [
       "eslint --fix --no-cache"
     ],
+    "mcp/**/*.js": [
+      "eslint --fix --no-cache"
+    ],
     "scripts/**/*.js": [
       "eslint --fix --no-cache"
     ]

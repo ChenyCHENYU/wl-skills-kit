@@ -50,7 +50,7 @@
 | `wls_role_upsert` | 角色写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
 | `wls_role_assign_menus` | 授权写入 | R3 | 是 | 否 | 必须确认全量 menuIds，并同时传 `confirmFullReplace:true` 和预览 `planHash`；自动携带 domainId |
 | `wls_action_upsert` | 动作写入 | R3 | 是 | 否 | 默认预览；正式执行必须同时传 `confirmApply:true` 和预览 `planHash` |
-| `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 默认预览；确认推送报告和目标 webhook 后传 `confirmPush:true` |
+| `wls_audit_report_push` | 外部通知 | R4 | 可选 | 否 | 默认预览；确认后传 `confirmPush:true`；生产环境（含 prd 命名）默认阻断外发，需显式 `allowProductionWrites:true` 审批 |
 
 ---
 

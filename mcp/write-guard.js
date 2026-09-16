@@ -1,11 +1,15 @@
 "use strict";
 
+// 生产环境标识：显式环境名 + 网关 URL 启发式（prod/production/prd 变体）
+const PRODUCTION_ENVIRONMENT_NAMES = new Set(["prod", "prd", "production", "生产"]);
+const PRODUCTION_URL_PATTERN = /(^|[./_-])(?:prod(?:uction)?|prd)([./_:-]|$)/i;
+
 function productionHint(config = {}) {
   const environment = String(config.environment || "").trim().toLowerCase();
-  if (["prod", "production", "生产"].includes(environment)) return true;
+  if (PRODUCTION_ENVIRONMENT_NAMES.has(environment)) return true;
   try {
     const url = new URL(config.gatewayPath);
-    return /(^|[./_-])prod(?:uction)?([./_:-]|$)/i.test(`${url.hostname}${url.pathname}`);
+    return PRODUCTION_URL_PATTERN.test(`${url.hostname}${url.pathname}`);
   } catch {
     return false;
   }

@@ -1,5 +1,58 @@
 # Changelog
 
+## [Unreleased]
+
+## [2.21.0] - 2026-09-16
+
+### Added
+
+- `version:verify` 新增 MCP Tool 数量一致性门禁（README / package.json description ↔ `mcp/registry.js` TOOLS）与编码规范条数门禁（↔ `standards/*.md` 实际数量），计数漂移在发版前拦截；`sync-version` 移除陈旧回落值 19，registry 加载失败改为硬失败。
+- MCP `wls_audit_report_push` 纳入生产环境闸门：检测到生产环境（含 `prd` 变体）且未显式 `allowProductionWrites: true` 时阻断审计内容外发，与后端写工具共用 write-guard 语义。
+- write-guard 生产识别扩充：环境名 `prd`/`PRD` 与网关 URL `prd` 变体（如 `api-prd.internal`）不再漏判。
+
+### Changed
+
+- **CLI 重引擎按命令懒加载**：`validate` / `fix` / `contract` / `standard-env` / `component` / `template` / `snapshot` / `scenario` / `init` / `update` 进入对应命令时才装载 AST、page-spec、scenario、Blueprint 等引擎链；`--version` / `--help` / `check` / `clean` / `diff` / `export` / `mock-clean` / `doctor-ui` 等轻命令零引擎加载成本。
+- `lib/api-contract` 默认 Delivery Profile 改为首次使用时读取（保持 `DEFAULT_PROFILE` 导出兼容），require 本模块不再伴随同步磁盘 IO。
+- lint-staged 补覆盖 `mcp/**/*.js`（此前 MCP 层不进 pre-commit 检查）。
+
+### Fixed
+
+- **K18 逐页重复读盘**：表单校验依赖探测（项目 package.json + 安装版本）按项目根 memoize，N 页项目每轮 validate 少约 2N 次同步读盘。
+- **validate 每页 page-spec.json 双读**：`alignPage` 返回已读取的 spec（新增 `spec` 字段，增量兼容），W1 漂移核对直接复用，单页少一次读盘。
+- `ast-rules#walkDir` 改用 `readdirSync(withFileTypes)`，消除逐条目 `statSync` 系统调用；symlink 跟随语义与旧实现保持一致。
+- 扫描目标目录不存在时不再写 validate 缓存，修复 `tests/nonexistent-dir-xyz/.wl-skills-cache/` 残留目录（测试补充断言锁定）。
+
+## [2.19.1 ~ 2.20.4] - 2026-08-24 ~ 2026-09-16（补录定版）
+
+> 此前这些条目沉淀在 Unreleased 区未定版归档，随 2.21.0 一并补录；内容均已随 2.19.1 ~ 2.20.4 发布。
+
+### Fixed
+
+- 新增 K21 Tabs 分栏表格高度链门禁：`el-tabs + jh-drag-row/col + AG Grid` 页面缺少任一级 `height/min-height/flex` 传递时直接阻断，避免接口有数据但表格因零高度空白。
+- AST 样式分析补齐 Vue SFC `<style>` 及其递归 `@import/@use`；`validate --pre-commit` 可从 SFC 引入的共享 SCSS 反查受影响页面。
+- 修复项目交付 Profile 只在首次 `update --force` 保留、后续更新又被通用模板覆盖的状态丢失问题；现有项目 Profile 始终作为项目事实源保留，`diff` 也单独列入“本地保留”而不再误称“update 会覆盖”。
+- 新增 K20 长工作台滚动所有权门禁：当 `app-page-container` 内存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器缺少 `overflow:auto/scroll` 将阻断，防止工作区裁切后页面下部不可达。
+- K20 会递归解析 `index.scss` 的相对路径与 `@/` 本地共享 SCSS；validate 缓存纳入样式内容，`validate --pre-commit` 纳入 `.scss` 并可从仅暂存的共享样式反查受影响页面。
+- 菜单同步不再自动生成页面 `permission`，写入后自动回查当前用户权限树并报告不可见项；菜单更新改用 `PUT /system/menu/update`，避免误走新增接口。
+- 角色菜单授权自动解析并提交必填 `domainId`；可授权菜单接口异常时回退完整域菜单树。菜单计划哈希仅采集稳定结构字段，避免用户态字段和树顺序变化造成误报过期。
+
+- **scenario 渲染页面查询区单列堆叠修复**：编译器此前省略 `BaseQuery :columns`（忠实复刻 TPL），部分项目 BaseQuery 缺省时按单列渲染，导致查询字段垂直堆叠。现在所有 codegen 轨 pattern 的 BaseQuery 均显式发射 `:columns`（scenario 新增可选 `queryColumns` 字段，4~9，缺省 4；超出枚举校验阻断），提取器同步从 index.vue 的 BaseQuery 块回捞该字段保证往返定点；record-form 的 `:columns="3"`（超出文档枚举）同步修正。
+
+### Added
+
+- **wl-scenario 场景模板体系（JSON 事实源 + 双轨确定性渲染）**：领域场景的"结构 + 展示方式"以 `wl-scenario` JSON 呈现，实现由 kit 编译器确定性生成，AI 零自由度。新增 `contracts/wl-scenario-template.schema.json`（契约）、`templates/patterns.json`（模式注册表，9 种 pattern 双轨登记）、场景库 `templates/scenarios/`（universal/list + produce/workstation-record 种子）。runtime 轨（workstation）产出 definition.ts + 10 行薄壳，`features.definitionSource` 走既有委托链校验，渲染器由项目提供（`requires.renderer` 前置检查，缺失阻断并建议降级）。
+- **codegen 轨 pattern 全量实现（6 个）**：`list`、`master-detail`（jh-drag-row 上下分栏 + createBottomPage + 双击主行加载从表，v1 限单从表）、`tree-list`（jh-drag-col + C_Tree + loadTree + 树节点过滤，需 treeResource）、`record-form`（composable 无分页实绩页：主键查询回填 + c_spliterTitle 分区表单 + 明细表，需显式 getByKey/saveOrUpdate + features.responseMapping）、`form-route`（平铺分区变体 FLAT_DETAIL：路由 query.id 编辑 + 保存/取消 + 字段 ≥10 混合必填时自动发射 useFormRequiredOnly 只看必填切换）、`change-history`（双栏时间线 + useChangeHistory composable + loadDiffData 差异比对，需 requires.components[0] 业务 Tabs 组件，产物不依赖 cid）。发射器集中在 `lib/scenario-compiler.js` 与 `lib/scenario-emitters-extra.js`，与 v2.18.3 更新后的 universal TPL canonical 形态对齐（`.list-page__pager` 分页容器、操作列 width 140、`size="small"`）；非列表分页页面（record-form/form-route/change-history）的 page-spec 投影不含 query/columns（S1~S5 列表比对不适用，结构真值由 W1 字节级防漂移兜底）；分区表单经 `@wl-scenario-section` 标记、从表经 `@wl-scenario-subtable` 标记字节级往返。
+- **CLI `wl-skills scenario validate/render/extract/verify/from-spec`**：validate 结构校验（handler/extensions 禁 import/export 含动态、runtime 轨限标准动作防 eval、pattern 前置校验）；render 默认预览 `--confirm` 落盘并自动写入 `scenarioRef`；extract 从存量页面确定性提取（旧形态 `operations:` 写法 / 无 cid 页面兼容，产物 canonical 升级）；verify 重编译逐字节比对防漂移；from-spec 把 page-spec 零手写引导为 scenario JSON（业务 onClick 不猜测，TODO stub + notes 提示；未登记 mode 显式报错）。
+- **validate 内置 W1 防漂移**：遇带 scenarioRef 的 page-spec 自动重编译并逐字节核对——手改产物在提交/CI 阶段即被拦截；与 v2.18.4 的 validate 缓存共存（scenarioRef 页面不缓存跳过）。
+- **性能/算力量化基准（可复现）**：`scripts/benchmark-scenario.js`——单页 render 0.4~1ms（p95 < 2ms）、批量 20 页 ≈ 8ms、模型 token 恒为 0（对比 AI 主流程每页输入上下文 ≈ 1.9~2.0 万 token【SKILL+TPL+standards+references 仓库实测】+ 输出 ≈ 3.4~3.7 千 token）；Token 估算方法 disclosed（ASCII/4 + CJK×1.2）；`tests/scenario-benchmark.test.js` 锁定量级阈值。
+- **往返等价性机器证明**（`tests/scenario-roundtrip.test.js` 49 用例 + CLI/from-spec/benchmark 26 用例）：全部已实现 pattern `extract(render(doc))` 定点，`data.ts / index.vue / index.scss / page-spec.json` 字节级一致；extensions 逐字回捞；真实存量样例（sale/demo 内贸订单）提取保真 + 编译产物对同一 spec S1~S5+D3 零偏差。
+- `page-codegen` 新增确定性渲染前置层参考 `references/scenario-templates.md` 并注册进场景化规则表；`docs/scenario-template.md` 契约速览、`docs/page-spec-schema.md` 补 scenario 超集关系说明。
+
+### Changed
+
+- **template-extract 两阶段流水线口径**：与 v2.19.0 的 Page Blueprint 检索体系融合——检索发现阶段用 `wl-skills snapshot` / `template search`（低 token 蓝图），沉淀落盘阶段用 `wl-skills scenario extract`（wl-scenario JSON，唯一落盘产物口径）。文档链路同步：`copilot-instructions-full.md` 调度规则新增"确定性渲染优先 + 产物禁手改"强制约定；`_pipeline.md` 加确定性捷径分支；`templates/_index.md` 新增"确定性渲染状态"章节（含 TPL 退役判据）；`kit-internal/architecture.md` 新增 ADR-011；`kit-internal/rule-coverage.md` 登记 scenario 契约/W1 防漂移/往返/性能四行执行器；`guides/usage.md` 新增"确定性页面生成"章节；`_registry.md` template-extract 触发词补"提取场景"。
+
 ## [2.19.0] - 2026-08-24
 
 ### Added
@@ -44,34 +97,6 @@
 
 - **pre-commit 共享模块误报根治**：`validate --pre-commit` 遇到仅 staged `src/views` 下无 `index.vue` 目录（共享模块/definitions/运行时工具）的提交时，此前误报"未发现包含 index.vue 的页面目录"并以 exit 1 阻断（只能 `--no-verify` 绕过）。根因是"staged 相关性判定"（宽口径：位于 src/views 即相关）与"页面选择"（窄口径：仅页面目录内文件）不对称——相关性判定现与可选范围严格对齐（页面目录 / 页面契约 / definitionValidators 登记目录三者为可校验），不可校验的 staged 变更跳过页面检测并提示登记方式；全量 validate（pre-push/CI）语义不变。附 3 个端到端回归测试（仅共享跳过 / 混合 staged 正常校验页面 / 全量无页面仍报错）。
 - `docs/validate-exempt.md` 新增"共享模块 / 非页面代码"章节：默认跳过行为与 `definitionValidators` 深度校验登记两种方式的适用说明。
-
-## [Unreleased]
-
-### Fixed
-
-- 新增 K21 Tabs 分栏表格高度链门禁：`el-tabs + jh-drag-row/col + AG Grid` 页面缺少任一级 `height/min-height/flex` 传递时直接阻断，避免接口有数据但表格因零高度空白。
-- AST 样式分析补齐 Vue SFC `<style>` 及其递归 `@import/@use`；`validate --pre-commit` 可从 SFC 引入的共享 SCSS 反查受影响页面。
-- 修复项目交付 Profile 只在首次 `update --force` 保留、后续更新又被通用模板覆盖的状态丢失问题；现有项目 Profile 始终作为项目事实源保留，`diff` 也单独列入“本地保留”而不再误称“update 会覆盖”。
-- 新增 K20 长工作台滚动所有权门禁：当 `app-page-container` 内存在多个固定高度 `BaseTable` 且未使用 `jh-drag-row/col` 分栏时，根容器缺少 `overflow:auto/scroll` 将阻断，防止工作区裁切后页面下部不可达。
-- K20 会递归解析 `index.scss` 的相对路径与 `@/` 本地共享 SCSS；validate 缓存纳入样式内容，`validate --pre-commit` 纳入 `.scss` 并可从仅暂存的共享样式反查受影响页面。
-- 菜单同步不再自动生成页面 `permission`，写入后自动回查当前用户权限树并报告不可见项；菜单更新改用 `PUT /system/menu/update`，避免误走新增接口。
-- 角色菜单授权自动解析并提交必填 `domainId`；可授权菜单接口异常时回退完整域菜单树。菜单计划哈希仅采集稳定结构字段，避免用户态字段和树顺序变化造成误报过期。
-
-- **scenario 渲染页面查询区单列堆叠修复**：编译器此前省略 `BaseQuery :columns`（忠实复刻 TPL），部分项目 BaseQuery 缺省时按单列渲染，导致查询字段垂直堆叠。现在所有 codegen 轨 pattern 的 BaseQuery 均显式发射 `:columns`（scenario 新增可选 `queryColumns` 字段，4~9，缺省 4；超出枚举校验阻断），提取器同步从 index.vue 的 BaseQuery 块回捞该字段保证往返定点；record-form 的 `:columns="3"`（超出文档枚举）同步修正。
-
-### Added
-
-- **wl-scenario 场景模板体系（JSON 事实源 + 双轨确定性渲染）**：领域场景的"结构 + 展示方式"以 `wl-scenario` JSON 呈现，实现由 kit 编译器确定性生成，AI 零自由度。新增 `contracts/wl-scenario-template.schema.json`（契约）、`templates/patterns.json`（模式注册表，9 种 pattern 双轨登记）、场景库 `templates/scenarios/`（universal/list + produce/workstation-record 种子）。runtime 轨（workstation）产出 definition.ts + 10 行薄壳，`features.definitionSource` 走既有委托链校验，渲染器由项目提供（`requires.renderer` 前置检查，缺失阻断并建议降级）。
-- **codegen 轨 pattern 全量实现（6 个）**：`list`、`master-detail`（jh-drag-row 上下分栏 + createBottomPage + 双击主行加载从表，v1 限单从表）、`tree-list`（jh-drag-col + C_Tree + loadTree + 树节点过滤，需 treeResource）、`record-form`（composable 无分页实绩页：主键查询回填 + c_spliterTitle 分区表单 + 明细表，需显式 getByKey/saveOrUpdate + features.responseMapping）、`form-route`（平铺分区变体 FLAT_DETAIL：路由 query.id 编辑 + 保存/取消 + 字段 ≥10 混合必填时自动发射 useFormRequiredOnly 只看必填切换）、`change-history`（双栏时间线 + useChangeHistory composable + loadDiffData 差异比对，需 requires.components[0] 业务 Tabs 组件，产物不依赖 cid）。发射器集中在 `lib/scenario-compiler.js` 与 `lib/scenario-emitters-extra.js`，与 v2.18.3 更新后的 universal TPL canonical 形态对齐（`.list-page__pager` 分页容器、操作列 width 140、`size="small"`）；非列表分页页面（record-form/form-route/change-history）的 page-spec 投影不含 query/columns（S1~S5 列表比对不适用，结构真值由 W1 字节级防漂移兜底）；分区表单经 `@wl-scenario-section` 标记、从表经 `@wl-scenario-subtable` 标记字节级往返。
-- **CLI `wl-skills scenario validate/render/extract/verify/from-spec`**：validate 结构校验（handler/extensions 禁 import/export 含动态、runtime 轨限标准动作防 eval、pattern 前置校验）；render 默认预览 `--confirm` 落盘并自动写入 `scenarioRef`；extract 从存量页面确定性提取（旧形态 `operations:` 写法 / 无 cid 页面兼容，产物 canonical 升级）；verify 重编译逐字节比对防漂移；from-spec 把 page-spec 零手写引导为 scenario JSON（业务 onClick 不猜测，TODO stub + notes 提示；未登记 mode 显式报错）。
-- **validate 内置 W1 防漂移**：遇带 scenarioRef 的 page-spec 自动重编译并逐字节核对——手改产物在提交/CI 阶段即被拦截；与 v2.18.4 的 validate 缓存共存（scenarioRef 页面不缓存跳过）。
-- **性能/算力量化基准（可复现）**：`scripts/benchmark-scenario.js`——单页 render 0.4~1ms（p95 < 2ms）、批量 20 页 ≈ 8ms、模型 token 恒为 0（对比 AI 主流程每页输入上下文 ≈ 1.9~2.0 万 token【SKILL+TPL+standards+references 仓库实测】+ 输出 ≈ 3.4~3.7 千 token）；Token 估算方法 disclosed（ASCII/4 + CJK×1.2）；`tests/scenario-benchmark.test.js` 锁定量级阈值。
-- **往返等价性机器证明**（`tests/scenario-roundtrip.test.js` 49 用例 + CLI/from-spec/benchmark 26 用例）：全部已实现 pattern `extract(render(doc))` 定点，`data.ts / index.vue / index.scss / page-spec.json` 字节级一致；extensions 逐字回捞；真实存量样例（sale/demo 内贸订单）提取保真 + 编译产物对同一 spec S1~S5+D3 零偏差。
-- `page-codegen` 新增确定性渲染前置层参考 `references/scenario-templates.md` 并注册进场景化规则表；`docs/scenario-template.md` 契约速览、`docs/page-spec-schema.md` 补 scenario 超集关系说明。
-
-### Changed
-
-- **template-extract 两阶段流水线口径**：与 v2.19.0 的 Page Blueprint 检索体系融合——检索发现阶段用 `wl-skills snapshot` / `template search`（低 token 蓝图），沉淀落盘阶段用 `wl-skills scenario extract`（wl-scenario JSON，唯一落盘产物口径）。文档链路同步：`copilot-instructions-full.md` 调度规则新增"确定性渲染优先 + 产物禁手改"强制约定；`_pipeline.md` 加确定性捷径分支；`templates/_index.md` 新增"确定性渲染状态"章节（含 TPL 退役判据）；`kit-internal/architecture.md` 新增 ADR-011；`kit-internal/rule-coverage.md` 登记 scenario 契约/W1 防漂移/往返/性能四行执行器；`guides/usage.md` 新增"确定性页面生成"章节；`_registry.md` template-extract 触发词补"提取场景"。
 
 ## [2.18.1] - 2026-08-15
 

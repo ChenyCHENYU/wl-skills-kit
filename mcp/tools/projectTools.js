@@ -8,6 +8,7 @@ const { runAstRules, runTypeCheck } = require("../../lib/ast-rules");
 const { AST_RULE_RANGE } = require("../../lib/rule-registry");
 const { alignPage } = require("../../lib/page-spec");
 const { componentIssues } = require("../../lib/component-catalog");
+const { writeBlockReason } = require("../write-guard");
 
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -496,12 +497,18 @@ function postWebhook(webhook, payload) {
 
 async function handleAuditReportPush(args) {
   const root = getProjectRoot();
-  const webhook = configuredWebhook(root);
+  const env = readEnvLocal(root);
+  const webhook = httpsWebhookFrom(env);
   if (!webhook) {
     return "ℹ️ 未配置 env.local.json 的 feishu_webhook，已跳过审计报告推送";
   }
   if (!args || args.confirmPush !== true) {
     return "审计报告推送预览：已配置 HTTPS webhook，本次零推送。确认目标和报告后传 confirmPush: true。";
+  }
+  // v2.21.0：与后端写工具同款生产闸门——审计内容外发同样受环境阻断
+  const blockReason = writeBlockReason(env || {});
+  if (blockReason) {
+    return `⛔ 审计报告推送已阻断：${blockReason}`;
   }
   const report = findLatestAuditReport(root, args && args.reportPath);
   if (!report) return "⚠️ 未找到可推送的审计报告";
@@ -516,8 +523,7 @@ async function handleAuditReportPush(args) {
   return `✅ 审计报告已推送：${rel}`;
 }
 
-function configuredWebhook(root) {
-  const env = readEnvLocal(root);
+function httpsWebhookFrom(env) {
   const webhook = env && env.feishu_webhook;
   if (!webhook) return "";
   const value = String(webhook);
@@ -526,6 +532,10 @@ function configuredWebhook(root) {
   } catch {
     return "";
   }
+}
+
+function configuredWebhook(root) {
+  return httpsWebhookFrom(readEnvLocal(root));
 }
 
 module.exports = {

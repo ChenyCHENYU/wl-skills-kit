@@ -765,7 +765,7 @@ const DESCRIPTORS = [
   {
     name: "wls_audit_report_push",
     description:
-      "将最新审计报告推送到飞书机器人 HTTPS webhook。默认只预览，confirmPush: true 才推送；未配置时静默跳过。",
+      "将最新审计报告推送到飞书机器人 HTTPS webhook。默认只预览，confirmPush: true 才推送；未配置时静默跳过；检测到生产环境时默认阻断外发，需显式 allowProductionWrites 审批。",
     inputSchema: {
       type: "object",
       properties: {

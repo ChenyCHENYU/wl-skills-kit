@@ -2,6 +2,15 @@
 
 本文面向使用者记录能力演进和升级影响。逐提交、逐修复的完整列表见根目录 [CHANGELOG.md](../CHANGELOG.md)。
 
+## 2.21.0 — 性能与安全加固
+
+- validate 管线 I/O 提速：K18 表单依赖按项目缓存、page-spec 单次读取复用、目录遍历去 statSync；大项目全量 validate 明显更快。
+- CLI 按命令懒加载重引擎，`--version` / `check` / `clean` / `diff` / `export` 等轻命令启动不再加载 AST / scenario 等模块。
+- 生产闸门扩展：`prd`/`PRD` 环境与 `api-prd.*` 网关命中阻断；`wls_audit_report_push` 审计报告外发同样受生产环境阻断（显式 `allowProductionWrites: true` 可放行）。
+- 发版口径门禁补全：README 与发布描述中的 MCP Tool 数、编码规范条数纳入 `version:verify` 自动校验。
+
+升级建议：直接 `pnpm dlx @agile-team/wl-skills-kit@latest update`。无破坏性变更；若生产环境确需推送审计报告到飞书，在 env.local.json 显式设置 `allowProductionWrites: true` 并走审批。
+
 ## 2.20.x — 确定性页面治理与布局门禁
 
 - K20 阻断长工作台缺少页面级纵向滚动所有者，防止下部内容不可达。

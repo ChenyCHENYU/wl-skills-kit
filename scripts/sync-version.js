@@ -49,12 +49,12 @@ if (SKILL_COUNT === 0) {
 }
 // MCP Tool 数量：自动从 mcp/registry.js 取（v2.7.0+ 引入 auto-discovery）
 function countMcpTools() {
-  try {
-    const registry = require(path.join(ROOT, "mcp", "registry.js"));
-    return Array.isArray(registry.TOOLS) ? registry.TOOLS.length : 0;
-  } catch {
-    return 19; // 回落值（mcp/registry.js 不存在时）
+  const registry = require(path.join(ROOT, "mcp", "registry.js"));
+  if (!Array.isArray(registry.TOOLS) || registry.TOOLS.length === 0) {
+    console.error("[sync-version] 错误：mcp/registry.js 未暴露非空 TOOLS 数组。");
+    process.exit(1);
   }
+  return registry.TOOLS.length;
 }
 const MCP_TOOL_COUNT = countMcpTools();
 // ──────────────────────────────────────────────────────────────────────────────

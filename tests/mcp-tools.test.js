@@ -349,6 +349,37 @@ describe("projectTools path discovery", () => {
     }
   });
 
+  it("生产环境下 confirmPush 推送被环境闸门阻断，预览不受影响", async () => {
+    const root = makeTempRoot();
+    const previous = process.env.WL_PROJECT_ROOT;
+    try {
+      process.env.WL_PROJECT_ROOT = root;
+      const envDir = path.join(root, ".wl-skills", "skills", "sync");
+      fs.mkdirSync(envDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(envDir, "env.local.json"),
+        JSON.stringify({
+          environment: "production",
+          gatewayPath: "https://gateway.internal",
+          feishu_webhook: "https://example.com/hook",
+        }),
+        "utf8",
+      );
+
+      // 预览路径不触发闸门
+      const preview = await projectTools.handleAuditReportPush({});
+      expect(preview).toMatch(/预览/);
+
+      // confirmPush 后被与后端写工具同款的生产阻断拦截（零外发）
+      const blocked = await projectTools.handleAuditReportPush({ confirmPush: true });
+      expect(blocked).toMatch(/⛔.*默认禁止/);
+    } finally {
+      if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
+      else process.env.WL_PROJECT_ROOT = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("审计报告默认优先使用 .wl-skills/reports", () => {
     const root = makeTempRoot();
     try {

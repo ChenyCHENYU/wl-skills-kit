@@ -31,6 +31,30 @@
 > 按时间倒序。每条 ADR 记录"做了什么决策、为什么、影响面"。
 > 实施细节 / 当前状态参见上方"单一数据源"。
 
+### ADR-012（v2.21.0，2026-09-16）— 性能税清偿与闸门扩展
+
+**做了什么**：
+
+- CLI 重引擎（AST / page-spec / scenario / 契约 / Blueprint / 标准环境 / 组件）改为**按命令懒加载**：命令入口调用 `load*Engines()` 完成绑定，轻命令（`--version` / `check` / `clean` / `diff` / `export` 等）零引擎加载；`api-contract` 默认 Profile 从 require 期读盘改为首次使用时读取（`DEFAULT_PROFILE` 以 getter 保持导出兼容）。
+- validate 管线三处 I/O 修复：K18 表单依赖探测按项目根 memoize；W1 漂移核对复用 `alignPage` 已读 spec（alignPage 结果新增 `spec` 字段）；`walkDir` 改 `withFileTypes`；扫描目标不存在时不写 validate 缓存。
+- write-guard 生产识别补 `prd` 变体（环境名 + 网关 URL）；`wls_audit_report_push` 审计外发纳入同一生产闸门。
+- `verify-version` 补 MCP Tool 数与编码规范条数一致性门禁；`sync-version` 回落值 19 改硬失败；lint-staged 补 `mcp/**`；CHANGELOG 补录 2.19.1~2.20.4 沉淀条目并恢复 Unreleased 区惯例。
+
+**为什么**：
+
+- 实测（Windows）：CLI 冷启动约 0.5~0.9s，其中大半是 28 个顶层模块的全量加载——`--version` 也要付全部引擎成本；黑盒测试每条用例 spawn 多次 CLI，放大为整套 20+ 分钟与负载下的超时假失败。
+- K18 每页重读 package.json（200 页项目每轮 400 次同步读盘）与 page-spec 双读是纯重复 I/O；walkDir 是唯一残留 `statSync` 逐条目的遍历实现。
+- `api-prd.*` 命名的生产网关不命中旧 write-guard 正则；审计报告外发属"信息写出"语义，此前无任何环境闸门。
+- README 的 MCP/规范计数此前只在 `npm version` 时经 sync-version 写入，两次发版之间无漂移门禁。
+
+**影响面**：
+
+- 业务项目：无破坏性变更。命令行为与输出格式不变；生产环境（含 prd 命名）下 `wls_audit_report_push` 需显式 `allowProductionWrites: true` 才外发。
+- 维护者：新增命令处理器不再顶部 require 重引擎，改在命令入口调用 `load*Engines()`；`alignPage` 返回值新增字段为增量兼容。
+- 后续：bin 内 validate/install 管线下沉 lib、walk/readJson/hash 公共层收编（fs-utils）为下一轮候选项，见复查报告。
+
+---
+
 ### ADR-011（Unreleased）— wl-scenario 双轨确定性渲染：JSON 成为页面事实源
 
 **做了什么**：
