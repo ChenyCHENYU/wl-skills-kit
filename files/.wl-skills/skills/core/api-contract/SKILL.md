@@ -401,6 +401,8 @@ GET /[服务缩写]/[资源名]/export?[查询参数]
 9. 创建/更新模型的长度、格式、范围和精度必须来自确认过的需求、数据库或后端校验契约；生成 page-spec 和表单规则时保持同值
 10. 一个页面包含多个后端资源时，api.md 可包含多个 `wl-api-contract` 机器块；每个块的 `contractId + externalBasePath` 必须唯一，禁止用一份宽 DTO 代替多份资源契约
 11. 生成后必须通过 S6：page-spec 的 query/columns/formSections 只能引用对应模型字段，create 必填字段不得遗漏；`fixedQueryFields` 必须同时存在于 pageRequest/createRequest/updateRequest
+12. 业务去重与批量操作不得只写自然语言：去重字段、create/update 范围、有效数据、归一化与业务提示进入 page-spec `features.acceptance.uniqueness`；合并/统合进入 `batchOperations` 并固定 `selectionScope=selected-only`。查询验收至少声明正向、无命中、重置，同租户写后读用于排除公司上下文造成的假缺陷。
+13. 字段长度变更必须形成需求/API/前端/后端 DTO/数据库五方影响矩阵；数据库扩容完成不代表旧应用校验已放开，任何一层仍为旧长度都不得标记闭环。
 ````
 
 ---

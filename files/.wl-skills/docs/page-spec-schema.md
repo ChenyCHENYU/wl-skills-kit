@@ -52,6 +52,19 @@ src/views/[域]/[模块]/[页面]/
       "queryResetPage": true,
       "saveRefresh": "first",
       "deleteEmptyPageFallback": true
+    },
+    "acceptance": {
+      "queryControls": [
+        { "kind": "step-navigation", "field": "heatNo", "requireValue": true, "source": "requirement:炉号上下键" },
+        { "kind": "default-date-range", "startField": "startDate", "endField": "endDate", "startOffsetDays": -1, "endOffsetDays": 0, "source": "requirement:默认日期" }
+      ],
+      "uniqueness": [
+        { "fields": ["prepItem"], "operations": ["create", "update"], "activeOnly": true, "normalization": ["trim"], "message": "整备项目已存在，请勿重复添加", "source": "requirement:整备项目去重" }
+      ],
+      "batchOperations": [
+        { "operation": "mergeCast", "selectionScope": "selected-only", "minItems": 2, "sameFields": ["steelGrade", "productType"], "distinct": [{ "field": "castNo", "count": 2 }], "source": "requirement:浇次统合" }
+      ],
+      "verification": { "authContext": ["companyId"], "queryCases": ["positive", "negative", "reset"], "readAfterWrite": "same-tenant" }
     }
   },
   "validationRules": [
@@ -122,6 +135,7 @@ src/views/[域]/[模块]/[页面]/
 | `features.fixedQueryFields` | string[] | 条件必填 | 固定工厂/类型等上下文字段；查询、新增、更新必须同时携带 | S0 error |
 | `features.contextFields` | object[] | 推荐 | `client` 只进入显式 operations；`server` 必须由鉴权上下文注入且不得出现在请求模型 | S0/S6 error |
 | `features.listLifecycle` | object | 列表页推荐 | 首次查询、手动/自动触发、回第一页刷新、删除空页回退的显式契约 | S0 error |
+| `features.acceptance` | object | 有业务交互/去重/批量规则时必填 | 查询控件行为、业务去重、selected-only 批量门禁和租户验收矩阵；字段必须真实存在，技术化重复提示会阻断 | S0 error |
 | `validationRules` | object[] | 跨字段边界必填 | chronology 等规则必须与 wl-api-contract 完全一致，禁止前后端各猜一套 | S0/S6 error |
 | `features.definitionSource` | string | 集中定义必填 | 共享定义模块的项目相对路径；必须与 `data.ts` 的 `pageDefinition` import 一致 | S0 error |
 

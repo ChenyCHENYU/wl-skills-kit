@@ -2,6 +2,15 @@
 
 本文面向使用者记录能力演进和升级影响。逐提交、逐修复的完整列表见根目录 [CHANGELOG.md](../CHANGELOG.md)。
 
+## 2.22.0 — 业务生成防漏闭环
+
+- page-spec 可声明查询上下键、默认日期、长文本显示、真实业务去重规则和 selected-only 批量门禁；字段引用、来源和提示语由校验器阻断漂移。
+- 业务去重覆盖新增/修改、有效数据和更新排除自身，技术化唯一键提示不再通过契约。
+- acceptance 必须携带鉴权/租户上下文、查询 positive/negative/reset 三态和同租户写后回查，防止无公司账号或错误读路径制造伪缺陷。
+- 原型、详设、业务文档、API 契约和页面生成 Skill 使用同一套验收事实，并新增完整闭环手册与回归测试。
+
+升级建议：执行 `pnpm dlx @agile-team/wl-skills-kit@latest update`。存量 page-spec 不强制增加 acceptance；新需求一旦包含上述业务规则，就应结构化声明后再生成。
+
 ## 2.21.0 — 性能与安全加固
 
 - validate 管线 I/O 提速：K18 表单依赖按项目缓存、page-spec 单次读取复用、目录遍历去 statSync；大项目全量 validate 明显更快。

@@ -140,6 +140,7 @@ Step 9  自验证+报告  Parse Validation 五项检查 + 自动修复 + 解析�
 
 - **触发事件** → `notes[]`（写入哪张表、推送哪个模块），并辅助 Step 6 接口路径命名
 - **数据校验** → 字段 `required` / 校验规则补充
+- **交互与业务闭环** → 炉号/批次号上下键、默认日期、完整文字、业务去重、合并/统合规则必须结构化进入 `features.acceptance`；“所选记录”固定映射为 `selectionScope=selected-only`
 - 凡处理逻辑中标注 `【待确认：...】` → 原样保留进 `notes[]`，不得擅自填充
 
 ### 3.3 控件类型 → page-spec type 映射

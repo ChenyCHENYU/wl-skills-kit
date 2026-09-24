@@ -399,6 +399,8 @@ const [模块名]Module = gProd("[base-path]", {
 □ viewSwitch 为 true 时，是否为每个视角分别提取了 columns 数组？
 □ features.hiddenMenu 已正确标注？
 □ notes 中补充了无法结构化的特殊逻辑？
+□ 上下键/默认日期/长文本/业务去重/批量操作是否已进入 features.acceptance，而非只写 notes？
+□ 去重字段是否严格等于需求字段，批量规则是否明确 selected-only？
 ```
 
 ### 精度细节要求（必读）

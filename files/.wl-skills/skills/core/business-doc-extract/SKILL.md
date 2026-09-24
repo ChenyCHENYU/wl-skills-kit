@@ -136,7 +136,8 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
    - `field.md`
 4. 更新 `.wl-skills/docs/business/index.md`：补充模块行、状态、链接。
 5. 更新 `.wl-skills/docs/business/open-questions.md`：把模块 `requirement.md` 底部的待确认事项汇总到全局表，标注来源文件。
-6. 输出完成摘要 + `next_suggest`。
+6. 建立业务闭环矩阵：逐页核对查询条件、create/update 必填、业务唯一字段与归一化、批量选择范围、默认值、分页上限、软删/租户口径和可理解提示；将可确认事实写入 requirement/field，未确认项进入 open-questions。
+7. 输出完成摘要 + `next_suggest`。
 
 ### 6.2 增量更新
 

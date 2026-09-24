@@ -196,6 +196,7 @@ src/views/[域]/[模块]/dicts.ts
 40. **可序列化与可理解异常**：不得直接 `structuredClone` Vue Proxy/组件实例；使用项目验证过的 `cloneDeep/toRaw` 或显式 DTO 构造。不得把 `error.message` 原样弹给用户，优先后端业务 message，失败时给中文动作型兜底并记录技术日志。
 41. **大量表单快速填写闭环**：page-spec 中表单字段 ≥10 且混合必填/非必填时必须生成有效“全部/仅必填”切换。弹窗用 `show-required-toggle`，分区页面用 `show-required-filter`，页面 `BaseForm` 用 `useFormRequiredOnly + visibleItems`，多 Tab 页由父级传递受控状态且每个子表单真实过滤。禁止只生成开关或 prop 而未改变渲染 items；完整实现只读 `references/form-ui.md`。
 42. **按钮尺寸显式稳定**：生成的直接 `el-button` / `ElButton` 与 `BaseToolbar` 默认必须显式写 `size="small"`，避免项目 ConfigProvider 或部署环境默认值不同造成视觉漂移；原型或既有代码已明确设置 `default`、`large` 或动态 `:size` 时保留其业务意图，不得强改。
+43. **业务闭环契约必须落地**：需求出现上下键、默认日期、完整文字、去重、合并/统合或批量状态门禁时，必须先写入 `features.acceptance` 再生成。去重只使用业务确认字段且同时覆盖 create/update；提示使用业务对象名称。批量校验只能作用于选中记录（`selected-only`），不得扩大到同组未选数据。验收至少覆盖正向、无命中、重置和同租户写后读；完整清单见 `docs/business-closure-playbook.md`。
 
 ### 禁止事项（严格遵守）
 

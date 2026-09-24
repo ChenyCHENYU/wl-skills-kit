@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.21.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.22.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | 让 AI 理解项目 | 14 条规范、组件文档、项目扫描、Page Blueprint | 少猜项目结构，减少反复读取源码和上下文 token |
 | 从需求生成页面 | 原型/详设解析、API 契约、Vue 页面生成、Mock 策略 | 输入和产物有明确契约，生成结果更稳定 |
+| 防止业务规则漏实现 | `features.acceptance` 结构化去重、批量选择、查询交互与验收矩阵 | 不再依赖聊天记忆补齐真实业务键、默认值、上下键和读写回查 |
 | 阻止低质量代码进入仓库 | K1~K21 AST 规则、spec-align、类型检查、Git hooks | 生成后立即验证，错误在提交或 CI 前暴露 |
 | 整改存量项目 | 规范审计、安全机械修复、状态列审计、UI 接入诊断 | 区分可自动修复与需人工判断，降低批量改造风险 |
 | 沉淀领域模板 | snapshot、Blueprint extract/search/diff/audit | 模板以脱敏 JSON 保存，不复制整页业务代码 |
@@ -100,6 +101,14 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 
 生成后执行：
+
+**v2.22.0**：业务生成防漏闭环——把近期项目暴露的共性缺陷收敛为 page-spec 机器契约。
+
+- **业务去重可证明**：`features.acceptance.uniqueness` 必须声明真实业务字段、新增/修改范围、有效数据口径、trim/别名归一化、需求来源和直观提示；“业务唯一键”“constraint”等技术提示直接拒绝。
+- **批量操作不越界**：合并/统合类操作固定为 `selected-only`，并声明最少条数、一致字段和恰好 N 个不同分组，禁止把未选中的同组记录纳入校验。
+- **交互要求结构化**：炉号上下键、默认日期和长文本完整显示不再只留在截图或备注中；所有引用字段必须真实存在于 page-spec。
+- **验收不再只测成功路径**：存在 acceptance 时必须声明鉴权/租户身份、查询 positive/negative/reset 三态以及同租户写后回查。
+- **交付手册**：新增 [业务页面生成防漏闭环](docs/business-closure-playbook.md)，统一字段长度、软删除/分页 Profile、错误提示、受控测试数据和制品哈希口径。
 
 **v2.21.0**：性能与安全加固——validate I/O 优化 + CLI 按命令懒加载。
 
