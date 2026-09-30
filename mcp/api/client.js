@@ -100,7 +100,7 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
-function requestOnce(fullUrl, options, config, requestId, timeoutMs) {
+function requestOnce(fullUrl, options, config, requestId, timeoutMs, maxResponseBytes = 10 * 1024 * 1024) {
   let request
   try {
     request = buildRequest(fullUrl, options, config, requestId)
@@ -111,7 +111,20 @@ function requestOnce(fullUrl, options, config, requestId, timeoutMs) {
   return new Promise((resolve, reject) => {
     const req = request.lib.request(request.requestOptions, (res) => {
       let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      let receivedBytes = 0
+      res.on('data', (chunk) => {
+        receivedBytes += chunk.length
+        if (receivedBytes > maxResponseBytes) {
+          const error = new Error(`响应超过大小上限（${maxResponseBytes} bytes）`)
+          error.code = 'ERESPONSESIZE'
+          reject(error)
+          res.destroy()
+          req.destroy()
+          return
+        }
+        data += chunk
+      })
+      res.on('error', reject)
       res.on('end', () => resolve({ data, statusCode: res.statusCode || 0, headers: res.headers }))
     })
 
@@ -149,6 +162,10 @@ function retryDelayForResponse(response, fallback, attempt) {
   return retryDelayMilliseconds(response.headers && response.headers['retry-after'], fallback, attempt)
 }
 
+function shouldStopRetry(attempt, retries, error) {
+  return attempt >= retries || error.code === 'ERESPONSESIZE'
+}
+
 async function wlsFetch(urlPath, options, config) {
   const fullUrl = config.gatewayPath + urlPath
   const requestId = crypto.randomUUID()
@@ -156,19 +173,20 @@ async function wlsFetch(urlPath, options, config) {
   const method = String(requestOptions.method || 'GET').toUpperCase()
   const network = config.network || {}
   const timeoutMs = boundedInteger(network.timeoutMs, 15000, 1000, 60000)
+  const maxResponseBytes = boundedInteger(network.maxResponseBytes, 10 * 1024 * 1024, 1024, 50 * 1024 * 1024)
   const retries = method === 'GET' ? boundedInteger(network.getRetries, 2, 0, 3) : 0
   const retryDelayMs = boundedInteger(network.retryDelayMs, 200, 10, 2000)
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      const response = await requestOnce(fullUrl, requestOptions, config, requestId, timeoutMs)
+      const response = await requestOnce(fullUrl, requestOptions, config, requestId, timeoutMs, maxResponseBytes)
       if (attempt < retries && retryableStatus(response.statusCode)) {
         await wait(retryDelayForResponse(response, retryDelayMs, attempt))
         continue
       }
       return parseResponse(response.data, response.statusCode, requestId)
     } catch (error) {
-      if (attempt >= retries) throw error
+      if (shouldStopRetry(attempt, retries, error)) throw error
       await wait(Math.min(retryDelayMs * (2 ** attempt), 2000))
     }
   }

@@ -504,6 +504,18 @@ describe("validate end-to-end integration", () => {
 });
 
 describe("pre-commit 共享模块误报修复（2.18.2）", () => {
+  it("暂存文件另有未暂存改动时阻断，避免校验工作区而提交旧内容", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/partial", COMPLIANT_INDEX, COMPLIANT_DATA);
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "src/views/acme/partial/index.vue"]).status).toBe(0);
+    fs.writeFileSync(path.join(dir, "index.vue"), COMPLIANT_INDEX + "<!-- later change -->\n");
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).not.toBe(0);
+    expect(result.stdout + result.stderr).toMatch(/暂存文件仍有未暂存修改/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
   it("仅 staged src/views 下无 index.vue 的共享目录时应跳过而非阻断", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/existing", COMPLIANT_INDEX, COMPLIANT_DATA);

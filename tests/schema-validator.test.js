@@ -33,4 +33,11 @@ describe("MCP JSON Schema runtime validator", () => {
     );
     expect(result).toMatchObject({ valid: false });
   });
+
+  it("执行已声明的数值上下界", () => {
+    const schema = { type: "number", minimum: 0, maximum: 100 };
+    expect(validateSchema(schema, 50).valid).toBe(true);
+    expect(validateSchema(schema, -1).valid).toBe(false);
+    expect(validateSchema(schema, 200).valid).toBe(false);
+  });
 });

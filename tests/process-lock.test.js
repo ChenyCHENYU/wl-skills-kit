@@ -49,4 +49,16 @@ describe("cross-process file lock", () => {
     releaseFileLock(lock);
     expect(fs.existsSync(lock.lockPath)).toBe(false);
   });
+
+  it("持锁进程存活时即使锁文件超龄也不能被抢占", async () => {
+    const root = lockRoot();
+    const lock = await acquireFileLock("long-task", { lockRoot: root });
+    const old = new Date(Date.now() - 300000);
+    fs.utimesSync(lock.lockPath, old, old);
+    await expect(acquireFileLock("long-task", {
+      lockRoot: root, staleMs: 10, waitMs: 40, pollMs: 10,
+    })).rejects.toThrow(/写锁超时/);
+    expect(fs.existsSync(lock.lockPath)).toBe(true);
+    releaseFileLock(lock);
+  });
 });

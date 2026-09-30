@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.22.0
+ * wl-skills-kit CLI v2.22.1
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -29,7 +29,7 @@ const { spawnSync } = require("child_process");
 // ─── 重引擎按命令懒加载（v2.21.0）───────────────────────────────────────
 // --version / --help / check / clean / diff / export 等轻命令不再为全部
 // 引擎付加载成本；各命令入口调用对应 load*Engines() 完成绑定，调用点不变。
-let runAstRules, getStagedFiles, getPageStyleFiles, runTypeCheck;
+let runAstRules, getStagedFiles, getUnstagedFiles, getPageStyleFiles, runTypeCheck;
 let alignPage, readPageSpec, normalizePageSpec;
 let validateContractAlignment, validateDictionaryReferences;
 let componentIssues, verifyScenarioRender;
@@ -49,6 +49,7 @@ function loadValidateEngines() {
   ({
     runAstRules,
     getStagedFiles,
+    getUnstagedFiles,
     getPageStyleFiles,
     runTypeCheck,
   } = require("../lib/ast-rules"));
@@ -133,6 +134,7 @@ const {
   isPathWithin,
   loadValidationConfig,
 } = require("../lib/validate-config");
+const { isSafeManagedPath, resolveProjectPath } = require("../lib/project-path");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -219,6 +221,28 @@ const KNOWN_FLAGS = new Set([
   "--page-abbr",
   "--table-cid",
 ]);
+const VALUE_FLAGS = new Set([
+  "--domain", "--profile", "--profile-file", "--project-type", "--prod-prefix",
+  "--module-name", "--local-api", "--local-public", "--local-mode", "--local-routes",
+  "--input", "--output", "--left", "--right", "--service", "--resource",
+  "--module", "--contract-id", "--permission-prefix", "--entity", "--description",
+  "--external-id", "--source-mode", "--components", "--plan-hash", "--path",
+  "--scene", "--mode", "--component", "--min-quality", "--query", "--limit",
+  "--track", "--page", "--page-abbr", "--table-cid",
+]);
+
+function collectPositionals(cliArgs) {
+  const values = [];
+  for (let i = 0; i < cliArgs.length; i++) {
+    const arg = cliArgs[i];
+    if (!arg.startsWith("-")) {
+      values.push(arg);
+    } else if (VALUE_FLAGS.has(arg) && cliArgs[i + 1] && !cliArgs[i + 1].startsWith("-")) {
+      i++;
+    }
+  }
+  return values;
+}
 
 const dryRun = args.includes("--dry-run");
 const showHelp = args.includes("--help") || args.includes("-h");
@@ -267,7 +291,7 @@ if (!showHelp) {
   }
 }
 
-const positional = args.filter((a) => !a.startsWith("-"));
+const positional = collectPositionals(args);
 const command = positional[0] || "init";
 
 // 校验主命令是否已知（--help 时跳过；空命令默认 init）
@@ -404,6 +428,7 @@ function walkDir(dir, baseDir, fileList) {
     if (entry.isDirectory()) {
       walkDir(fullPath, baseDir, fileList);
     } else {
+      if (entry.isSymbolicLink()) fileList.hasSymlink = true;
       fileList.push(path.relative(baseDir, fullPath).replace(/\\/g, "/"));
     }
   }
@@ -468,11 +493,23 @@ function removeFileAndEmptyParents(filePath) {
 }
 
 /** 读取 manifest */
+function isValidManifest(manifest) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return false;
+  if (typeof manifest.version !== "string") return false;
+  if (!manifest.files || typeof manifest.files !== "object" || Array.isArray(manifest.files)) return false;
+  return Object.keys(manifest.files).every((file) => isSafeManagedPath(TARGET_DIR, file));
+}
+
 function readManifest() {
   if (fs.existsSync(MANIFEST_PATH)) {
     try {
-      return JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
-    } catch {
+      const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+      if (!isValidManifest(manifest)) {
+        throw new Error("manifest 结构或受管路径无效");
+      }
+      return manifest;
+    } catch (error) {
+      console.warn(`  ⚠ ${MANIFEST_NAME} 无效，已停止按旧清单操作：${error.message}`);
       return null;
     }
   }
@@ -1125,36 +1162,57 @@ function shouldKeepManagedFile(relPath) {
   );
 }
 
-function previewClean(toRemove, toKeep) {
+function isLocallyModifiedManagedFile(file, manifest) {
+  const fullPath = resolveProjectPath(TARGET_DIR, file);
+  if (!fs.existsSync(fullPath)) return false;
+  const installedHash = manifestInstalledHash(manifest, file);
+  return !installedHash || fileMd5(fullPath) !== installedHash;
+}
+
+function previewClean(toRemove, toKeep, manifest) {
   console.log("  将要删除（" + toRemove.length + " 个文件）:\n");
   for (const file of toRemove) {
-    const exists = fs.existsSync(path.join(TARGET_DIR, file));
-    console.log("  " + (exists ? "删除" : "跳过(不存在)") + "  " + file);
+    const exists = fs.existsSync(resolveProjectPath(TARGET_DIR, file));
+    const modified = exists && isLocallyModifiedManagedFile(file, manifest);
+    console.log("  " + (modified && !force ? "保留(本地修改)" : exists ? "删除" : "跳过(不存在)") + "  " + file);
   }
   console.log("\n  保留（" + toKeep.length + " 个文件）:\n");
   for (const file of toKeep) console.log("  保留  " + file);
 }
 
-function removeManagedFiles(toRemove) {
+function removeManagedFiles(toRemove, manifest) {
   let removed = 0;
   let skipped = 0;
+  let preserved = 0;
+  const preservedFiles = {};
   for (const file of toRemove) {
-    const fullPath = path.join(TARGET_DIR, file);
+    const fullPath = resolveProjectPath(TARGET_DIR, file);
     if (!fs.existsSync(fullPath)) {
       skipped++;
+      continue;
+    }
+    if (!force && isLocallyModifiedManagedFile(file, manifest)) {
+      console.log("  保留  " + file + "  (本地修改；如需删除请加 --force)");
+      preserved++;
+      preservedFiles[file] = manifest.files[file];
       continue;
     }
     removeFileAndEmptyParents(fullPath);
     removed++;
   }
-  if (fs.existsSync(MANIFEST_PATH)) fs.unlinkSync(MANIFEST_PATH);
-  return { removed, skipped };
+  if (preserved > 0) {
+    fs.writeFileSync(MANIFEST_PATH, JSON.stringify({ ...manifest, files: preservedFiles }, null, 2) + "\n");
+  } else if (fs.existsSync(MANIFEST_PATH)) {
+    fs.unlinkSync(MANIFEST_PATH);
+  }
+  return { removed, skipped, preserved };
 }
 
 function printCleanResult(result, kept) {
   console.log("  ✔ 清理完成!");
   console.log("    删除: " + result.removed + " 个文件");
   if (result.skipped > 0) console.log("    跳过: " + result.skipped + " 个（已不存在）");
+  if (result.preserved > 0) console.log("    保留本地修改: " + result.preserved + " 个文件");
   const suffix = keepReports
     ? "src/components/ + src/types/ + .wl-skills/reports/"
     : "src/components/ + src/types/";
@@ -1181,9 +1239,9 @@ function runClean() {
   const toKeep = allFiles.filter(shouldKeepManagedFile);
 
   if (dryRun) {
-    previewClean(toRemove, toKeep);
+    previewClean(toRemove, toKeep, manifest);
   } else {
-    printCleanResult(removeManagedFiles(toRemove), toKeep.length);
+    printCleanResult(removeManagedFiles(toRemove, manifest), toKeep.length);
   }
   console.log("");
 }
@@ -1453,10 +1511,10 @@ function inspectPageDirectory(dir, names) {
   };
 }
 
-function scanPageDirs(scanRel, validationConfig) {
-  const scanDir = path.join(TARGET_DIR, scanRel || "src/views");
+function scanPageDirs(scanRel, validationConfig, pageFiles) {
+  const scanDir = resolveProjectPath(TARGET_DIR, scanRel || "src/views", { allowRoot: true });
   if (!fs.existsSync(scanDir)) return [];
-  const dirs = groupFilesByDirectory(walkDir(scanDir, TARGET_DIR));
+  const dirs = groupFilesByDirectory(pageFiles || walkDir(scanDir, TARGET_DIR));
   const pages = [];
   for (const [dir, names] of dirs.entries()) {
     if (!names.has("index.vue")) continue;
@@ -1519,6 +1577,15 @@ function getValidationStagedSet() {
   if (!preCommit) return null;
   const staged = getStagedFiles(TARGET_DIR);
   if (staged.length > 0) {
+    const unstaged = new Set(getUnstagedFiles(TARGET_DIR));
+    const partiallyStaged = staged.filter((file) => unstaged.has(file));
+    if (partiallyStaged.length > 0) {
+      console.error("  ✖ 暂存文件仍有未暂存修改，工作区内容与本次提交不一致：");
+      for (const file of partiallyStaged) console.error("    - " + file);
+      console.error("  请先完成暂存或撤销未暂存修改，再执行提交前校验。\n");
+      process.exitCode = 1;
+      return undefined;
+    }
     return new Set(staged.map((file) => file.replace(/\\/g, "/")));
   }
   console.log("");
@@ -1872,7 +1939,7 @@ function appendDefinitionValidatorIssues(issues, definitionSources, validationCo
 
 function appendTypeCheckIssues(issues) {
   if (!typeCheck) return { ran: false, errors: 0 };
-  const result = runTypeCheck(TARGET_DIR);
+  const result = runTypeCheck(TARGET_DIR, { required: true });
   issues.push(...result.issues);
   return { ran: result.ran, errors: result.errorCount || 0 };
 }
@@ -1926,7 +1993,7 @@ function finishStrictValidation(errors, warns) {
 }
 
 function validationScanPath() {
-  return args.find((arg) => !arg.startsWith("-") && arg !== command) || "src/views";
+  return positional[1] || "src/views";
 }
 
 function printValidationHeader(scanPath) {
@@ -1937,9 +2004,9 @@ function printValidationHeader(scanPath) {
   console.log(`  扫描目录: ${scanPath}${scope}\n`);
 }
 
-function runValidationAst(issues, scanPath, stagedSet) {
+function runValidationAst(issues, scanPath, stagedSet, pageFiles) {
   const stagedFiles = preCommit && stagedSet ? Array.from(stagedSet) : undefined;
-  const result = runAstRules(TARGET_DIR, scanPath, { stagedFiles, strict });
+  const result = runAstRules(TARGET_DIR, scanPath, { stagedFiles, strict, pageFiles, requireAst: preCommit || strict });
   issues.push(...result.issues);
   return result;
 }
@@ -2004,7 +2071,9 @@ function runValidate() {
   const stagedSet = getValidationStagedSet();
   if (preCommit && stagedSet === undefined) return;
   const validationConfig = loadValidationConfig(TARGET_DIR);
-  const allPages = scanPageDirs(scanPath, validationConfig);
+  const scanDir = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
+  const pageFiles = fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
+  const allPages = scanPageDirs(scanPath, validationConfig, pageFiles);
   const pages = selectValidationPages(allPages, stagedSet, validationConfig);
 
   printValidationHeader(scanPath);
@@ -2040,7 +2109,7 @@ function runValidate() {
   // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
   // 补充正则无法覆盖的 AST 语义规则（K1~K21），与正则规则合并输出
   // 在 pre-commit 模式下复用上面已计算的 stagedSet
-  const astResult = runValidationAst(issues, scanPath, stagedSet);
+  const astResult = runValidationAst(issues, scanPath, stagedSet, pageFiles.hasSymlink ? undefined : pageFiles);
 
   // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
   // 页面目录存在 page-spec.json 时，比对 data.ts 实际实现与原型约定真值。
@@ -2354,23 +2423,28 @@ async function runExport() {
 // ─── mock-clean ──────────────────────────────────────────────────────────
 
 function mockCleanOptions() {
-  const domainArg = args.find((arg) => arg.startsWith("--domain"));
-  if (!domainArg) return { domain: "", cleanAll: args.includes("--all") };
-  const domain = domainArg.includes("=")
-    ? domainArg.split("=")[1]
-    : args[args.indexOf(domainArg) + 1] || "";
-  return { domain, cleanAll: args.includes("--all") };
+  return { domain: readOption("domain"), domainProvided: args.some((arg) => arg === "--domain" || arg.startsWith("--domain=")), cleanAll: args.includes("--all") };
+}
+
+function mockCleanOptionsError(options) {
+  if (options.cleanAll && options.domainProvided) return "--domain 与 --all 不能同时使用";
+  if (!options.domain && !options.cleanAll) return "请指定 --domain <name> 或 --all";
+  return "";
 }
 
 function mockCleanTargets(mockDir, options) {
   if (!options.cleanAll) {
-    const domainDir = path.join(mockDir, options.domain);
+    if (!options.domain || options.domain === "." || options.domain === ".."
+      || /[\\/:]/.test(options.domain)) {
+      throw new Error("--domain 必须是 mock/ 下的单个目录名");
+    }
+    const domainDir = resolveProjectPath(mockDir, options.domain);
     return fs.existsSync(domainDir) ? [domainDir] : [];
   }
   return fs
     .readdirSync(mockDir, { withFileTypes: true })
     .filter((entry) => !entry.name.startsWith("_"))
-    .map((entry) => path.join(mockDir, entry.name));
+    .map((entry) => resolveProjectPath(mockDir, entry.name));
 }
 
 function removeMockTargets(targets) {
@@ -2389,7 +2463,7 @@ function runMockClean() {
   console.log("  wl-skills-kit v" + PKG.version + "  [mock-clean]");
   console.log("");
 
-  const mockDir = path.join(TARGET_DIR, "mock");
+  const mockDir = resolveProjectPath(TARGET_DIR, "mock");
   if (!fs.existsSync(mockDir)) {
     console.log("  ⚠ mock/ 目录不存在，无需清理");
     console.log("");
@@ -2397,16 +2471,24 @@ function runMockClean() {
   }
 
   const options = mockCleanOptions();
-
-  if (!options.domain && !options.cleanAll) {
-    console.error("  ✖ 请指定 --domain <name> 或 --all");
+  const optionsError = mockCleanOptionsError(options);
+  if (optionsError) {
+    console.error("  ✖ " + optionsError);
     console.error("  示例: wl-skills mock-clean --domain mdata");
     console.error("        wl-skills mock-clean --all");
     console.error("");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  const toRemove = mockCleanTargets(mockDir, options);
+  let toRemove;
+  try {
+    toRemove = mockCleanTargets(mockDir, options);
+  } catch (error) {
+    console.error("  ✖ " + error.message);
+    process.exitCode = 1;
+    return;
+  }
   if (!options.cleanAll && toRemove.length === 0) {
     console.log(`  ⚠ mock/${options.domain}/ 不存在\n`);
     return;
@@ -2852,7 +2934,7 @@ async function runComponent() {
 function readScenarioInput() {
   const input = readOption("input") || positional[2];
   if (!input) throw new Error("scenario 缺少 --input <scenario.json>");
-  const abs = path.resolve(TARGET_DIR, input);
+  const abs = resolveProjectPath(TARGET_DIR, input);
   if (!fs.existsSync(abs)) throw new Error(`scenario 输入不存在：${input}`);
   return { abs, doc: JSON.parse(fs.readFileSync(abs, "utf8")) };
 }
@@ -2896,11 +2978,20 @@ function previewScenarioRender(files, output, track) {
 }
 
 function writeScenarioRender(files) {
-  for (const file of files) {
-    const abs = path.resolve(TARGET_DIR, file.name);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, file.content);
-    console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, abs).replace(/\\/g, "/")}`);
+  const planned = files.map((file) => ({ ...file, abs: resolveProjectPath(TARGET_DIR, file.name) }));
+  for (const file of planned) {
+    if (fs.existsSync(file.abs) && !force && fs.readFileSync(file.abs, "utf8") !== file.content) {
+      throw new Error(`输出已存在且内容不同：${file.name}；确认覆盖请加 --force`);
+    }
+  }
+  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  for (const file of planned) {
+    fs.mkdirSync(path.dirname(file.abs), { recursive: true });
+    if (fs.existsSync(file.abs) && fs.readFileSync(file.abs, "utf8") !== file.content) {
+      fs.copyFileSync(file.abs, `${file.abs}.bak.${stamp}-${crypto.randomUUID()}`, fs.constants.COPYFILE_EXCL);
+    }
+    fs.writeFileSync(file.abs, file.content);
+    console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, file.abs).replace(/\\/g, "/")}`);
   }
   console.log("  下一步：wl-skills validate-page 按既有 S/K 门禁复扫本页面");
 }
@@ -2917,6 +3008,7 @@ function runScenarioRender() {
   if (!reportScenarioValidation(doc)) return;
   const output = readOption("output") || doc.dir;
   if (!output) throw new Error("scenario render 需要 --output <dir> 或 scenario 声明 dir");
+  resolveProjectPath(TARGET_DIR, output);
   const ref = scenarioRefFor(output, readOption("input") || positional[2]);
   const result = compileScenarioOrReport(doc, ref);
   if (!result) return;
@@ -2958,7 +3050,7 @@ function checkRuntimeRendererPass(doc) {
 function runScenarioExtract() {
   const pageDir = readOption("page");
   if (!pageDir) throw new Error("scenario extract 缺少 --page <dir>");
-  const abs = path.resolve(TARGET_DIR, pageDir);
+  const abs = resolveProjectPath(TARGET_DIR, pageDir);
   const readIfExists = (name) => {
     const p = path.join(abs, name);
     return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
@@ -2979,7 +3071,8 @@ function runScenarioExtract() {
   const output = readOption("output");
   const json = JSON.stringify(doc, null, 2) + "\n";
   if (output && !dryRun) {
-    const absOut = path.resolve(TARGET_DIR, output);
+    const absOut = resolveProjectPath(TARGET_DIR, output);
+    if (fs.existsSync(absOut) && !force) throw new Error(`输出已存在：${output}；确认覆盖请加 --force`);
     fs.mkdirSync(path.dirname(absOut), { recursive: true });
     fs.writeFileSync(absOut, json);
     console.log(`  ✔ 已提取：${path.relative(TARGET_DIR, absOut).replace(/\\/g, "/")}`);
@@ -2997,10 +3090,11 @@ function runScenarioVerify() {
   const { doc } = readScenarioInput();
   const pageDir = readOption("page");
   if (!pageDir) throw new Error("scenario verify 缺少 --page <dir>");
+  resolveProjectPath(TARGET_DIR, pageDir);
   const ref = scenarioRefFor(pageDir, readOption("input") || positional[2]);
   const result = verifyScenarioRender(doc, {
     readFile: (name) => {
-      const abs = path.resolve(TARGET_DIR, pageDir, name);
+      const abs = resolveProjectPath(TARGET_DIR, path.resolve(TARGET_DIR, pageDir, name));
       return fs.existsSync(abs) ? fs.readFileSync(abs, "utf8") : null;
     },
   }, { scenarioRef: ref });
@@ -3008,7 +3102,8 @@ function runScenarioVerify() {
 }
 
 function writeFromSpecOutput(output, json) {
-  const absOut = path.resolve(TARGET_DIR, output);
+  const absOut = resolveProjectPath(TARGET_DIR, output);
+  if (fs.existsSync(absOut) && !force) throw new Error(`输出已存在：${output}；确认覆盖请加 --force`);
   fs.mkdirSync(path.dirname(absOut), { recursive: true });
   fs.writeFileSync(absOut, json);
   console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, absOut).replace(/\\/g, "/")}`);
@@ -3024,7 +3119,7 @@ function reportFromSpecErrors(errors) {
 function runScenarioFromSpec() {
   const input = readOption("input") || positional[2];
   if (!input) throw new Error("scenario from-spec 缺少 --input <page-spec.json>");
-  const abs = path.resolve(TARGET_DIR, input);
+  const abs = resolveProjectPath(TARGET_DIR, input);
   if (!fs.existsSync(abs)) throw new Error(`page-spec 不存在：${input}`);
   const spec = normalizePageSpec(JSON.parse(fs.readFileSync(abs, "utf8")));
   const result = scenarioFromPageSpec(spec, {

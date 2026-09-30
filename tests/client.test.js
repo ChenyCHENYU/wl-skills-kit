@@ -123,4 +123,15 @@ describe("MCP backend client", () => {
     expect(result.ok).toBe(false);
     expect(requests).toBe(1);
   });
+
+  it("响应超过配置上限时停止接收，避免长驻 MCP 进程无限占用内存", async () => {
+    const gatewayPath = await listen((_request, response) => {
+      response.end(JSON.stringify({ code: 2000, data: "x".repeat(2048) }));
+    });
+    await expect(wlsFetch("/large", {}, {
+      gatewayPath,
+      token: "token",
+      network: { getRetries: 0, maxResponseBytes: 1024 },
+    })).rejects.toThrow(/大小上限/);
+  });
 });

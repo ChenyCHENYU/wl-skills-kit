@@ -204,9 +204,9 @@ function addLocalPageIssues(root, pages, mockFiles, mockContent, issues) {
 }
 
 function addAstIssues(root, scanPath, issues) {
-  const result = runAstRules(root, scanPath);
+  const result = runAstRules(root, scanPath, { requireAst: true });
   if (result.astAvailable === false) {
-    issues.push([scanPath, "warn", `AST 引擎不可用，跳过语义级规则（${AST_RULE_RANGE}）`]);
+    issues.push([scanPath, "error", `AST 引擎不可用，无法执行语义级规则（${AST_RULE_RANGE}）`]);
     return;
   }
   for (const issue of result.issues) {
@@ -232,7 +232,7 @@ function addComponentIssues(root, scanPath, issues) {
 
 function addTypeCheckIssues(root, enabled, issues) {
   if (!enabled) return;
-  for (const issue of runTypeCheck(root).issues) {
+  for (const issue of runTypeCheck(root, { required: true }).issues) {
     issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
   }
 }

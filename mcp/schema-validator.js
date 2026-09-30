@@ -69,6 +69,16 @@ function validateArray(schema, value, path, errors) {
   }
 }
 
+function validateNumberBounds(schema, value, path, errors) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return;
+  if (typeof schema.minimum === "number" && value < schema.minimum) {
+    errors.push(`${path} 不能小于 ${schema.minimum}`);
+  }
+  if (typeof schema.maximum === "number" && value > schema.maximum) {
+    errors.push(`${path} 不能大于 ${schema.maximum}`);
+  }
+}
+
 function validateNode(schema, value, path, errors) {
   if (!schema || typeof schema !== "object") return;
   validateAnyOf(schema, value, path, errors);
@@ -76,6 +86,7 @@ function validateNode(schema, value, path, errors) {
   if (!validateType(schema, value, path, errors)) return;
   validateObject(schema, value, path, errors);
   validateArray(schema, value, path, errors);
+  validateNumberBounds(schema, value, path, errors);
 }
 
 function validateSchema(schema, value) {

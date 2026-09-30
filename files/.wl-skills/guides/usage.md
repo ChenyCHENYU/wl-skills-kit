@@ -161,6 +161,9 @@ wl-skills scenario from-spec --input <page-spec.json> --service sale --resource 
   --table-cid cust-0001 --output contracts/customer.scenario.json --confirm
 ```
 
+已有产物内容不同时，`render` 需加 `--force` 才能覆盖，旧文件会备份为 `.bak.<时间戳>`；
+`extract` 和 `from-spec` 覆盖已有输出也需加 `--force`。输入、输出路径须在当前项目内。
+
 收益（scripts/benchmark-scenario.js 实测，可重复执行）：同 JSON 永远得到同一份标准代码
 （字节级可复现）；单页 render ~0.5ms、批量 20 页 ~8ms；**模型 token 消耗 0**
 （对比 AI 主流程每页输入 ~2 万 + 输出 ~3.5 千 token）；review 对象从几百行代码缩小为

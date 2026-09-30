@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import path from "node:path";
@@ -7,6 +8,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SERVER = path.resolve(__dirname, "..", "mcp", "server.js");
+const require = createRequire(import.meta.url);
+const { dispatchTool, HANDLERS } = require("../mcp/server");
 const children = [];
 
 function startServer() {
@@ -39,6 +42,39 @@ afterEach(() => {
 });
 
 describe("MCP stdio server", () => {
+  it("同一项目的两个写工具调用按顺序执行", async () => {
+    const descriptor = HANDLERS.wls_standard_env_apply;
+    const original = descriptor.handle;
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const events = [];
+    let release;
+    let started;
+    const firstStarted = new Promise((resolve) => { started = resolve; });
+    const gate = new Promise((resolve) => { release = resolve; });
+    descriptor.handle = async () => {
+      events.push("start");
+      if (events.filter((item) => item === "start").length === 1) {
+        started();
+        await gate;
+      }
+      events.push("end");
+      return "ok";
+    };
+    try {
+      const first = dispatchTool(101, "wls_standard_env_apply", {});
+      await firstStarted;
+      const second = dispatchTool(102, "wls_standard_env_apply", {});
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(events).toEqual(["start"]);
+      release();
+      await Promise.all([first, second]);
+      expect(events).toEqual(["start", "end", "start", "end"]);
+    } finally {
+      descriptor.handle = original;
+      write.mockRestore();
+    }
+  });
+
   it("按客户端请求协商受支持协议版本", async () => {
     const server = startServer();
     const response = await server.call(1, "initialize", {

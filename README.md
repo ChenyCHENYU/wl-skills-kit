@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.22.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.22.1** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -537,6 +537,9 @@ wl-skills scenario from-spec --input page-spec.json --service sale --resource cu
   --output contracts/customer.scenario.json --confirm
 ```
 
+已有文件与新产物内容不同时，`render` 需加 `--force` 才会覆盖，并在原目录留下 `.bak.<时间戳>`；
+`extract` / `from-spec` 对已有输出文件也需加 `--force`。所有输入和输出路径须位于当前项目内。
+
 性能/算力（`node scripts/benchmark-scenario.js` 实测）：单页 render ~0.5ms、批量 20 页 ~8ms、
 **模型 token 0**（vs AI 主流程每页输入 ~2 万 + 输出 ~3.5 千 token）；同一 JSON 字节级复现，
 `tests/scenario-benchmark.test.js` 锁定量级承诺。防漂移：render 自动写入 `scenarioRef`，
@@ -798,7 +801,7 @@ AI 的权威路由表位于 `.wl-skills/skills/_registry.md`；团队成员可�
 | `standard-env` | scan、plan、apply、verify |
 | `mock-clean` | 按域或全量清理 Mock，保留 `_utils.ts` |
 | `export` | 将菜单、字典、权限报告导出为 xlsx |
-| `clean` | 清理开发期 AI 文件，保护业务源码和类型文件 |
+| `clean` | 清理开发期 AI 文件，保护业务源码和类型文件；本地修改的受管文件默认保留，`--force` 才删除 |
 
 查看全部参数：
 

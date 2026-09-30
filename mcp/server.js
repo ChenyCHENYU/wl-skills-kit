@@ -14,6 +14,8 @@
  */
 
 const readline = require("readline");
+const path = require("path");
+const { withFileLock } = require("../lib/process-lock");
 const { loadConfig } = require("./config");
 const { TOOLS, HANDLERS } = require("./registry");
 const { validateSchema } = require("./schema-validator");
@@ -25,6 +27,7 @@ const SUPPORTED_PROTOCOL_VERSIONS = [
   "2025-03-26",
   "2024-11-05",
 ];
+const WRITE_TOOLS = new Set(TOOLS.filter((tool) => tool.annotations.readOnlyHint === false).map((tool) => tool.name));
 
 // ─── JSON-RPC 协议层 ────────────────────────────────────────────────────
 
@@ -61,8 +64,26 @@ async function dispatchTool(id, toolName, toolArgs) {
     return;
   }
 
+  if (WRITE_TOOLS.has(toolName)) {
+    const { config } = configResult;
+    const scope = config
+      ? `${config.gatewayPath}|${config.sysAppNo || ""}`
+      : path.resolve(process.env.WL_PROJECT_ROOT || process.cwd());
+    try {
+      await withFileLock(`mcp-write:${scope}`, () => executeTool(id, desc, toolArgs, config), {
+        waitMs: 180000,
+      });
+    } catch (error) {
+      sendResult(id, { content: [{ type: "text", text: `❌ 写操作排队失败: ${error.message}` }], isError: true });
+    }
+    return;
+  }
+  await executeTool(id, desc, toolArgs, configResult.config);
+}
+
+async function executeTool(id, desc, toolArgs, config) {
   try {
-    const handlerResult = await desc.handle(toolArgs, configResult.config);
+    const handlerResult = await desc.handle(toolArgs, config);
     const normalized = typeof handlerResult === "string"
       ? { text: handlerResult }
       : handlerResult;
