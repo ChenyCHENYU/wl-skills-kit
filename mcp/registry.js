@@ -637,6 +637,8 @@ const DESCRIPTORS = [
           description:
             "是否额外执行 vue-tsc/tsc --noEmit 类型检查（K14，体积较大，CI 场景开启）",
         },
+        offset: { type: "integer", minimum: 0, description: "问题列表起点，默认 0" },
+        limit: { type: "integer", minimum: 1, maximum: 200, description: "本次最多返回的问题数，默认 40" },
       },
       required: [],
     },
@@ -651,7 +653,7 @@ const DESCRIPTORS = [
       type: "object",
       properties: {
         scanPath: { type: "string", description: "扫描路径，默认 src/views" },
-        limit: { type: "number", description: "最多返回页面数，默认 200，最大 1000" },
+        limit: { type: "number", description: "最多返回页面数，默认 40，最大 1000；可配合 scanPath 分批读取" },
       },
       required: [],
     },

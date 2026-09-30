@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.22.1
+ * wl-skills-kit CLI v2.22.2
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -25,6 +25,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
+const { writeScenarioFiles } = require("../lib/scenario-file-writer");
 
 // ─── 重引擎按命令懒加载（v2.21.0）───────────────────────────────────────
 // --version / --help / check / clean / diff / export 等轻命令不再为全部
@@ -135,6 +136,7 @@ const {
   loadValidationConfig,
 } = require("../lib/validate-config");
 const { isSafeManagedPath, resolveProjectPath } = require("../lib/project-path");
+const { collectMockEndpoints } = require("../lib/mock-endpoints");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const TARGET_DIR = process.cwd();
@@ -358,7 +360,7 @@ if (showHelp) {
     --page <dir>     scenario extract 目标页面目录
     --left/--right   contract compare 的前后端契约
     --confirm        contract init/render 确认写入；默认只预览
-    --json           contract 命令输出机器可读结果
+    --json           validate / contract / template / snapshot 等命令输出机器可读结果
     --components     component 指定组件，逗号分隔；省略时检查源码实际引用
     --plan-hash      component ensure 预览返回的计划哈希
     --path <dir>     template extract/validate 的页面或蓝图路径
@@ -1573,12 +1575,21 @@ function appendDictionaryContractIssues(issues, scanPath) {
   return files.length;
 }
 
+let validationUnstaged = new Set();
+
 function getValidationStagedSet() {
   if (!preCommit) return null;
-  const staged = getStagedFiles(TARGET_DIR);
+  let staged;
+  try {
+    staged = getStagedFiles(TARGET_DIR, { required: true });
+    validationUnstaged = new Set(getUnstagedFiles(TARGET_DIR, { required: true }));
+  } catch (error) {
+    console.error(`  ✖ ${error.message}\n`);
+    process.exitCode = 1;
+    return undefined;
+  }
   if (staged.length > 0) {
-    const unstaged = new Set(getUnstagedFiles(TARGET_DIR));
-    const partiallyStaged = staged.filter((file) => unstaged.has(file));
+    const partiallyStaged = staged.filter((file) => validationUnstaged.has(file));
     if (partiallyStaged.length > 0) {
       console.error("  ✖ 暂存文件仍有未暂存修改，工作区内容与本次提交不一致：");
       for (const file of partiallyStaged) console.error("    - " + file);
@@ -1595,23 +1606,53 @@ function getValidationStagedSet() {
   return undefined;
 }
 
+function rejectBrokenPageEntrypoints(stagedSet) {
+  if (!preCommit || !stagedSet) return false;
+  const remaining = ["data.ts", "index.scss", "api.md", "page-spec.json", "definition.ts"];
+  const broken = Array.from(stagedSet).filter((file) => {
+    if (!file.endsWith("/index.vue") || fs.existsSync(path.join(TARGET_DIR, file))) return false;
+    const dir = path.dirname(file);
+    return remaining.some((name) => fs.existsSync(path.join(TARGET_DIR, dir, name)));
+  });
+  if (broken.length === 0) return false;
+  console.error("  ✖ 暂存变更删除了页面入口 index.vue，但页面目录仍保留其他文件：");
+  for (const file of broken) console.error("    - " + file);
+  process.exitCode = 1;
+  return true;
+}
+
+function scenarioSourceForPage(page) {
+  const specPath = resolveProjectPath(TARGET_DIR, path.join(page.dir, "page-spec.json"));
+  if (!fs.existsSync(specPath)) return "";
+  try {
+    const spec = JSON.parse(fs.readFileSync(specPath, "utf8"));
+    if (typeof spec.scenarioRef !== "string" || !spec.scenarioRef) return "";
+    const source = resolveProjectPath(TARGET_DIR, path.resolve(path.dirname(specPath), spec.scenarioRef));
+    return path.relative(TARGET_DIR, source).replace(/\\/g, "/");
+  } catch {
+    return "";
+  }
+}
+
 function stagedTouchesPage(stagedFiles, page) {
   if (stagedFiles.some((file) => isPathWithin(file, page.dir))) return true;
+  const scenarioSource = scenarioSourceForPage(page);
+  if (scenarioSource && stagedFiles.includes(scenarioSource)) return true;
   const pageStyles = new Set(getPageStyleFiles(TARGET_DIR, page.dir));
   return stagedFiles.some((file) => pageStyles.has(file));
+}
+
+function globallyRelevantStaged(stagedFiles, validationConfig) {
+  if (stagedFiles.some((file) => file === ".wl-skills-validate.json"
+    || file.endsWith("/dicts.ts") || file.endsWith("/api.md"))) return true;
+  return Array.from(validationConfig.definitionValidators.keys()).some((source) =>
+    stagedFiles.some((file) => isPathWithin(file, source)));
 }
 
 function selectValidationPages(allPages, stagedSet, validationConfig) {
   if (!preCommit || !stagedSet) return allPages;
   const stagedFiles = Array.from(stagedSet);
-  const contractStaged = stagedFiles.some(
-    (file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"),
-  );
-  if (contractStaged) return allPages;
-  const definitionStaged = Array.from(validationConfig.definitionValidators.keys()).some(
-    (source) => stagedFiles.some((file) => isPathWithin(file, source)),
-  );
-  if (definitionStaged) return allPages;
+  if (globallyRelevantStaged(stagedFiles, validationConfig)) return allPages;
   return allPages.filter((page) => stagedTouchesPage(stagedFiles, page));
 }
 
@@ -1628,15 +1669,28 @@ function selectValidationPages(allPages, stagedSet, validationConfig) {
 function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig, allPages) {
   if (!stagedSet) return true;
   const stagedFiles = Array.from(stagedSet);
-  if (stagedFiles.some((file) => file.endsWith("/dicts.ts") || file.endsWith("/api.md"))) {
-    return true;
-  }
-  if (Array.from(validationConfig.definitionValidators.keys()).some((source) =>
-    stagedFiles.some((file) => isPathWithin(file, source)),
-  )) {
-    return true;
-  }
+  if (globallyRelevantStaged(stagedFiles, validationConfig)) return true;
   return allPages.some((page) => stagedTouchesPage(stagedFiles, page));
+}
+
+function rejectDirtyValidationInputs(pages, validationConfig) {
+  if (!preCommit || validationUnstaged.size === 0 || pages.length === 0) return false;
+  const dependencies = new Set([".wl-skills-validate.json", "package.json"]);
+  for (const page of pages) {
+    const source = scenarioSourceForPage(page);
+    if (source) dependencies.add(source);
+    for (const style of getPageStyleFiles(TARGET_DIR, page.dir)) dependencies.add(style);
+  }
+  const dirty = Array.from(validationUnstaged).filter((file) => {
+    if (dependencies.has(file)) return true;
+    if (validationConfig.mockPolicy !== "disabled" && isPathWithin(file, "mock")) return true;
+    return pages.some((page) => isPathWithin(file, page.dir));
+  });
+  if (dirty.length === 0) return false;
+  console.error("  ✖ 本次校验会读取未暂存或未跟踪的文件，结果与提交内容不一致：");
+  for (const file of dirty) console.error("    - " + file);
+  process.exitCode = 1;
+  return true;
 }
 
 function appendMockArchitectureIssues(issues, mockFiles, mockPolicy) {
@@ -1725,16 +1779,16 @@ function appendPageBehaviorIssues(issues, page) {
   }
 }
 
-function pageHasMockEndpoint(page, mockContent) {
+function pageHasMockEndpoint(page, mockEndpoints) {
   return page.apiUrls
     .filter((item) => item.startsWith("/"))
-    .some((url) => mockContent.includes(`/dev-api${url}`));
+    .some((url) => mockEndpoints.has(`/dev-api${url.split("?")[0]}`));
 }
 
-function appendMockEndpointIssues(issues, page, mockContent, required) {
+function appendMockEndpointIssues(issues, page, mockEndpoints, required) {
   for (const url of page.apiUrls.filter((item) => item.startsWith("/"))) {
-    const mockUrl = `/dev-api${url}`;
-    if (!mockContent || mockContent.includes(mockUrl)) continue;
+    const mockUrl = `/dev-api${url.split("?")[0]}`;
+    if (mockEndpoints.has(mockUrl)) continue;
     issues.push({
       level: required ? "error" : "warn",
       dir: page.dir,
@@ -1743,7 +1797,7 @@ function appendMockEndpointIssues(issues, page, mockContent, required) {
   }
 }
 
-function appendPageMockIssues(issues, page, mockFiles, mockContent, mockPolicy) {
+function appendPageMockIssues(issues, page, mockFiles, mockEndpoints, mockPolicy) {
   if (mockPolicy === "disabled") return;
   if (page.apiConfigCount === 0) return;
   const required = mockPolicy === "required";
@@ -1754,16 +1808,16 @@ function appendPageMockIssues(issues, page, mockFiles, mockContent, mockPolicy) 
     return;
   }
   // optional 只校验已显式接入 mock 的页面，避免部分 mock 项目被误判为必须全量 mock。
-  if (!required && !pageHasMockEndpoint(page, mockContent)) return;
-  appendMockEndpointIssues(issues, page, mockContent, required);
+  if (!required && !pageHasMockEndpoint(page, mockEndpoints)) return;
+  appendMockEndpointIssues(issues, page, mockEndpoints, required);
 }
 
-function appendAllPageIssues(issues, pages, mockFiles, mockContent, mockPolicy) {
+function appendAllPageIssues(issues, pages, mockFiles, mockEndpoints, mockPolicy) {
   for (const page of pages) {
     appendPageFileIssues(issues, page);
     appendPageTableIssues(issues, page);
     appendPageBehaviorIssues(issues, page);
-    appendPageMockIssues(issues, page, mockFiles, mockContent, mockPolicy);
+    appendPageMockIssues(issues, page, mockFiles, mockEndpoints, mockPolicy);
   }
 }
 
@@ -1783,6 +1837,36 @@ function appendSpecIssues(issues, pages) {
 }
 
 // ── scenario 防漂移 W1：page-spec.scenarioRef 指向事实源时自动逐字节核对 ──
+function loadScenarioForDrift(absDir, ref, page, issues) {
+  try {
+    const scenarioAbs = resolveProjectPath(TARGET_DIR, path.resolve(absDir, ref));
+    if (!fs.existsSync(scenarioAbs)) {
+      issues.push({ level: "error", dir: page.dir, rule: "W1",
+        text: `page-spec.scenarioRef 指向的 scenario JSON 不存在：${ref}` });
+      return null;
+    }
+    return JSON.parse(fs.readFileSync(scenarioAbs, "utf8"));
+  } catch (error) {
+    issues.push({ level: "error", dir: page.dir, rule: "W1",
+      text: `scenario JSON 读取或解析失败（${ref}）：${error.message}` });
+    return null;
+  }
+}
+
+function verifyScenarioForDrift(doc, absDir, ref, page, issues) {
+  try {
+    return verifyScenarioRender(doc, {
+      readFile: (name) => {
+        const target = resolveProjectPath(TARGET_DIR, path.join(absDir, name));
+        return fs.existsSync(target) ? fs.readFileSync(target, "utf8") : null;
+      },
+    }, { scenarioRef: ref });
+  } catch (error) {
+    issues.push({ level: "error", dir: page.dir, rule: "W1", text: `scenario 渲染核对失败：${error.message}` });
+    return null;
+  }
+}
+
 function appendScenarioDriftIssues(issues, pages, specsByDir) {
   let verified = 0;
   for (const page of pages) {
@@ -1791,34 +1875,10 @@ function appendScenarioDriftIssues(issues, pages, specsByDir) {
     const ref = spec && spec.scenarioRef;
     if (!ref) continue;
     verified++;
-    const scenarioAbs = path.resolve(absDir, ref);
-    if (!fs.existsSync(scenarioAbs)) {
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        rule: "W1",
-        text: `page-spec.scenarioRef 指向的 scenario JSON 不存在：${ref}`,
-      });
-      continue;
-    }
-    let doc;
-    try {
-      doc = JSON.parse(fs.readFileSync(scenarioAbs, "utf8"));
-    } catch (e) {
-      issues.push({
-        level: "error",
-        dir: page.dir,
-        rule: "W1",
-        text: `scenario JSON 解析失败（${ref}）：${e.message}`,
-      });
-      continue;
-    }
-    const result = verifyScenarioRender(doc, {
-      readFile: (name) => {
-        const target = path.join(absDir, name);
-        return fs.existsSync(target) ? fs.readFileSync(target, "utf8") : null;
-      },
-    }, { scenarioRef: ref });
+    const doc = loadScenarioForDrift(absDir, ref, page, issues);
+    if (!doc) continue;
+    const result = verifyScenarioForDrift(doc, absDir, ref, page, issues);
+    if (!result) continue;
     for (const error of result.errors) {
       issues.push({ level: "error", dir: page.dir, rule: "W1", text: error });
     }
@@ -2065,90 +2125,95 @@ function handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPa
   return true;
 }
 
-function runValidate() {
-  const scanPath = validationScanPath();
-  loadValidateEngines();
-  const stagedSet = getValidationStagedSet();
-  if (preCommit && stagedSet === undefined) return;
-  const validationConfig = loadValidationConfig(TARGET_DIR);
-  const scanDir = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
-  const pageFiles = fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
-  const allPages = scanPageDirs(scanPath, validationConfig, pageFiles);
-  const pages = selectValidationPages(allPages, stagedSet, validationConfig);
-
-  printValidationHeader(scanPath);
-
-  if (pages.length === 0) {
-    handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPages);
-    return;
-  }
-
+function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig) {
   const issues = [];
-  const mockFiles = findMockFiles();
-  const mockContent = mockFiles
-    .map((rel) => fs.readFileSync(path.join(TARGET_DIR, rel), "utf8"))
-    .join("\n");
-
+  const mockFiles = validationConfig.mockPolicy === "disabled" ? [] : findMockFiles();
+  const mockEndpoints = collectMockEndpoints(TARGET_DIR, mockFiles);
   for (const warning of validationConfig.warnings) {
     issues.push({ level: "warn", dir: ".wl-skills-validate.json", text: warning });
   }
   appendMockArchitectureIssues(issues, mockFiles, validationConfig.mockPolicy);
-  appendAllPageIssues(issues, pages, mockFiles, mockContent, validationConfig.mockPolicy);
+  appendAllPageIssues(issues, pages, mockFiles, mockEndpoints, validationConfig.mockPolicy);
 
-  // ── 标准业务组件 C1~C4：引用、落盘锁、更新与项目实现优先级 ───────────
   const componentResult = componentIssues({
     projectRoot: TARGET_DIR,
     scanPath,
     sourceFiles: preCommit && stagedSet ? Array.from(stagedSet) : undefined,
   });
   issues.push(...componentResult.issues);
-
-  // ── 模块字典契约 D1：api.md dict-contract → dicts.ts 汇总一致性 ─────
   const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
-
-  // ── AST 语义级规则检测（v2.10.1+）─────────────────────────────────
-  // 补充正则无法覆盖的 AST 语义规则（K1~K21），与正则规则合并输出
-  // 在 pre-commit 模式下复用上面已计算的 stagedSet
   const astResult = runValidationAst(issues, scanPath, stagedSet, pageFiles.hasSymlink ? undefined : pageFiles);
-
-  // ── page-spec 比对（v2.11.1+，"约定 vs 代码"确定性核对 S1~S5）───────
-  // 页面目录存在 page-spec.json 时，比对 data.ts 实际实现与原型约定真值。
-  // 无 page-spec.json 的页面静默跳过，不影响其他检查。
   const specResult = appendSpecIssues(issues, pages);
   const definitionValidators = appendDefinitionValidatorIssues(
-    issues,
-    specResult.definitionSources,
-    validationConfig,
+    issues, specResult.definitionSources, validationConfig,
   );
-
-  // ── scenario 防漂移 W1（v2.19+）：scenarioRef 页面自动核对事实源 ──────
   appendScenarioDriftIssues(issues, pages, specResult.specsByDir);
-
-  // ── 类型检查 K14（v2.11.2+，vue-tsc/tsc 委托，仅 --typecheck 触发）───
-  // 体积较大（整项目编译），validate 默认不跑；pre-commit 不建议开启，CI 必跑。
-  // 无 tsconfig / 无 checker → 优雅降级为 warn，不阻断。
   const typeCheckResult = appendTypeCheckIssues(issues);
+  return {
+    issues,
+    summary: {
+      pages: pages.length,
+      astPages: astResult.pages,
+      astCacheHits: astResult.cacheHits,
+      astCacheMisses: astResult.cacheMisses,
+      specPages: specResult.alignedPages,
+      dictContracts: dictContractCount,
+      components: componentResult.selected.length,
+      definitionValidators,
+      typeCheckResult,
+      issues: issues.length,
+    },
+  };
+}
 
-  // ── 输出 ───────────────────────────────────────────────────────────
-  printValidationSummary({
-    pages: pages.length,
-    astPages: astResult.pages,
-    astCacheHits: astResult.cacheHits,
-    astCacheMisses: astResult.cacheMisses,
-    specPages: specResult.alignedPages,
-    dictContracts: dictContractCount,
-    components: componentResult.selected.length,
-    definitionValidators,
-    typeCheckResult,
-    issues: issues.length,
-  });
+function reportJsonValidation(scanPath, summary, issues) {
   const errors = countValidationIssues(issues, "error");
   const warns = countValidationIssues(issues, "warn");
+  const ok = errors === 0 && (!strict || warns === 0);
+  console.log(JSON.stringify({ ok, scanPath, summary: { ...summary, errors, warns },
+    issues: issues.map((issue) => ({ level: issue.level || "warn", dir: issue.dir,
+      rule: issue.rule || null, text: issue.text })) }));
+  if (!ok) process.exitCode = 1;
+}
+
+function reportEmptyValidation(scanPath, jsonOutput, stagedSet, validationConfig, allPages) {
+  if (jsonOutput && !preCommit) {
+    reportJsonValidation(scanPath, { pages: 0 }, [
+      { level: "error", dir: scanPath, rule: "PAGE", text: "未发现包含 index.vue 的页面目录" },
+    ]);
+    return;
+  }
+  handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPages);
+}
+
+function runValidate() {
+  const scanPath = validationScanPath();
+  const jsonOutput = args.includes("--json");
+  loadValidateEngines();
+  const stagedSet = getValidationStagedSet();
+  if (preCommit && stagedSet === undefined) return;
+  if (rejectBrokenPageEntrypoints(stagedSet)) return;
+  const validationConfig = loadValidationConfig(TARGET_DIR);
+  const scanDir = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
+  const pageFiles = fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
+  const allPages = scanPageDirs(scanPath, validationConfig, pageFiles);
+  const pages = selectValidationPages(allPages, stagedSet, validationConfig);
+  if (rejectDirtyValidationInputs(pages, validationConfig)) return;
+  if (!jsonOutput) printValidationHeader(scanPath);
+  if (pages.length === 0) {
+    reportEmptyValidation(scanPath, jsonOutput, stagedSet, validationConfig, allPages);
+    return;
+  }
+  const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig);
+  if (jsonOutput && !preCommit) return reportJsonValidation(scanPath, summary, issues);
+  const errors = countValidationIssues(issues, "error");
+  const warns = countValidationIssues(issues, "warn");
+  printValidationSummary(summary);
   printValidationIssues(issues);
   finishValidation(issues, errors, warns);
 }
 
-// ── \u4fee\u590d\u5efa\u8bae\u6620\u5c04\u8868\uff08P0\uff1a\u8ba9\u5f00\u53d1\u8005\u77e5\u9053\u600e\u4e48\u4fee\uff09──────────────────────────────
+// ── 修复建议映射表（P0：让开发者知道怎么修）──────────────────────────────
 const FIX_SUGGESTIONS = {
   // \u6b63\u5219\u7ea7\u68c0\u67e5
   'render-type="agGrid"': {
@@ -2978,21 +3043,7 @@ function previewScenarioRender(files, output, track) {
 }
 
 function writeScenarioRender(files) {
-  const planned = files.map((file) => ({ ...file, abs: resolveProjectPath(TARGET_DIR, file.name) }));
-  for (const file of planned) {
-    if (fs.existsSync(file.abs) && !force && fs.readFileSync(file.abs, "utf8") !== file.content) {
-      throw new Error(`输出已存在且内容不同：${file.name}；确认覆盖请加 --force`);
-    }
-  }
-  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  for (const file of planned) {
-    fs.mkdirSync(path.dirname(file.abs), { recursive: true });
-    if (fs.existsSync(file.abs) && fs.readFileSync(file.abs, "utf8") !== file.content) {
-      fs.copyFileSync(file.abs, `${file.abs}.bak.${stamp}-${crypto.randomUUID()}`, fs.constants.COPYFILE_EXCL);
-    }
-    fs.writeFileSync(file.abs, file.content);
-    console.log(`  ✔ 已生成：${path.relative(TARGET_DIR, file.abs).replace(/\\/g, "/")}`);
-  }
+  for (const name of writeScenarioFiles(TARGET_DIR, files, { force })) console.log(`  ✔ 已生成：${name}`);
   console.log("  下一步：wl-skills validate-page 按既有 S/K 门禁复扫本页面");
 }
 

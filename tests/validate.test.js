@@ -45,6 +45,12 @@ function runGit(cwd, args) {
   return spawnSync("git", args, { cwd, encoding: "utf8", timeout: 30000 });
 }
 
+function commitFixture(root) {
+  expect(runGit(root, ["init"]).status).toBe(0);
+  expect(runGit(root, ["add", "."]).status).toBe(0);
+  expect(runGit(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-m", "baseline"]).status).toBe(0);
+}
+
 // A compliant list page: BaseTable + agGrid + cid + defineColumns + AbstractPageQueryHook
 const COMPLIANT_INDEX =
   '<template>\n' +
@@ -132,6 +138,99 @@ function writeSplitGrid(root, sharedStyles) {
 }
 
 describe("validate end-to-end integration", () => {
+  it("--json returns a parseable issue list with the same failure status", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/json", '<template><el-table /></template>', "export const value = 1\n");
+    const result = runValidate(root, ["--json"]);
+    const report = JSON.parse(result.stdout);
+    expect(result.status).toBe(1);
+    expect(report.ok).toBe(false);
+    expect(report.summary.errors).toBeGreaterThan(0);
+    expect(report.issues.some((issue) => issue.rule === "K3")).toBe(true);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit fails closed outside a Git worktree", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/page", COMPLIANT_INDEX, COMPLIANT_DATA);
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/Git/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit keeps dependency-only changes outside the page gate", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/page", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { vue: "3.4.0" } }));
+    expect(runGit(root, ["init"]).status).toBe(0);
+    expect(runGit(root, ["add", "package.json"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/跳过页面检测/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit selects staged page-spec.json and validates its structure", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/spec", COMPLIANT_INDEX, COMPLIANT_DATA);
+    commitFixture(root);
+    fs.writeFileSync(path.join(dir, "page-spec.json"), "{invalid");
+    expect(runGit(root, ["add", "src/views/acme/spec/page-spec.json"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout + result.stderr).toMatch(/S0|page-spec/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit blocks an unstaged page dependency read by a staged page", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/dirty", COMPLIANT_INDEX, COMPLIANT_DATA);
+    commitFixture(root);
+    fs.writeFileSync(path.join(dir, "index.vue"), COMPLIANT_INDEX + "<!-- staged -->\n");
+    expect(runGit(root, ["add", "src/views/acme/dirty/index.vue"]).status).toBe(0);
+    fs.writeFileSync(path.join(dir, "data.ts"), COMPLIANT_DATA + "// unstaged\n");
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/data\.ts/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit includes staged deletions in page selection", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/deleted", COMPLIANT_INDEX, COMPLIANT_DATA);
+    commitFixture(root);
+    fs.rmSync(path.join(dir, "data.ts"));
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit", "--strict"]);
+    expect(result.status).toBe(1);
+    expect(result.stdout + result.stderr).toMatch(/data\.ts/);
+    expect(result.stdout + result.stderr).not.toMatch(/跳过页面检测/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit blocks deleting only the page entrypoint", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/entry", COMPLIANT_INDEX, COMPLIANT_DATA);
+    commitFixture(root);
+    fs.rmSync(path.join(dir, "index.vue"));
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/index\.vue/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("pre-commit permits deleting the entire page directory", () => {
+    const root = makeProject();
+    const dir = writePage(root, "src/views/acme/removed", COMPLIANT_INDEX, COMPLIANT_DATA);
+    commitFixture(root);
+    fs.rmSync(dir, { recursive: true, force: true });
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    expect(result.status).toBe(0);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
   it("pre-commit 遇到纯文档变更时应跳过页面检测", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/existing", COMPLIANT_INDEX, COMPLIANT_DATA);
@@ -182,6 +281,19 @@ describe("validate end-to-end integration", () => {
     const result = runValidate(root);
     expect(result.status).not.toBe(0);
     expect(result.stdout + result.stderr).toMatch(/mockPolicy=required/);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("required mock endpoint matching rejects a longer prefix match", () => {
+    const root = makeProject();
+    writePage(root, "src/views/acme/required", COMPLIANT_INDEX, COMPLIANT_DATA);
+    fs.mkdirSync(path.join(root, "mock"));
+    fs.writeFileSync(path.join(root, "mock", "_utils.ts"), "export const ok = 1\n");
+    fs.writeFileSync(path.join(root, "mock", "api.ts"), 'export default { "/dev-api/acme/list-all": {} }\n');
+    fs.writeFileSync(path.join(root, ".wl-skills-validate.json"), JSON.stringify({ mockPolicy: "required" }));
+    const result = runValidate(root);
+    expect(result.status).toBe(1);
+    expect(result.stdout + result.stderr).toContain("/dev-api/acme/list");
     fs.rmSync(root, { recursive: true, force: true });
   });
 

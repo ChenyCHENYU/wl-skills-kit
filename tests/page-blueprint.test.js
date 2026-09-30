@@ -124,4 +124,32 @@ describe("page blueprint", () => {
     expect(() => buildProjectSnapshot(root, { scanPath: "../../etc" })).toThrow(/路径越界/);
     fs.rmSync(root, { recursive: true, force: true });
   });
+
+  it("蓝图和快照拒绝经符号链接读取项目外文件", () => {
+    const root = makeProject();
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "wl-blueprint-outside-"));
+    fs.writeFileSync(path.join(outside, "index.vue"), "<template>secret</template>");
+    const link = path.join(root, "src/views/escape");
+    fs.symlinkSync(outside, link, process.platform === "win32" ? "junction" : "dir");
+    expect(() => buildPageBlueprint(root, "src/views/escape")).toThrow(/路径越界/);
+    expect(() => buildProjectSnapshot(root, { scanPath: "src/views/escape" })).toThrow(/路径越界/);
+    const snapshot = buildProjectSnapshot(root);
+    expect(snapshot.pages.some((page) => page.path.includes("escape"))).toBe(false);
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it("项目快照默认只返回前 40 页并标明截断", () => {
+    const root = makeProject();
+    for (let index = 0; index < 40; index++) {
+      const dir = path.join(root, "src/views/produce", `extra-${index}`);
+      fs.mkdirSync(dir);
+      fs.writeFileSync(path.join(dir, "index.vue"), "<template><div /></template>");
+    }
+    const snapshot = buildProjectSnapshot(root);
+    expect(snapshot.pageCount).toBe(41);
+    expect(snapshot.returnedCount).toBe(40);
+    expect(snapshot.truncated).toBe(true);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
 });

@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -120,6 +120,27 @@ describe("wl-skills scenario CLI", () => {
     const compiled = compileScenario(fixtureDoc());
     const written = fs.readFileSync(path.join(outDir, "data.ts"), "utf8");
     expect(written).toBe(compiled.files["data.ts"]);
+  });
+
+  it("pre-commit selects a page when only its referenced scenario JSON is staged", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "wl-scenario-staged-"));
+    try {
+      fs.writeFileSync(path.join(root, "customer.scenario.json"), JSON.stringify(fixtureDoc()));
+      runCli(root, ["scenario", "render", "--input", "customer.scenario.json", "--confirm"]);
+      expect(spawnSync("git", ["init"], { cwd: root }).status).toBe(0);
+      expect(spawnSync("git", ["add", "."], { cwd: root }).status).toBe(0);
+      expect(spawnSync("git", ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-m", "baseline"], { cwd: root }).status).toBe(0);
+      const changed = fixtureDoc();
+      changed.page = "更新后的客户档案";
+      fs.writeFileSync(path.join(root, "customer.scenario.json"), JSON.stringify(changed));
+      expect(spawnSync("git", ["add", "customer.scenario.json"], { cwd: root }).status).toBe(0);
+      const result = runCliFail(root, ["validate", "src/views", "--pre-commit"]);
+      expect(result).not.toBeNull();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("W1");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("extract 从 canonical 页面提取并落盘 JSON", () => {

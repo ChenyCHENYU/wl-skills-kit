@@ -28,7 +28,8 @@ if (!version) {
 }
 
 const ROOT = path.resolve(__dirname, "..");
-const today = new Date().toISOString().slice(0, 10);
+const now = new Date();
+const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
 
 // ── Skill 数量（自动从 _registry.md 解析 ✅ 启用 行数，无需手动维护）──────
 function countEnabledSkills() {

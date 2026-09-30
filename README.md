@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.22.1** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.22.2** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -100,7 +100,12 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 `wl-skills scenario render --confirm` 直接生成标准代码（AI 零自由度、模型 token 0），
 详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 
-生成后执行：
+近期版本改进：
+
+**v2.22.2**：收紧校验与发布闭环。
+
+- `validate --pre-commit` 覆盖暂存的 JSON 契约、场景源和删除；校验依赖有未暂存或未跟踪改动时阻断。`validate --json` 与 MCP `wls_validate_page` 使用同一规则，MCP 默认返回前 40 个问题，可用 `offset`/`limit` 续取。
+- Mock 端点精确匹配；场景渲染中途失败会回滚；Blueprint、快照和场景源读取拒绝项目外符号链接。MCP 快照默认返回前 40 页，可指定 `limit`。
 
 **v2.22.0**：业务生成防漏闭环——把近期项目暴露的共性缺陷收敛为 page-spec 机器契约。
 

@@ -4,10 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const https = require("https");
-const { runAstRules, runTypeCheck } = require("../../lib/ast-rules");
-const { AST_RULE_RANGE } = require("../../lib/rule-registry");
-const { alignPage } = require("../../lib/page-spec");
-const { componentIssues } = require("../../lib/component-catalog");
+const { runValidationCli } = require("../../lib/validation-client");
+const { resolveProjectPath } = require("../../lib/project-path");
 const { writeBlockReason } = require("../write-guard");
 
 function getProjectRoot() {
@@ -21,11 +19,7 @@ function normalizePath(p) {
 }
 
 function safeResolve(root, inputPath) {
-  const full = inputPath ? path.resolve(root, inputPath) : root;
-  if (full !== root && !full.startsWith(root + path.sep)) {
-    throw new Error("路径越界：只能扫描项目根目录内的文件");
-  }
-  return full;
+  return resolveProjectPath(root, inputPath || ".", { allowRoot: true });
 }
 
 function walkFiles(dir, baseDir, files) {
@@ -40,6 +34,7 @@ function walkFiles(dir, baseDir, files) {
     )
       continue;
     const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) walkFiles(full, baseDir, files);
     else files.push(normalizePath(path.relative(baseDir, full)));
   }
@@ -128,151 +123,40 @@ function readPackageDeps(root) {
   }
 }
 
-function findMockFiles(root) {
-  const mockDir = path.join(root, "mock");
-  if (!fs.existsSync(mockDir)) return [];
-  return walkFiles(mockDir, root).filter((rel) => /\.(ts|js)$/.test(rel));
-}
-
-function readTextIfPresent(filePath) {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
-}
-
-function addPageFileIssues(page, issues) {
-  if (!page.hasDataTs) issues.push([page.dir, "warn", "缺 data.ts"]);
-  if (!page.hasIndexScss) issues.push([page.dir, "warn", "缺 index.scss"]);
-  if (page.apiConfigCount > 0 && !page.hasApiMd) {
-    issues.push([page.dir, "warn", "检测到 API_CONFIG 但缺 api.md"]);
-  }
-}
-
-function addTableIssues(page, indexContent, dataContent, issues) {
-  const baseTableCount = (indexContent.match(/<BaseTable\b/g) || []).length;
-  const agGridCount = (
-    indexContent.match(/render-type=["']agGrid["']/g) || []
-  ).length;
-  const cidCount = (indexContent.match(/\bcid=|:cid=/g) || []).length;
-  if (baseTableCount > 0 && agGridCount < baseTableCount) {
-    issues.push([page.dir, "error", 'BaseTable 必须 render-type="agGrid"']);
-  }
-  if (baseTableCount > 0 && cidCount < baseTableCount) {
-    issues.push([page.dir, "error", "BaseTable 必须配置 cid/:cid"]);
-  }
-  addColumnDefinitionIssue(page, baseTableCount, dataContent, issues);
-}
-
-function addColumnDefinitionIssue(page, baseTableCount, dataContent, issues) {
-  if (baseTableCount > 0 && dataContent && !/defineColumns\s*\(/.test(dataContent)) {
-    issues.push([page.dir, "error", "列定义必须使用 defineColumns()"]);
-  }
-}
-
-function addPageBehaviorIssues(page, dataContent, mockFiles, issues) {
-  if (/operations\s*:/.test(dataContent)) {
-    issues.push([page.dir, "error", "禁止 operations 数组，必须使用 renderOps()"]);
-  }
-  if (/onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(dataContent)) {
-    issues.push([page.dir, "error", "存在空 onClick"]);
-  }
-  if (page.apiConfigCount > 0 && mockFiles.length === 0) {
-    issues.push([page.dir, "warn", "检测到 API_CONFIG 但无 mock 文件"]);
-  }
-}
-
-function addMockEndpointIssues(page, dataContent, mockContent, issues) {
-  const urls = Array.from(
-    dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
-  ).map((match) => match[1]);
-  for (const url of urls.filter((item) => item.startsWith("/"))) {
-    const mockUrl = `/dev-api${url}`;
-    if (mockContent && !mockContent.includes(mockUrl)) {
-      issues.push([page.dir, "warn", `mock 未发现端点 ${mockUrl}`]);
-    }
-  }
-}
-
-function addLocalPageIssues(root, pages, mockFiles, mockContent, issues) {
-  for (const page of pages) {
-    const pageDir = path.join(root, page.dir);
-    const indexContent = readTextIfPresent(path.join(pageDir, "index.vue"));
-    const dataContent = readTextIfPresent(path.join(pageDir, "data.ts"));
-    addPageFileIssues(page, issues);
-    addTableIssues(page, indexContent, dataContent, issues);
-    addPageBehaviorIssues(page, dataContent, mockFiles, issues);
-    addMockEndpointIssues(page, dataContent, mockContent, issues);
-  }
-}
-
-function addAstIssues(root, scanPath, issues) {
-  const result = runAstRules(root, scanPath, { requireAst: true });
-  if (result.astAvailable === false) {
-    issues.push([scanPath, "error", `AST 引擎不可用，无法执行语义级规则（${AST_RULE_RANGE}）`]);
-    return;
-  }
-  for (const issue of result.issues) {
-    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
-  }
-}
-
-function addPageSpecIssues(root, pages, issues) {
-  for (const page of pages) {
-    const result = alignPage(path.join(root, page.dir), page.dir);
-    for (const issue of result.issues) {
-      issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
-    }
-  }
-}
-
-function addComponentIssues(root, scanPath, issues) {
-  const result = componentIssues({ projectRoot: root, scanPath });
-  for (const issue of result.issues) {
-    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
-  }
-}
-
-function addTypeCheckIssues(root, enabled, issues) {
-  if (!enabled) return;
-  for (const issue of runTypeCheck(root, { required: true }).issues) {
-    issues.push([issue.dir, issue.level, `[${issue.rule}] ${issue.text}`]);
-  }
-}
-
-function formatValidationResult(scanPath, pages, issues) {
-  const count = (level) => issues.filter((item) => item[1] === level).length;
+function formatValidationResult(result, options = {}) {
+  const offset = options.offset || 0;
+  const limit = options.limit || 40;
+  const selected = result.issues.slice(offset, offset + limit);
+  const remaining = Math.max(0, result.issues.length - offset - selected.length);
   const lines = [
-    `✅ 页面校验完成：${scanPath}`,
-    "",
-    `- 页面目录：${pages.length}`,
-    `- error：${count("error")}`,
-    `- warn：${count("warn")}`,
-    `- info：${count("info")}`,
-    "",
+    `${result.ok ? "✅" : "❌"} 页面校验完成：${result.scanPath}`,
+    `页面 ${result.summary.pages}；error ${result.summary.errors}；warn ${result.summary.warns}；共 ${result.issues.length} 项`,
   ];
-  if (issues.length === 0) return lines.concat("✔ 未发现偏差").join("\n");
-  lines.push("| 页面目录 | 级别 | 问题 |", "|---|---|---|");
-  for (const [dir, level, text] of issues) {
-    lines.push(`| ${dir} | ${level} | ${text} |`);
+  for (const issue of selected) {
+    lines.push(`- [${issue.rule || issue.level}] ${issue.dir}: ${issue.text}`);
   }
-  return lines.join("\n");
+  if (remaining > 0) lines.push(`还有 ${remaining} 项；传 offset=${offset + selected.length} 继续查看`);
+  return {
+    text: lines.join("\n"),
+    structuredContent: {
+      ok: result.ok,
+      state: result.ok ? "valid" : "invalid",
+      summary: result.summary,
+      totalIssues: result.issues.length,
+      offset,
+      limit,
+      truncated: remaining > 0,
+      issues: selected,
+    },
+    isError: !result.ok,
+  };
 }
 
-async function handleValidatePage(args) {
+async function handleValidatePage(args = {}) {
   const root = getProjectRoot();
-  const scanPath = args && args.path ? args.path : "src/views";
-  const pages = findPageDirs(root, scanPath);
-  const mockFiles = findMockFiles(root);
-  const mockContent = mockFiles
-    .map((rel) => fs.readFileSync(path.join(root, rel), "utf8"))
-    .join("\n");
-  const issues = [];
-  addLocalPageIssues(root, pages, mockFiles, mockContent, issues);
-  addAstIssues(root, scanPath, issues);
-  addPageSpecIssues(root, pages, issues);
-  addComponentIssues(root, scanPath, issues);
-  addTypeCheckIssues(root, args && args.typecheck, issues);
-  return formatValidationResult(scanPath, pages, issues);
+  const result = await runValidationCli(root, args.path || "src/views", args.typecheck === true);
+  return formatValidationResult(result, args);
 }
-
 async function handleDoctorUi() {
   const root = getProjectRoot();
   const deps = readPackageDeps(root);

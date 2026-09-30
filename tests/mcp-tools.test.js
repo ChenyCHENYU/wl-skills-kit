@@ -11,6 +11,7 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -403,6 +404,31 @@ describe("projectTools path discovery", () => {
 });
 
 describe("projectTools component validation", () => {
+  it("returns the same validation issues as CLI JSON and paginates large results", async () => {
+    const root = makeTempRoot();
+    const previous = process.env.WL_PROJECT_ROOT;
+    try {
+      const page = path.join(root, "src", "views", "demo");
+      fs.mkdirSync(page, { recursive: true });
+      fs.writeFileSync(path.join(page, "index.vue"), "<template><el-table /></template>\n");
+      fs.writeFileSync(path.join(page, "data.ts"), "export const value = 1\n");
+      process.env.WL_PROJECT_ROOT = root;
+      const cli = spawnSync(process.execPath, [path.join(ROOT, "bin/wl-skills.js"), "validate", "src/views", "--json"],
+        { cwd: root, encoding: "utf8", timeout: 30000 });
+      const expected = JSON.parse(cli.stdout);
+      const result = await projectTools.handleValidatePage({ path: "src/views", limit: 1 });
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent.summary.errors).toBe(expected.summary.errors);
+      expect(result.structuredContent.totalIssues).toBe(expected.issues.length);
+      expect(result.structuredContent.issues).toEqual(expected.issues.slice(0, 1));
+      expect(result.structuredContent.truncated).toBe(expected.issues.length > 1);
+    } finally {
+      if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
+      else process.env.WL_PROJECT_ROOT = previous;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("wls_validate_page reports C1 for a referenced component that was not materialized", async () => {
     const root = makeTempRoot();
     const previous = process.env.WL_PROJECT_ROOT;
@@ -421,8 +447,9 @@ describe("projectTools component validation", () => {
       fs.writeFileSync(path.join(page, "index.scss"), "");
       process.env.WL_PROJECT_ROOT = root;
       const result = await projectTools.handleValidatePage({ path: "src/views/demo" });
-      expect(result).toMatch(/\[C1\]/);
-      expect(result).toMatch(/component ensure/);
+      expect(result.text).toMatch(/\[C1\]/);
+      expect(result.text).toMatch(/component ensure/);
+      expect(result.structuredContent.issues.some((issue) => issue.rule === "C1")).toBe(true);
     } finally {
       if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
       else process.env.WL_PROJECT_ROOT = previous;
@@ -451,9 +478,9 @@ describe("projectTools component validation", () => {
       fs.writeFileSync(path.join(page, "index.scss"), "");
       process.env.WL_PROJECT_ROOT = root;
       const result = await projectTools.handleValidatePage({ path: "src/views/demo" });
-      expect(result).toMatch(/\[C4\]/);
-      expect(result).toMatch(/使用项目真实实现/);
-      expect(result).not.toMatch(/\[C1\]/);
+      expect(result.text).toMatch(/\[C4\]/);
+      expect(result.text).toMatch(/使用项目真实实现/);
+      expect(result.text).not.toMatch(/\[C1\]/);
     } finally {
       if (previous === undefined) delete process.env.WL_PROJECT_ROOT;
       else process.env.WL_PROJECT_ROOT = previous;

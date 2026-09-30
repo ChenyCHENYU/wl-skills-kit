@@ -24,4 +24,5 @@ jobs:
       - name: Verify release tag matches package version
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
       - run: pnpm release:check
-      - run: npm publish --access public
+      # release:check already ran the full suite in this job; direct npm publish still runs prepublishOnly.
+      - run: npm publish --access public --ignore-scripts
