@@ -98,13 +98,13 @@ module.exports = [
   // ── 项目专属规则（与 wl-skills-kit 14 条 standards 精确对齐）
   {
     rules: {
-      // 09 TS: strict: false 项目允许 any，但标记未使用变量
+      // 允许存量边界类型；未使用变量和组件属于无效代码，必须清理。
       "no-undef": "off",
       "no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        "error",
+        { args: "all", argsIgnorePattern: "^_" },
       ],
 
       // 05 日志: console.log 残留（允许 warn/error）
@@ -117,7 +117,7 @@ module.exports = [
       "vue/multi-word-component-names": ["error", { ignores: ["index"] }],
       "vue/require-default-prop": "off",
       "vue/attributes-order": "warn",
-      "vue/no-unused-components": "warn",
+      "vue/no-unused-components": "error",
     },
   },
 ];

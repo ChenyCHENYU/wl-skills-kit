@@ -1,21 +1,23 @@
 # 场景模板确定性渲染（scenario JSON 双轨）
 
-> 本文件是 page-codegen 的**确定性渲染前置层**：当页面规格能表达为 wl-scenario JSON 时，
-> 必须优先走 `wl-skills scenario render`（编译器输出，零 AI 自由度），
-> AI 只处理 scenario JSON 里填不进去的语义增量（复杂联动、跨页流程），再走本 Skill 主流程补齐。
+本参考仅适用于用户显式选择或现有 scenarioRef 页面。普通页面以 data.ts 为事实源；`role: "mirror"` 的 JSON 是从真实实现提取的领域知识，不进入 scenario 的 W1 生成校验，也不能通过 from-spec 丢弃业务逻辑。
+
+> 本文件仅用于用户明确选择 scenario 或现有页面已有 `scenarioRef` 的确定性维护路径。
+> 普通新页面可以按 TPL-LIST 直接编写平铺函数，不需要额外维护运行时业务 JSON。
+> 已绑定 scenario 的页面保留事实源和往返验证，迁出时须先确认覆盖全部契约和行为。
 
 ## 何时用哪条路
 
 | 条件 | 路线 |
 | --- | --- |
-| pattern 已在 `templates/patterns.json` 标记 `implemented`，且页面规格能完整落进 scenario JSON | **先 scenario render，再 validate-page 复扫** |
+| 已选择 scenario，pattern 为 `implemented`，且规格完整 | **先 scenario render，再 validate-page 复扫** |
 | pattern 为 `planned`，或存在渲染器/组件不满足的定制交互 | 走本 Skill 主流程（TPL 模板 + AI 填充），产出后再 `scenario extract` 沉淀 |
 | 复杂嵌套页（多资源/多 Tab/工位编排）且项目已有 PatternPageRenderer | runtime 轨（definition + 薄壳），页面本体 10 行 |
 
 ## 双轨产物
 
 - **codegen 轨**（list 已实现）：`data.ts + index.vue + index.scss + page-spec.json` 四件套，
-  与 TPL-LIST canonical 形态逐字符对齐（agGrid/cid/defineColumns/renderOps/标准生命周期/删除末页回退）。
+  当前保留类式列表 canonical 产物，与其既有往返样例对齐（agGrid/cid/defineColumns/renderOps/标准生命周期/删除末页回退）。
 - **runtime 轨**（workstation 已实现）：`definition.ts + 10 行 index.vue + 2 行 data.ts + page-spec.json`，
   `features.definitionSource = "./definition"`，validate 走既有委托链校验；
   渲染器组件由项目提供（`requires.renderer`），render 前置检查存在性，缺失即阻断并建议降级 codegen 轨。
@@ -43,13 +45,13 @@
 ```
 prototype-scan / spec-doc-parse → page-spec.json
         │
-        ├─ pattern implemented 且规格完备 → 手写/转换 scenario JSON
+        ├─ 已选择 scenario 且模式 implemented、规格完备 → 维护 scenario JSON
         │       → wl-skills scenario validate
         │       → wl-skills scenario render --confirm
         │       → wl-skills validate-page（S/K 门禁复扫）
         │
         └─ 否则 → 本 Skill 主流程（TPL + AI 填充）
-                → 生成后 wl-skills scenario extract 沉淀 JSON（下次同场景直接 render）
+                → 生成后验证；仅需 scenario 维护时再 extract 沉淀 JSON
 ```
 
 模板库与 CLI 细节见 `.wl-skills/templates/scenarios/README.md` 与

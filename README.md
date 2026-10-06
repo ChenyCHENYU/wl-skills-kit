@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.22.2** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.23.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -60,6 +60,8 @@ pnpm dlx @agile-team/wl-skills-kit@latest validate
 
 原型线和规范说明书线最终都收敛到结构化 page-spec，后续 API 契约与页面生成不再依赖 AI 重复理解原始资料。
 
+这里的 page-spec 是待实现的需求规格输入。页面实现后以实际代码为准，另行提取 `role: "mirror"` 的领域知识镜像；两者用途不同，不能把镜像作为普通页面的生成输入或运行配置。
+
 ### 2. 建立前后端 API 契约
 
 只有需求文档、没有 design 或后端契约时，也能独立建立接口契约：
@@ -94,11 +96,9 @@ wl-skills contract compare --left contracts/mdm-task.json \
 - 表单校验库按需检测，不静默安装依赖；
 - 需要标准业务组件时先生成计划，确认后按需落盘。
 
-交互模式已在 `patterns.json` 标 `implemented`（7/9：list / master-detail / tree-list /
-form-route 平铺变体 / record-form / change-history + runtime 轨 workstation）时，
-**优先走确定性渲染**——规格写成 wl-scenario JSON 后
-`wl-skills scenario render --confirm` 直接生成标准代码（AI 零自由度、模型 token 0），
-详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
+普通新列表推荐 `data.ts` 中平铺字段与业务函数，并按需复用模板的 `usePageQuery`；需要列扩展时才使用 `useBaseTable`。组合函数落到项目 `src/composables` 一次，后续页面直接导入；无需复制具体模块的业务组件或适配器。既有 `AbstractPageQueryHook` 和有效的其他写法继续兼容。
+
+显式选择 scenario 或已有 `scenarioRef` 的页面继续使用确定性编译器；已实现的 7 种模式及其往返、漂移验证保留。编译器目前仍输出既有类式列表，普通直接编码模板推荐平铺函数，两条路径按项目维护方式选择。详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 
 近期版本改进：
 
@@ -296,7 +296,8 @@ form-route 平铺变体 / record-form / change-history + runtime 轨 workstation
 
 **v2.11.1**：精准卡控闭环 —— 把"约定"接线到确定性执行器，生成即精准。
 
-- **page-spec 落盘 + spec-align 确定性比对（S1~S7）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 并逐项比对查询字段、表格列、工具栏、操作列和 label；S6 核对页面/API 字段，S7 核对进阶查询/选择回填生命周期与字段绑定。
+- **实现驱动与领域镜像**：新页面以 data.ts 为业务定义事实源，`template mirror --path <页面>` 从真实三文件提取镜像；`--bundle` 可导出本地依赖源码。镜像过期只提示，不反向控制页面。旧需求规格与显式 scenario 项目继续兼容。
+- **旧需求规格 spec-align（S1~S7，兼容保留）**：`page-codegen` 生成页面时同步写出 `page-spec.json`（原型约定真值），`validate` 用 AST 解析 `data.ts` 并逐项比对查询字段、表格列、工具栏、操作列和 label；S6 核对页面/API 字段，S7 核对进阶查询/选择回填生命周期与字段绑定。
 - **新增 `wl-skills fix` 确定性机械修复**：对幂等、零语义判断的偏差（BaseTable 补 `render-type`、`::v-deep`→`:deep()`、行尾空白、文件末尾换行）做确定性自动修复，AI 只处理需语义判断的部分；`--dry-run` 预览
 - **新增「规则 → 执行器」覆盖矩阵治理**：`kit-internal/rule-coverage.md` 登记每条约定由谁兜底（R*/S*/regex/AI），`lint:skills` 校验标记「阻断」的规则必须有真实执行器，杜绝"文档约定"退化为纯文档
 - **修复 v2.11 目录迁移遗留**：`lint-skills.js` / `verify-version.js` / `sync-version.js` 的 `.github/` 路径全部修正为 `.wl-skills/`，CI 自检链路恢复可用

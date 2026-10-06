@@ -417,7 +417,7 @@ describe("projectTools component validation", () => {
         { cwd: root, encoding: "utf8", timeout: 30000 });
       const expected = JSON.parse(cli.stdout);
       const result = await projectTools.handleValidatePage({ path: "src/views", limit: 1 });
-      expect(result.isError).toBe(true);
+      expect(Boolean(result.isError)).toBe(!expected.ok);
       expect(result.structuredContent.summary.errors).toBe(expected.summary.errors);
       expect(result.structuredContent.totalIssues).toBe(expected.issues.length);
       expect(result.structuredContent.issues).toEqual(expected.issues.slice(0, 1));

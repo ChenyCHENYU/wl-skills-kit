@@ -86,6 +86,7 @@ const BLUEPRINT_RESULT_SCHEMA = {
     state: { type: "string" },
     summary: { type: "object" },
     blueprint: { type: "object" },
+    mirror: { type: "object" },
     outputPath: { type: "string" },
     count: { type: "number" },
     failedCount: { type: "number" },
@@ -664,11 +665,13 @@ const DESCRIPTORS = [
   {
     name: "wls_template_extract",
     description:
-      "从项目页面提取不含业务代码的结构化 Page Blueprint JSON：页面模式、字段槽位、操作、组件能力、接口/字典依赖和质量信号。默认只预览；confirmWrite=true 才写入 .wl-skills/templates/blueprints/<domain>/<scene>/blueprint.json。",
+      "从实际页面提取模板：artifact=mirror 留存真实定义、交互绑定、源码与依赖；默认 blueprint 保留抽象槽位索引。默认只预览；confirmWrite=true 才写本地文件。",
     inputSchema: {
       type: "object",
       properties: {
         path: { type: "string", description: "页面目录或 index.vue 路径，默认 src/views" },
+        artifact: { type: "string", enum: ["blueprint", "mirror"], description: "默认 blueprint；mirror 从真实实现提取领域镜像，不读取旧 JSON 的功能声明" },
+        bundle: { type: "boolean", description: "mirror 导出时嵌入本地依赖源码，默认 false" },
         domain: { type: "string", description: "可选领域名；不传则从 src/views/<domain>/ 推断" },
         scene: { type: "string", description: "可选场景名；不传则从 page-spec/页面结构推断" },
         confirmWrite: { type: "boolean", description: "默认 false，仅预览；true 才写本地蓝图" },

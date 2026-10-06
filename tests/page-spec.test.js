@@ -344,12 +344,12 @@ describe("compareSpecToCode", () => {
     expect(issues.some((i) => i.rule === "S4")).toBe(true);
   });
 
-  it("spec 声明实现但 data.ts 缺实现时不静默跳过", () => {
+  it("解析器不认识实现形式时给出建议，不等同于业务缺失", () => {
     const issues = compareSpecToCode(spec, "class P {}", "src/views/x");
     expect(issues.some((i) => i.rule === "S1" && i.level === "warn")).toBe(true);
-    expect(issues.some((i) => i.rule === "S2" && i.level === "error")).toBe(true);
-    expect(issues.some((i) => i.rule === "S3" && i.level === "error")).toBe(true);
-    expect(issues.some((i) => i.rule === "S4" && i.level === "error")).toBe(true);
+    expect(issues.some((i) => i.rule === "S2" && i.level === "warn")).toBe(true);
+    expect(issues.some((i) => i.rule === "S3" && i.level === "warn")).toBe(true);
+    expect(issues.some((i) => i.rule === "S4" && i.level === "warn")).toBe(true);
   });
 
   it("D3 阻断字典缺绑或错绑，但不按字段名推断", () => {
@@ -487,5 +487,35 @@ describe("arrayEq / setEq", () => {
   it("setEq 顺序无关", () => {
     expect(setEq(["a", "b"], ["b", "a"])).toBe(true);
     expect(setEq(["a"], ["a", "b"])).toBe(false);
+  });
+});
+
+
+describe("页面写法兼容与确定性缺陷", () => {
+  const spec = { page: "客户", query: [{ name: "code" }], columns: [{ name: "code" }], toolbar: [], operations: [] };
+  it("本页字段模型和组合函数可直接声明，旧来源只给建议", () => {
+    const result = validateDefinitionDelegation({ ...spec, features: { definitionSource: "@/views/shared/definitions" } }, 'export const pageDefinition = { dataset: dataset({ fields: [field("code", "编码", { query: true })] }) }; export function usePage() { return {}; }', "src/views/customer");
+    expect(result.delegated).toBe(true);
+    expect(result.issues.some((issue) => issue.rule === "S0" && issue.level === "warn")).toBe(true);
+    expect(result.issues.filter((issue) => issue.level === "error")).toEqual([]);
+  });
+  it("未知字段展开交给项目验证，不能当作字段丢失", () => {
+    const result = validateDefinitionDelegation(spec, 'export const pageDefinition = { dataset: dataset({ fields: [...commonFields] }) };', "src/views/customer");
+    expect(result.issues).toEqual([]);
+  });
+  it("模型字段不是实际表格列，差异提示核实", () => {
+    const result = validateDefinitionDelegation(spec, 'export const pageDefinition = { dataset: dataset({ fields: [field("internal_id", "内部字段")] }) };', "src/views/customer");
+    expect(result.issues.some((issue) => issue.rule === "S2" && issue.level === "warn")).toBe(true);
+    expect(result.issues.filter((issue) => issue.level === "error")).toEqual([]);
+  });
+  it("已识别方法中的空列仍阻断", () => {
+    const issues = compareSpecToCode(spec, 'class Page { columnsDef() { return []; } }', "src/views/customer");
+    expect(issues.some((issue) => issue.rule === "S2" && issue.level === "error")).toBe(true);
+  });
+  it("空值页面定义仍阻断", () => {
+    for (const value of ["null", "{}", "null as unknown as SteelPageDefinition"]) {
+      const result = validateDefinitionDelegation(spec, `export const pageDefinition = ${value};`, "src/views/customer");
+      expect(result.issues.some((issue) => issue.rule === "S0" && issue.level === "error")).toBe(true);
+    }
   });
 });

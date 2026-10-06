@@ -1,142 +1,36 @@
-# 02 — 代码结构与顺序规范
+# 02 — 页面结构与维护边界
 
-> **强制度**：🔴 必遵。AI 生成代码必须严格按下列顺序输出。
+页面业务定义以 `data.ts` 为唯一事实源。`page-spec.json` 默认是实际代码提取的领域镜像，按需用于知识库留存；镜像不驱动页面，也不作为代码对照门禁。缺失或过期只建议重新提取。已有需求规格与用户显式选择的 scenario 生成项目向下兼容，详见 `.wl-skills/docs/page-spec-schema.md`。
 
----
+> 新增和重构页面推荐三文件分离；有效的存量写法兼容。目录、函数命名、类或组合函数的差异只建议改进，不单独阻断提交。
 
-## 三文件分离原则 + 接口契约文档（页面目录结构）
+## 页面目录
 
-```
-src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
-├── index.vue    ← 纯模板 + 解构，不写业务逻辑
-├── data.ts      ← AbstractPageQueryHook 类 + API_CONFIG（按需，见下方判定规则）
-├── index.scss   ← 页面样式（可为空）
-└── api.md       ← 接口约定文档（按需，见下方判定规则）
-```
-
-**禁止**：把业务逻辑写在 index.vue。
-
-### `data.ts` 判定规则
-
-满足以下**任意一项**的页面，必须拆出 `data.ts`：
-
-- 有接口调用（request / getAction / postAction 等）
-- 有分页查询 / 表格 columns / toolbar / query 配置
-- 有表单 fields / rules / modalConfig 配置
-- 有大量数据驱动配置（字段映射、枚举、状态机等）
-- 有复杂状态管理（3+ 个 ref/reactive/computed/watch）
-- 有业务方法（新增/编辑/删除/审批/导入/导出等）
-- `<script setup>` 明显过长（参考 80 行以上）
-
-以下场景**允许没有** `data.ts`（标记为"不适用"）：
-
-- 纯静态说明页 / 路由容器页 / redirect 页
-- 只组合子组件、不拥有业务状态的壳页面
-- 数据完全由父组件 props 传入的简单详情展示页
-- 无接口、无复杂状态、无数据驱动配置的极简页面
-
-### `api.md` 判定规则
-
-| 场景 | 要求 | 严重度 |
-|---|---|---|
-| AI 生成页面 | 必须有 `api.md` | 🔴 |
-| 新增业务页面 | 必须有 `api.md` | 🔴 |
-| 存量复杂接口页面 | 建议补充 | 🟡 |
-| 无接口页面 / 纯静态页面 | 完全豁免 | 不报 |
-
-> `api.md` 是前后端接口契约文档，用于对齐联调、追溯变更、AI 二次维护。它是**接口治理项**，不作为文件结构的硬性阻断项。
-
-## 弹窗组件归属
-
-| 场景                    | 位置                                 |
-| ----------------------- | ------------------------------------ |
-| kit 过渡期业务组件 | `.wl-skills/` 仅存快照；按需或全量落盘到 `src/components/local/`、`src/components/global/`，已有项目实现优先且不覆盖 |
-| 通用弹窗（2+ 页面复用） | `src/components/local/c_xxxModal/`   |
-| 极个性弹窗（仅单页面）  | 页面目录下 `components/xxxModal.vue` |
-
----
-
-## index.vue 三段式（顺序固定，不可调换）
-
-```vue
-<template>
-  <!-- 纯模板 + 组件组合 -->
-</template>
-
-<script setup lang="ts">
-/* 业务逻辑全部从 data.ts 导入，按下方 9 段式 */
-</script>
-
-<style scoped lang="scss">
-@import "./index.scss";
-/* 仅允许这一行 import，全部样式写在 index.scss */
-</style>
+```text
+index.vue   模板、组件导入、宏、调用与绑定页面逻辑
+data.ts     字段、查询、表单、事件与接口调用
+index.scss  页面样式
+api.md      涉及接口时维护契约
 ```
 
----
+`data.ts` 优先使用简单的 `useXxx()` / `createPage()` 组合函数。现有 `AbstractPageQueryHook`、明确的字段模型及项目自身 Hook 都可保留。纯静态页、路由容器、简单展示组件无需创建空文件凑结构。
 
-## `<script setup>` 9 段式（按需使用，用到的必须遵守此顺序）
+`index.vue` 推荐按 template、script、style 排列。script 按导入、组件宏、页面逻辑调用、模板绑定、暴露方法组织；不要添加空的九段式标题。业务逻辑集中在 data.ts，少量视图绑定允许就近声明。存量页面的逻辑位置差异给出建议，真实类型错误、无效代码和过高复杂度仍阻断。
 
-```typescript
-// ===== 1. import 语句（外部库 → 内部模块 → 类型）=====
-import { ref, computed, onMounted } from "vue";
-import { createPage } from "./data";
+页面成员较多时，推荐在页面函数内直接用 `proxyRefs` 声明公开状态和事件，`return page` 后由模板访问 `page.form` 等属性，减少声明、返回值、解构的重复清单。私有函数保留局部变量；Vue 3.5 及以上的原生组件引用优先在所属函数中用 `useTemplateRef` 绑定；旧 Vue 或组合函数已提供的引用用 `ref` / `toRef` 显式连接，不对整页执行 `toRefs`。保持每次挂载独立创建状态、真实业务类型推导，不增加自动搜集变量的适配器，也不展开含原型方法的类实例。直接返回对象、解构和已有 Hook 都是有效写法，门禁不因这种风格差异报错。
 
-// ===== 2. 组件宏（defineOptions / defineProps / defineEmits）=====
-defineOptions({ name: "PageName" });
+样式推荐 `@import "./index.scss"` 或等价的外部样式引用；有效的原有内联样式可保留。新写深层选择器使用 `:deep()`。
 
-// ===== 3. 路由 & Store =====
-const route = useRoute();
+## 复用与文件数量
 
-// ===== 4. createPage() 调用 + 解构（核心模式）=====
-const Page = createPage();
-const {
-  tableRef,
-  page,
-  queryParam,
-  list,
-  queryItems,
-  columns,
-  toolbars,
-  select,
-} = Page;
+- 单页面业务就近放在该页 data.ts，避免单独建立只转发、只包装调用或仅使用一次的适配器文件。
+- 真正跨页面复用的纯函数或业务场景才提取；多个关联小函数可放在同一文件，按职责注释。
+- 平台组件扩展优先放在 `src/composables/`，继续使用原组件。表格直接扩展 BaseTable，不创建另一套表格外壳。
+- 跨项目组件使用 `C_`，当前项目组件使用 `c_`。组合函数无需伪装成组件；命名规则不强迫存量项目批量改名。
+- 避免嵌套 `Parameters` / `ReturnType`、复杂条件类型和反复断言；接口优先表达实际业务数据。必要的第三方类型边界集中处理。
 
-// ===== 5. 页面补充状态（ref / reactive / computed）=====
-const loading = ref(false);
+## 契约和质量门禁
 
-// ===== 6. watch / watchEffect =====
+新增接口页面维护 api.md；存量复杂接口页建议补充。确认的请求方法、路径、必填、范围、字典和业务行为必须保真。
 
-// ===== 7. 业务方法（API 调用 / 事件处理）=====
-async function handleSubmit() {}
-
-// ===== 8. 生命周期 =====
-onMounted(() => select());
-
-// ===== 9. defineExpose =====
-defineExpose({ select });
-```
-
----
-
-## data.ts 内部顺序（强制）
-
-```typescript
-// 1. import（类型 → 基类 → API 工具 → 工具函数）
-// 2. API_CONFIG（接口路径集中声明，as const）
-// 3. createPage()（constructor → queryDef → toolbarDef → columnsDef → 业务方法）
-// 4. 页面共用辅助函数（可选，纯函数）
-```
-
----
-
-## index.scss 顺序（建议）
-
-```scss
-// 1. 变量覆盖
-// 2. 容器级样式 (.app-page-container)
-// 3. 区域级样式 (.search-area / .table-area)
-// 4. 组件深层覆盖 (:deep(.el-table))
-// 5. 响应式 (@media)
-```
-
-> 禁止 `::v-deep` / `/deep/`，统一使用 `:deep()`。
+静态检查不能证明组合函数生成的列或按钮缺失时，报告待核实建议，并调用项目自己的契约或行为验证。明确的字段缺失、空按钮处理函数、无用变量、无用组件、废弃代码、类型错误及超标复杂度继续阻断。禁止用空函数或假成功提示通过验证。

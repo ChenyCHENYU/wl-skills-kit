@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.22.2
+ * wl-skills-kit CLI v2.23.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -329,7 +329,7 @@ if (showHelp) {
     standard-env 标准环境配置（scan/plan/apply/verify）
     contract   独立 API 契约（init/validate/compare/render/profile），不依赖 design 或 bd
     component  标准业务组件（list/check/ensure），按需落盘且绝不覆盖
-    template   页面蓝图（extract/validate/search/diff/audit），仅输出结构化 JSON，不复制业务代码
+    template   页面蓝图（extract/validate/search/diff/audit）与领域镜像（mirror，从实现留存源码证据）
     snapshot   生成紧凑项目结构快照，供 AI/MCP 消费，避免逐页读取源码
     scenario   领域场景模板（validate/render/extract/verify/from-spec）：JSON 事实源 → 双轨确定性渲染
     env        旧环境命令，已停用并提示迁移
@@ -365,6 +365,7 @@ if (showHelp) {
     --plan-hash      component ensure 预览返回的计划哈希
     --path <dir>     template extract/validate 的页面或蓝图路径
     --scene <name>   template extract 的场景名（可选）
+    --bundle         template mirror 导出本地依赖源码，供独立领域模板库留存
     --mode <name>    template search 的页面模式
     --component <n>  template search 的组件能力
     --min-quality <n> template search 的最低质量分
@@ -1487,6 +1488,29 @@ function readPageSource(dir, name) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 }
 
+// 只追踪项目内静态导入，认可 composables 中统一调用列预设，不要求每页重复包装。
+function localSourceFile(importer, source) {
+  let base;
+  if (source.startsWith("@/")) base = path.join(TARGET_DIR, "src", source.slice(2));
+  else if (source.startsWith(".")) base = path.resolve(path.dirname(importer), source);
+  else return null;
+  if (!base.startsWith(`${path.resolve(TARGET_DIR)}${path.sep}`)) return null;
+  return [base, `${base}.ts`, `${base}.js`, `${base}.vue`, path.join(base, "index.ts")]
+    .find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) || null;
+}
+
+function containsColumnPreset(file, visited = new Set()) {
+  if (!fs.existsSync(file) || visited.has(file)) return false;
+  visited.add(file);
+  const source = fs.readFileSync(file, "utf8");
+  if (/\bdefineColumns\s*\(/.test(source)) return true;
+  const imports = Array.from(source.matchAll(/(?:import|export)\s+[^;]*?\s+from\s*["']([^"']+)["']/g));
+  return imports.some((match) => {
+    const dependency = localSourceFile(file, match[1]);
+    return dependency ? containsColumnPreset(dependency, visited) : false;
+  });
+}
+
 function inspectPageDirectory(dir, names) {
   const indexContent = readPageSource(dir, "index.vue");
   const dataContent = readPageSource(dir, "data.ts");
@@ -1501,7 +1525,7 @@ function inspectPageDirectory(dir, names) {
     agGridCount: (indexContent.match(/render-type=["']agGrid["']/g) || [])
       .length,
     cidBindCount: (indexContent.match(/\bcid=|:cid=/g) || []).length,
-    hasDefineColumns: /defineColumns\s*\(/.test(dataContent),
+    hasDefineColumns: containsColumnPreset(path.join(TARGET_DIR, dir, "data.ts")),
     hasRenderOps: /renderOps\s*\(/.test(dataContent),
     hasOperationsArray: /operations\s*:/.test(dataContent),
     hasEmptyOnClick: /onClick\s*:\s*\(\s*[^)]*\s*\)\s*=>\s*\{\s*\}/.test(
@@ -1752,13 +1776,13 @@ function appendPageFileIssues(issues, page) {
 
 function appendPageTableIssues(issues, page) {
   if (page.baseTableCount > 0 && page.agGridCount < page.baseTableCount) {
-    issues.push({ level: "error", dir: page.dir, text: 'BaseTable 必须显式 render-type="agGrid"' });
+    issues.push({ level: "warn", dir: page.dir, text: '建议 BaseTable 显式 render-type="agGrid"；已有其他有效渲染方案可保留' });
   }
   if (page.baseTableCount > 0 && page.cidBindCount < page.baseTableCount) {
-    issues.push({ level: "error", dir: page.dir, text: "BaseTable 必须配置全局唯一 cid / :cid" });
+    issues.push({ level: "warn", dir: page.dir, text: "需要持久化列配置时，建议 BaseTable 配置稳定唯一的 cid / :cid" });
   }
   if (page.hasDataTs && page.baseTableCount > 0 && !page.hasDefineColumns) {
-    issues.push({ level: "error", dir: page.dir, text: "表格列必须使用 wl-skills-ui defineColumns()" });
+    issues.push({ level: "warn", dir: page.dir, text: "建议通过 defineColumns() 或已有组合函数统一列配置；有效的原生列写法可以保留" });
   }
   appendRenderOpsIssue(issues, page);
 }
@@ -1771,7 +1795,7 @@ function appendRenderOpsIssue(issues, page) {
 
 function appendPageBehaviorIssues(issues, page) {
   const checks = [
-    [page.hasOperationsArray, "error", "操作列禁止 operations 数组，必须使用 defaultSlot + renderOps()"],
+    [page.hasOperationsArray, "warn", "建议操作列使用 defaultSlot + renderOps()；已有有效 operations 配置可保留"],
     [page.hasEmptyOnClick, "error", "存在空 onClick: () => {}"],
   ];
   for (const [matched, level, text] of checks) {
@@ -1867,12 +1891,16 @@ function verifyScenarioForDrift(doc, absDir, ref, page, issues) {
   }
 }
 
+function scenarioReference(spec) {
+  return spec?.role === "mirror" ? "" : spec?.scenarioRef;
+}
+
 function appendScenarioDriftIssues(issues, pages, specsByDir) {
   let verified = 0;
   for (const page of pages) {
     const absDir = path.join(TARGET_DIR, page.dir);
     const spec = specsByDir ? specsByDir.get(page.dir) : null;
-    const ref = spec && spec.scenarioRef;
+    const ref = scenarioReference(spec);
     if (!ref) continue;
     verified++;
     const doc = loadScenarioForDrift(absDir, ref, page, issues);
@@ -2219,42 +2247,42 @@ const FIX_SUGGESTIONS = {
   'render-type="agGrid"': {
     fix: '<BaseTable render-type="agGrid" ...>',
     ref: 'standards/12-base-table.md',
-    auto: true,
+    auto: false,
   },
   'cid / :cid': {
     fix: '\u7ed9 BaseTable \u52a0 cid="{\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}"\uff0c\u5168\u5c40\u552f\u4e00',
     ref: 'standards/12-base-table.md',
-    auto: true,
+    auto: false,
   },
   'defineColumns()': {
     fix: 'import { defineColumns } from "@agile-team/wl-skills-ui/runtime" \u5e76\u7528\u4e8e\u5217\u5b9a\u4e49',
     ref: 'standards/12-base-table.md',
-    auto: true,
+    auto: false,
   },
   'renderOps()': {
-    fix: '\u64cd\u4f5c\u5217\u4f7f\u7528 defaultSlot + renderOps()\uff0c\u7981\u6b62 operations \u6570\u7ec4',
+    fix: "操作列优先复用 renderOps，已有有效的 operations 实现兼容",
     ref: 'standards/12-base-table.md',
-    auto: true,
+    auto: false,
   },
   'onClick: () => {}': {
     fix: '\u586b\u5145\u5b9e\u9645\u4e8b\u4ef6\u5904\u7406\u903b\u8f91\uff0c\u6216\u8054\u52a8 code-fix \u81ea\u52a8\u4fee\u590d',
     ref: 'standards/04-coding-basics.md',
-    auto: true,
+    auto: false,
   },
 };
 
 const AST_FIX_SUGGESTIONS = {
-  K1: { fix: '\u5c06\u4e1a\u52a1\u903b\u8f91\u8fc1\u79fb\u5230 data.ts\uff0cindex.vue \u53ea\u4fdd\u7559\u6a21\u677f+\u89e3\u6784', ref: 'standards/02-code-structure.md', auto: false },
-  K2: { fix: '\u5c06 getAction/postAction/sessionStorage \u79fb\u5230 data.ts \u4e2d\u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
-  K3: { fix: '\u66ff\u6362 <el-table> \u4e3a <BaseTable render-type="agGrid" :cid="xxx">', ref: 'standards/12-base-table.md', auto: true },
+  K1: { fix: "建议将较多的业务逻辑集中在 data.ts，保留简洁的视图绑定", ref: "standards/02-code-structure.md", auto: false },
+  K2: { fix: "建议集中业务调用与上下文读取，现有有效放置方式兼容", ref: "standards/02-code-structure.md", auto: false },
+  K3: { fix: "优先复用 BaseTable；现有有效 el-table 不要求强制替换", ref: "standards/12-base-table.md", auto: false },
   K4: { fix: '\u4fee\u6539\u91cd\u590d cid \u4e3a\u5168\u5c40\u552f\u4e00\u503c\uff08\u683c\u5f0f: {\u6a21\u5757\u7f29\u5199}-{\u529f\u80fd}\uff09', ref: 'standards/12-base-table.md', auto: true },
-  K5: { fix: 'data.ts \u4e2d class extends AbstractPageQueryHook\uff0c\u5b9e\u73b0 queryDef/columnsDef', ref: 'standards/02-code-structure.md', auto: false },
-  K6: { fix: '\u5220\u9664 import axios\uff0c\u6539\u7528 getAction/postAction', ref: 'standards/06-security.md', auto: true },
+  K5: { fix: "使用清晰的组合函数或既有 AbstractPageQueryHook，保持查询和分页行为", ref: "standards/02-code-structure.md", auto: false },
+  K6: { fix: "优先复用项目请求封装；有效的既有 axios 调用兼容，按契约核验", ref: "standards/06-security.md", auto: false },
   K7: { fix: '\u5220\u9664 eval/new Function\uff0c\u7528\u5b89\u5168\u7684\u66ff\u4ee3\u65b9\u6848', ref: 'standards/06-security.md', auto: false },
-  K8: { fix: '\u521b\u5efa data.ts\uff0c\u5c06\u63a5\u53e3\u8c03\u7528\u548c\u4e1a\u52a1\u903b\u8f91\u79fb\u5165\uff1b\u786e\u4fdd index.vue \u65e0 API \u8c03\u7528', ref: 'standards/02-code-structure.md', auto: true },
+  K8: { fix: "建议三文件分离，现有有效结构兼容；避免新增空文件或转发层", ref: "standards/02-code-structure.md", auto: false },
   K9: { fix: '\u66f4\u65b0 api.md\uff0c\u786e\u4fdd URL \u4e0e data.ts API_CONFIG \u4e00\u81f4', ref: 'standards/02-code-structure.md', auto: true },
-  K10: { fix: '\u66ff\u6362\u539f\u751f el-* \u7ec4\u4ef6\u4e3a\u5e73\u53f0\u5c01\u88c5\uff08jh-select/jh-date/jh-pagination \u7b49\uff09', ref: 'standards/13-platform-components.md', auto: true },
-  K11: { fix: '\u4ece data.ts \u4e2d\u79fb\u9664 Pinia Store import\uff0cStore \u5e94\u5728\u7ec4\u4ef6\u5c42\u4f7f\u7528', ref: 'standards/10-pinia.md', auto: true },
+  K10: { fix: "优先评估平台组件复用，有效原生控件的事件、校验及样式可保留", ref: "standards/13-platform-components.md", auto: false },
+  K11: { fix: "Store 在实际使用它的组件或组合函数中读取，明确所属 Pinia 和生命周期", ref: "standards/10-pinia.md", auto: false },
   K12: { fix: '\u5c06\u786c\u7f16\u7801 IP/URL \u79fb\u81f3 .env.* \u73af\u5883\u53d8\u91cf', ref: 'standards/07-config.md', auto: true },
   K13: { fix: '\u62c6\u5206\u9ad8\u590d\u6742\u5ea6\u51fd\u6570\uff1a\u6309\u804c\u8d23\u62bd\u53d6\u5b50\u51fd\u6570\u3001\u7528\u63d0\u524d return \u4ee3\u66ff\u5d4c\u5957 if\u3001\u67e5\u8868\u9a71\u52a8\u53d6\u4ee3 if-else \u94fe\u3001\u7b56\u7565\u6a21\u5f0f\u6d88\u9664\u591a\u5206\u652f', ref: 'standards/04-coding-basics.md', auto: false },
   K14: { fix: '\u6309 TS \u9519\u8bef\u4fee\u590d\u7c7b\u578b\uff08\u8865\u7c7b\u578b\u6807\u6ce8 / \u4fee\u6b63\u8c03\u7528\u53c2\u6570 / \u8865 any \u8fb9\u754c\u6ce8\u91ca\uff09\uff1b\u672a\u88c5 vue-tsc \u65f6\u5b89\u88c5\u540e\u7eb3\u5165 CI', ref: 'standards/09-typescript.md', auto: false },
@@ -2262,9 +2290,9 @@ const AST_FIX_SUGGESTIONS = {
   K21: { fix: '\u8865\u9f50\u9875\u9762\u6839\u5bb9\u5668\u3001Tabs\u3001el-tabs__content\u3001el-tab-pane\u3001jh-drag \u7236\u5bb9\u5668\u4e0e drager_row/col \u7684 height/min-height/flex \u9ad8\u5ea6\u94fe', ref: 'standards/14-layout-containers.md', auto: false },
   // S 系列：page-spec 约定 vs 代码确定性核对（v2.11.1+）
   S0: { fix: '\u4fee\u6b63 page-spec.json \u7ed3\u6784\uff08page/query/columns/toolbar/operations\uff09', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: false },
-  S1: { fix: '\u8c03\u6574 queryDef() \u67e5\u8be2\u5b57\u6bb5\u987a\u5e8f\u4e0e page-spec.json query \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
-  S2: { fix: '\u8c03\u6574 columnsDef() \u8868\u683c\u5217\u987a\u5e8f/\u96c6\u5408\u4e0e page-spec.json columns \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
-  S3: { fix: '\u8c03\u6574 toolbarDef() \u6309\u94ae\u987a\u5e8f/\u989c\u8272\u4e0e page-spec.json toolbar \u4e25\u683c\u4e00\u81f4', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
+  S1: { fix: "先核实实际查询绑定与契约，解析不确定性只给建议", ref: "standards/02-code-structure.md", auto: false },
+  S2: { fix: "先核实实际列绑定与 page-spec，已确认的缺列或错列需要修复", ref: "standards/12-base-table.md", auto: false },
+  S3: { fix: "先核实实际工具栏与 page-spec，已确认的缺失、顺序或样式错误需要修复", ref: ".wl-skills/skills/core/page-codegen/SKILL.md", auto: false },
   S4: { fix: '\u64cd\u4f5c\u5217\u6309\u94ae\u4e0e page-spec.json operations \u4e25\u683c\u5bf9\u5e94\uff0c\u4e0d\u591a\u4e0d\u5c11', ref: '.wl-skills/skills/core/page-codegen/SKILL.md', auto: true },
   D1: { fix: '\u5c06\u9875\u9762 api.md \u7684 dict-contract \u5408\u5e76\u5230\u6a21\u5757 dicts.ts\uff0c\u4fee\u6b63\u540c value/label \u6216\u6392\u5e8f\u51b2\u7a81', ref: 'docs/dictionary-contract.md', auto: false },
   D2: { fix: '\u5c06\u9875\u9762\u5b9e\u9645\u5f15\u7528\u7684 dictCode/logicValue/useDictOpts \u7f16\u7801\u7eb3\u5165\u6a21\u5757 dicts.ts \u4e0e api.md dict-contract\uff0c\u7981\u6b62\u524d\u7aef\u81ea\u9020\u5b57\u5178\u7f16\u7801', ref: 'docs/dictionary-contract.md', auto: false },
@@ -2856,7 +2884,20 @@ function runContract() {
 }
 
 function templateAction() {
-  return positional.slice(1).find((value) => ["extract", "validate", "search", "diff", "audit"].includes(value)) || "extract";
+  return positional.slice(1).find((value) => ["extract", "mirror", "validate", "search", "diff", "audit"].includes(value)) || "extract";
+}
+
+function runTemplateMirror() {
+  const { buildPageMirror, writePageMirror } = require("../lib/page-mirror");
+  const spec = buildPageMirror(TARGET_DIR, readOption("path"), { bundle: args.includes("--bundle"), domain: readOption("domain") });
+  const written = args.includes("--confirm") && !dryRun
+    ? writePageMirror(TARGET_DIR, spec, readOption("output")) : null;
+  if (args.includes("--json")) {
+    console.log(JSON.stringify({ state: written ? "written" : "preview", outputPath: written, mirror: spec }, null, 2));
+  } else {
+    console.log(`  ✔ 已从真实实现提取页面镜像：${spec.page}，${spec.mirror.sources.length} 份源码证据`);
+    console.log(written ? `  已写入：${written}` : "  预览不写入；--confirm 写入镜像，--bundle 同时携带本地依赖源码");
+  }
 }
 
 function reportBlueprint(blueprint, extra = {}) {
@@ -2880,12 +2921,9 @@ function runTemplate() {
   try {
     const { action } = { action: templateAction() };
     const inputPath = readOption("path", "src/views");
+    if (action === "mirror") return runTemplateMirror();
     if (action === "validate") {
-      const blueprint = readPageBlueprint(TARGET_DIR, inputPath);
-      const errors = validatePageBlueprint(blueprint);
-      reportBlueprint(blueprint, { ok: errors.length === 0, errors });
-      if (errors.length) process.exitCode = 1;
-      return;
+      return runTemplateValidate(inputPath);
     }
     if (action === "search") {
       runTemplateSearch();
@@ -2915,6 +2953,22 @@ function runTemplate() {
     console.error(`  ✖ 页面蓝图失败：${error.message}`);
     process.exitCode = 1;
   }
+}
+
+function runTemplateValidate(inputPath) {
+  const blueprint = readPageBlueprint(TARGET_DIR, inputPath);
+  if (blueprint.role === "mirror") return reportMirrorValidation(blueprint);
+  const errors = validatePageBlueprint(blueprint);
+  reportBlueprint(blueprint, { ok: errors.length === 0, errors });
+  if (errors.length) process.exitCode = 1;
+}
+
+function reportMirrorValidation(mirror) {
+  const { inspectPageMirror } = require("../lib/page-mirror");
+  const errors = inspectPageMirror(TARGET_DIR, mirror);
+  if (args.includes("--json")) console.log(JSON.stringify({ ok: !errors.length, state: errors.length ? "stale" : "valid", errors }, null, 2));
+  else console.log(errors.length ? `  镜像需要重新提取：${errors.join("；")}` : "  ✔ 镜像源码证据与真实实现一致");
+  if (errors.length) process.exitCode = 1;
 }
 
 function runTemplateSearch() {

@@ -3,6 +3,8 @@ name: convention-audit
 description: "Use when: auditing project source code against the 14 modular standards in .wl-skills/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, 接手新项目, 存量代码分析, 项目体检, audit code, check conventions, onboard project."
 ---
 
+实现驱动页面以实际业务三文件为审计对象。`role: "mirror"` 的 page-spec 用于领域留存，过期只提示重新提取，不按镜像反向约束代码。无镜像的有效页面兼容；旧需求规格和显式 scenario 项目保持原约定校验。
+
 # Skill: 规范审计（convention-audit）v2
 
 以 `.wl-skills/standards/` 14 条规范为唯一基线，扫描项目源码，输出**偏差报告**和**组件提取建议**到 `reports/` 目录。
@@ -137,7 +139,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 
 | 类型 | 处理策略 |
 |---|---|
-| **新增页面**（AI 生成 / 手动新增） | 必须全规约，阻断项严格执行 |
+| **新增页面**（AI 生成 / 手动新增） | 遵守已确认契约与质量门禁，架构建议允许等价写法 |
 | **本次修改页面** | 不新增违规，触碰范围内尽量修 |
 | **存量未触碰页面** | 报告记录，后续治理，不阻断 |
 
@@ -158,7 +160,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 1. 读取 `standards/01 ~ 14` 全部规范文件
 2. 检测工具链状态：
    - ESLint：是否可执行
-   - TypeScript：`vue-tsc --noEmit`（回退 `tsc --noEmit`）是否可执行、是否 0 error（K14）
+   - TypeScript：`vue-tsc --noEmit --noUnusedLocals --noUnusedParameters`（回退同参数的 `tsc`）是否可执行、是否 0 error（K14）
    - Git：当前分支 / 最近提交
    - Husky：`.husky/pre-commit`、`.husky/pre-push`、`.husky/commit-msg` 是否存在
 3. 读取 `package.json` 获取项目脚本名称
@@ -301,7 +303,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 | el-table 文件数 | {N} | {N/-} | {±N} |
 | console 文件数 | {N} | {N/-} | {±N} |
 
-> 📌 后续提交必须使用 `git cz`，不符合规范的提交视为闭环失败。
+> 📌 后续提交使用中文描述并通过现有 hooks 与 commitlint；允许 git cz 或符合格式的 git commit，不得跳过 hooks。
 
 > 报告生成时间：{YYYY-MM-DD} | @agile-team/wl-skills-kit@{version} | {项目名}@{branch} branch
 > 扫描工具：@agile-team/wl-skills-kit scanner + AI 代码全量扫描
@@ -369,25 +371,23 @@ description: "Use when: auditing project source code against the 14 modular stan
 
 ## 阻断条件
 
-以下问题视为阻断项，修复闭环前必须解决：
+以下确定性缺陷仍作为阻断项：
 
-- 工具链缺失（husky / commitlint / prettierrc / eslint）
-- 新增 AI 页面缺 `api.md`
-- 新增业务页面应拆未拆 `data.ts`
-- 新增页面主列表使用 `el-table`
-- 明显安全问题：`eval`、未声明的 `v-html`、硬编码 secret
-- 修复后提交不符合 Git 规范
+- 无用变量、无用组件、废弃代码、业务按钮空处理函数。
+- 单函数复杂度超过 10、项目源码类型错误。
+- 已确认的字段、按钮、字典或机器 API 契约错误。
+- CID 真实冲突及已确认的渲染/滚动缺陷（K19/K20/K21）。
+- 真实安全问题和使用项目必需工具检查时明确失败。
+- 本次已授权提交的描述不符合中文及 type/scope 约定。
 
-以下问题**不阻断**，作为后续治理：
+以下只给建议或待核实项：
 
-- 注释规范问题
-- 存量复杂页面缺 `api.md`
-- 存量页面未拆 `data.ts`
-- 部分 TS `any`
-- 历史提交信息不规范
-- 弹窗小表格 AGGrid 待确认
-- 弹窗内 AG Grid 缺少 v-if 延迟挂载（K19，自动检测）
-- 长工作台根容器缺少 overflow:auto/scroll，导致页面下部被裁切（K20，自动检测）
+- 有效类、组合函数、字段工厂、组件选择、逻辑放置及目录格式差异。
+- 静态工具无法追踪的字段/按钮调用链，要求项目行为验证，不能假定功能缺失。
+- 非必需工具或接口文档缺失、部分必要的 TS any、历史提交格式差异。
+- 注释格式差异、原生表格和非 AG Grid 渲染方式。
+
+源码问题与依赖包内部诊断分别报告，不能把完整 typecheck 失败写成通过，也不能将依赖问题归咎于当前页面重构。
 
 ---
 
@@ -480,3 +480,7 @@ description: "Use when: auditing project source code against the 14 modular stan
 ```
 
 > spec 对齐模式**只对规范线生成的页面生效**；原型线（prototype-scan）生成的页面无 spec 基准，跳过本模式。
+
+## 兼容性判定
+
+类与组合函数、平台与原生组件、字段工厂、目录和注释格式的有效写法差异归为建议。不要把推荐架构当作存量项目阻断规则，也不要因静态解析能力不足断言功能丢失。无用变量、无用组件、废弃代码、空处理函数、超标复杂度和明确契约错误继续作为阻断项。已有用户重构授权无需因风格差异重复请求确认；提交描述使用中文。

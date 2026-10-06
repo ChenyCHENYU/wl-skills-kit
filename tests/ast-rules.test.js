@@ -112,7 +112,7 @@ describe("hasAstAvailable", () => {
 
 describe("runAstRules 优雅降级", () => {
   it("目录不存在时返回空结果，且不凭空创建缓存目录", () => {
-    const target = path.join(__dirname, "nonexistent-dir-xyz");
+    const target = path.join(require("node:fs").mkdtempSync(path.join(require("node:os").tmpdir(), "wl-missing-")), "missing");
     const result = runAstRules(
       target,
       "src/views",
@@ -415,13 +415,15 @@ describe("runTypeCheck (K14) 优雅降级", () => {
     // 假 checker：--version 退出 0；否则输出标准 TS error 行并退出 1
     const script = `#!/bin/sh
 if [ "$1" = "--version" ]; then echo "Version 5.0.0"; exit 0; fi
+case " $* " in *" --noUnusedLocals "*) ;; *) exit 0;; esac
+case " $* " in *" --noUnusedParameters "*) ;; *) exit 0;; esac
 echo 'src/x.ts(10,5): error TS2322: Type string is not assignable to type number.'
 exit 1`;
     fs.writeFileSync(path.join(binDir, "tsc"), script, { mode: 0o755 });
     // Windows 额外写 .cmd
     fs.writeFileSync(
       path.join(binDir, "tsc.cmd"),
-      '@echo off\r\nif "%1"=="--version" (echo Version 5.0.0 & exit /b 0)\r\necho src/x.ts(10,5): error TS2322: Type string is not assignable to type number.\r\nexit /b 1\r\n',
+      '@echo off\r\nif "%1"=="--version" (echo Version 5.0.0 & exit /b 0)\r\necho %* | findstr /C:"--noUnusedLocals" >nul || exit /b 0\r\necho %* | findstr /C:"--noUnusedParameters" >nul || exit /b 0\r\necho src/x.ts(10,5): error TS2322: Type string is not assignable to type number.\r\nexit /b 1\r\n',
     );
     const tc = runTypeCheck(dir);
     expect(tc.ran).toBe(true);

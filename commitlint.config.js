@@ -6,6 +6,7 @@
  */
 module.exports = {
   extends: ['@commitlint/config-conventional'],
+  plugins: [{ rules: { 'subject-chinese': ({ subject }) => [/[\u3400-\u9fff]/u.test(subject || ''), '提交描述请使用中文，技术标识可保留英文'] } }],
   rules: {
     'type-enum': [
       2,
@@ -17,5 +18,6 @@ module.exports = {
     ],
     'scope-empty': [2, 'never'],
     'subject-case': [0],
+    'subject-chinese': [2, 'always'],
   },
 }

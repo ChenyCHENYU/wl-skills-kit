@@ -20,7 +20,7 @@
 ```
 src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 ├── index.vue    ← 纯模板+解构，不写业务逻辑
-├── data.ts      ← AbstractPageQueryHook 类 + API_CONFIG
+├── data.ts      ← 组合函数、字段和接口；现有类写法兼容
 ├── index.scss   ← 页面样式（可为空）
 └── api.md       ← 接口约定（前端预留 + 后端出接口依据）
 ```
@@ -33,21 +33,21 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 ## 三、data.ts 核心模式
 
-- 继承 `AbstractPageQueryHook`，实现 `queryDef()` / `columnsDef()`
+- 优先平铺的 `useXxx()` / `createPage()`；已有 `AbstractPageQueryHook` 兼容
 - `API_CONFIG` 定义接口路径，与 `api.md` 一一对应
-- `API_CONFIG` 中禁止出现 `import axios`，只能用 `getAction` / `postAction`
-- `data.ts` 中禁止 `import Store`（Pinia Store 在组件层使用）
+- 请求优先复用项目 getAction/postAction 等工具；有效的既有封装兼容，方法、路径和载荷按契约校验
+- Store 放在实际使用它的组合函数或组件中，不因位置差异阻断
 
-## 四、页面模板硬约束
+## 四、页面复用建议与硬门禁
 
-生成业务表格时，必须同时满足：
+新写和重构页面推荐以下组织，存量有效写法兼容：
 
-- 使用 `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination`
-- `BaseTable` 显式 `render-type="agGrid"`
-- `BaseTable` 绑定全局唯一 `cid` / `:cid`
-- 列定义使用 `@agile-team/wl-skills-ui/runtime` 的 `defineColumns()`
-- 操作列使用 `renderOps()`，禁止 `operations: []`
-- 保留 `common-core` 平台骨架，不得生搬硬套 `wl-skills-ui` 通用模板里的 `usePageHook/el-form/el-pagination`
+- 复用 BaseQuery / BaseToolbar / BaseTable / jh-pagination，业务逻辑可用组合函数或既有类
+- BaseTable 优先采用适合页面的 AG Grid，接受有效的其他渲染方式
+- 持久化使用稳定、项目内唯一 CID；重构保留已有值
+- 列定义优先经 composables 调用 `defineColumns()`，不要求每页重复包装
+- 操作列优先复用 renderOps，有效等价实现兼容；有业务操作时不允许空处理函数
+- 扩展已有组件，单页业务留在 data.ts，避免仅转发文件、重复适配器和另一套表格外壳
 - 生成后建议运行 `wl-skills validate-page <页面目录>` 和 `wl-skills doctor-ui`
 
 ## 五、Mock 架构（与页面完全解耦）
@@ -89,13 +89,13 @@ src/views/[域]/[模块]/[子模块]/[kebab-case目录]/
 
 1. 首先匹配上表触发词，结合 `_best-practices.md` 场景索引判断用户意图
 2. 双线隔离：输入含 `.wl-skills/docs/spec/` / 功能编码 / IPO 表 → 强制路由 `spec-doc-parse`，禁止 `prototype-scan` 接管
-3. **确定性渲染优先**：生成页面前先读 `.wl-skills/skills/core/page-codegen/templates/patterns.json`——目标交互模式为 `implemented` 时，必须把页面规格写成 scenario JSON（契约见 `.wl-skills/docs/scenario-template.md`）并执行 `wl-skills scenario render --input x.scenario.json --confirm` 确定性生成，**AI 只写 JSON 不写页面代码**；`planned` 模式才走 page-codegen 主流程（TPL + AI 填充）
+3. **页面实现优先**：普通新页面与重构页面直接维护 data.ts/index.vue/index.scss；业务定义以 data.ts 为唯一事实源。验证实际实现后按需提取 `role: "mirror"` 的 page-spec，供领域库留存。用户显式选择 scenario 或既有页面带 scenarioRef 时才使用确定性编译链，不因模式已登记而强制 JSON 化。
 4. 匹配 2+ Skill 时必须列出候选并询问用户意图（误触发防护）
 5. 本地代码写入以用户当前请求和明确范围为授权，不重复追问；后端写操作必须执行“查询 → 预览 planHash → 明确确认 → 写入”
 6. `code-fix` 完成后必须自动 `wl-skills validate` 复扫（闭环强制）
 7. sync 类任务必须额外加载 `.wl-skills/skills/sync/_mcp-guardrail.md`
-8. scenario 渲染产物禁止手改；改动需求必须改 scenario JSON 后重新 render；`wl-skills validate` 遇到带 `scenarioRef` 的 page-spec 会自动逐字节核对事实源（W1），手改产物在提交/CI 即被拦截
-9. 已有 page-spec（prototype-scan / spec-doc-parse 产出）的页面，优先用 `wl-skills scenario from-spec` 引导为 scenario JSON 再确定性渲染；业务按钮 handler 以 TODO stub 提示人工实现，禁止 AI 猜测语义
+8. 显式 scenario 生成项目继续维护其 scenario 输入与 W1 往返核对；`role: "mirror"` 的 page-spec 不参与 W1。镜像过期只提示重新提取，不能按镜像修改业务代码。
+9. 已有实现从实际代码提取领域镜像；禁止把镜像传给旧 from-spec 生成器后丢弃未知交互。未能结构化的逻辑保留源码/依赖证据，不用 TODO 或猜测替代真实能力。旧需求规格输入继续兼容。
 
 ---
 
@@ -257,3 +257,7 @@ AI 在执行任何 Skill 前必须输出：
 2. 对每项给出**具体修复建议**（而非泛泛的"请修复"）
 3. 标注是否可自动修复（auto: true/false）
 4. 引导用户触发修复流程：`规范审计 → 自动修复 → 复扫验证`
+
+## 写法兼容与代码质量
+
+风格建议不阻断存量项目。无法静态证明的字段或按钮调用链只提示核实，并执行项目契约/行为验证；无用变量、无用组件、废弃代码、空动作、超标复杂度与明确契约错误继续阻断。注释和提交描述使用中文，技术标识保留原名。

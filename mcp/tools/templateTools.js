@@ -14,6 +14,7 @@ const {
   diffBlueprintFiles,
 } = require("../../lib/blueprint-registry");
 const { auditPageBlueprint } = require("../../lib/blueprint-audit");
+const { buildPageMirror, inspectPageMirror, writePageMirror } = require("../../lib/page-mirror");
 
 function projectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -38,6 +39,7 @@ function toText(summary, extra = "") {
 
 function handleTemplateExtract(args = {}) {
   const root = projectRoot();
+  if (args.artifact === "mirror") return handleMirrorExtract(root, args);
   const blueprint = buildPageBlueprint(root, args.path || "src/views", {
     domain: args.domain,
     scene: args.scene,
@@ -57,9 +59,25 @@ function handleTemplateExtract(args = {}) {
   };
 }
 
+function handleMirrorExtract(root, args) {
+  const mirror = buildPageMirror(root, args.path, { bundle: args.bundle === true, domain: args.domain });
+  const outputPath = args.confirmWrite === true ? writePageMirror(root, mirror, args.outputPath) : null;
+  return {
+    text: `✅ 从真实实现提取领域镜像：${mirror.page}${outputPath ? `，已写入 ${outputPath}` : "，预览不写入"}`,
+    structuredContent: { ok: true, state: outputPath ? "written" : "preview", mirror, ...(outputPath ? { outputPath } : {}) },
+  };
+}
+
 function handleTemplateValidate(args = {}) {
   const root = projectRoot();
   const blueprint = readPageBlueprint(root, args.inputPath || "");
+  if (blueprint.role === "mirror") {
+    const errors = inspectPageMirror(root, blueprint);
+    return {
+      text: errors.length ? `镜像需要重新提取：${errors.join("；")}` : "✅ 镜像源码证据与实际实现一致",
+      structuredContent: { ok: !errors.length, state: errors.length ? "stale" : "valid", errors },
+    };
+  }
   const errors = validatePageBlueprint(blueprint);
   const summary = summarizeBlueprint(blueprint);
   return {

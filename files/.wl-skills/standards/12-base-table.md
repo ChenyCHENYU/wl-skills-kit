@@ -1,206 +1,34 @@
-# 12 — BaseTable 渲染与 AGGrid cid 唯一性规范
+# 12 — BaseTable 扩展、渲染与 CID
 
-> **强制度**：🔴 必遵。
+## 推荐写法与兼容边界
 
----
+优先复用已有 BaseTable，按页面需求选择 AG Grid 或现有有效渲染方式。存量 el-table、非 AG Grid 表格及组件写法差异给出建议，不单独阻断；不要求项目为这些差异登记豁免。
 
-## 渲染模式（强制）
+安装 wl-skills-ui 后，推荐经 `defineColumns()` 统一列预设，操作列推荐 `renderOps()`。允许通过 `composables/useBaseTable.ts` 等已有组合函数间接调用，也接受行为相同的有效自定义列与操作实现。静态检查无法跟踪调用链时提示核实，不宣判功能缺失。
 
-所有 `BaseTable` 必须默认使用 **AGGrid** 渲染：
+扩展层负责平台列类型、编辑器和预设的转换。字典解析、数字契约和样式由业务参数提供，不绑定单个业务模块，不为每种页面再造适配器。
+
+## CID 的稳定性
+
+启用列配置持久化的表格应提供稳定、项目内唯一的 CID；确证不同页面重复使用导致配置冲突时继续阻断。
+
+- 重构保留已有表格和列 CID，禁止为满足新格式重新生成，避免丢失用户配置。
+- 新表格可使用业务域、页面、表格的语义前缀，也可一次性生成时间戳。时间戳不保证跨项目全局唯一，不能作为唯一性证明。
+- 列 CID 推荐 `${TABLE_CID}-fieldName`，接受已持久化的其他稳定格式。
+- 缺失 CID 或命名格式差异先提示；确需持久化时补齐，并验证配置可恢复。
 
 ```vue
 <BaseTable
-  ref="tableRef"
   render-type="agGrid"
-  cid="mca-lhfge5hc"
-  :data="list"
+  :cid="TABLE_CID"
   :columns="columns"
-  showToolbar
+  :data="rows"
 />
 ```
 
-> 全局配置：`envConfig().componentConfig.table = { renderType: 'agGrid' }`
-> 设置后所有未显式指定 `render-type` 的 BaseTable 默认 AGGrid。
+## 布局缺陷仍需修复
 
----
-
-## cid 命名规则（核心）
-
-AGGrid 通过 `cid` 持久化列配置（列宽、顺序、显示），**cid 必须跨全部系统全局唯一**。
-
-> ⚠️ 本项目包含 21 个 Module Federation 子应用，共享同一浏览器 origin（localStorage 共用）。
-> 采用简短十进制后缀存在两个致命问题：①后 6 位每 ~11.5 天循环一次；②不同页面的首字母缩写高概率碰撞（如 `mca`、`dto`）。
-> 因此后缀必须使用 **完整 base-36 时间戳**，保证毫秒级全局唯一且永不重复。
-
-### 表格级 cid
-
-```
-格式：{页面目录首字母缩写}-{Date.now().toString(36)}
-```
-
-**生成规则（AI 执行）**：
-
-1. 取页面 kebab-case 目录名，每个单词取首字母拼接为缩写
-2. 执行 `Date.now().toString(36)`，将结果完整追加（当前约 9 位 base-36，只增不减）
-3. 用 `-` 连接
-
-**示例**：
-
-| 页面目录                 | 缩写 | cid（base-36后缀）      |
-| ------------------------ | ---- | ----------------------- |
-| `mmwr-customer-archive`  | mca  | `mca-lhfge5hc`          |
-| `domestic-trade-order`   | dto  | `dto-lhfge5hi`          |
-| 同页面第二个表格（子表） | mca  | `mca-lhfge5hc-sub1`     |
-| 同页面第三个表格         | mca  | `mca-lhfge5hc-sub2`     |
-
-> **为什么不截断**：截断后缀（如后 6 位）会引入循环碰撞。完整 base-36 值为单调递增，毫秒级唯一，9 位 base-36 ≈ 2199 亿组合，同一毫秒只生成一次。
-
-> ⚠️ **AI 批量生成多个 cid 时的碰撞风险**：AI 在同一上下文中连续生成多个 `Date.now().toString(36)` 时，
-> 返回值可能相同（AI 不会真实调用系统时钟，而是推断一个"合理值"）。
-> **正确做法**：AI 批量生成时，在基准时间戳上依次 +1ms 递增，确保每个 cid 的数字部分唯一：
->
-> ```typescript
-> // 批量生成模板（AI 执行 code-fix / page-codegen 时使用）
-> const base = Date.now()
-> const cids = {
->   table:  `mca-${base.toString(36)}`,           // mca-lhfge5hc
->   sub1:   `mca-${(base+1).toString(36)}-sub1`,  // mca-lhfge5hd-sub1
->   sub2:   `mca-${(base+2).toString(36)}-sub2`,  // mca-lhfge5he-sub2
-> }
-> ```
->
-> 人工在编辑器里每次手写一个 cid 时，直接用 `Date.now().toString(36)` 即可（不同时刻天然不同）。
-
-### 列级 cid
-
-```
-格式：{完整表格 cid}-{fieldName}
-```
-
-> ✅ 用完整表格 cid（而非仅缩写部分）作前缀，是防碌撞的关键。
-> 同一页面两张表都有 `steelCode` 列时：
-> - 主表（cid=`mca-lhfge5hc`）：`mca-lhfge5hc-steelCode` ✅
-> - 子表（cid=`mca-lhfge5hc-sub1`）：`mca-lhfge5hc-sub1-steelCode` ✅
-> - 如果用缩写作前缀：两张表同名列都会得到 `mca-steelCode` → 碰撞 ❌
-
-```typescript
-// 主表 cid="mca-lhfge5hc"
-columnsDef(): TableColumnDesc<any>[] {
-  return [
-    { type: 'selection' },
-    { type: 'index' },
-    { label: '取样',     name: 'sampling',           cid: 'mca-lhfge5hc-sampling',           width: 70 },
-    { label: '线上公告', name: 'onlineAnnouncement', cid: 'mca-lhfge5hc-onlineAnnouncement', width: 70 },
-  ]
-}
-
-// 子表 cid="mca-lhfge5hc-sub1"
-subColumnsDef(): TableColumnDesc<any>[] {
-  return [
-    { type: 'index' },
-    { label: '钢种编码', name: 'steelCode', cid: 'mca-lhfge5hc-sub1-steelCode', width: 100 },
-    { label: '规格',     name: 'spec',      cid: 'mca-lhfge5hc-sub1-spec',      width: 80 },
-  ]
-}
-
----
-
-## AGGrid 场景化判定（v2.3.8+）
-
-> 默认所有业务列表表格必须使用 `BaseTable + AGGrid + cid`。
-> 但部分特殊场景允许使用 `BaseTable` 非 AGGrid 模式，需在审查报告中标记理由。
-
-### 必须使用 AGGrid 的场景
-
-- 主列表页（分页查询列表）
-- 台账类页面
-- 数据量较大的列表
-- 需要列配置持久化（列宽、顺序、显隐）
-- 需要排序、筛选、拖拽列宽
-- 业务核心列表
-
-### 允许豁免 AGGrid 的场景（仍优先使用 BaseTable）
-
-| 场景 | 判定 | 说明 |
-|---|---|---|
-| 弹窗内小型表格 | 🟢 可豁免 | 数据量小、无持久化需求 |
-| 表单内行内编辑明细表 | 🟢 可豁免 | AGGrid 行编辑成本高于收益 |
-| 嵌套子表（数据量极小） | 🟢 可豁免 | 无独立分页、无列配置需求 |
-| 只读展示型小表格 | 🟢 可豁免 | 无交互需求 |
-| 特殊合并单元格/复杂行列布局 | ⚠️ 待确认 | AGGrid 不易实现时允许降级 |
-| 平台封装组件内部实现 | ⚠️ 待确认 | 封装层内部使用 el-table 需单独评审 |
-
-### 豁免规则
-
-> **两层豁免机制**：单文件注释豁免（精确）+ 项目级配置豁免（批量）。标准列表页不受豁免影响，仍强制 `BaseTable + AGGrid`。
-
-#### 优先级：标准列表 vs 特殊场景
-
-| 场景类型 | 渲染要求 | K3（el-table）/ AGGrid 卡控 |
-|---|---|---|
-| **标准列表页**（分页查询、台账、核心业务列表） | `BaseTable` + `render-type="agGrid"` + `cid` | 🔴 强制，不可豁免 |
-| **BaseTable 可胜任的特殊表格**（弹窗小表、只读展示、嵌套子表） | `BaseTable`（非 AGGrid 也可），尽量带 `cid` | 🟢 豁免 AGGrid（K3 仍建议改 BaseTable） |
-| **BaseTable 受限的复杂场景**（表单/设计器内嵌表格、行内编辑明细表、特殊合并单元格/复杂行列布局） | 优先 `BaseTable`；确实受限时降级 `el-table` | 🟢 可豁免 K3（需登记豁免原因） |
-| **平台封装组件内部** | 按需 | 🟢 豁免 K3（封装层单独评审） |
-
-> 判定原则：**先用 BaseTable**；BaseTable 确实受限不能满足时，才降级 `el-table`，不直接裸用。
-
-#### 豁免方式一：单文件注释（精确到文件）
-
-在特殊文件内加注释标记，精确豁免该文件的指定规则（适合个别页面）：
-
-```vue
-<!-- index.vue -->
-<!-- wl-skills:ignore K3 -->   ← 整页豁免 K3（el-table 检测）
-<template>
-  <el-table> ... </el-table>   <!-- 表单设计器内嵌表格，AGGrid 内联编辑受限 -->
-</template>
-```
-
-```typescript
-// data.ts
-// wl-skills:ignore K10         ← 豁免该文件的 K10
-```
-
-#### 豁免方式二：项目级配置（批量到目录，推荐用于整片特殊场景）
-
-项目根放 `.wl-skills-validate.json`（kit 不主动创建，零功能影响；详见 `docs/validate-exempt.md`）：
-
-```json
-{
-  "exemptions": [
-    {
-      "paths": ["src/views/produce/designer"],
-      "rules": ["K3", "K10"],
-      "reason": "表单设计器内嵌表格，BaseTable AGGrid 内联编辑受限"
-    },
-    {
-      "paths": ["src/views/sale/order-edit/**"],
-      "rules": ["K3"],
-      "reason": "订单行内编辑明细表，AGGrid 行编辑成本高于收益"
-    }
-  ]
-}
-```
-
-- `paths`：页面目录前缀，支持 `/**` glob；命中该目录及其子目录
-- `rules`：规则编号（`K3`/`K10` 等），大小写不敏感
-- `reason`：**必填审计字段**，避免滥用
-
-> ⚠️ 豁免不是放任。豁免项升级为主列表页时，必须迁移回 `BaseTable + AGGrid`。`convention-audit` 审计时列出所有豁免项供人工复核。
-
-### 审查报告中的分类
-
-| 现状 | 审查判定 |
-|---|---|
-| 主列表使用 `el-table` | 🔴 严重 |
-| 主列表 `BaseTable` 但非 AGGrid | 🔴/🟡 |
-| 弹窗小表格 `BaseTable` 非 AGGrid | 🟢 可豁免 |
-| 弹窗小表格 `el-table` | 🟡 建议改 BaseTable |
-| 弹窗内 `BaseTable` 使用 AGGrid 但无 `v-if` | 🔴 **严重（K19）** |
-| 封装组件内部 `el-table` | ⚠️ 需确认，不直接报红 |
-
----
+渲染方式的兼容不豁免真实布局缺陷。弹窗零高度初始化、长工作台无法滚动和分栏高度链断裂仍按 K19/K20/K21 校验；结合实际挂载与高度传递验证。
 
 ## 弹窗内 AG Grid 延迟挂载（K19）
 
@@ -225,50 +53,3 @@ subColumnsDef(): TableColumnDesc<any>[] {
 **AST 检测**：K19 自动检测弹窗内 AG Grid 是否有 `v-if` 包裹，缺失时报 error。
 
 ---
-
-## 禁止事项
-
-- ❌ 随机短字符串 `cid="ipiCfsb"`（AI 重新生成时极易碰撞）
-- ❌ 纴字段名 `cid: "sampling"`（不同页面/不同表格同名字段必碰撞）
-- ❌ 列级 cid 只用缩写 `cid: 'mca-steelCode'`（同页面两张表都有 steelCode 时碰撞）
-- ❌ 省略 cid（列配置持久化完全失效）
-- ❌ 跨页面复用同一 cid
-
----
-
-## Pre-flight 声明示例
-
-```
-✅ cid 已生成：mca-lhfge5hc（mmwr-customer-archive）
-✅ 列级 cid 前缀：mca-lhfge5hc-（完整表格 cid 加连接符）
-```
-
----
-
-## 完整代码示例
-
-```vue
-<!-- index.vue -->
-<template>
-  <BaseTable
-    ref="tableRef"
-    render-type="agGrid"
-    cid="mca-lhfge5hc"
-    :data="list"
-    :columns="columns"
-    showToolbar
-  />
-</template>
-```
-
-```typescript
-// data.ts
-columnsDef(): TableColumnDesc<any>[] {
-  return [
-    { type: 'selection' },
-    { type: 'index' },
-    { label: '客户名称', name: 'customerName', cid: 'mca-lhfge5hc-customerName', minWidth: 120 },
-    { label: '状态',     name: 'status',       cid: 'mca-lhfge5hc-status',       minWidth: 80 },
-  ]
-}
-```

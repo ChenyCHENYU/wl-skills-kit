@@ -138,15 +138,15 @@ function writeSplitGrid(root, sharedStyles) {
 }
 
 describe("validate end-to-end integration", () => {
-  it("--json returns a parseable issue list with the same failure status", () => {
+  it("有效旧表格写法只给建议，JSON 报告与退出码一致", () => {
     const root = makeProject();
     writePage(root, "src/views/acme/json", '<template><el-table /></template>', "export const value = 1\n");
     const result = runValidate(root, ["--json"]);
     const report = JSON.parse(result.stdout);
-    expect(result.status).toBe(1);
-    expect(report.ok).toBe(false);
-    expect(report.summary.errors).toBeGreaterThan(0);
-    expect(report.issues.some((issue) => issue.rule === "K3")).toBe(true);
+    expect(result.status).toBe(0);
+    expect(report.ok).toBe(true);
+    expect(report.summary.errors).toBe(0);
+    expect(report.issues.some((issue) => issue.rule === "K3" && issue.level === "warn")).toBe(true);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
@@ -778,5 +778,32 @@ describe("K21 Tabs 分栏表格高度链", () => {
     expect(result.status, output).not.toBe(0);
     expect(output).toMatch(/K21/);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+});
+
+
+describe("写法建议和真实缺陷的门禁边界", () => {
+  it("识别经组合函数和相对导入调用的 defineColumns", () => {
+    const root = makeProject();
+    try {
+      writePage(root, "src/views/acme/composables", COMPLIANT_INDEX, 'import { useBaseTable } from "../../../composables/useBaseTable"; export function usePage() { return { columns: useBaseTable().columns([]) }; }');
+      fs.mkdirSync(path.join(root, "src/composables"), { recursive: true });
+      fs.writeFileSync(path.join(root, "src/composables/useBaseTable.ts"), 'import { defineColumns } from "@agile-team/wl-skills-ui/runtime"; export const useBaseTable = () => ({ columns: (value) => defineColumns(value) });');
+      const result = runValidate(root, ["--json"]);
+      const report = JSON.parse(result.stdout);
+      expect(result.status).toBe(0);
+      expect(report.issues.some((issue) => issue.text.includes("建议通过 defineColumns"))).toBe(false);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+  it("原生控件和组合函数可兼容，空动作仍阻断", () => {
+    const root = makeProject();
+    try {
+      writePage(root, "src/views/acme/empty-action", '<template><el-select /><el-table /></template>', 'export function usePage() { return { toolbar: [{ label: "保存", onClick: () => {} }] }; }');
+      const result = runValidate(root, ["--json"]);
+      const report = JSON.parse(result.stdout);
+      expect(result.status).toBe(1);
+      expect(report.issues.some((issue) => issue.level === "error" && issue.text.includes("空 onClick"))).toBe(true);
+      expect(report.issues.filter((issue) => ["K3", "K5", "K10"].includes(issue.rule)).every((issue) => issue.level !== "error")).toBe(true);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });
 });

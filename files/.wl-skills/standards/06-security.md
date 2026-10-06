@@ -22,9 +22,9 @@
 
 ## 接口请求
 
-- ✅ 统一通过 `getAction / postAction / putAction / deleteAction` 走拦截器
+- ✅ 优先通过项目 `getAction / postAction / putAction / deleteAction` 走统一拦截器
 - ✅ 拦截器自动注入 token、统一处理 401 跳转
-- ❌ 禁止 `import axios from 'axios'` 直接使用
+- 已有有效的 axios 或其他项目请求封装兼容；验证鉴权、错误处理和接口契约，工具选择及调用位置差异只给建议
 
 ## 用户输入
 
