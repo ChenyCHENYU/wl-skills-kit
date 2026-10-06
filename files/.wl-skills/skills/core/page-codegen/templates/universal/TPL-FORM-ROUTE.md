@@ -8,6 +8,119 @@
 > 子表单 rules 必须遵循 `references/form-validation-library.md`：Element UI-only
 > 使用 `ELEMENT_RULES`，跨 Tab/明细提交复用时使用 RuleSpec + `validateRecord/validateRows`。
 
+## 默认范式：单一 BaseForm 的独立表单
+
+普通表单优先使用这个范式：字段及规则在 data.ts，就近维护真实业务；组件引用使用
+项目一次落盘的 `composables/useTemplateRef.ts`，兼容实际宿主 Vue 3.2。存在多个关联
+子表、特殊布局或平台缺失能力时，再选择下方多 Tab/历史实现，不机械改写已有页面。
+API_CONFIG、字段及初值均按已确认的接口替换；这里展示最小名称维护场景。
+
+### data.ts（可直接编译的结构）
+
+```typescript
+import { proxyRefs, ref } from "vue";
+import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+import { getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
+import { ELEMENT_RULES } from "@robot-admin/form-validate";
+import { useTemplateRef } from "@/composables/useTemplateRef";
+
+interface RecordForm { id?: string; name: string; }
+interface FormHandle {
+  validate: () => Promise<boolean>;
+  resetFields: () => void;
+}
+export const API_CONFIG = {
+  detail: "/[服务]/[资源]/getById/",
+  save: "/[服务]/[资源]/save",
+  update: "/[服务]/[资源]/updateById"
+};
+export const formItems: BaseFormItemDesc[] = [
+  { name: "name", label: "名称", placeholder: "请输入名称", required: true,
+    rules: [ELEMENT_RULES.required("名称", "blur")] }
+];
+
+/** 维护当前记录与提交状态；字段由 BaseForm 渲染，每个页面独立创建状态。 */
+export const useRecordForm = () => {
+  const router = useRouter();
+  const formRef = useTemplateRef<FormHandle>("formRef");
+  const page = proxyRefs({
+    loading: ref(false),
+    form: ref<RecordForm>({ name: "" }),
+    // 编辑载入完整明细，保存时保留接口返回的记录身份。
+    load: async (id: string) => {
+      page.loading = true;
+      try {
+        const response = await getAction(API_CONFIG.detail + encodeURIComponent(id), {});
+        page.form = response.data;
+      } finally { page.loading = false; }
+    },
+    // 先校验，再构造接口允许的载荷；失败时保留输入，并恢复按钮状态。
+    save: async () => {
+      if (page.loading || !(await formRef.value?.validate().catch(() => false))) return;
+      page.loading = true;
+      try {
+        const payload = { name: page.form.name, ...(page.form.id ? { id: page.form.id } : {}) };
+        if (page.form.id) await putAction(API_CONFIG.update, payload);
+        else await postAction(API_CONFIG.save, payload);
+        ElMessage.success("保存成功");
+      } finally { page.loading = false; }
+    },
+    cancel: () => { formRef.value?.resetFields(); router.back(); }
+  });
+  return page;
+};
+```
+
+### index.vue
+
+```vue
+<template>
+  <div class="app-container app-page-container record-form-page" v-loading="page.loading">
+    <BaseForm ref="formRef" :form="page.form" :items="formItems" :columns="2" size="small" />
+    <div class="page-toolbar">
+      <el-button type="primary" size="small" :loading="page.loading" @click="page.save">保存</el-button>
+      <el-button size="small" @click="page.cancel">取消</el-button>
+    </div>
+  </div>
+</template>
+<script setup lang="ts">
+import { onMounted } from "vue";
+import { useRoute } from "vue-router";
+import { formItems, useRecordForm } from "./data";
+const page = useRecordForm();
+const route = useRoute();
+onMounted(() => {
+  const id = route.query.id;
+  if (typeof id === "string" && id) void page.load(id);
+});
+</script>
+<style scoped lang="scss">
+@import "./index.scss";
+</style>
+```
+
+### index.scss
+
+```scss
+.record-form-page {
+  overflow-y: auto;
+}
+.page-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+```
+
+字段达到“全部/仅必填”场景时复用 `useFormRequiredOnly`，见 `references/form-ui.md`；
+有分区时直接复用 c_formSections，有多 Tab 时复用对应场景。不要为这个简单表单再建
+包装组件或万能配置模型。模板控件直接使用项目已配置的自动导入，不重复 import C_/c_。
+需要即时跨字段错误反馈时先核实宿主 BaseForm 的暴露方法，不复制不存在的 API。
+
+## 兼容范式：多个 Tab 与既有独立布局
+
 #### data.ts
 
 ```typescript

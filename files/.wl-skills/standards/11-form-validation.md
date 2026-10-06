@@ -20,6 +20,10 @@ open → 数据回填 → validate → submit → close / resetFields
 
 新生成的表单规则统一使用 `@robot-admin/form-validate` 3.4.1+：
 
+推荐已完成项目回归的 3.4.2+；最低兼容版本仍为 3.4.1。公共规则与宿主兼容处理集中
+在现有组件/组合函数中，页面不复制通用校验工厂。升级或替换不能改变原提示、触发、
+必填标记和业务边界；必要说明见规范 03，范式及兼容示例见 page-codegen 的校验参考。
+
 - 当前平台是 Element Plus，UI-only 规则使用 `ELEMENT_RULES` / `ELEMENT_COMBOS`。
 - 实时校验和提交前纯数据校验需要共享时，以 `SPEC_RULES` 为唯一事实源，
   通过 `toElementRules` 适配 UI，并复用到 `validateRecord/validateRows`。

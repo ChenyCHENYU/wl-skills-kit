@@ -15,6 +15,28 @@ function read(relativePath) {
 }
 
 describe("page-codegen 与 wl-skills-ui 闭环契约", () => {
+  it("独立表单默认复用 BaseForm、验证库及宿主兼容引用，三文件示例可编译", () => {
+    const source = read("templates/universal/TPL-FORM-ROUTE.md");
+    const data = source.match(/```typescript\n([\s\S]*?)```/)[1];
+    const view = source.match(/```vue\n([\s\S]*?)```/)[1];
+    expect(data).toContain('from "@robot-admin/form-validate"');
+    expect(data).toContain('from "@/composables/useTemplateRef"');
+    expect(data).toContain("return page;");
+    expect(data).toContain("失败时保留输入");
+    expect(data).not.toContain("as any");
+    expect(view).toContain("<BaseForm");
+    expect(view).not.toContain("<el-form");
+    const result = parse(`<script lang="ts">${data}</script>`);
+    expect(result.errors).toEqual([]);
+    expect(() => compileScript(result.descriptor, { id: "record-data" })).not.toThrow();
+    const { descriptor, errors } = parse(view);
+    expect(errors).toEqual([]);
+    const script = compileScript(descriptor, { id: "record-view" });
+    expect(compileTemplate({
+      source: descriptor.template.content, filename: "index.vue", id: "record-view",
+      compilerOptions: { bindingMetadata: script.bindings }
+    }).errors).toEqual([]);
+  });
   it.each(["LIST", "TREE-LIST", "MASTER-DETAIL"])(
     "%s 的平铺示例复用通用查询且数据脚本与 Vue 模板可编译",
     (name) => {

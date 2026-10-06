@@ -4,6 +4,8 @@
 >
 > **生成入口**：普通新页面优先使用通用 TPL 的平铺写法；列表通用查询按需复用
 > `templates/composables/usePageQuery.ts`，需要列扩展才复用 `useBaseTable.ts`。
+> 独立表单默认复用 FORM_ROUTE 的 BaseForm 示例；宿主版本兼容可一次落盘
+> `useTemplateRef.ts`。`formRules.ts` 仅在确有历史校验差异时按需复用，新表单直接用库预设。
 > 用户明确选择 scenario，或已有页面维护 `scenarioRef` 时，继续使用确定性编译器及其往返规则。
 > 编译器当前保留类式列表产物；它和直接编码模板是两条兼容路径，不能强迫普通业务维护 JSON。
 

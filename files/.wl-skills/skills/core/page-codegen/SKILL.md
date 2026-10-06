@@ -102,6 +102,17 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 
 ## 生成产物（标准页面文件）
 
+### 编写范式与必要注释
+
+先读取 `standards/02-code-structure.md`、`standards/03-comments.md` 和实际宿主组件
+契约。优先使用平台已有组件；简单独立表单参考 FORM_ROUTE 的完整 BaseForm 示例，
+只有特殊业务区域才用 slot/componentVNode。Vue 版本兼容和通用校验适配集中到项目
+composables，一次落盘后直接复用，不为每个页面创建嫁接函数。
+
+主动给页面/共享入口、关键动作、联动覆盖条件、非直观校验、兼容处理补中文注释。
+只解释职责、来源和边界，不机械复述赋值。生成后检查这些注释与实现相符，并检查
+是否复制了已有组件/组合函数的逻辑；风格差异只建议，实际错误及废弃代码才阻断。
+
 ```
 src/views/[域]/[模块]/[子模块]/[kebab-case-目录名]/
 ├── index.vue       ← 页面入口（模板 + 页面对象绑定，兼容解构）

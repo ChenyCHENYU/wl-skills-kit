@@ -100,6 +100,14 @@ export async function validateSubmit(form: Record<string, unknown>) {
 
 ## 约束与边界
 
+- 推荐使用已验证的 3.4.2+（包含 Element 异常收敛和必填元数据修复）；现有 3.4.1
+  项目继续兼容，不仅因推荐版本变化阻断。升级后必须验证实际规则和 UI 必填标记。
+- 标准预设直接导入，不再封装同义 API。确有历史差异时，可按需一次落盘
+  `templates/composables/formRules.ts`：保留原生必填语义和允许相等的时间约束。
+  新页面直接用 ELEMENT_RULES；不要复制旧项目兼容逻辑或让各页再实现 callback 适配。
+- BaseForm 负责字段与错误展示，验证库负责规则；先查真实组件暴露方法。宿主缺少
+  validateField 时可以保留一个原生校验容器；不能写假的 validateField 或改变即时反馈。
+
 - 长度、正则、范围、`DECIMAL(p,s)` 精度必须来自 page-spec/API/数据库/需求契约，
   不得根据字段名或标签猜测。
 - 输入控件的 `maxlength/min/max/precision/step` 与校验规则必须来自同一契约。
