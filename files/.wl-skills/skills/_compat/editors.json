@@ -24,7 +24,7 @@
     {
       "name": "cursor-mdc",
       "headerFile": "cursor-mdc.txt",
-      "outputPath": ".cursor/rules/conventions.mdc",
+      "outputPath": ".cursor/rules/wl-skills-kit.mdc",
       "enabled": true
     },
     {
@@ -42,13 +42,13 @@
     {
       "name": "kiro",
       "headerFile": "kiro.txt",
-      "outputPath": ".kiro/steering/conventions.md",
+      "outputPath": ".kiro/steering/wl-skills-kit.md",
       "enabled": true
     },
     {
       "name": "trae",
       "headerFile": "trae.txt",
-      "outputPath": ".trae/rules/conventions.md",
+      "outputPath": ".trae/rules/wl-skills-kit.md",
       "enabled": true
     },
     {
@@ -68,7 +68,7 @@
     {
       "name": "qoder",
       "headerFile": "qoder.txt",
-      "outputPath": ".qoder/rules/conventions.md",
+      "outputPath": ".qoder/rules/wl-skills-kit.md",
       "enabled": true,
       "_note": "Qoder IDE 规则文件（Always Apply 类型）。Qoder 也原生兼容 AGENTS.md，两者均可被识别。"
     }

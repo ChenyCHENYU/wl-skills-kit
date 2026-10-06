@@ -45,6 +45,21 @@ describe("独立 WL API contract", () => {
     expect(validateApiContract(value, { strict: true }).errors.some((item) => item.code === "AC033")).toBe(true);
   });
 
+  it("拒绝匹配但未知的 Profile/Contract 协议，并兼容契约省略的 1.0 版本", () => {
+    const value = contract();
+    const profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+    profile.protocolVersion = "999.0";
+    value.protocolVersion = "999.0";
+    const unknown = validateApiContract(value, { profile });
+    expect(unknown.ok).toBe(false);
+    expect(unknown.errors.some((item) => item.code === "AC009" && /protocolVersion/.test(item.message))).toBe(true);
+    expect(unknown.errors.some((item) => item.code === "AC003")).toBe(true);
+    delete value.protocolVersion;
+    expect(validateApiContract(value).ok).toBe(true);
+    value.protocolVersion = "";
+    expect(validateApiContract(value).errors.some((item) => item.code === "AC003")).toBe(true);
+  });
+
   it("严格比较 method/path/model 等完整契约面", () => {
     const left = contract();
     const right = JSON.parse(JSON.stringify(left));

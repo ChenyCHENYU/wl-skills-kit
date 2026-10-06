@@ -1,0 +1,7 @@
+{
+  "name": "jsonc-parser",
+  "version": "3.3.1",
+  "type": "commonjs",
+  "license": "MIT",
+  "private": true
+}

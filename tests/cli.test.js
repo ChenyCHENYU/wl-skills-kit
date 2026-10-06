@@ -288,25 +288,19 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("init 遇到未受管本地文件时零写入，--force 才备份覆盖", () => {
+  it("共享入口只追加本包区块，force 不覆盖项目原文", () => {
     const dir = makeIsolatedDir();
     const rel = ".github/copilot-instructions.md";
     const target = path.join(dir, rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, "team-owned\n", "utf8");
-
-    const blocked = runCli(["init"], { cwd: dir, timeout: 60000 });
-    expect(blocked.status).not.toBe(0);
-    expect(blocked.stdout + blocked.stderr).toMatch(/停止且未写入任何文件/);
+    expect(runCli(["init"], { cwd: dir }).status).toBe(0);
+    expect(fs.readFileSync(target, "utf8")).toContain("team-owned\n");
+    expect(fs.readFileSync(target, "utf8")).toContain("<!-- wl-skills-kit:begin -->");
+    expect(runCli(["update", "--force"], { cwd: dir }).status).toBe(0);
+    expect(fs.readFileSync(target, "utf8")).toContain("team-owned\n");
+    expect(runCli(["clean"], { cwd: dir }).status).toBe(0);
     expect(fs.readFileSync(target, "utf8")).toBe("team-owned\n");
-    expect(fs.existsSync(path.join(dir, ".wl-skills-manifest.json"))).toBe(false);
-    expect(fs.existsSync(path.join(dir, ".husky"))).toBe(false);
-
-    const forced = runCli(["init", "--force"], { cwd: dir, timeout: 60000 });
-    expect(forced.status).toBe(0);
-    const backups = path.join(dir, ".wl-skills", ".state", "backups");
-    const backupId = fs.readdirSync(backups)[0];
-    expect(fs.readFileSync(path.join(backups, backupId, rel), "utf8")).toBe("team-owned\n");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -421,9 +415,9 @@ describe("CLI 参数防护（A1）", () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
     );
-    expect(manifest.files[".clinerules"]).toBeUndefined();
-    expect(manifest.files["AGENTS.md"]).toBeUndefined();
-    expect(manifest.files["CLAUDE.md"]).toBeUndefined();
+    for (const rel of [".clinerules", "AGENTS.md", "CLAUDE.md"]) expect(manifest.managedBlocks[rel]).toBeTruthy();
+    expect(runCli(["clean"], { cwd: dir }).status).toBe(0);
+    for (const rel of [".clinerules", "AGENTS.md", "CLAUDE.md"]) expect(fs.readFileSync(path.join(dir, rel), "utf8")).toContain(uiHeader);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

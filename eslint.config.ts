@@ -20,6 +20,8 @@ export default defineConfigWithVueTs(
   {
     name: "app/files-to-ignore",
     ignores: [
+      "lib/vendor/**",
+      "kit-internal/conformance/support/vendor/**",
       "**/dist/**",
       "**/dist-ssr/**",
       "**/coverage/**",

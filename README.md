@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.23.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.24.0** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -101,6 +101,8 @@ wl-skills contract compare --left contracts/mdm-task.json \
 显式选择 scenario 或已有 `scenarioRef` 的页面继续使用确定性编译器；已实现的 7 种模式及其往返、漂移验证保留。编译器目前仍输出既有类式列表，普通直接编码模板推荐平铺函数，两条路径按项目维护方式选择。详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 
 近期版本改进：
+
+**v2.24.0**：明确独立能力边界与公共 API 协议；共享入口按本包贡献更新、清理和迁移，保留用户及其他包内容；单文件写入采用原子替换。
 
 **v2.22.2**：收紧校验与发布闭环。
 
@@ -492,15 +494,15 @@ wl-skills-kit/                            ← 你正看的这个仓库
 ├── CLAUDE.md                             Claude Code
 ├── AGENTS.md                             通用 Agents
 ├── .cursorrules                          Cursor 旧版
-├── .cursor/rules/conventions.mdc         Cursor 新版（含 mdc frontmatter）
+├── .cursor/rules/wl-skills-kit.mdc         Cursor 新版（含 mdc frontmatter）
 ├── .windsurfrules                        Windsurf
 ├── .clinerules                           Cline
-├── .kiro/steering/conventions.md         Kiro（含 inclusion frontmatter）
+├── .kiro/steering/wl-skills-kit.md         Kiro（含 inclusion frontmatter）
 ├── kilo.jsonc / .kilo/kilo.jsonc         Kilo Code 项目规则 + MCP 增量注册（复用现有位置）
 ├── .kilo/rules/wl-skills.md              Kilo Code 项目规则入口
 ├── .kilo/skills/<skill>/SKILL.md          Kilo 原生发现薄适配器（流程仍指向 .wl-skills）
-├── .trae/rules/conventions.md            Trae（含 alwaysApply frontmatter）
-├── .qoder/rules/conventions.md           Qoder
+├── .trae/rules/wl-skills-kit.md            Trae（含 alwaysApply frontmatter）
+├── .qoder/rules/wl-skills-kit.md           Qoder
 │
 ├── .wl-skills-validate.example.json      ← validate 配置示例（mockPolicy/exclude/validator）
 ├── .wl-skills-validate.json              ← 可选：项目真实策略（kit 不创建、不覆盖）
@@ -835,7 +837,7 @@ wl-skills --version
 .wl-skills-cache/          validate 本地增量缓存（gitignored）
 ```
 
-安装器先完整检查冲突。没有 `--force` 时，发现未受管本地文件会零写入停止；确认强制更新时，冲突文件先备份到 `.wl-skills/.state/backups/`。
+安装器先完整预检路径与本包受管单元。已有项目文件及相同内容只作为引用，`--force` 不取得它们的所有权；本包安装后被修改的普通文件或路由区块，默认阻断更新，显式 `--force` 才备份后替换本包单元。备份位于 `.wl-skills/.state/backups/`。
 
 ## 配置和安全边界
 
@@ -858,7 +860,11 @@ wl-skills --version
 | `@agile-team/wl-skills-kit` | 需求理解、API 契约、代码生成、规范校验、模板、菜单/字典/权限和环境配置 |
 | `@agile-team/wl-skills-ui` | 设计令牌、视觉一致性、存量项目化妆层和 UI Runtime |
 
-两包可独立安装。组合使用时推荐：
+两包的 CLI、安装器与 MCP 可独立使用，无需安装另一包或统一客户端。机读能力边界见 [`lib/capabilities.json`](lib/capabilities.json)。页面生成产物另有宿主前提：部分 codegen 模板使用 `@agile-team/wl-skills-ui/runtime` 和 common-core；runtime 轨需项目内提供 renderer。这些页面的构建依赖不等于 kit 安装器的运行依赖。
+
+共享入口 `AGENTS.md`、`CLAUDE.md`、`.github/copilot-instructions.md` 和单文件编辑器规则使用 `<!-- wl-skills-kit:begin -->` / `<!-- wl-skills-kit:end -->`，只更新本包区块、保留其他包与项目正文。旧整文件仅在 manifest 哈希证明归属时迁移；独有目录规则改为 `wl-skills-kit.mdc/md`，旧规则只清理本包拥有且未修改的文件。`.clinerules` 已为目录时写入 `.clinerules/wl-skills-kit.md`，旧单文件继续使用区块。
+
+共享 MCP JSON/JSONC 记录本包新增键的值与原始文本哈希，升级和清理保留外来服务器、注释以及本地修改；Kilo 只移除本次新增的 instructions 项。组合使用时推荐：
 
 ```text
 page-codegen → doctor-ui → validate-page → convention-audit

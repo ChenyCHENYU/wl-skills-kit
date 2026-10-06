@@ -1,0 +1,43 @@
+{
+  "boundaryVersion": 1,
+  "package": "@agile-team/wl-skills-kit",
+  "capabilities": [
+    {
+      "id": "frontend.delivery",
+      "intents": [
+        "create",
+        "validate",
+        "repair",
+        "maintain"
+      ],
+      "inputs": [
+        "reviewed-requirements",
+        "page-spec",
+        "wl-api-contract"
+      ],
+      "outputs": [
+        "vue-pages",
+        "page-spec",
+        "wl-api-contract"
+      ]
+    }
+  ],
+  "standalone": {
+    "requiresSiblingPackages": [],
+    "missingBusinessFacts": "report-unresolved",
+    "projectInputsOwnedBy": "project",
+    "generatedPageRequirements": {
+      "framework": "Vue 3",
+      "host": "project composables, API adapters and component library",
+      "uiRuntime": "required by compiler outputs that import @agile-team/wl-skills-ui/runtime; CLI and contract operations remain independent"
+    }
+  },
+  "composition": {
+    "contributionId": "wl-skills-kit",
+    "protocolVersion": "1.0",
+    "optionalTraceInput": "design-model",
+    "unknownProtocol": "reject-or-explicit-migration",
+    "apiAuthority": "validated-effective-api-manifest",
+    "sharedWrites": "own-block-or-json-entry-only"
+  }
+}

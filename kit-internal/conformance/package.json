@@ -1,0 +1,12 @@
+{
+  "name": "wl-skills-conformance",
+  "private": true,
+  "description": "Development-only standalone and composition acceptance for the five WL packages",
+  "scripts": {
+    "test": "node --test test/*.check.cjs",
+    "test:matrix": "WL_FULL_MATRIX=1 node --test test/coexistence.check.cjs",
+    "support:sync": "node scripts/sync-support.cjs"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": { "ajv": "8.20.0" }
+}
