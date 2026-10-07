@@ -82,14 +82,18 @@ async function dispatchTool(id, toolName, toolArgs) {
 }
 
 async function executeTool(id, desc, toolArgs, config) {
+  const { beginMcpTool, finishMcpTool } = require("../lib/task-integration");
+  let execution;
   try {
-    const handlerResult = await desc.handle(toolArgs, config);
+    execution = beginMcpTool(desc, toolArgs);
+    const handlerResult = await desc.handle(execution ? { ...toolArgs, runId: execution.metadata.runId } : toolArgs, config);
     const normalized = typeof handlerResult === "string"
       ? { text: handlerResult }
       : handlerResult;
     if (desc.outputSchema) {
       const outputValidation = validateSchema(desc.outputSchema, normalized.structuredContent);
       if (!outputValidation.valid) {
+        finishMcpTool(execution, desc, { isError: true });
         sendResult(id, {
           content: [{ type: "text", text: `❌ 工具输出不符合契约: ${outputValidation.errors.join("；")}` }],
           isError: true,
@@ -97,12 +101,15 @@ async function executeTool(id, desc, toolArgs, config) {
         return;
       }
     }
+    const evidence = finishMcpTool(execution, desc, normalized);
     sendResult(id, {
       content: [{ type: "text", text: normalized.text }],
       ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
       ...(normalized.isError ? { isError: true } : {}),
+      ...(evidence ? { _meta: { wlExecution: evidence } } : {}),
     });
   } catch (e) {
+    finishMcpTool(execution, desc, { isError: true });
     sendResult(id, {
       content: [{ type: "text", text: `❌ 工具执行异常: ${e.message}` }],
       isError: true,

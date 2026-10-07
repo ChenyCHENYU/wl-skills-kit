@@ -62,6 +62,7 @@ function fixture({ emptyRouters = false } = {}) {
     ".github/guides/usage.md": "# Project usage\n",
     ".github/guides/architecture.md": "# Project architecture\n",
     ".github/skills/team/SKILL.md": "---\nname: team\ndescription: Project-specific workflow.\n---\nKeep this skill.\n",
+    ".agents/skills/team/SKILL.md": "---\nname: team\ndescription: Project native skill.\n---\nKeep this native skill.\n",
     ".github/standards/team.md": "# Team rule\nKeep this rule.\n",
     ".cursor/rules/team.mdc": "# Team cursor\n",
     ".kiro/steering/team.md": "# Team kiro\n",
@@ -107,6 +108,8 @@ function snapshot(project, name) {
   assert.ok(fs.existsSync(statePath), `${name} installation state missing: ${states[name]}`);
   const manifest = JSON.parse(fs.readFileSync(statePath, "utf8"));
   const paths = Array.isArray(manifest.files) ? manifest.files.map((file) => file.path) : Object.keys(manifest.files || {});
+  const gateway = `.agents/skills/wl-skills-${name}/SKILL.md`;
+  assert.ok(paths.includes(gateway), `${name} native gateway missing from its ownership manifest`);
   const all = tree(project);
   const owned = {};
   for (const relative of paths) if (!sharedPaths.has(relative) && all[relative]) owned[relative] = all[relative];

@@ -20,6 +20,27 @@
         "page-spec",
         "wl-api-contract"
       ]
+    },
+    {
+      "id": "frontend.task-observability",
+      "intents": [
+        "route",
+        "explain",
+        "record-execution",
+        "status",
+        "diagnose-host"
+      ],
+      "inputs": [
+        "task-description",
+        "target-paths",
+        "actual-tool-results"
+      ],
+      "outputs": [
+        "task-decision",
+        "execution-receipts",
+        "gap-proposals",
+        "host-entry-diagnostics"
+      ]
     }
   ],
   "standalone": {
@@ -38,6 +59,15 @@
     "optionalTraceInput": "design-model",
     "unknownProtocol": "reject-or-explicit-migration",
     "apiAuthority": "validated-effective-api-manifest",
-    "sharedWrites": "own-block-or-json-entry-only"
+    "sharedWrites": "own-block-or-json-entry-only",
+    "observability": {
+      "recordVersion": 1,
+      "schema": "lib/task-observability.schema.json",
+      "storage": ".wl-skills/runs",
+      "runCorrelation": "explicit-runId-or-WL_TASK_RUN_ID",
+      "eventPublication": "immutable-per-package-events",
+      "hostDiscovery": "unverified-without-host-events",
+      "gapPolicy": "propose-review-before-changing-business-rules"
+    }
   }
 }

@@ -4,6 +4,18 @@ const fs = require("node:fs");
 const path = require("node:path");
 const root = require("../support/workspace-root.cjs");
 const source = path.resolve(__dirname, "../support");
+const observabilityTargets = {
+  "wl-skills-kit": "lib",
+  "wl-skills-ui": "bin",
+  "wl-skills-bd": "lib",
+  "wl-skills-design": "lib",
+  "wl-skills-test": "lib",
+};
+for (const [name, directory] of Object.entries(observabilityTargets)) {
+  for (const file of ["task-observability.cjs", "task-observability.schema.json"]) {
+    fs.copyFileSync(path.join(source, file), path.join(root, name, directory, file));
+  }
+}
 const targets = {
   "wl-skills-bd": "lib",
   "wl-skills-test": "lib",

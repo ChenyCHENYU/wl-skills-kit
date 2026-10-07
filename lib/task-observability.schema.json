@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:wl-skills:task-observability:1",
+  "title": "WL independent package task and execution evidence v1",
+  "type": "object",
+  "required": ["recordVersion", "kind", "packageName", "packageVersion", "runId", "recordedAt", "eventId", "targets", "inputSnapshot", "executionStatus", "validationStatus"],
+  "properties": {
+    "recordVersion": { "const": 1 },
+    "kind": { "enum": ["task-decision", "tool-started", "tool-finished"] },
+    "packageName": { "type": "string", "pattern": "^@agile-team/wl-skills-(kit|ui|bd|design|test)$" },
+    "packageVersion": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T" },
+    "targets": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "task": { "type": "string" },
+    "tool": { "type": "string" },
+    "executionStatus": { "enum": ["not-executed", "started", "completed", "failed"] },
+    "validationStatus": { "enum": ["passed", "failed", "partial", "unverified", "not-applicable"] },
+    "exitCode": { "type": "integer" },
+    "durationMs": { "type": "number", "minimum": 0 },
+    "inputSnapshot": { "$ref": "#/definitions/snapshot" },
+    "inputBefore": { "$ref": "#/definitions/snapshot" },
+    "ruleSnapshot": { "$ref": "#/definitions/snapshot" },
+    "configSnapshot": { "$ref": "#/definitions/snapshot" },
+    "checkedSnapshot": { "$ref": "#/definitions/snapshot" },
+    "executionId": { "type": "string", "minLength": 1 },
+    "executionStartedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T" },
+    "decision": { "$ref": "#/definitions/decision" },
+    "checks": { "type": "array", "items": { "$ref": "#/definitions/check" } },
+    "checkedFiles": { "type": "array", "items": { "$ref": "#/definitions/file" } },
+    "checkedScopeSource": { "enum": ["executor", "unreported"] },
+    "summary": { "type": "object" },
+    "artifacts": { "type": "array", "items": { "$ref": "#/definitions/file" } },
+    "changedDuringCheck": { "type": "boolean" },
+    "errorCode": { "type": "string" },
+    "recordPath": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "task-decision" } } }, "then": { "required": ["task", "decision"], "properties": { "executionStatus": { "const": "not-executed" }, "validationStatus": { "const": "unverified" } } } },
+    { "if": { "properties": { "kind": { "const": "tool-started" } } }, "then": { "required": ["tool"], "properties": { "executionStatus": { "const": "started" }, "validationStatus": { "const": "unverified" } } } },
+    { "if": { "properties": { "kind": { "const": "tool-finished" } } }, "then": { "required": ["tool", "executionId", "executionStartedAt", "exitCode", "durationMs", "checks", "artifacts", "inputBefore", "changedDuringCheck"], "properties": { "executionStatus": { "enum": ["completed", "failed"] } } } }
+  ],
+  "definitions": {
+    "file": {
+      "type": "object", "required": ["path", "sha256", "bytes"],
+      "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "bytes": { "type": "integer", "minimum": 0 } }
+    },
+    "snapshot": {
+      "type": "object", "required": ["targets", "files", "omitted", "complete", "sha256"],
+      "properties": {
+        "targets": { "type": "array", "items": { "type": "string" } },
+        "files": { "type": "array", "items": { "$ref": "#/definitions/file" } },
+        "omitted": { "type": "array", "items": { "type": "object", "required": ["path", "reason"], "properties": { "path": { "type": "string" }, "reason": { "type": "string" } } } },
+        "complete": { "type": "boolean" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "resolution": { "const": "project-internal-realpath" }
+      }
+    },
+    "decision": {
+      "type": "object", "required": ["status", "selectedSkills", "requiredChecks", "gaps"],
+      "properties": {
+        "status": { "enum": ["matched", "baseline", "ambiguous", "gap", "not-applicable", "needs-context"] },
+        "selectedSkills": { "type": "array", "items": { "type": "string" } },
+        "requiredChecks": { "type": "array", "items": { "type": "string" } },
+        "requiredFiles": { "type": "array", "items": { "type": "string" } },
+        "gaps": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "check": {
+      "type": "object", "required": ["id", "status", "reason", "evidencePaths"],
+      "properties": {
+        "id": { "type": "string" }, "status": { "enum": ["passed", "failed", "skipped", "not-applicable", "unverified", "not-executed"] },
+        "reason": { "type": "string" }, "evidencePaths": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

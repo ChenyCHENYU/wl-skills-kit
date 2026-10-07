@@ -100,6 +100,7 @@ const BLUEPRINT_RESULT_SCHEMA = {
 };
 
 const DESCRIPTORS = [
+  ...require("../lib/task-integration").taskToolDescriptors(),
   // ── menu ───────────────────────────────────────────────────────────
   {
     name: "wls_domain_query",
@@ -829,6 +830,7 @@ const RISK_PROFILES = Object.freeze({
     idempotentHint: true,
     openWorldHint: false,
   }),
+  writeLocalNonIdempotent: Object.freeze({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }),
   writeLocalDestructiveIdempotent: Object.freeze({
     readOnlyHint: false,
     destructiveHint: true,
@@ -838,6 +840,7 @@ const RISK_PROFILES = Object.freeze({
 });
 
 const TOOL_RISK_PROFILE = Object.freeze({
+  wls_task: "writeLocalNonIdempotent", wls_route: "readLocal", wls_explain: "readLocal", wls_status: "readLocal", wls_doctor_host: "readLocal",
   wls_domain_query: "readRemote",
   wls_menu_query: "readRemote",
   wls_menu_upsert: "writeRemoteIdempotent",
@@ -878,6 +881,7 @@ function annotationsFor(name) {
 }
 
 for (const descriptor of DESCRIPTORS) {
+  descriptor.inputSchema.properties.runId ||= { type: "string", description: "Correlate real execution with an existing local task run" };
   if (descriptor.inputSchema.additionalProperties === undefined) {
     descriptor.inputSchema.additionalProperties = false;
   }

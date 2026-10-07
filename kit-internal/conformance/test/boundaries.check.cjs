@@ -27,6 +27,27 @@ test("each published package has distinct capabilities and no sibling runtime pr
   }
 });
 
+test("every standalone package ships the same execution protocol in its own namespace", () => {
+  const support = path.resolve(__dirname, "../support");
+  const namespaces = new Set();
+  for (const name of ["design", "kit", "ui", "bd", "test"]) {
+    const base = path.join(root, `wl-skills-${name}`);
+    const directory = name === "ui" ? "bin" : "lib";
+    const boundary = JSON.parse(fs.readFileSync(path.join(base, directory, "capabilities.json"), "utf8"));
+    const protocol = boundary.composition.observability;
+    assert.equal(protocol.recordVersion, 1);
+    assert.equal(protocol.runCorrelation, "explicit-runId-or-WL_TASK_RUN_ID");
+    assert.equal(protocol.hostDiscovery, "unverified-without-host-events");
+    assert.ok(!namespaces.has(protocol.storage));
+    namespaces.add(protocol.storage);
+    for (const file of ["task-observability.cjs", "task-observability.schema.json"]) {
+      assert.equal(fs.readFileSync(path.join(base, directory, file), "utf8"), fs.readFileSync(path.join(support, file), "utf8"));
+    }
+    assert.equal(protocol.schema, `${directory}/task-observability.schema.json`);
+    assert.ok(boundary.capabilities.some((item) => item.id.endsWith(".task-observability")));
+  }
+});
+
 test("published API schema snapshots agree and allow project pagination values", () => {
   const expected = fs.readFileSync(path.resolve(__dirname, "../support/contracts/wl-api-contract.schema.json"), "utf8");
   for (const relative of [

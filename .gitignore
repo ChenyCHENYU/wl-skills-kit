@@ -10,4 +10,5 @@ package-lock.json
 nul
 _test_dir/
 .wl-skills-cache/
+.wl-skills/runs/
 !kit-internal/conformance/package-lock.json

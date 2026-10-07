@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.24.2
+ * wl-skills-kit CLI v2.25.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -170,6 +170,7 @@ const KNOWN_COMMANDS = new Set([
   "template",
   "snapshot",
   "scenario",
+  "task", "route", "explain", "status", "doctor-host",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -225,6 +226,7 @@ const KNOWN_FLAGS = new Set([
   "--page",
   "--page-abbr",
   "--table-cid",
+  "--target", "--text", "--run-id", "--host", "--project", "--skill",
 ]);
 const VALUE_FLAGS = new Set([
   "--domain", "--profile", "--profile-file", "--project-type", "--prod-prefix",
@@ -234,6 +236,7 @@ const VALUE_FLAGS = new Set([
   "--external-id", "--source-mode", "--components", "--plan-hash", "--path",
   "--scene", "--mode", "--component", "--min-quality", "--query", "--limit",
   "--track", "--page", "--page-abbr", "--table-cid",
+  "--target", "--text", "--run-id", "--host", "--project", "--skill",
 ]);
 
 function collectPositionals(cliArgs) {
@@ -336,6 +339,10 @@ if (showHelp) {
     snapshot   生成紧凑项目结构快照，供 AI/MCP 消费，避免逐页读取源码
     scenario   领域场景模板（validate/render/extract/verify/from-spec）：JSON 事实源 → 双轨确定性渲染
     env        旧环境命令，已停用并提示迁移
+    task       开始本包任务判定并记录计划（尚未执行）
+    route/explain 只读判定技能、基础约束、歧义与能力缺口
+    status     读取自身真实执行/校验记录；修改输入后标记 stale
+    doctor-host 静态诊断原生 gateway/指令入口，不宣称宿主已加载
 
   选项:
     --version, -v     输出当前版本号
@@ -347,6 +354,8 @@ if (showHelp) {
     --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（K14 类型错误零容忍）
+    --run-id <id>    关联本次任务与真实 CLI/MCP 执行；状态不会从模型自报推断
+    --target <path>  task/route/explain 的目标（可重复）；--text 指定任务文本
                      体积较大，CI / pre-push 必跑，pre-commit 不建议开启
     --profile <name> standard-env 使用的内置环境 Profile，如 walsin
     --profile-file   standard-env 使用自定义完整五环境 Profile JSON
@@ -2343,7 +2352,9 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
     issues,
     summary: {
       pages: pages.length,
+      checkedFiles: [...new Set([...pages.flatMap((page) => ["index.vue", "data.ts"].map((name) => path.join(page.dir, name)).filter((rel) => fs.existsSync(path.join(TARGET_DIR, rel)))), ...(astResult.checkedFiles || [])])],
       astPages: astResult.pages,
+      astAvailable: astResult.astAvailable,
       astCacheHits: astResult.cacheHits,
       astCacheMisses: astResult.cacheMisses,
       specPages: specResult.alignedPages,
@@ -2356,11 +2367,14 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
   };
 }
 
+let validationReceipt;
+
 function reportJsonValidation(scanPath, summary, issues) {
   const errors = countValidationIssues(issues, "error");
   const warns = countValidationIssues(issues, "warn");
   const ok = errors === 0 && (!strict || warns === 0);
   console.log(JSON.stringify({ ok, scanPath, summary: { ...summary, errors, warns },
+    ...(validationReceipt ? { runId: validationReceipt.runId, executionStatus: validationReceipt.executionStatus, validationStatus: validationReceipt.validationStatus, receiptPath: validationReceipt.recordPath } : {}),
     issues: issues.map((issue) => ({ level: issue.level || "warn", dir: issue.dir,
       rule: issue.rule || null, text: issue.text })) }));
   if (!ok) process.exitCode = 1;
@@ -2368,15 +2382,35 @@ function reportJsonValidation(scanPath, summary, issues) {
 
 function reportEmptyValidation(scanPath, jsonOutput, stagedSet, validationConfig, allPages) {
   if (jsonOutput && !preCommit) {
-    reportJsonValidation(scanPath, { pages: 0 }, [
+    const issues = [
       { level: "error", dir: scanPath, rule: "PAGE", text: "未发现包含 index.vue 的页面目录" },
-    ]);
+    ];
+    recordValidation({ pages: 0, checkedFiles: [] }, issues);
+    reportJsonValidation(scanPath, { pages: 0 }, issues);
     return;
   }
   handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPages);
 }
 
+let validationHandle;
+
+function recordValidation(summary, issues) {
+  const integration = require("../lib/task-integration");
+  validationReceipt = integration.core.finishExecution(validationHandle, integration.validationFacts(summary, issues, strict));
+}
+
 function runValidate() {
+  const integration = require("../lib/task-integration");
+  const opts = integration.taskOptions(TARGET_DIR, { runId: readOption("--run-id") || undefined, targets: [validationScanPath()], tool: command, readOnlyVerification: true });
+  validationHandle = integration.core.beginExecution(opts);
+  try { runValidatePipeline(); }
+  finally {
+    if (!validationReceipt) validationReceipt = integration.core.finishExecution(validationHandle, { exitCode: process.exitCode || 0, validationStatus: "unverified", checks: [], summary: { reason: "Validation stopped before a page pipeline completed" } });
+    console.error(integration.core.formatStatus(integration.core.readStatus(opts)));
+  }
+}
+
+function runValidatePipeline() {
   const scanPath = validationScanPath();
   const jsonOutput = args.includes("--json");
   loadValidateEngines();
@@ -2395,6 +2429,7 @@ function runValidate() {
     return;
   }
   const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig);
+  recordValidation(summary, issues);
   if (jsonOutput && !preCommit) return reportJsonValidation(scanPath, summary, issues);
   const errors = countValidationIssues(issues, "error");
   const warns = countValidationIssues(issues, "warn");
@@ -3448,6 +3483,13 @@ function runScenario() {
 }
 
 switch (command) {
+  case "task":
+  case "route":
+  case "explain":
+  case "status":
+  case "doctor-host":
+    require("../lib/task-integration").taskCli(command, args.slice(1), TARGET_DIR);
+    break;
   case "init":
     runInstall(false);
     break;

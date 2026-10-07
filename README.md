@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.24.2** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.25.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -18,6 +18,9 @@
 | 统一项目环境 | 五环境 Profile、三种本地联调模式、迁移验证 | 环境配置可计划、可备份、可验证 |
 
 这个包适合 Vue 3 企业后台、AI 辅助开发、存量项目治理和团队规范落地。运行时最低要求是 Node.js 22。
+
+
+每次任务先运行 `wl-skills task "任务" --target <path>`，按选定技能执行工具，最后用 `wl-skills status --run-id <id>` 查看实际执行与验证状态；安装或匹配不会自动变成检查通过。详见[任务判定与真实检查回执](docs/task-observability.md)。
 
 ## 快速开始
 
@@ -465,7 +468,7 @@ wl-skills-kit/                            ← 你正看的这个仓库
 │   │   ├── 02-code-structure.md
 │   │   ├── ... (共 14 条)
 │   │   └── 14-layout-containers.md
-│   ├── skills/                           13 个启用 Skill（全部激活）
+│   ├── skills/                           13 个已登记 Skill（按任务选择）
 │   │   ├── _registry.md                  ★ 触发词 → SKILL 路径单一数据源
 │   │   ├── _compat/                      多 AI 编辑器适配（配置 + headers）
 │   │   ├── core/                         核心通用 Skill
@@ -785,10 +788,11 @@ wls_project_snapshot
 
 AI 的权威路由表位于 `.wl-skills/skills/_registry.md`；团队成员可阅读各 Skill 同目录的 `USAGE.md`。
 
-## 29 个 MCP Tool
+## 34 个 MCP Tool
 
 | 分类 | Tool | 写入边界 |
 | --- | --- | --- |
+| 任务证据 | `wls_task`, `wls_route`, `wls_explain`, `wls_status`, `wls_doctor_host` | task 只保存本包计划；其余只读，不证明宿主加载 |
 | 菜单 | `wls_domain_query`, `wls_menu_query`, `wls_menu_upsert`, `wls_menu_delete`, `wls_menu_sync_from_report` | query 只读；写入必须确认和 planHash |
 | 字典 | `wls_dict_query`, `wls_dict_bootstrap`, `wls_dict_upsert` | bootstrap 本地预览；线上只做确认后的安全增量 |
 | 权限 | `wls_role_query`, `wls_role_upsert`, `wls_assignable_menus_query`, `wls_role_assign_menus`, `wls_action_query`, `wls_action_upsert` | 授权覆盖和写入必须确认 |
@@ -802,6 +806,8 @@ AI 的权威路由表位于 `.wl-skills/skills/_registry.md`；团队成员可�
 
 | 命令 | 用途 |
 | --- | --- |
+| `task` / `route` / `explain` | 保存任务计划或只读判定匹配、基础规范与缺口 |
+| `status` / `doctor-host` | 真实工具回执与过期状态，或静态宿主入口诊断 |
 | `init` / `update` | 安装或增量更新 Skill、规范、MCP 和编辑器配置 |
 | `check` / `diff` | 检查环境，或比较项目与当前 kit 的差异 |
 | `validate` / `validate-page` | 页面、AST 规则、spec-align 和类型检查 |

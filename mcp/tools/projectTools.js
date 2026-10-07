@@ -147,6 +147,10 @@ function formatValidationResult(result, options = {}) {
       limit,
       truncated: remaining > 0,
       issues: selected,
+      runId: result.runId,
+      executionStatus: result.executionStatus,
+      validationStatus: result.validationStatus,
+      receiptPath: result.receiptPath,
     },
     isError: !result.ok,
   };
@@ -154,7 +158,7 @@ function formatValidationResult(result, options = {}) {
 
 async function handleValidatePage(args = {}) {
   const root = getProjectRoot();
-  const result = await runValidationCli(root, args.path || "src/views", args.typecheck === true);
+  const result = await runValidationCli(root, args.path || "src/views", args.typecheck === true, args.runId);
   return formatValidationResult(result, args);
 }
 async function handleDoctorUi() {

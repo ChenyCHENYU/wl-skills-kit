@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.25.0] - 2026-10-07
+
+### 任务可观测与宿主入口
+
+- 新增 task/route/explain/status/doctor-host CLI 与 5 个 MCP 工具，确定性区分匹配、基础规范、歧义、能力/资产缺口、不适用和缺上下文。route/explain 只读，task 只登记计划，不把模型声明作为执行证据。
+- 真实 CLI/MCP/Vite 调用记录独立执行/验证状态、实际检查文件、规则/配置快照、未运行检查与过期证据；同一任务跨已安装适用包复用 runId，仍可独立使用。
+- 安装本包独有 `.agents/skills/wl-skills-kit/SKILL.md` 原生薄入口，按需读取 canonical Skill，保留既有贡献归属及用户修改规则。宿主发现/读取静态诊断始终未验证。
+- 修复 Vite `apply: all` 导致 serve/build 未运行的问题；实际 Vite 回归覆盖启动、构建、AST 不可用、零页面与热更新去抖。插件只证明 AST 范围，完整 validate 与类型检查另行执行。
+
 ## [2.24.2] - 2026-10-07
 
 ### 单一 BaseForm 与公开校验适配

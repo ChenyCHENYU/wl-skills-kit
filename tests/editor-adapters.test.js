@@ -26,6 +26,15 @@ describe("Kilo Code 原生适配", () => {
   const configs = new Map(buildEditorConfigs(FILES, entryBody));
   const skills = canonicalSkills(FILES);
 
+  it("provides one owned Codex gateway without copying all skills", () => {
+    const native = [...configs.keys()].filter((key) => key.startsWith(".agents/skills/"));
+    expect(native).toEqual([".agents/skills/wl-skills-kit/SKILL.md"]);
+    const gateway = configs.get(native[0]);
+    expect(parseSkillMetadata(gateway, native[0]).name).toBe("wl-skills-kit");
+    expect(gateway).toContain("--run-id");
+    expect(gateway).not.toContain("## Pre-flight");
+  });
+
   it("使用官方 rules/skills 路径，不再生成错误的 steering 路径", () => {
     expect(configs.has(".kilo/rules/wl-skills.md")).toBe(true);
     expect(configs.has(".kilo/steering/conventions.md")).toBe(false);

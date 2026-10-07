@@ -5,6 +5,9 @@
 
 ## 必读（每次会话）
 
+每次任务先调用本地 `wl-skills task "<任务>" --target <路径>`，简短说明本包判定、适用约束及未验证项；按返回路径读取必要 Skill。结束时运行实际校验并使用同一 `--run-id`，以 `wl-skills status --run-id <id>` 的工具记录收尾。意图匹配、安装清单和模型自报均不能证明执行或检查通过。原生发现入口为 `.agents/skills/wl-skills-kit/SKILL.md`。
+同一用户任务在已安装且适用的包之间复用一个 `--run-id` / `WL_TASK_RUN_ID`，不创建互不关联的任务，也不要求安装未使用的兄弟包。
+
 **你必须在每次会话开始时执行以下读取，否则无法正确执行任何任务：**
 
 1. 读取 `.wl-skills/copilot-instructions-full.md` — 完整地图（Skill 路由表 + 规范清单 + 场景速查 + 护栏）
@@ -13,9 +16,9 @@
 
 - 页面三文件分离：index.vue（模板）+ data.ts（逻辑）+ api.md（接口）
 - **禁止**在 index.vue 写业务逻辑，**禁止**直接用 axios
-- **必须**用 BaseTable + `render-type="agGrid"` + 全局唯一 cid
+- 表格遵循项目已声明技术与适用约束；使用 AG Grid 时遵循对应 BaseTable/cid 规范，不凭技能触发迁移表格技术
 - code-fix 完成后**必须**自动 `wl-skills validate` 复扫（不可跳过）
-- 高风险 Skill（page-codegen / sync 类 / code-fix / standard-env-config 写入）触发前**必须**二次确认
+- 本地写入遵循用户已授权范围；后端写操作遵循查询、预览 planHash、明确确认、写入流程
 - 匹配 2+ Skill 时**必须**询问用户意图
 
 ## 内容目录
