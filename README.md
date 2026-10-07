@@ -1,6 +1,6 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.24.1** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.24.2** — 一键将 14 条规范、13 个 AI Skill、29 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -98,7 +98,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 普通新列表推荐 `data.ts` 中平铺字段与业务函数，并按需复用模板的 `usePageQuery`；需要列扩展时才使用 `useBaseTable`。组合函数落到项目 `src/composables` 一次，后续页面直接导入；无需复制具体模块的业务组件或适配器。既有 `AbstractPageQueryHook` 和有效的其他写法继续兼容。
 
-独立表单优先沿用现有 BaseForm，字段、验证规则及业务流程声明在 `data.ts`，模板负责绑定和布局。新表单直接使用 `@robot-admin/form-validate` 标准规则，推荐经过验证的 3.4.2，继续兼容 3.4.1；Vue 3.2 宿主引用和历史必填/时间规则仅在实际需要时复用组合函数模板一次。参见 [表单三文件模板](files/.wl-skills/skills/core/page-codegen/templates/universal/TPL-FORM-ROUTE.md) 和 [必要中文注释规范](files/.wl-skills/standards/03-comments.md)。存量改造先对照原布局、控件、校验提示和触发时机，不因换用组件或更严格的规则改变业务表现。
+独立表单优先沿用现有 BaseForm，字段、验证规则及业务流程声明在 `data.ts`，模板负责绑定和布局。新表单直接使用 `@robot-admin/form-validate` 标准规则，推荐经过验证的 3.4.2，继续兼容 3.4.1；Vue 3.2 宿主引用和历史必填/时间规则仅在实际需要时复用组合函数模板一次。BaseForm 缺少单字段校验时，可通过已验证的公开字段挂载钩子连接原生表单上下文，复用 `useBaseForm`，页面无需添加外层 el-form；不满足该契约的旧宿主继续兼容。参见 [表单三文件模板](files/.wl-skills/skills/core/page-codegen/templates/universal/TPL-FORM-ROUTE.md) 和 [必要中文注释规范](files/.wl-skills/standards/03-comments.md)。存量改造先对照原布局、控件、校验提示和触发时机，不因换用组件或更严格的规则改变业务表现。
 
 显式选择 scenario 或已有 `scenarioRef` 的页面继续使用确定性编译器；已实现的 7 种模式及其往返、漂移验证保留。编译器目前仍输出既有类式列表，普通直接编码模板推荐平铺函数，两条路径按项目维护方式选择。详见下方 [场景模板怎么用](#场景模板怎么用wl-scenario)。
 

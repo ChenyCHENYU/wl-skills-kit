@@ -10,9 +10,11 @@
 
 ## 默认范式：单一 BaseForm 的独立表单
 
-普通表单优先使用这个范式：字段及规则在 data.ts，就近维护真实业务；组件引用使用
-项目一次落盘的 `composables/useTemplateRef.ts`，兼容实际宿主 Vue 3.2。存在多个关联
-子表、特殊布局或平台缺失能力时，再选择下方多 Tab/历史实现，不机械改写已有页面。
+普通表单优先使用这个范式：字段及规则在 data.ts，就近维护真实业务；平台校验缺口
+通过项目一次落盘的 `composables/useBaseForm.ts` 补齐。该模板已在真实 Vue 3.2.47
+宿主验证：依赖 BaseFormItem 的公开 onMounted 钩子及 Element Plus 的 formContextKey，
+不读取私有组件引用。先核实实际组件契约，未提供钩子的旧宿主继续使用其有效实现。
+存在多个关联子表或特殊布局时，再选择下方多 Tab/历史实现，不机械改写已有页面。
 API_CONFIG、字段及初值均按已确认的接口替换；这里展示最小名称维护场景。
 
 ### data.ts（可直接编译的结构）
@@ -24,13 +26,9 @@ import { ElMessage } from "element-plus";
 import { getAction, postAction, putAction } from "@jhlc/common-core/src/api/action";
 import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import { ELEMENT_RULES } from "@robot-admin/form-validate";
-import { useTemplateRef } from "@/composables/useTemplateRef";
+import { useBaseForm } from "@/composables/useBaseForm";
 
 interface RecordForm { id?: string; name: string; }
-interface FormHandle {
-  validate: () => Promise<boolean>;
-  resetFields: () => void;
-}
 export const API_CONFIG = {
   detail: "/[服务]/[资源]/getById/",
   save: "/[服务]/[资源]/save",
@@ -44,8 +42,10 @@ export const formItems: BaseFormItemDesc[] = [
 /** 维护当前记录与提交状态；字段由 BaseForm 渲染，每个页面独立创建状态。 */
 export const useRecordForm = () => {
   const router = useRouter();
-  const formRef = useTemplateRef<FormHandle>("formRef");
+  const formApi = useBaseForm();
   const page = proxyRefs({
+    formApi,
+    formItems: formApi.bindFields(formItems),
     loading: ref(false),
     form: ref<RecordForm>({ name: "" }),
     // 编辑载入完整明细，保存时保留接口返回的记录身份。
@@ -58,7 +58,7 @@ export const useRecordForm = () => {
     },
     // 先校验，再构造接口允许的载荷；失败时保留输入，并恢复按钮状态。
     save: async () => {
-      if (page.loading || !(await formRef.value?.validate().catch(() => false))) return;
+      if (page.loading || !(await formApi.validate().catch(() => false))) return;
       page.loading = true;
       try {
         const payload = { name: page.form.name, ...(page.form.id ? { id: page.form.id } : {}) };
@@ -67,7 +67,7 @@ export const useRecordForm = () => {
         ElMessage.success("保存成功");
       } finally { page.loading = false; }
     },
-    cancel: () => { formRef.value?.resetFields(); router.back(); }
+    cancel: () => { formApi.resetFields(); router.back(); }
   });
   return page;
 };
@@ -78,7 +78,7 @@ export const useRecordForm = () => {
 ```vue
 <template>
   <div class="app-container app-page-container record-form-page" v-loading="page.loading">
-    <BaseForm ref="formRef" :form="page.form" :items="formItems" :columns="2" size="small" />
+    <BaseForm v-bind="page.formApi.attrs" :form="page.form" :items="page.formItems" :columns="2" size="small" />
     <div class="page-toolbar">
       <el-button type="primary" size="small" :loading="page.loading" @click="page.save">保存</el-button>
       <el-button size="small" @click="page.cancel">取消</el-button>
@@ -88,7 +88,7 @@ export const useRecordForm = () => {
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { formItems, useRecordForm } from "./data";
+import { useRecordForm } from "./data";
 const page = useRecordForm();
 const route = useRoute();
 onMounted(() => {
@@ -117,7 +117,12 @@ onMounted(() => {
 字段达到“全部/仅必填”场景时复用 `useFormRequiredOnly`，见 `references/form-ui.md`；
 有分区时直接复用 c_formSections，有多 Tab 时复用对应场景。不要为这个简单表单再建
 包装组件或万能配置模型。模板控件直接使用项目已配置的自动导入，不重复 import C_/c_。
-需要即时跨字段错误反馈时先核实宿主 BaseForm 的暴露方法，不复制不存在的 API。
+需要即时跨字段错误反馈时调用 `page.formApi.validateField("字段名")`；验证库只提供
+规则，原生表单负责触发及显示错误。`bindFields` 保留原字段挂载回调，在计算字段列表
+的最终结果上调用即可。每个独立 BaseForm 创建一个适配器，动态字段卸载后自动释放
+上下文；不与 `no-form` 混用，不为接入而添加外层 el-form。存量迁移先对照标签、
+必填星号、三档尺寸、错误区域及 blur/change 时机；`data-form-size` 可保留历史表单
+布局尺寸，新增页面无需复制某个业务的间距覆盖。
 
 ## 兼容范式：多个 Tab 与既有独立布局
 

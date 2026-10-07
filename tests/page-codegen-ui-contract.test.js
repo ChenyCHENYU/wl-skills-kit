@@ -15,17 +15,20 @@ function read(relativePath) {
 }
 
 describe("page-codegen 与 wl-skills-ui 闭环契约", () => {
-  it("独立表单默认复用 BaseForm、验证库及宿主兼容引用，三文件示例可编译", () => {
+  it("独立表单默认复用 BaseForm、验证库及原生校验适配，三文件示例可编译", () => {
     const source = read("templates/universal/TPL-FORM-ROUTE.md");
     const data = source.match(/```typescript\n([\s\S]*?)```/)[1];
     const view = source.match(/```vue\n([\s\S]*?)```/)[1];
     expect(data).toContain('from "@robot-admin/form-validate"');
-    expect(data).toContain('from "@/composables/useTemplateRef"');
+    expect(data).toContain('from "@/composables/useBaseForm"');
     expect(data).toContain("return page;");
     expect(data).toContain("失败时保留输入");
     expect(data).not.toContain("as any");
     expect(view).toContain("<BaseForm");
     expect(view).not.toContain("<el-form");
+    expect(view).not.toContain('ref="formRef"');
+    expect(data).toContain("formApi.bindFields(formItems)");
+    expect(data).toContain("formApi.validate().catch");
     const result = parse(`<script lang="ts">${data}</script>`);
     expect(result.errors).toEqual([]);
     expect(() => compileScript(result.descriptor, { id: "record-data" })).not.toThrow();

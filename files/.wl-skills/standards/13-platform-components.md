@@ -41,6 +41,21 @@
 
 ---
 
+## BaseForm 缺失校验能力时
+
+独立表单优先只使用 BaseForm。验证库声明规则，Element Plus 原生表单负责触发、
+错误提示和必填标记；两者职责不同。宿主缺少 validateField 或 validate 返回值与
+原生不同时，先核实实际运行组件，可复用 `templates/composables/useBaseForm.ts`
+落盘到项目 composables 一次：通过 BaseFormItem 的公开 onMounted 钩子注入
+formContextKey，补齐整表、单字段、清除和重置接口；不读取私有 $refs、不另建表单
+外壳。整表 rules 通过 useAttrs 透传；保留每个字段既有回调及原校验时机。
+
+该适配器要求每个独立表单单独创建、BaseForm 启用表单容器，并具备上述公开钩子与
+上下文。未满足契约的历史宿主保留有效实现，不强制套用适配器，也不作为存量门禁。
+重构先验证布局、控件尺寸、错误区域、隐藏字段、卸载重开和提交失败恢复。
+
+---
+
 ## 组件在 template 中的书写顺序
 
 当页面同时存在多个区块时，**有则按下列顺序排列**（**全部可选，不强制必须存在**）：
@@ -124,3 +139,7 @@ export function createPage() {
 - [ ] HTTP 请求遵守项目统一封装与已确认的接口契约？
 - [ ] data.ts 使用清晰的组合函数或既有 AbstractPageQueryHook，且没有无效封装？
 - [ ] 涉及 jh-_ 组件时已读取对应 .wl-skills/docs/jh-_.md？
+
+## 变更记录
+
+- 2026-10-07：提供公开上下文的 BaseForm 校验适配范式，继续兼容有效旧宿主写法。

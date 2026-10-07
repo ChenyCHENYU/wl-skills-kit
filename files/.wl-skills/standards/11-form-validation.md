@@ -190,7 +190,7 @@ export const formRules = {
 
 生成 FORM_ROUTE 模板代码时确认：
 
-- [ ] 提交按钮 click 处理函数中调用了 `formRef.value?.validate()`
+- [ ] 提交先等待原生校验或已验证的 `formApi.validate()`；适配器缺少上下文时不得提交
 - [ ] 取消按钮 / 路由离开钩子中调用了 `resetFields()`
 - [ ] rules 定义在 `data.ts` 而非 `<template>`
 - [ ] 已确认项目声明 `@robot-admin/form-validate` 3.4.1+，未生成悬空 import
@@ -208,3 +208,5 @@ export const formRules = {
 
 - 2026-08-08：接入 `@robot-admin/form-validate` 3.4.1+，明确 Element/RuleSpec
   分层、依赖前置检查、废弃包迁移和提交校验复用规则。
+
+- 2026-10-07：校验入口兼容统一 BaseForm 适配器，规则仍来自验证库，错误展示保留原生行为。
