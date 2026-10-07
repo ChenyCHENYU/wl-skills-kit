@@ -98,8 +98,10 @@ for (const pkg of PACKAGES) {
     assert.equal(JSON.parse(unknown.run.stdout).error.code, "unknown-operation");
 
     const missing = requestFile(pkg, { operation: "route" }, cwd);
-    assert.equal(JSON.parse(missing.run.stdout).error.code, "missing-input");
-    assert.equal(JSON.parse(missing.run.stdout).error.field, "task");
+    const missingEnvelope = JSON.parse(missing.run.stdout);
+    assert.equal(missingEnvelope.error.code, "missing-input");
+    const { field } = missingEnvelope.error;
+    assert.ok(field === "task" || (Array.isArray(field) && field.includes("task")), "missing-input 应指明 task 或条件式必填组");
   });
 }
 

@@ -53,7 +53,8 @@ describe("integration request", () => {
     expect(planned.result.runId).toBeTruthy();
     const status = protocol.request({ operation: "status", projectRoot: root, runId: planned.result.runId }, runOperation);
     expect(status.ok).toBe(true);
-    expect(status.result.runId || status.result.decision && status.result.decision.runId || planned.result.runId).toBeTruthy();
+    expect(status.result.runId).toBe(planned.result.runId);
+    expect(status.result.executionStatus).toBe("not-executed");
   });
 
   it("doctor-host 返回指定 host", () => {
@@ -95,5 +96,32 @@ describe("integration request", () => {
     expect(envelope.ok).toBe(false);
     expect(envelope.error.code).toBe("internal-error");
     expect(envelope.diagnostics).toContain("boom");
+  });
+});
+
+describe("边界输入校验（独立复验缺陷回归）", () => {
+  const invalidPayloads = [
+    ["布尔 task", { operation: "task", task: true }],
+    ["对象 task", { operation: "task", task: { text: "bad" } }],
+    ["非法 targets 元素", { operation: "task", task: "检查目标", targets: [null, 42, {}] }],
+    ["数字 projectRoot", { operation: "route", task: "检查目标", projectRoot: 42 }],
+    ["对象 runId", { operation: "task", task: "检查目标", runId: {} }],
+  ];
+  for (const [label, payload] of invalidPayloads) {
+    it(`${label} 在触达执行器前判 invalid-input`, () => {
+      const envelope = protocol.request(payload, () => { throw new Error("不应触达执行器"); });
+      expect(envelope.ok).toBe(false);
+      expect(envelope.error.code).toBe("invalid-input");
+      expect(envelope.error.field).toBeTruthy();
+    });
+  }
+  it("CLI 缺 --input-file 时 stdout 输出 missing-input JSON 信封", () => {
+    const { spawnSync } = require("node:child_process");
+    const run = spawnSync(process.execPath, [path.join(path.dirname(require.resolve("../package.json")), "bin", "wl-skills.js"), "protocol", "request"], { encoding: "utf8" });
+    expect(run.status).toBe(2);
+    const envelope = JSON.parse(run.stdout);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error.code).toBe("missing-input");
+    expect(envelope.error.field).toBe("input-file");
   });
 });

@@ -1009,8 +1009,13 @@ function getInstallEditorConfigs() {
   const source = path.join(FILES_DIR, ".github", "copilot-instructions.md");
   if (!fs.existsSync(source)) return [];
   return getEditorConfigs(fs.readFileSync(source, "utf8")).map(([rel, content]) => {
-    if (rel === ".clinerules" && fs.existsSync(path.join(TARGET_DIR, rel)) && fs.statSync(path.join(TARGET_DIR, rel)).isDirectory()) {
-      return [".clinerules/wl-skills-kit.md", content];
+    if (rel === ".clinerules") {
+      // 新装默认写目录形态 .clinerules/wl-skills-kit.md，与 design/test 的目录约定共存；
+      // 已存在时维持原口径：单文件走共享区块合并（含外来内容保护），目录形态写子文件；
+      // kit 自有单文件的目录化迁移仍由 managed-markdown 迁移流程负责。
+      if (!fs.existsSync(path.join(TARGET_DIR, rel)) || fs.statSync(path.join(TARGET_DIR, rel)).isDirectory()) {
+        return [".clinerules/wl-skills-kit.md", content];
+      }
     }
     return [rel, content];
   });

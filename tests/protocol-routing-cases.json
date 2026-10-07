@@ -1,0 +1,19 @@
+[
+  { "task": "对齐前后端接口约定输出 api.md", "skill": "api-contract" },
+  { "task": "做一次业务梳理沉淀模块", "skill": "business-doc-extract" },
+  { "task": "规范整改自动修复偏差", "skill": "code-fix" },
+  { "task": "做规范审计检查存量代码", "skill": "convention-audit" },
+  { "task": "同步字典并做字典对比", "skill": "dict-sync" },
+  { "task": "同步菜单补菜单", "skill": "menu-sync" },
+  { "task": "为设备主数据生成页面（列表页）", "skill": "page-codegen" },
+  { "task": "同步权限给角色分配菜单", "skill": "permission-sync" },
+  { "task": "解析原型输出页面清单", "skill": "prototype-scan" },
+  { "task": "解析说明书", "skill": "spec-doc-parse" },
+  { "task": "配置五套环境标准环境配置", "skill": "standard-env-config" },
+  { "task": "做状态列审计补状态标签", "skill": "status-column-audit" },
+  { "task": "把该页提取模板沉淀模板", "skill": "template-extract" },
+  { "task": "写诗", "skill": null, "status": "not-applicable" },
+  { "task": "旅游攻略", "skill": null, "status": "not-applicable" },
+  { "task": "检查", "skill": null, "status": "needs-context" },
+  { "task": "设计数据库表结构", "skill": null, "status": "needs-context" }
+]

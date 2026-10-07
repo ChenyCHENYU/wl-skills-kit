@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test test/*.check.cjs",
     "test:matrix": "WL_FULL_MATRIX=1 node --test test/coexistence.check.cjs",
+    "test:upgrade": "node --test test/suites/upgrade-matrix.check.cjs",
     "support:sync": "node scripts/sync-support.cjs"
   },
   "engines": { "node": ">=22" },

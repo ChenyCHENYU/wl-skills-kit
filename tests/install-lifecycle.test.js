@@ -188,6 +188,16 @@ describe("kit shared install lifecycle", () => {
   it("migrates a former single .clinerules into a directory without deleting team files", () => {
     const dir = fixture();
     expect(run(dir, ["init"]).status).toBe(0);
+    // 新装默认目录形态；此处显式构造遗留单文件状态（旧版 kit 的安装产物）：
+    // 用 kit 的区块内容重建单文件并按旧清单登记所有权，再由团队改为目录。
+    const dirContent = fs.readFileSync(path.join(dir, ".clinerules", "wl-skills-kit.md"), "utf8");
+    fs.rmSync(path.join(dir, ".clinerules"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".clinerules"), dirContent);
+    const manifestPath = path.join(dir, ".wl-skills-manifest.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    manifest.files[".clinerules"] = manifest.files[".clinerules/wl-skills-kit.md"];
+    delete manifest.files[".clinerules/wl-skills-kit.md"];
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
     fs.unlinkSync(path.join(dir, ".clinerules"));
     fs.mkdirSync(path.join(dir, ".clinerules"));
     fs.writeFileSync(path.join(dir, ".clinerules/team.md"), "Team route.\n");
