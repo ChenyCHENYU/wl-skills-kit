@@ -35,6 +35,10 @@ CLI 可独立运行不代表生成物无需宿主。kit 编译器输出导入 UI
 
 公共 API Schema 和默认 Profile 由同源快照定义；项目生效 Profile、后端内部契约、页面规格及需求追踪仍各有归属。公共 Schema 校验结构，项目 Profile 校验实际语义，不能把默认分页值固化成所有项目的唯一合法值。
 
+## 公开集成协议 v1
+
+五包提供统一 `<bin> protocol describe --json` 与 `<bin> protocol request --input-file <request.json> --json` 入口：`describe` 返回能力目录、协议版本、操作映射与错误码；`request` 以统一 JSON 信封提供 route/explain/task/status/doctor-host 五个操作，机器结果与 diagnostics 分离。协议实现是同源快照 `integration-protocol.cjs`（各包接线文件只做映射，复用各包原执行器，不复制业务实现）。bd 的 `integration` 命令属于业务系统集成域，与 `protocol` 命令互不相干。跨包一致性由 `test/integration-protocol.check.cjs` 验收：信封形状、五操作、错误码、退出码、快照同源哈希。
+
 联动优先消费已经解析项目 Profile 的 `wl-api-contract`。兼容原始后端契约时必须使用同一生效 Profile；页面规格声明 `apiContract` 时应读取该引用，不能用页面路由猜接口。未知显式协议版本拒绝或进入显式迁移；未决业务事实保留为未决，不伪造完成状态。
 
 页面规格单独提供时仍支持 UI 场景与浏览器测试；页面操作意图不等于 API 方法和地址。接口事实未决时明确提示所需契约，不能生成可误执行的推测请求。

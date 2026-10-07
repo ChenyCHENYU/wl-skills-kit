@@ -170,7 +170,7 @@ const KNOWN_COMMANDS = new Set([
   "template",
   "snapshot",
   "scenario",
-  "task", "route", "explain", "status", "doctor-host",
+  "task", "route", "explain", "status", "doctor-host", "protocol",
 ]);
 const KNOWN_FLAGS = new Set([
   "--dry-run",
@@ -282,13 +282,17 @@ if (showVersion) {
   process.exit(0);
 }
 
+const positional = collectPositionals(args);
+const command = positional[0] || "init";
+
 // 校验所有 flag 是否已知（--help 优先，跳过校验直接显示帮助）
 if (!showHelp) {
   const unknownFlags = args.filter(
     (a) =>
       a.startsWith("-") &&
       !KNOWN_FLAGS.has(a) &&
-      !KNOWN_FLAGS.has(a.split("=")[0]),
+      !KNOWN_FLAGS.has(a.split("=")[0]) &&
+      !(command === "protocol" && (a === "--input-file" || a.split("=")[0] === "--input-file")),
   );
   if (unknownFlags.length > 0) {
     console.error("");
@@ -299,8 +303,6 @@ if (!showHelp) {
   }
 }
 
-const positional = collectPositionals(args);
-const command = positional[0] || "init";
 
 // 校验主命令是否已知（--help 时跳过；空命令默认 init）
 if (!showHelp && !KNOWN_COMMANDS.has(command)) {
@@ -343,6 +345,7 @@ if (showHelp) {
     route/explain 只读判定技能、基础约束、歧义与能力缺口
     status     读取自身真实执行/校验记录；修改输入后标记 stale
     doctor-host 静态诊断原生 gateway/指令入口，不宣称宿主已加载
+    protocol   公开集成协议：describe 能力目录 / request 统一判定与状态（JSON 信封）
 
   选项:
     --version, -v     输出当前版本号
@@ -3489,6 +3492,9 @@ switch (command) {
   case "status":
   case "doctor-host":
     require("../lib/task-integration").taskCli(command, args.slice(1), TARGET_DIR);
+    break;
+  case "protocol":
+    process.exitCode = require("../lib/protocol-cli").runCli(args.slice(1));
     break;
   case "init":
     runInstall(false);
