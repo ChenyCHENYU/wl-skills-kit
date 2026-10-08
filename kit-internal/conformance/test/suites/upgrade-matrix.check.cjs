@@ -36,6 +36,8 @@ const FROZEN_BASELINES = { kit: "2.25.0", ui: "1.15.0", bd: "0.32.0", design: "0
 const guard = createFixtureGuard("wl-upgrade-r3");
 
 function run(command, args, cwd, timeout = 300000) {
+  // 所有子进程执行前经护栏校验（cwd/--target/--project/--input-file projectRoot）
+  guard.guardRun(command, args, { cwd });
   return spawnSync(command, args, { cwd, encoding: "utf8", timeout, maxBuffer: 16 * 1024 * 1024 });
 }
 
@@ -50,9 +52,11 @@ function projectBin(project, bin) {
 
 function packCandidate(key, destination, versionOverride) {
   fs.mkdirSync(destination, { recursive: true });
+  guard.assertTarget(destination, "pack-destination");
   const source = path.join(root, `wl-skills-${key}`);
   if (!versionOverride) {
-    return JSON.parse(ok(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", destination], source), `打包候选 ${key}`))[0];
+    // 源码仓库内 npm pack 为只读操作（产物写入护栏登记的 destination），cwd 不经护栏
+    return JSON.parse(ok(spawnSync("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", destination], { cwd: source, encoding: "utf8", timeout: 600000, maxBuffer: 16 * 1024 * 1024 }), `打包候选 ${key}`))[0];
   }
   const staging = guard.fixture(`bridge-${key}`);
   fs.cpSync(source, staging, { recursive: true, filter: (entry) => {

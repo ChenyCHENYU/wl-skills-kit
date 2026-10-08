@@ -19,6 +19,8 @@ const { createFixtureGuard } = require("../support/fixture-guard.cjs");
 const guard = createFixtureGuard("wl-exec-closure");
 
 function run(bin, args, cwd) {
+  // 所有子进程执行前经护栏校验（cwd/--target/--project/--input-file projectRoot）
+  guard.guardRun(process.execPath, [path.join(root, bin), ...args], { cwd });
   return spawnSync(process.execPath, [path.join(root, bin), ...args], { cwd, encoding: "utf8", timeout: 300000 });
 }
 
@@ -105,7 +107,7 @@ test("test：audit 真实执行后同 runId 状态翻转且可过期", () => {
   assert.notEqual(stale.result.validationStatus, "passed");
 });
 
-test("bd：review 执行暂未与协议 runId 关联（已知缺口，显式记录不视为通过）", () => {
+test("bd：review run 真实执行后同 runId 闭环（completed/partial，不虚报通过）", () => {
   const project = guard.fixture("bd-closure");
   const preview = run("wl-skills-bd/bin/wl-skills-bd.js", ["init", "--target", project, "--json"], project);
   const plan = JSON.parse(preview.stdout);
@@ -114,10 +116,14 @@ test("bd：review 执行暂未与协议 runId 关联（已知缺口，显式记�
 
   const planned = request("wl-skills-bd/bin/wl-skills-bd.js", project, { operation: "task", projectRoot: project, task: "审计后端规则", runId: "bd-exec" });
   assert.equal(planned.result.executionStatus, "not-executed");
-  run("wl-skills-bd/bin/wl-skills-bd.js", ["review", "--run-id", "bd-exec", "--target", project], project);
+  assert.equal(planned.result.validationStatus, "unverified");
+
+  // 正确调用形态：review run --run-id（review 的顶层 --run-id 不是合法子命令）
+  const executed = run("wl-skills-bd/bin/wl-skills-bd.js", ["review", "run", "--run-id", "bd-exec", "--target", project, "--json"], project);
+  assert.equal(executed.status, 0, executed.stdout + executed.stderr);
+
   const status = request("wl-skills-bd/bin/wl-skills-bd.js", project, { operation: "status", projectRoot: project, runId: "bd-exec" });
-  // 已知缺口：bd 的 review 执行回执未与协议 runId 关联，status 停留 not-executed。
-  // 断言其「不虚报」（不伪造 completed/passed）；关联能力列入缺口清单，修复后此断言应反转为闭环断言。
-  assert.equal(status.result.executionStatus, "not-executed");
-  assert.notEqual(status.result.validationStatus, "passed");
+  assert.equal(status.result.runId, "bd-exec");
+  assert.equal(status.result.executionStatus, "completed", "review run 后同 runId 应为 completed");
+  assert.ok(["partial", "failed", "unverified"].includes(status.result.validationStatus), "空项目审计不得报 passed（partial/unverified 为真实语义）");
 });

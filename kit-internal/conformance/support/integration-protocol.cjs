@@ -93,7 +93,7 @@ function requestSchema(config) {
       runId: STRING_FIELD_SCHEMA,
       projectRoot: STRING_FIELD_SCHEMA,
       task: STRING_FIELD_SCHEMA,
-      targets: { type: "array", items: STRING_FIELD_SCHEMA, minItems: 1 },
+      targets: { type: "array", items: STRING_FIELD_SCHEMA, description: "空数组表示空范围（与运行时既有语义一致）" },
       skill: STRING_FIELD_SCHEMA,
       host: STRING_FIELD_SCHEMA,
       type: STRING_FIELD_SCHEMA,
@@ -151,7 +151,7 @@ function createProtocol(config) {
 
   function validateContextField(input) {
     const {context} = input;
-    if (typeof context !== "object" || Array.isArray(context)) return invalidField(input, "context", "对象（signals: string[] / domainRelevant: boolean）");
+    if (context === null || typeof context !== "object" || Array.isArray(context)) return invalidField(input, "context", "非 null 对象（signals: string[] / domainRelevant: boolean）");
     if (context.signals !== undefined && (!Array.isArray(context.signals) || context.signals.some((item) => !isNonEmptyString(item)))) {
       return invalidField(input, "context.signals", "非空字符串数组");
     }

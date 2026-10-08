@@ -142,13 +142,18 @@ const { collectMockEndpoints } = require("../lib/mock-endpoints");
 const { atomicWriteFile } = require("../lib/atomic-write.cjs");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
-const TARGET_DIR = process.cwd();
+const args = process.argv.slice(2);
+// --project <path>：显式指定目标项目根（init/update/clean/diff 等安装族命令公开声明的参数）；
+// 缺省为 cwd。解析出的绝对路径同时用于 manifest 与所有受管文件写入。
+const PROJECT_FLAG_INDEX = args.indexOf("--project");
+const TARGET_DIR = PROJECT_FLAG_INDEX >= 0 && args[PROJECT_FLAG_INDEX + 1]
+  ? path.resolve(args[PROJECT_FLAG_INDEX + 1])
+  : process.cwd();
 const MANIFEST_NAME = ".wl-skills-manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
 const LOCAL_SYNC_CONFIG = ".wl-skills/skills/sync/env.local.json";
 const EXAMPLE_SYNC_CONFIG = ".wl-skills/skills/sync/env.example.json";
 const PKG = require("../package.json");
-const args = process.argv.slice(2);
 
 // ─── 已知命令 / 选项白名单（A1: 防止未知 flag 默认走 init 误装）──────────
 const KNOWN_COMMANDS = new Set([
@@ -890,8 +895,9 @@ function isExistingDirectory(dest) {
 }
 
 function preserveMigratedBlock(relPath, dest, context) {
-  // 存量迁移保留的用户修改内容：登记新路径所有权但不覆盖
-  context.manifest.files[relPath] = fileMd5(dest);
+  // 存量迁移保留的用户修改内容：以全新内容哈希登记所有权（磁盘与登记不一致 →
+  // 后续 update 冲突停止、clean 保留），不覆盖磁盘内容。
+  context.manifest.files[relPath] = context.migratedFreshHash || fileMd5(dest);
   updateInstallCounter(context.stats, "preserved");
 }
 
@@ -1040,8 +1046,30 @@ function planLegacyClinerulesMigration(oldManifest) {
   return Boolean(oldManifest?.files?.[".clinerules"]);
 }
 
+function applyLegacyClinerulesMigration(legacy, raw, foreign, block, userModified, backupPath) {
+  fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+  fs.copyFileSync(legacy, backupPath);
+  fs.unlinkSync(legacy);
+  fs.mkdirSync(legacy, { recursive: true });
+  if (foreign.trim() !== "") fs.writeFileSync(path.join(legacy, "migrated-legacy-content.md"), foreign);
+  if (block && userModified) fs.writeFileSync(path.join(legacy, "wl-skills-kit.md"), `${block}\n`);
+}
+
+function rollbackLegacyClinerules(legacy, raw) {
+  try {
+    if (fs.existsSync(legacy) && fs.statSync(legacy).isDirectory()) fs.rmSync(legacy, { recursive: true, force: true });
+    fs.writeFileSync(legacy, raw);
+  } catch {
+    // 尽力恢复失败时字节级备份仍在 backups 目录；向上抛出由调用方终止安装
+  }
+}
+
 // 存量迁移：本包登记过的单文件 .clinerules 目录化。
-// 备份原文件；非本包内容保留至 migrated-legacy-content.md；用户修改过的本包区块原样保留并跳过后续覆盖。
+// 1) 字节级备份原文件到 .wl-skills/.state/backups/<backupId>/；
+// 2) 结构转换：外来内容逐字节保留至 migrated-legacy-content.md；用户修改过的本包区块原样写入 wl-skills-kit.md；
+// 3) 任一步失败整体回滚（恢复原单文件字节内容），非零退出；
+// 4) 所有权登记使用「本次应安装的全新内容」哈希：磁盘用户内容与登记不一致 →
+//    后续正常 update 按本地改动冲突停止（零写入），clean 保留该文件。
 // 外来（未登记）单文件不迁移，维持共享区块合并口径。
 function migrateLegacyClinerulesFile(context) {
   if (!context.legacyMigrationPlanned) return;
@@ -1049,24 +1077,27 @@ function migrateLegacyClinerulesFile(context) {
   const installedHash = context.oldManifest?.files?.[".clinerules"];
   const raw = fs.readFileSync(legacy, "utf8");
   if (dryRun) {
-    console.log("  迁移  .clinerules（本包登记的单文件 → 目录形态）");
+    console.log("  迁移  .clinerules（本包登记的单文件 → 目录形态；执行前生成字节级备份）");
     return;
   }
   const { extractBlock, removeBlock } = require("../lib/managed-markdown");
   const block = extractBlock(raw);
-  const foreign = removeBlock(raw).trim();
+  const foreign = removeBlock(raw);
   const userModified = contentMd5(raw) !== installedHash;
-  backupInstallConflict(context, ".clinerules", legacy);
-  fs.unlinkSync(legacy);
-  fs.mkdirSync(legacy, { recursive: true });
-  if (foreign) {
-    fs.writeFileSync(path.join(legacy, "migrated-legacy-content.md"), `<!-- 从旧版单文件 .clinerules 迁移保留的非本包内容（wl-skills-kit 自动迁移） -->\n\n${foreign}\n`);
+  const backupPath = path.join(TARGET_DIR, ".wl-skills", ".state", "backups", context.backupId, "clinerules.original.md");
+  try {
+    applyLegacyClinerulesMigration(legacy, raw, foreign, block, userModified, backupPath);
+  } catch (error) {
+    rollbackLegacyClinerules(legacy, raw);
+    throw new Error(`存量 .clinerules 迁移失败，已回滚原文件：${error.message}（字节级备份：.wl-skills/.state/backups/${context.backupId}/clinerules.original.md）`);
   }
-  if (block && userModified) {
-    fs.writeFileSync(path.join(legacy, "wl-skills-kit.md"), `${block}\n`);
+  if (userModified) {
     context.migratedPreserved = new Set([".clinerules/wl-skills-kit.md"]);
+    const freshEntry = context.editorConfigs.find(([rel]) => rel === ".clinerules/wl-skills-kit.md");
+    context.migratedFreshHash = freshEntry ? contentMd5(freshEntry[1]) : null;
   }
-  console.log(`    迁移: .clinerules 单文件 → 目录形态${foreign ? "（非本包内容保留于 migrated-legacy-content.md）" : ""}`);
+  updateInstallCounter(context.stats, "backups");
+  console.log(`    迁移: .clinerules 单文件 → 目录形态（字节级备份：.wl-skills/.state/backups/${context.backupId}/clinerules.original.md）${foreign.trim() !== "" ? "；非本包内容逐字节保留于 migrated-legacy-content.md" : ""}`);
 }
 
 function stopForInstallConflicts(conflicts) {

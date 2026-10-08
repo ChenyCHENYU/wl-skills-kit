@@ -125,3 +125,28 @@ describe("边界输入校验（独立复验缺陷回归）", () => {
     expect(envelope.error.field).toBe("input-file");
   });
 });
+
+
+describe("边界输入（定点收尾回归）", () => {
+  it("context null 判 invalid-input 且零写入（CLI 回归）", () => {
+    const root = tempRoot();
+    const file = path.join(root, "req.json");
+    fs.writeFileSync(file, JSON.stringify({ operation: "task", projectRoot: root, task: "校验 src/views 页面规范", runId: "ctx-null", context: null }));
+    const { spawnSync } = require("node:child_process");
+    const BIN = path.join(path.dirname(require.resolve("../package.json")), "bin", "wl-skills.js");
+    const run = spawnSync(process.execPath, [BIN, "protocol", "request", "--input-file", file], { encoding: "utf8" });
+    expect(run.status).toBe(2);
+    const envelope = JSON.parse(run.stdout);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error.code).toBe("invalid-input");
+    expect(envelope.error.field).toBe("context");
+    expect(fs.readdirSync(root).filter((name) => name.startsWith(".")).length).toBe(0);
+  });
+
+  it("targets 空数组与 Schema 一致（运行时接受空范围）", () => {
+    const root = tempRoot();
+    const envelope = protocol.request({ operation: "route", projectRoot: root, task: "校验 src/views 页面规范", targets: [] }, runOperation);
+    expect(envelope.ok).toBe(true);
+    expect(protocol.describe().schemas.request.properties.targets.minItems).toBeUndefined();
+  });
+});
