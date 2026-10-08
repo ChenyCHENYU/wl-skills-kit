@@ -740,9 +740,9 @@ describe("runtime 轨：definition + 薄壳 + 委托链", () => {
     );
   });
 
-  it("index.vue 是 10 行薄壳、data.ts 是 2 行转发（薄于手写 12/3）", () => {
-    expect(compiled.files["index.vue"].split("\n").filter(Boolean)).toHaveLength(10);
-    expect(compiled.files["data.ts"].split("\n").filter(Boolean)).toHaveLength(2);
+  it("职责头以外仍为 10 行薄壳与 2 行状态转发", () => {
+    expect(compiled.files["index.vue"].replace(/^<!--[\s\S]*?-->\n/, "").split("\n").filter(Boolean)).toHaveLength(10);
+    expect(compiled.files["data.ts"].replace(/^\/\/[^\n]*\n/, "").split("\n").filter(Boolean)).toHaveLength(2);
     expect(compiled.files["index.vue"]).toContain('import PatternPageRenderer from "@/components/pattern/PatternPageRenderer.vue"');
   });
 

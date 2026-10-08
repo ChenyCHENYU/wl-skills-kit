@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -8,8 +8,12 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const BIN = path.join(path.dirname(require.resolve("../package.json")), "bin", "wl-skills.js");
 
+const fixtureRoots = new Set();
+afterEach(() => { for (const root of fixtureRoots) rmSync(root, { recursive: true, force: true }); fixtureRoots.clear(); });
+
 function fixtureWith(pages) {
   const root = mkdtempSync(path.join(os.tmpdir(), "wl-k22-"));
+  fixtureRoots.add(root);
   mkdirSync(path.join(root, "node_modules", "@agile-team"), { recursive: true });
   for (const [dir, files] of Object.entries(pages)) {
     mkdirSync(path.join(root, dir), { recursive: true });
@@ -60,8 +64,11 @@ describe("K22：文件头 @Description 结构检查", () => {
         "index.scss": ".c{}",
       },
     });
+    const source = path.join(root, "src/views/c/index.vue");
+    const before = readFileSync(source);
     const report = validate(root);
     expect(report.issues.filter((issue) => issue.rule === "K22")).toHaveLength(0);
+    expect(readFileSync(source)).toEqual(before);
   });
 
   it("有注释头但缺 @Description 给 info 建议（不阻断）", () => {

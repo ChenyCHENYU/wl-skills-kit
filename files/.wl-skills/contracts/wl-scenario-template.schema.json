@@ -27,6 +27,7 @@
     "renderTrack": { "enum": ["codegen", "runtime"] },
     "page": { "type": "string", "minLength": 1, "description": "页面中文名（与 page-spec.page 同源）" },
     "pageId": { "type": "string", "description": "项目内稳定唯一页面标识（strict page-spec 必填）" },
+    "menuPath": { "type": "string", "pattern": "\\S", "description": "已确认的模块与菜单路径；未知时省略，不从目录猜测" },
     "dir": { "type": "string", "description": "页面目录（相对项目根，如 src/views/sale/customer）" },
     "profileId": { "type": "string", "description": "API 契约 Profile，默认 jh4j3-openapi3" },
     "serviceShort": { "type": "string", "description": "codegen 轨：服务缩写，用于推导 API 路径" },
