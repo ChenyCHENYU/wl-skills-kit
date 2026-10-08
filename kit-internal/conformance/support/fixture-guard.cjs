@@ -49,11 +49,12 @@ function createFixtureGuard(prefix) {
     if (!isLexicalInside(resolved)) {
       throw new Error(`fixture-guard 违规：${label} 目标 ${resolved} 不属于登记的临时目录（词法校验，存在与否均拦截）；已阻止。真实工作区禁止任何安装/更新/清理/写入测试。`);
     }
-    if (fs.existsSync(resolved)) {
-      const real = fs.realpathSync(resolved);
-      if (!knownBases().some((base) => real === base || real.startsWith(base + path.sep))) {
-        throw new Error(`fixture-guard 违规：${label} 目标经符号链接逃逸：${resolved} → ${real}；已阻止。`);
-      }
+    // 最近存在祖先的真实路径校验：拦截符号链接逃逸及其尚不存在的子路径
+    let current = resolved;
+    while (!fs.existsSync(current)) current = path.dirname(current);
+    const real = fs.realpathSync(current);
+    if (!knownBases().some((base) => real === base || real.startsWith(base + path.sep))) {
+      throw new Error(`fixture-guard 违规：${label} 目标经符号链接逃逸：${resolved} → ${real}；已阻止。`);
     }
     return resolved;
   }
@@ -72,15 +73,27 @@ function createFixtureGuard(prefix) {
     }
   }
 
-  function guardRun(command, args, options = {}) {
-    const cwd = path.resolve(options.cwd || process.cwd());
-    assertTarget(cwd, "cwd");
+  function inspectEqualsFormTargets(cwd, args) {
+    for (const arg of args) {
+      if (arg.startsWith("--project=")) assertTarget(path.resolve(cwd, arg.slice("--project=".length)), "--project");
+      if (arg.startsWith("--target=")) assertTarget(path.resolve(cwd, arg.slice("--target=".length)), "--target");
+    }
+  }
+
+  function inspectPairFormTargets(cwd, args) {
     for (let index = 0; index < args.length - 1; index += 1) {
       const arg = args[index];
       const {value} = { value: args[index + 1] };
       if (["--target", "--project"].includes(arg)) assertTarget(path.resolve(cwd, value), arg);
       if (arg === "--input-file") inspectInputFile(cwd, value, "projectRoot");
     }
+  }
+
+  function guardRun(command, args, options = {}) {
+    const cwd = path.resolve(options.cwd || process.cwd());
+    assertTarget(cwd, "cwd");
+    inspectEqualsFormTargets(cwd, args);
+    inspectPairFormTargets(cwd, args);
     const { input } = options;
     if (input && typeof input === "object" && input.projectRoot !== undefined) assertTarget(path.resolve(cwd, String(input.projectRoot)), "projectRoot");
     return { command, args: [...args], options: { ...options, cwd } };

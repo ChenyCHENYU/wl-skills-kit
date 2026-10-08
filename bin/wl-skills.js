@@ -143,12 +143,21 @@ const { atomicWriteFile } = require("../lib/atomic-write.cjs");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const args = process.argv.slice(2);
-// --project <path>：显式指定目标项目根（init/update/clean/diff 等安装族命令公开声明的参数）；
-// 缺省为 cwd。解析出的绝对路径同时用于 manifest 与所有受管文件写入。
-const PROJECT_FLAG_INDEX = args.indexOf("--project");
-const TARGET_DIR = PROJECT_FLAG_INDEX >= 0 && args[PROJECT_FLAG_INDEX + 1]
-  ? path.resolve(args[PROJECT_FLAG_INDEX + 1])
-  : process.cwd();
+// --project <path> / --project=<path>：显式指定目标项目根（安装族命令公开声明的参数）；
+// 缺省 cwd。缺值或空值必须非零退出且零写入，不得静默回落 cwd。
+function parseProjectValue(argv) {
+  const equalsForm = argv.find((item) => item.startsWith("--project="));
+  if (equalsForm !== undefined) return equalsForm.slice("--project=".length);
+  const index = argv.indexOf("--project");
+  if (index === -1) return undefined;
+  return argv[index + 1];
+}
+const PROJECT_VALUE = parseProjectValue(args);
+if (PROJECT_VALUE !== undefined && (PROJECT_VALUE === "" || PROJECT_VALUE.startsWith("-"))) {
+  console.error("  ✖ --project 缺少目标目录：请使用 --project <path> 或 --project=<path>（未写入任何文件）");
+  process.exit(1);
+}
+const TARGET_DIR = PROJECT_VALUE !== undefined ? path.resolve(PROJECT_VALUE) : process.cwd();
 const MANIFEST_NAME = ".wl-skills-manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
 const LOCAL_SYNC_CONFIG = ".wl-skills/skills/sync/env.local.json";
@@ -1096,6 +1105,7 @@ function migrateLegacyClinerulesFile(context) {
     const freshEntry = context.editorConfigs.find(([rel]) => rel === ".clinerules/wl-skills-kit.md");
     context.migratedFreshHash = freshEntry ? contentMd5(freshEntry[1]) : null;
   }
+  context.migrationCommitted = { legacy, raw };
   updateInstallCounter(context.stats, "backups");
   console.log(`    迁移: .clinerules 单文件 → 目录形态（字节级备份：.wl-skills/.state/backups/${context.backupId}/clinerules.original.md）${foreign.trim() !== "" ? "；非本包内容逐字节保留于 migrated-legacy-content.md" : ""}`);
 }
@@ -1176,6 +1186,27 @@ function runInstall(incremental) {
   // 冲突检查通过后才允许创建 hook/eslint/本地配置，保证阻断时真正零写入。
   ensureInstallInfrastructure();
 
+  // 迁移事务：布局转换成功后，后续任一阶段（静态文件/编辑器写入/清单提交）失败
+  // 都恢复原单文件布局；清单保持事务前状态，布局与所有权清单一起提交。
+  try {
+    applyInstallSteps(context, oldManifest);
+  } catch (error) {
+    if (context.migrationCommitted) rollbackLegacyClinerules(context.migrationCommitted.legacy, context.migrationCommitted.raw);
+    throw error;
+  }
+
+  // ── Step 5: 非耦合桥接提醒（不自动安装 wl-skills-ui）───────────────────────
+
+  const hasUiPackage = projectHasUiPackage();
+
+  // ── 输出统计 ──────────────────────────────────────────────────────
+
+  printInstallStats(context, oldManifest);
+  printInstallBridge(hasUiPackage);
+
+}
+
+function applyInstallSteps(context, oldManifest) {
   // ── Step 0: 存量 .clinerules 单文件目录化迁移（本包已登记所有权） ──────────
   migrateLegacyClinerulesFile(context);
 
@@ -1198,18 +1229,7 @@ function runInstall(incremental) {
   cleanupStaleManagedFiles(context, oldManifest);
 
   // ── Step 4: 写 manifest ────────────────────────────────────────────
-
   if (!dryRun) writeManifest(context.manifest);
-
-  // ── Step 5: 非耦合桥接提醒（不自动安装 wl-skills-ui）───────────────────────
-
-  const hasUiPackage = projectHasUiPackage();
-
-  // ── 输出统计 ──────────────────────────────────────────────────────
-
-  printInstallStats(context, oldManifest);
-  printInstallBridge(hasUiPackage);
-
 }
 
 // ─── 命令: clean ────────────────────────────────────────────────────────

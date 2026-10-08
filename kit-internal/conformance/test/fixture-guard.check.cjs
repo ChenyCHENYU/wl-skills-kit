@@ -10,6 +10,7 @@ const os = require("node:os");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { spawnSync } = require("node:child_process");
 const { createFixtureGuard } = require("../support/fixture-guard.cjs");
 
 test("guard：登记目录内目标放行（存在与不存在均可）", () => {
@@ -26,13 +27,39 @@ test("guard：不存在的外部目标被词法拦截（不执行命令）", () 
   assert.throws(() => guard.assertTarget("/Users", "escape"), /不属于登记的临时目录/);
 });
 
-test("guard：符号链接逃逸被拦截", () => {
+test("guard：符号链接逃逸被拦截（含其尚不存在的子路径）", () => {
   const guard = createFixtureGuard("wl-guard-self");
   const inside = guard.fixture("inside");
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "wl-guard-outside-"));
   const link = path.join(inside, "escape-link");
   fs.symlinkSync(outside, link);
   assert.throws(() => guard.assertTarget(link, "symlink-escape"), /符号链接逃逸/);
+  assert.throws(() => guard.assertTarget(path.join(link, "future-dir"), "symlink-future-child"), /符号链接逃逸/, "不存在的外部子路径必须经最近存在祖先的真实路径拦截");
+});
+
+test("guard：guardRun 识别等号形式参数", () => {
+  const guard = createFixtureGuard("wl-guard-self");
+  const inside = guard.fixture("inside");
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "wl-guard-outside-"));
+  assert.throws(() => guard.guardRun("node", ["cli.js", "init", `--project=${outside}`], { cwd: inside }), /--project/);
+  assert.throws(() => guard.guardRun("node", ["cli.js", "init", `--target=${outside}`], { cwd: inside }), /--target/);
+});
+
+test("guard：护栏拒绝时逃逸命令不执行（哨兵验证）", () => {
+  const guard = createFixtureGuard("wl-guard-self");
+  const inside = guard.fixture("inside");
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "wl-guard-outside-"));
+  const sentinel = path.join(outside, "PWNED.txt");
+  const guardedSpawn = (args, options) => {
+    // 套件执行模式：护栏校验通过后才 spawn；违规抛错即短路，命令不执行
+    guard.guardRun(process.execPath, args, options);
+    return spawnSync(process.execPath, args, options);
+  };
+  assert.throws(() => guardedSpawn(["-e", `require('node:fs').writeFileSync(${JSON.stringify(sentinel)}, 'x')`], { cwd: outside }), /cwd/);
+  assert.equal(fs.existsSync(sentinel), false, "护栏拦截后命令不得执行");
+  const allowed = guardedSpawn(["-e", `require('node:fs').writeFileSync(${JSON.stringify(path.join(inside, "ok.txt"))}, 'x')`], { cwd: inside });
+  assert.equal(allowed.status, 0);
+  assert.equal(fs.existsSync(path.join(inside, "ok.txt")), true);
 });
 
 test("guard：guardRun 读取 --input-file 内 projectRoot 并拦截外部目标", () => {
