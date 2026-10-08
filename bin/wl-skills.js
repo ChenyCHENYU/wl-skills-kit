@@ -889,18 +889,13 @@ function isExistingDirectory(dest) {
   return fs.existsSync(dest) && !fs.statSync(dest).isFile();
 }
 
-function installEditorConfig(entry, context) {
-  const [relPath, content] = entry;
-  const dest = path.join(TARGET_DIR, relPath);
-  if (isExistingDirectory(dest)) return updateInstallCounter(context.stats, "preserved");
-  if (isSharedMarkdown(relPath)) return installMarkdown(relPath, content, context);
-  const hash = contentMd5(content);
-  if (preserveUnownedFile(relPath, hash, context)) return;
-  context.manifest.files[relPath] = hash;
-  if (context.incremental && fs.existsSync(dest) && hash === fileMd5(dest)) {
-    updateInstallCounter(context.stats, "unchanged");
-    return;
-  }
+function preserveMigratedBlock(relPath, dest, context) {
+  // 存量迁移保留的用户修改内容：登记新路径所有权但不覆盖
+  context.manifest.files[relPath] = fileMd5(dest);
+  updateInstallCounter(context.stats, "preserved");
+}
+
+function writeEditorConfigFile(relPath, content, dest, hash, context) {
   if (!dryRun) {
     backupInstallConflict(context, relPath, dest);
     updateInstallCounter(context.stats, writeFile(dest, content));
@@ -909,6 +904,22 @@ function installEditorConfig(entry, context) {
   const action = fs.existsSync(dest) ? "updated" : "created";
   console.log(`  ${action === "updated" ? "覆盖" : "新增"}  [编辑器] ${relPath}`);
   updateInstallCounter(context.stats, action);
+}
+
+function installEditorConfig(entry, context) {
+  const [relPath, content] = entry;
+  const dest = path.join(TARGET_DIR, relPath);
+  if (isExistingDirectory(dest)) return updateInstallCounter(context.stats, "preserved");
+  if (context.migratedPreserved && context.migratedPreserved.has(relPath)) return preserveMigratedBlock(relPath, dest, context);
+  if (isSharedMarkdown(relPath)) return installMarkdown(relPath, content, context);
+  const hash = contentMd5(content);
+  if (preserveUnownedFile(relPath, hash, context)) return;
+  context.manifest.files[relPath] = hash;
+  if (context.incremental && fs.existsSync(dest) && hash === fileMd5(dest)) {
+    updateInstallCounter(context.stats, "unchanged");
+    return;
+  }
+  writeEditorConfigFile(relPath, content, dest, hash, context);
 }
 
 function removeLegacyFile(filePath, label) {
@@ -1005,20 +1016,57 @@ function printInstallBridge(hasUiPackage) {
   console.log("  ℹ 规范插件：建议执行 pnpm dlx @robot-admin/git-standards init 接入代码质量与提交规范。\n");
 }
 
-function getInstallEditorConfigs() {
+function getInstallEditorConfigs(legacyMigrationPlanned = false) {
   const source = path.join(FILES_DIR, ".github", "copilot-instructions.md");
   if (!fs.existsSync(source)) return [];
   return getEditorConfigs(fs.readFileSync(source, "utf8")).map(([rel, content]) => {
     if (rel === ".clinerules") {
-      // 新装默认写目录形态 .clinerules/wl-skills-kit.md，与 design/test 的目录约定共存；
-      // 已存在时维持原口径：单文件走共享区块合并（含外来内容保护），目录形态写子文件；
-      // kit 自有单文件的目录化迁移仍由 managed-markdown 迁移流程负责。
-      if (!fs.existsSync(path.join(TARGET_DIR, rel)) || fs.statSync(path.join(TARGET_DIR, rel)).isDirectory()) {
+      // 新装默认目录形态；已存在文件时维持原口径（共享区块合并）。
+      // 例外：本包已登记的单文件将做存量目录化迁移（见 migrateLegacyClinerulesFile），
+      // 此时目标直接切换为目录形态，与迁移步骤配合。
+      const exists = fs.existsSync(path.join(TARGET_DIR, rel));
+      const isDir = exists && fs.statSync(path.join(TARGET_DIR, rel)).isDirectory();
+      if (legacyMigrationPlanned || !exists || isDir) {
         return [".clinerules/wl-skills-kit.md", content];
       }
     }
     return [rel, content];
   });
+}
+
+function planLegacyClinerulesMigration(oldManifest) {
+  const legacy = path.join(TARGET_DIR, ".clinerules");
+  if (!fs.existsSync(legacy) || fs.statSync(legacy).isDirectory()) return false;
+  return Boolean(oldManifest?.files?.[".clinerules"]);
+}
+
+// 存量迁移：本包登记过的单文件 .clinerules 目录化。
+// 备份原文件；非本包内容保留至 migrated-legacy-content.md；用户修改过的本包区块原样保留并跳过后续覆盖。
+// 外来（未登记）单文件不迁移，维持共享区块合并口径。
+function migrateLegacyClinerulesFile(context) {
+  if (!context.legacyMigrationPlanned) return;
+  const legacy = path.join(TARGET_DIR, ".clinerules");
+  const installedHash = context.oldManifest?.files?.[".clinerules"];
+  const raw = fs.readFileSync(legacy, "utf8");
+  if (dryRun) {
+    console.log("  迁移  .clinerules（本包登记的单文件 → 目录形态）");
+    return;
+  }
+  const { extractBlock, removeBlock } = require("../lib/managed-markdown");
+  const block = extractBlock(raw);
+  const foreign = removeBlock(raw).trim();
+  const userModified = contentMd5(raw) !== installedHash;
+  backupInstallConflict(context, ".clinerules", legacy);
+  fs.unlinkSync(legacy);
+  fs.mkdirSync(legacy, { recursive: true });
+  if (foreign) {
+    fs.writeFileSync(path.join(legacy, "migrated-legacy-content.md"), `<!-- 从旧版单文件 .clinerules 迁移保留的非本包内容（wl-skills-kit 自动迁移） -->\n\n${foreign}\n`);
+  }
+  if (block && userModified) {
+    fs.writeFileSync(path.join(legacy, "wl-skills-kit.md"), `${block}\n`);
+    context.migratedPreserved = new Set([".clinerules/wl-skills-kit.md"]);
+  }
+  console.log(`    迁移: .clinerules 单文件 → 目录形态${foreign ? "（非本包内容保留于 migrated-legacy-content.md）" : ""}`);
 }
 
 function stopForInstallConflicts(conflicts) {
@@ -1028,26 +1076,33 @@ function stopForInstallConflicts(conflicts) {
   return true;
 }
 
-function assertInstallFile(relPath) {
+function assertInstallFile(relPath, allowClinerulesParentFile = false) {
   const full = resolveProjectPath(TARGET_DIR, relPath);
   let current = path.dirname(full);
+  let parentIsLegacyClinerules = false;
   while (current !== TARGET_DIR) {
     if (fs.existsSync(current) && !fs.statSync(current).isDirectory()) {
+      // 存量迁移场景：.clinerules 单文件将由 Step 0 目录化后再写入子文件
+      if (allowClinerulesParentFile && current === path.join(TARGET_DIR, ".clinerules")) {
+        parentIsLegacyClinerules = true;
+        break;
+      }
       throw new Error(`${relPath} 的父路径不是目录：${path.relative(TARGET_DIR, current)}`);
     }
     current = path.dirname(current);
   }
+  if (parentIsLegacyClinerules) return;
   if (fs.existsSync(full) && !fs.lstatSync(full).isFile()) throw new Error(`${relPath} 不是普通文件，未写入`);
 }
 
-function preflightInstallPaths(validationConfig, editorConfigs) {
+function preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned = false) {
   const staticPaths = walkDir(FILES_DIR, FILES_DIR)
     .filter((rel) => shouldIncludeStaticFile(rel, validationConfig))
     .map((rel) => resolveSharedProjectConfigTarget(TARGET_DIR, rel));
   const paths = [...staticPaths, ...editorConfigs.map(([rel]) => rel), MANIFEST_NAME, LOCAL_SYNC_CONFIG, ".gitignore", "eslint.config.cjs"];
   if (fs.existsSync(path.join(TARGET_DIR, ".husky"))) paths.push(".husky/pre-commit", ".husky/pre-push");
   try {
-    for (const rel of paths) assertInstallFile(rel);
+    for (const rel of paths) assertInstallFile(rel, legacyMigrationPlanned);
     return true;
   } catch (error) {
     console.error(`  ✖ 安装预检失败，未写入任何文件：${error.message}`);
@@ -1067,9 +1122,10 @@ function runInstall(incremental) {
   const oldManifest = readManifest();
   const mode = resolveInstallMode(oldManifest, incremental, label);
   if (mode.skip) return;
+  const legacyMigrationPlanned = planLegacyClinerulesMigration(oldManifest);
   const validationConfig = loadValidationConfig(TARGET_DIR);
-  const editorConfigs = getInstallEditorConfigs();
-  if (!preflightInstallPaths(validationConfig, editorConfigs)) return;
+  const editorConfigs = getInstallEditorConfigs(legacyMigrationPlanned);
+  if (!preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned)) return;
   const conflicts = collectInstallConflicts(oldManifest, validationConfig, editorConfigs);
   if (stopForInstallConflicts(conflicts)) return;
   const context = {
@@ -1079,6 +1135,8 @@ function runInstall(incremental) {
     oldManifest,
     validationConfig,
     editorConfigs,
+    legacyMigrationPlanned,
+    migratedPreserved: new Set(),
     conflictPaths: new Set(conflicts.map((item) => item.relPath)),
     backedUp: new Set(),
     backupId: installBackupId(),
@@ -1086,6 +1144,9 @@ function runInstall(incremental) {
 
   // 冲突检查通过后才允许创建 hook/eslint/本地配置，保证阻断时真正零写入。
   ensureInstallInfrastructure();
+
+  // ── Step 0: 存量 .clinerules 单文件目录化迁移（本包已登记所有权） ──────────
+  migrateLegacyClinerulesFile(context);
 
   // ── Step 1: 复制 files/ 静态文件 ───────────────────
   installStaticFiles(context);
