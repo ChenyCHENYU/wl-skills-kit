@@ -145,19 +145,20 @@ const FILES_DIR = path.resolve(__dirname, "..", "files");
 const args = process.argv.slice(2);
 // --project <path> / --project=<path>：显式指定目标项目根（安装族命令公开声明的参数）；
 // 缺省 cwd。缺值或空值必须非零退出且零写入，不得静默回落 cwd。
+// 返回：null=未传参；undefined=已传参但缺值；string=值（等号形式可为空串）
 function parseProjectValue(argv) {
   const equalsForm = argv.find((item) => item.startsWith("--project="));
   if (equalsForm !== undefined) return equalsForm.slice("--project=".length);
   const index = argv.indexOf("--project");
-  if (index === -1) return undefined;
+  if (index === -1) return null;
   return argv[index + 1];
 }
 const PROJECT_VALUE = parseProjectValue(args);
-if (PROJECT_VALUE !== undefined && (PROJECT_VALUE === "" || PROJECT_VALUE.startsWith("-"))) {
+if (PROJECT_VALUE !== null && (PROJECT_VALUE === undefined || PROJECT_VALUE === "" || PROJECT_VALUE.startsWith("-"))) {
   console.error("  ✖ --project 缺少目标目录：请使用 --project <path> 或 --project=<path>（未写入任何文件）");
   process.exit(1);
 }
-const TARGET_DIR = PROJECT_VALUE !== undefined ? path.resolve(PROJECT_VALUE) : process.cwd();
+const TARGET_DIR = PROJECT_VALUE !== null ? path.resolve(PROJECT_VALUE) : process.cwd();
 const MANIFEST_NAME = ".wl-skills-manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
 const LOCAL_SYNC_CONFIG = ".wl-skills/skills/sync/env.local.json";
