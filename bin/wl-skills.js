@@ -1780,6 +1780,16 @@ function readPageSource(dir, name) {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 }
 
+// K22 支撑：只解析文件首个 HTML 注释节点内的 @Description（字符串中出现相同词不误报）
+function extractHeaderDescription(indexContent) {
+  const header = /^\s*<!--[\s\S]*?-->/.exec(indexContent);
+  if (!header) return undefined;
+  const desc = /^\s*\*?\s*@Description:\s*(.*)$/m.exec(header[0]);
+  return desc ? desc[1].trim() : undefined;
+}
+
+const PLACEHOLDER_DESCRIPTION = /这是默认设置|customMade|koroFileHeader|请设置/i;
+
 // 只追踪项目内静态导入，认可 composables 中统一调用列预设，不要求每页重复包装。
 function localSourceFile(importer, source) {
   let base;
@@ -1826,6 +1836,8 @@ function inspectPageDirectory(dir, names) {
     apiUrls: Array.from(
       dataContent.matchAll(/:\s*["']([^"']+\/[^"']+)["']/g),
     ).map((match) => match[1]),
+    headerDescription: extractHeaderDescription(indexContent),
+    hasHeaderComment: /^\s*<!--/.test(indexContent),
   };
 }
 
@@ -2055,6 +2067,12 @@ function appendMockUtilityIssues(issues, mockFiles, hasUtils) {
 }
 
 function appendPageFileIssues(issues, page) {
+  // K22：文件头 @Description 占位（结构事实检查——只查注释节点；语义正确性需人工/事实源审查）
+  if (page.headerDescription !== undefined && PLACEHOLDER_DESCRIPTION.test(page.headerDescription)) {
+    issues.push({ level: "warn", dir: page.dir, rule: "K22", text: "文件头 @Description 为占位模板（这是默认设置/customMade/koroFileHeader），须按 03-comments 替换为菜单路径与文件职责说明" });
+  } else if (page.hasHeaderComment && page.headerDescription === undefined) {
+    issues.push({ level: "info", dir: page.dir, rule: "K22", text: "文件头有注释块但缺 @Description 职责说明（建议补充：菜单路径 + 文件角色；不强制插件格式）" });
+  }
   if (!page.hasDataTs) {
     issues.push({ level: "warn", dir: page.dir, text: "缺 data.ts（需结合页面复杂度判断）" });
   }
