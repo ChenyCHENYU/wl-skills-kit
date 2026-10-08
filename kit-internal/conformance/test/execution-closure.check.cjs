@@ -125,5 +125,5 @@ test("bd：review run 真实执行后同 runId 闭环（completed/partial，不�
   const status = request("wl-skills-bd/bin/wl-skills-bd.js", project, { operation: "status", projectRoot: project, runId: "bd-exec" });
   assert.equal(status.result.runId, "bd-exec");
   assert.equal(status.result.executionStatus, "completed", "review run 后同 runId 应为 completed");
-  assert.ok(["partial", "failed", "unverified"].includes(status.result.validationStatus), "空项目审计不得报 passed（partial/unverified 为真实语义）");
+  assert.ok(["partial", "failed", "unverified", "stale"].includes(status.result.validationStatus), "空项目审计不得报 passed（partial/unverified/stale 为真实语义）");
 });
