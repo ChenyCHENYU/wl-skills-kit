@@ -34,7 +34,8 @@
     "artifacts": { "type": "array", "items": { "$ref": "#/definitions/file" } },
     "changedDuringCheck": { "type": "boolean" },
     "errorCode": { "type": "string" },
-    "recordPath": { "type": ["string", "null"] }
+    "recordPath": { "type": ["string", "null"] },
+    "notice": { "$ref": "#/definitions/notice" }
   },
   "allOf": [
     { "if": { "properties": { "kind": { "const": "task-decision" } } }, "then": { "required": ["task", "decision"], "properties": { "executionStatus": { "const": "not-executed" }, "validationStatus": { "const": "unverified" } } } },
@@ -42,6 +43,100 @@
     { "if": { "properties": { "kind": { "const": "tool-finished" } } }, "then": { "required": ["tool", "executionId", "executionStartedAt", "exitCode", "durationMs", "checks", "artifacts", "inputBefore", "changedDuringCheck"], "properties": { "executionStatus": { "enum": ["completed", "failed"] } } } }
   ],
   "definitions": {
+    "notice": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "packageName",
+        "packageVersion",
+        "runId",
+        "decision",
+        "skills",
+        "rules",
+        "requiredChecks",
+        "executionStatus",
+        "validationStatus",
+        "displayEvidence"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "packageName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packageVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "projectRoot": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decision": {
+          "type": "string"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredChecks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "source"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "executionStatus": {
+          "type": "string"
+        },
+        "validationStatus": {
+          "type": "string"
+        },
+        "displayEvidence": {
+          "const": "unverified"
+        }
+      }
+    },
     "file": {
       "type": "object", "required": ["path", "sha256", "bytes"],
       "properties": { "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "bytes": { "type": "integer", "minimum": 0 } }

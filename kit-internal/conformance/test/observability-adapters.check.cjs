@@ -9,7 +9,7 @@ const workspace = require('../support/workspace-root.cjs');
 const core = require('../support/task-observability.cjs');
 const names = ['design', 'kit', 'ui', 'bd', 'test'];
 const bins = { design: 'wl-skills-design.js', kit: 'wl-skills.js', ui: 'wl-ui.js', bd: 'wl-skills-bd.js', test: 'wl-skills-test.js' };
-const tasks = { design: '需求文档', kit: '前端代码审查', ui: 'UI扫描', bd: '项目上下文', test: '接入测试' };
+const tasks = { design: '编写需求说明书', kit: '前端代码审查', ui: 'UI扫描', bd: '模块上下文', test: '接入测试' };
 const states = new Set(['matched', 'baseline', 'ambiguous', 'gap', 'not-applicable', 'needs-context']);
 function execute(command, args, cwd, allowed = [0]) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', timeout: 60000, maxBuffer: 8 * 1024 * 1024 });
@@ -57,6 +57,18 @@ function taskProtocol(name, source, project, runId) {
   assert.equal(planned.runId, runId, JSON.stringify(planned));
   assert.equal(planned.executionStatus, 'not-executed');
   assert.equal(planned.validationStatus, 'unverified');
+  assert.equal(planned.notice.packageName, `@agile-team/wl-skills-${name}`);
+  assert.equal(planned.notice.packageVersion, JSON.parse(fs.readFileSync(path.join(source, 'package.json'))).version);
+  assert.equal(planned.notice.runId, runId);
+  assert.equal(planned.notice.decision, (planned.decision || planned).status);
+  assert.equal(planned.notice.displayEvidence, 'unverified');
+  assert.ok(planned.notice.rules.length, `${name} must explain its actual applicable rules`);
+  assert.ok(planned.notice.requiredChecks.length, `${name} must list pending checks`);
+  const visible = call(name, source, 'task', project, [tasks[name], '--run-id', runId], [0, 1, 2]);
+  assert.match(visible, new RegExp(`${name}@`));
+  assert.match(visible, /适用规则：/);
+  assert.match(visible, /验证=unverified/);
+  assert.ok(visible.includes(runId));
   const status = JSON.parse(call(name, source, 'status', project, ['--run-id', runId, '--json'], [0, 1]));
   assert.equal(status.runId, runId);
   assert.equal(status.packageName, `@agile-team/wl-skills-${name}`);

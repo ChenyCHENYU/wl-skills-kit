@@ -1,10 +1,18 @@
 # @agile-team/wl-skills-kit
 
-**AI Skill 模板包 v2.27.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.28.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
-## 前端注释职责（v2.27.0）
+## 如何确认本包正在起作用
+
+每次适用任务先运行项目本地 `wl-skills task "修改目标文件" --target src/Foo.vue --json`。编辑前展示真实 `notice`：包名与版本、判定、选中 Skill 或基础约束、具体规则、目标、runId 和尚未执行的检查。普通修改也需要基础约束提醒；相关但未覆盖的意图显示 gap 与建议；没有目标依据显示 needs-context，职责外显示 not-applicable，不强行匹配。
+
+执行实际检查时复用 `--run-id`，结束读取 `wl-skills status --run-id <id> --json`，分别报告执行和验证、实际检查文件、过期证据与未执行项。`notice.displayEvidence=unverified` 表示工具回执不能证明聊天界面展示；安装、路由或模型自报不能证明宿主加载/模型读取。
+
+`wl-skills doctor-host --json` 对比已分发规范、本地执行器和正在运行的版本，漂移会显式报告。规范更新不会替代依赖升级：同步本包依赖、锁文件和受管入口；未使用的兄弟包无需安装。重开/刷新宿主加载后仍需观察真实任务调用，不能宣称所有 AI 自动触发。
+
+## 前端注释职责（v2.28.0）
 
 kit 独立负责前端文件职责说明与必要的业务注释，无需安装 UI、bd 或 DSH。唯一规范见 [03-comments](files/.wl-skills/standards/03-comments.md)。
 

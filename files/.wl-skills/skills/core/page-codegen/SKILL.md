@@ -15,7 +15,7 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 🚀 已触发技能 page-codegen/SKILL.md          → 页面代码生成：骨架文件 + 模板调度 + 前置检查
 ✅ 已读取 templates/_index.md                → 模板注册表，匹配 → {TPL路径}
 ✅ 已读取 templates/{universal|domains/xxx}/TPL-XXX.md → {当前模板说明}
-✅ 已读取 standards/index.md                 → 规范门控（任务类型 A：生成新页面）
+✅ 已读取 standards/index.md                 → 规范门控（task-map.json：page-codegen）
 ✅ 已读取 standards/02-code-structure.md     → 三文件分离、扁平业务与接口契约
 ✅ 已读取 standards/12-base-table.md         → 优先复用 BaseTable、稳定 CID 与兼容规则
 ✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单

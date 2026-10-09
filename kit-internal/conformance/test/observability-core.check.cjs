@@ -27,6 +27,20 @@ function routeOptions(task) {
   };
 }
 
+test("runtime diagnosis catches version drift and malformed installation state without claiming host loading", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, '.wl-skills-manifest.json'), JSON.stringify({ version: 'old' }));
+  assert.equal(core.inspectRuntime(options.projectRoot, options).status, 'mismatch');
+  fs.writeFileSync(path.join(options.projectRoot, '.wl-skills-manifest.json'), '{broken');
+  assert.equal(core.inspectRuntime(options.projectRoot, options).status, 'invalid');
+  for (const [key, file] of [['design', '.wl-skills-design/state.json'], ['test', '.wl-skills-test/manifest.json']]) {
+    const full = path.join(options.projectRoot, file); fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, JSON.stringify({ version: 'test-1' }));
+    const value = core.inspectRuntime(options.projectRoot, { ...options, packageName: `@agile-team/wl-skills-${key}` });
+    assert.equal(value.status, 'aligned'); assert.equal(value.distributedVersion, 'test-1'); assert.equal(value.hostInvocation, 'unverified');
+  }
+});
+
 function execute(options, attributes = {}) {
   const checkedFiles = (options.targets || []).filter((target) => {
     const file = path.resolve(options.projectRoot, target);

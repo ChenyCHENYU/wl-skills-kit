@@ -102,7 +102,7 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
 🚀 已触发技能 business-doc-extract/SKILL.md  → 业务理解文档抽取与维护
 ✅ 已识别资料源：{原型目录 / 详设文件 / 字段表 / 字典表 / 现有代码 + api.md}
 ✅ 已判断范围：{preview / module / project / incremental}
-✅ 已读取 standards/index.md       → 任务类型 D（参考结构与组件合规）
+✅ 已读取 standards/index.md       → task-map.json：business-doc-extract（业务梳理与注释约束）
 ✅ 已读取 _pipeline.md              → 与 prototype-scan / api-contract / page-codegen 的衔接关系
 ✅ 计划落盘：{是/否}，目标路径：{.wl-skills/docs/business/...}
 ⚠ 涉及写文件：是/否；需要用户确认：是/否

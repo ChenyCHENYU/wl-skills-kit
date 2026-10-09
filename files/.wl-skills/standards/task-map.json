@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "description": "Kit 任务规范门控的唯一映射源；标准正文仍在同目录 Markdown 文件。基础约束不是已执行的检查。",
+  "baseline": ["02", "03", "04", "09", "13", "14"],
+  "skills": {
+    "page-codegen": ["01", "02", "03", "04", "12", "13", "14"],
+    "convention-audit": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"],
+    "code-fix": ["02", "03", "04", "09", "13", "14"],
+    "api-contract": ["02", "06", "09"],
+    "prototype-scan": ["02", "13", "14"],
+    "spec-doc-parse": ["02", "13", "14"],
+    "business-doc-extract": ["02", "03"],
+    "template-extract": ["02", "13"],
+    "menu-sync": ["07"],
+    "dict-sync": ["07"],
+    "permission-sync": ["06", "07"],
+    "standard-env-config": ["01", "07"],
+    "status-column-audit": ["02", "12", "13"]
+  },
+  "conditional": [
+    {"keywords": ["表单", "校验", "新增/编辑", "可编辑明细", "form"], "rules": ["11"]},
+    {"keywords": ["Pinia", "Store", "状态管理"], "rules": ["10"]}
+  ]
+}
