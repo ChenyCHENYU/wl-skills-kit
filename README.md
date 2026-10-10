@@ -2,7 +2,7 @@
 
 > 项目范围：只对目标自身已接入且平台适用的项目判定规则；父工作区安装不启用子项目。移动端与未接入开源项目不套用。详见 [精准触发与范围配置](docs/project-scope.md)。
 
-**AI Skill 模板包 v2.29.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.30.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -958,3 +958,15 @@ wl-skills clean --keep-reports
 ## 许可证
 
 UNLICENSED — 仅限团队内部使用。
+
+### 当前请求、动作边界与 Harness 集成
+
+任务判定保留原始文本，并将当前请求、历史引用和明确否定分开。自然语言判定覆盖已公开语料与规则，不能承诺任意表述都自动命中；遇到歧义或缺口应补充目标/领域或显式指定本包能力，不能静默选择。编辑前显示真实 `notice`，包括版本、技能、规则、目标、runId、动作与待检查项。
+
+`protocol describe --json` 声明 `task-intent-v1`、`result-core-v1`、`executor-catalog-v1`；`schemas.resultCore` 与五操作 `schemas.results` 可供宿主验证。原有结果字段保留，新增 `result.integration`：项目适用范围、动作模式、规则身份、目标、就绪状态、允许执行器和真实执行/验证状态。`ok` 只表示调用成功。未声明使用的输入字段进入 diagnostics，不会转成授权依据。
+
+`action.mode` 为 explain/plan/inspect/apply/unspecified；解释和规划不自动启动检查。`businessWritesAuthorized=false`，任务意图不能替代业务写入授权。`ruleRefs` 为包自有规则身份（包名、规则 ID、版本、来源、性质），自然语言约束有稳定 ID；原规则名称与列表保留。所有规则的机械/语义验证仍以实际回执为准。
+
+`inventory.executors` 声明本包业务只读检查器、目标与参数 Schema；其适用条件由本包判定。外部适配器须核对同项目、同包、同版本、同 runId 的真实计划、新鲜度与允许动作，指定一个目标，不能扩大范围；支持规则子集的执行器不得选择计划外规则。多目标需拆分调用。五包和 Harness 均为可选组合，不新增兄弟包或 Harness 运行时依赖；卸下适配器后原 CLI/MCP 继续独立使用。
+
+`validate`/`validate-page` 接受一个位置目标或 `--target <path>`/`--target=<path>`；冲突、额外目标、缺值和该命令未实现的参数在检查和记录前拒绝。触发词事实来自 `task-map.json.triggers`，注册表由同步脚本生成，运行时不解析 Markdown 表格。

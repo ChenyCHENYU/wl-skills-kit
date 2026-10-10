@@ -17,3 +17,17 @@ const updated = source.slice(0, from) + body + "\n\n---\n\n" + source.slice(to).
 if (process.argv.includes("--check")) {
   if (updated !== source) { console.error("任务规范索引未同步"); process.exitCode = 1; }
 } else fs.writeFileSync(file, updated);
+
+// Runtime routing reads JSON only. This table is a generated human-readable view.
+const registryFile = path.resolve(directory, "../skills/_registry.md");
+const registrySource = fs.readFileSync(registryFile, "utf8");
+const registryUpdated = registrySource.replace(/^\|[^\n]+✅ 启用[^\n]+$/gm, (row) => {
+  const cells = row.split("|");
+  const id = cells[1].trim();
+  if (!mapping.triggers[id]) throw new Error(`Skill ${id} 缺少机器触发词`);
+  cells[5] = " " + mapping.triggers[id].map((word) => `**${word}**`).join(" / ") + " ";
+  return cells.join("|");
+});
+if (process.argv.includes("--check")) {
+  if (registryUpdated !== registrySource) { console.error("技能注册表触发词未同步"); process.exitCode = 1; }
+} else fs.writeFileSync(registryFile, registryUpdated);

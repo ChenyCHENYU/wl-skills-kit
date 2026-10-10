@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const projectScope = require("./project-scope.cjs");
+const taskIntent = require("./task-intent.cjs");
 
 const RECORD_VERSION = 1;
 const STORAGE = {
@@ -48,18 +49,7 @@ function digest(value) {
 }
 
 function phraseMatches(text, phrase) {
-  const needle = normalized(phrase);
-  if (!needle) return false;
-  let index = text.indexOf(needle);
-  while (index !== -1) {
-    const before = text.slice(Math.max(0, index - 16), index);
-    const after = text[index + needle.length] || "";
-    const boundary = !/^[a-z0-9_-]+$/i.test(needle) || !/[a-z0-9_-]/i.test((text[index - 1] || "") + after);
-    const negated = /(?:不要|不用|无需|禁止|别|不是|不做|不|do not|don't|without)\s*$/i.test(before);
-    if (boundary && !negated) return true;
-    index = text.indexOf(needle, index + needle.length);
-  }
-  return false;
+  return taskIntent.phraseMatches(text, phrase);
 }
 
 function matches(text, words) {
@@ -84,7 +74,7 @@ function targetRelevance(targets, policy) {
 
 function taskSignals(options) {
   const policy = options.policy || {};
-  const text = normalized(options.task);
+  const text = normalized(taskIntent.analyzeTask(options.task).activeText);
   const context = options.context || {};
   const contextText = `${text} ${strings(options.targets).join(" ")} ${strings(context.signals).join(" ")}`;
   const relevant = matches(text, policy.domainKeywords).length > 0 || targetRelevance(options.targets, policy) || context.domainRelevant === true;
@@ -138,7 +128,8 @@ function evaluateTask(options = {}) {
   const signals = taskSignals(options);
   const candidates = (options.catalog || []).map((skill) => scoreSkill(skill, signals.text, signals.contextText))
     .filter((skill) => skill.score > 0).sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
-  return selectDecision(candidates, signals, options) || fallbackDecision(candidates, signals, options);
+  const result = selectDecision(candidates, signals, options) || fallbackDecision(candidates, signals, options);
+  return { ...result, taskEvidence: taskIntent.analyzeTask(options.task), action: taskIntent.analyzeTask(options.task).action };
 }
 
 function assertRunId(value) {
@@ -565,10 +556,22 @@ function noticeScope(record, options, item) {
     unverified: strings(item.unverified || ["host-discovery", "model-read-canonical-files", "planned-actions-not-executed"]) };
 }
 function noticeReason(item) { return safeText(item.reason || strings(item.reasons).join("；")); }
-function attachNotice(record, options = {}) {
+function prepareNoticeDecision(record,options) {
   const item = record.decision || record;
   record.packageName ||= options.packageName;
   record.packageVersion ||= options.packageVersion;
+  item.action ||= taskIntent.analyzeTask(record.task || item.task || "").action;
+  const details = new Map((item.ruleDetails || []).map((entry) => [entry.id, entry]));
+  item.ruleRefs ||= strings([...strings(item.requiredRules), ...details.keys()]).map((id) => {
+    const detail = details.get(id) || {};
+    return { packageName: record.packageName || null, ruleId: /^[a-zA-Z0-9_.:-]+$/.test(id) ? id : `constraint:${digest(id).slice(0, 16)}`,
+      legacyId: id, name: detail.name || id, ruleVersion: record.packageVersion || null,
+      source: detail.source || null, kind: detail.kind || "guidance", verification: "unverified" };
+  });
+  return item;
+}
+function attachNotice(record, options = {}) {
+  const item = prepareNoticeDecision(record,options);
   record.notice = {
     schemaVersion: 1, packageName: record.packageName || null, packageVersion: record.packageVersion || null,
     projectRoot: noticeProjectRoot(record, options), runId: record.runId || null, decision: item.status || "unverified",
@@ -576,6 +579,7 @@ function attachNotice(record, options = {}) {
     reason: noticeReason(item), missingInputs: strings(item.missingInputs),
     gaps: (item.gaps || []).map((gap) => ({ reason: safeText(gap.reason), suggestion: safeText(gap.suggestion) })),
     ...noticeScope(record, options, item), displayEvidence: "unverified",
+    action: item.action, ruleRefs: item.ruleRefs,
   };
   return record;
 }
@@ -594,7 +598,7 @@ function formatDecision(record) {
   const notice = record.notice || attachNotice({ ...record }).notice;
   const label = { baseline: "基础约束", ambiguous: "候选需确认", gap: "规则缺口", "not-applicable": "不适用", "needs-context": "缺少上下文" }[notice.decision] || "待判定";
   const identity = notice.packageName ? `${notice.packageName.replace("@agile-team/wl-skills-", "")}@${notice.packageVersion || "未知"}；` : "";
-  return `[WL ${notice.decision}] ${identity}${notice.skills.join("、") || label}；${notice.reason}` + `\n适用规则：${noticeRuleText(notice)}；范围：${notice.targets.slice(0, 3).join("、") || "未指定目标，检查范围待确认"}` + noticePlanText(notice) + noticeGapText(notice);
+  return `[WL ${notice.decision}] ${identity}${notice.skills.join("、") || label}；${notice.reason}` + `\n动作=${notice.action.mode}；允许自动检查=${notice.action.checksAllowed}；业务写入遵循原授权契约` + `\n适用规则：${noticeRuleText(notice)}；范围：${notice.targets.slice(0, 3).join("、") || "未指定目标，检查范围待确认"}` + noticePlanText(notice) + noticeGapText(notice);
 }
 
 function formatStatus(status) {

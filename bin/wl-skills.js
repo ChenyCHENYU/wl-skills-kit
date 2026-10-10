@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.29.0
+ * wl-skills-kit CLI v2.30.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -2386,7 +2386,7 @@ function finishStrictValidation(errors, warns) {
 }
 
 function validationScanPath() {
-  return positional[1] || "src/views";
+  return require("../lib/validation-scope").validationScope(args, positional);
 }
 
 function printValidationHeader(scanPath) {

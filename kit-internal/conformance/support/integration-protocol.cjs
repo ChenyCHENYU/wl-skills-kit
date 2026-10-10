@@ -16,6 +16,7 @@
  */
 
 const PROTOCOL_VERSION = 1;
+const resultCore = require("./integration-result.cjs");
 const SUPPORTED_VERSIONS = [1];
 const ERROR_CODES = ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error"];
 const OPTIONAL_STRING_FIELDS = ["requestId", "runId", "projectRoot", "skill", "host", "type", "domain", "profile"];
@@ -233,6 +234,7 @@ function validateFieldTypes(input) {
       commands: inventory.commands || [],
       mcpTools: inventory.mcpTools || [],
       loadErrors: inventory.loadErrors || [],
+      executors: config.executors || [],
       note: "业务执行仍走各包原 CLI/MCP；inventory 只声明公开调用映射与入口，不改变执行归属；loadErrors 非空表示目录派生存在异常，不得忽略",
     };
   }
@@ -255,9 +257,11 @@ function validateFieldTypes(input) {
       return {
         ...base(null, null),
         capabilities: config.capabilities || [],
+        features: ["task-intent-v1", "result-core-v1", "executor-catalog-v1"],
         operations: config.operations.map((operation) => ({ ...operation })),
         inventory: buildInventory(config),
-        schemas: { request: requestSchema(config), envelope: envelopeSchema(config.packageName) },
+        schemas: { request: requestSchema(config), envelope: envelopeSchema(config.packageName), resultCore: resultCore.SCHEMA,
+          results: Object.fromEntries(config.operations.map((operation) => [operation.id, { type: "object", required: ["integration"], properties: { integration: resultCore.SCHEMA }, additionalProperties: true }])) },
         constraints: buildConstraints(config),
         errorCodes: [...ERROR_CODES],
       };
@@ -267,8 +271,13 @@ function validateFieldTypes(input) {
       const { operation, error } = validateRequest(input);
       if (error) return error;
       const diagnostics = [];
+      const supportedFields = new Set(["operation", "protocolVersion", "requestId", ...operation.required, ...(operation.requireAny || []), ...operation.optional]);
+      for (const field of Object.keys(input)) {
+        if (!supportedFields.has(field)) diagnostics.push(`操作 ${operation.id} 未声明使用字段 ${field}；该字段不构成执行或授权依据`);
+      }
       try {
-        const result = runOperation(operation.id, input, diagnostics) ?? {};
+        const original = runOperation(operation.id, input, diagnostics) ?? {};
+        const result = resultCore.projectResult(original, input, config);
         return { ...base(operation.id, input.requestId), ok: true, result, diagnostics };
       } catch (thrown) {
         diagnostics.push(String((thrown && thrown.message) || thrown));

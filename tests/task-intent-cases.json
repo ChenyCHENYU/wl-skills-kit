@@ -1,0 +1,30 @@
+[
+  {
+    "task": "不要用 React，给现有 Vue 页面补充注释",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply"
+  },
+  {
+    "task": "用户曾说“生成页面”，本次只审查已有页面的注释",
+    "status": "baseline",
+    "skills": [],
+    "mode": "inspect"
+  },
+  {
+    "task": "只分析生成页面方案，暂不生成代码",
+    "status": "matched",
+    "skills": [
+      "page-codegen"
+    ],
+    "mode": "explain"
+  },
+  {
+    "task": "生成页面",
+    "status": "matched",
+    "skills": [
+      "page-codegen"
+    ],
+    "mode": "apply"
+  }
+]
