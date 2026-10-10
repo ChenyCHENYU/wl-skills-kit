@@ -15,6 +15,7 @@ function tempRoot() {
 }
 
 function routeAt(projectRoot, task) {
+  if (!fs.existsSync(path.join(projectRoot, "package.json"))) fs.writeFileSync(path.join(projectRoot, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
   return protocol.request({ operation: "route", projectRoot, task }, runOperation);
 }
 
@@ -31,7 +32,7 @@ describe("路由准确性：逐技能语料（预期经人工复核冻结）", (
     const expectedBare = item.skill ? "gap" : item.status;
     const expectedInstalled = item.installedStatus || (item.skill ? "matched" : item.status);
 
-    it(`未安装：「${item.task}」→ ${expectedBare}${item.skill ? ` + ${item.skill}` : ""}`, () => {
+    it(`已声明接入但未初始化：「${item.task}」→ ${expectedBare}${item.skill ? ` + ${item.skill}` : ""}`, () => {
       const envelope = routeAt(tempRoot(), item.task);
       expect(envelope.ok).toBe(true);
       const decision = envelope.result.decision || envelope.result;

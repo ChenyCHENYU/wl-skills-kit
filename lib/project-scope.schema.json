@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:wl-skills:project-scope:1",
+  "title": "Explicit WL project scope and per-package adoption",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "projectType"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectType": {
+      "enum": [
+        "pc",
+        "backend",
+        "documents",
+        "testing",
+        "mobile",
+        "workspace",
+        "unknown"
+      ]
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kit": {
+          "type": "boolean"
+        },
+        "ui": {
+          "type": "boolean"
+        },
+        "bd": {
+          "type": "boolean"
+        },
+        "design": {
+          "type": "boolean"
+        },
+        "test": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

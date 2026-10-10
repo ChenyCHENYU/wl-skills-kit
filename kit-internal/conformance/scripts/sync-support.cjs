@@ -12,7 +12,7 @@ const observabilityTargets = {
   "wl-skills-test": "lib",
 };
 for (const [name, directory] of Object.entries(observabilityTargets)) {
-  for (const file of ["task-observability.cjs", "task-observability.schema.json", "integration-protocol.cjs"]) {
+  for (const file of ["task-observability.cjs", "task-observability.schema.json", "integration-protocol.cjs", "project-scope.cjs", "project-scope.schema.json"]) {
     fs.copyFileSync(path.join(source, file), path.join(root, name, directory, file));
   }
 }

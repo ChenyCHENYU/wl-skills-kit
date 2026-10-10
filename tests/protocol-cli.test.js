@@ -9,7 +9,9 @@ const { protocol, runOperation } = require("../lib/protocol-cli");
 const pkg = require("../package.json");
 
 function tempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "wl-kit-integration-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wl-kit-integration-"));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
+  return root;
 }
 
 describe("integration describe", () => {

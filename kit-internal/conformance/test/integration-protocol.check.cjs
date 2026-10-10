@@ -72,6 +72,7 @@ for (const pkg of PACKAGES) {
 
   test(`request(task)：${pkg.npm} 持久化返回 runId`, () => {
     const cwd = tempProject();
+    fs.writeFileSync(path.join(cwd, "package.json"), JSON.stringify({ devDependencies: { [pkg.npm]: "*" } }));
     const { run } = requestFile(pkg, { operation: "task", projectRoot: cwd, task: "规划一次本域任务" }, cwd);
     const envelope = JSON.parse(run.stdout);
     assert.equal(envelope.ok, true);
@@ -112,4 +113,14 @@ test("五包 describe 的快照协议实现同源（哈希一致）", () => {
     hashes.add(fs.readFileSync(file, "utf8"));
   }
   assert.equal(hashes.size, 1, "integration-protocol.cjs 快照应五包同源");
+});
+
+test("五包范围实现与Schema快照一致，公开包独立分发", () => {
+  for (const name of ["project-scope.cjs", "project-scope.schema.json"]) {
+    const expected = fs.readFileSync(path.join(__dirname, "../support", name), "utf8");
+    for (const pkg of PACKAGES) {
+      const directory = pkg.name === "wl-skills-ui" ? "bin" : "lib";
+      assert.equal(fs.readFileSync(path.join(root, pkg.name, directory, name), "utf8"), expected);
+    }
+  }
 });

@@ -8,7 +8,9 @@ const require = createRequire(import.meta.url);
 const { protocol, runOperation } = require("../lib/protocol-cli");
 
 function tempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "wl-kit-evidence-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wl-kit-evidence-"));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
+  return root;
 }
 
 describe("证据闭环与严格断言（不得兜底通过）", () => {

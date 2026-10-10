@@ -283,6 +283,7 @@ test("namespace traversal, symlink escape and unsafe run IDs fail before foreign
 
 test("pnpm-style internal rule symlinks can be inspected while evidence writes remain strict", (t) => {
   const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, "package.json"), JSON.stringify({ devDependencies: { [options.packageName]: "*" } }));
   fs.mkdirSync(path.join(options.projectRoot, ".pnpm/local-package"), { recursive: true });
   fs.writeFileSync(path.join(options.projectRoot, ".pnpm/local-package/SKILL.md"), "canonical skill");
   fs.mkdirSync(path.join(options.projectRoot, "node_modules"));

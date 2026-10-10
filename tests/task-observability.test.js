@@ -38,6 +38,7 @@ describe("kit real task evidence", () => {
   });
   it("reports explicit unsupported skills and frameworks as capability gaps", () => {
     const root = fixture();
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
     for (const args of [["创建 React 页面"], ["修改页面", "--skill", "unreleased-capability"]]) {
       const result = run(root, ["route", ...args, "--json"]);
       expect(result.status, result.stderr).toBe(0);
@@ -49,6 +50,7 @@ describe("kit real task evidence", () => {
   });
   it("routes ordinary changes to baseline, explicit generation to its Skill, and unrelated work outside the domain", () => {
     const root = fixture();
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
     for (const [text, target, expected] of [["修改文字", "src/Test.vue", "baseline"], ["创建页面", "src/Test.vue", "matched"], ["帮我写诗", "", "not-applicable"], ["修复", "", "needs-context"], ["创建页面并自动修复", "src/Test.vue", "ambiguous"]]) {
       const result = run(root, ["route", text, "--target", target, "--json"]);
       expect(result.status, result.stderr).toBe(0);
@@ -56,12 +58,13 @@ describe("kit real task evidence", () => {
       expect(decision.routingStatus || decision.status).toBe(expected);
       if (decision.applicable === true) { expect(decision.status).toBe("gap"); expect(decision.ready).toBe(false); }
     }
-    expect(fs.readdirSync(root)).toEqual([]);
+    expect(fs.readdirSync(root)).toEqual(["package.json"]);
   });
 
   it("records real CLI checking, correlates a plan, and rejects stale success after edits", () => {
     const root = fixture();
     const dir = page(root);
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
     const started = run(root, ["task", "修改页面文字", "--target", "src/views/Demo", "--json"]);
     const plan = JSON.parse(started.stdout);
     expect(plan.executionStatus).toBe("not-executed");
