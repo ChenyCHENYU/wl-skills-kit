@@ -47,13 +47,13 @@ for (const pkg of PACKAGES) {
     assert.equal(described.protocolVersion, 1);
     assert.equal(described.package, pkg.npm);
     assert.ok(Array.isArray(described.capabilities) && described.capabilities.length > 0);
-    assert.deepEqual(described.operations.map((operation) => operation.id), OPERATIONS);
+    assert.deepEqual(described.operations.map((operation) => operation.id), [...OPERATIONS, "execute"]);
     for (const operation of described.operations) {
       assert.equal(typeof operation.readOnly, "boolean");
       assert.equal(typeof operation.mapping, "string");
       assert.ok(operation.mapping.startsWith(pkg.binName), `映射应指向本包 CLI：${operation.mapping}`);
     }
-    assert.deepEqual(described.errorCodes, ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error"]);
+    for (const code of ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error", "invalid-executor-input", "stale-plan"]) assert.ok(described.errorCodes.includes(code));
     assert.ok(described.constraints.instructionOnly);
     assert.ok(described.constraints.evidence);
   });

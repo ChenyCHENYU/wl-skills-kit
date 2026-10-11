@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.31.1
+ * wl-skills-kit CLI v2.32.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -3635,7 +3635,10 @@ switch (command) {
     require("../lib/task-integration").taskCli(command, args.slice(1), TARGET_DIR);
     break;
   case "protocol":
-    process.exitCode = require("../lib/protocol-cli").runCli(args.slice(1));
+    require("../lib/protocol-cli").runCli(args.slice(1)).then((code) => { process.exitCode = code; }, (error) => {
+      console.error(`协议入口异常：${error.message}`);
+      process.exitCode = 2;
+    });
     break;
   case "init":
     runInstall(false);

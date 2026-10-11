@@ -2,7 +2,7 @@
 
 > 项目范围：只对目标自身已接入且平台适用的项目判定规则；父工作区安装不启用子项目。移动端与未接入开源项目不套用。详见 [精准触发与范围配置](docs/project-scope.md)。
 
-**AI Skill 模板包 v2.31.1** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.32.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -77,20 +77,41 @@ pnpm dlx @agile-team/wl-skills-kit@latest validate
 
 ## 公开集成协议 v1
 
-供 harness、客户端或其他编排层以统一 JSON 入口调用本包判定与状态能力（业务执行仍走本包 CLI/MCP，不因协议新增兄弟包依赖）。
+供 harness、客户端或其他编排层以统一 JSON 入口判定、查询并调用本包声明的业务只读检查器。业务执行复用本包原 CLI，参数映射由本包维护；不新增兄弟包或 Harness 运行时依赖。
 
 ```bash
-wl-skills protocol describe --json                      # 能力目录、五操作映射、请求/响应 Schema、错误码
+wl-skills protocol describe --json                      # 能力目录、六操作映射、请求/响应 Schema、错误码
 wl-skills protocol request --input-file request.json --json
 ```
 
-- 操作：`route` / `explain`（只读判定）、`task`（判定并持久化计划，尚未执行）、`status`（回查本包执行回执）、`doctor-host`（宿主入口静态诊断）。
-- 请求字段：`protocolVersion`(1)、`operation`、`requestId`、`runId`、`projectRoot`、`task`、`targets`、`skill`、`host`。
-- 统一信封：`{ ok, result | error, diagnostics }`；机器结果与诊断分离；非法输入在触达执行器前判 `invalid-input`，不写入任何记录。
-- 错误码：`unsupported-protocol` / `unknown-operation` / `missing-input` / `invalid-input` / `internal-error`；请求失败（exit 2）时 stdout 仍为可解析 JSON 信封。
+- 操作：`route` / `explain`（只读判定）、`task`（判定并持久化计划，尚未执行）、`status`（回查本包执行回执）、`doctor-host`（宿主入口静态诊断）、`execute`（按有效计划调用本包声明的业务只读检查器）。
+- 判定与查询请求字段：`protocolVersion`(1)、`operation`、`requestId`、`runId`、`projectRoot`、`task`、`targets`、`skill`、`host`。
+- 统一信封：`{ ok, result | error, diagnostics }`；机器结果与诊断分离；非法输入在触达执行器前拒绝（基础请求为 `invalid-input`，执行参数为 `invalid-executor-input`），不写入任何记录。
+- 基础错误码：`unsupported-protocol` / `unknown-operation` / `missing-input` / `invalid-input` / `internal-error`；执行请求另区分计划、授权、范围与参数拒绝，完整错误码见 `describe.errorCodes`。请求失败（exit 2）时 stdout 仍为可解析 JSON 信封。
 - **`ok=true` 只表示协议调用成功，不代表业务验证通过**；业务状态以 `result` 内 `validationStatus` / `executionStatus` 为准（仅计划时为 `unverified` / `not-executed`）。
-- 副作用：仅 `task` 写入本包自己的 runs 目录（见 describe 中各操作 `sideEffects`）；其余操作只读。
-- 协议实现为本包内置的同源快照 `integration-protocol.cjs`，五包一致；跨包一致性由 conformance `integration-protocol.check.cjs` 验收。
+- 副作用：`task` 保存计划，`execute` 复用原执行器写本包自己的 runs 回执并输出报告；均不通过本接口修改业务文件。其他操作只读，见 describe 中各操作 `sideEffects`。
+- 协议实现为本包内置的同源快照 `integration-protocol.cjs`，当前源码分发一致性由 conformance 验收。各包独立保留自己的快照与版本；已发布版本按协议、feature 和 Schema 判断兼容，不要求每次同步发版。
+
+### 稳定执行入口
+
+先用 `task` 创建当前项目的计划，核对 `result.integration.allowedExecutors`，再通过同一个 `protocol request` 发送：
+
+```json
+{
+  "protocolVersion": 1,
+  "operation": "execute",
+  "projectRoot": "/absolute/path/to/adopted-pc-project",
+  "runId": "task-returned-run-id",
+  "executorId": "validate",
+  "parameters": {"targets": ["src/views/example/index.vue"]}
+}
+```
+
+`projectRoot`、`runId`、`executorId`、`parameters` 必填；执行目标放在 `parameters.targets`，不接受顶层 `targets`。Kit 的文件目标必须为页面 `index.vue`，原校验器处理其所属页面并记录实际文件范围。未知执行器、非法参数、计划外目标/规则、未接入或不适用项目、禁止检查、过期或版本漂移的计划在启动业务 CLI 前拒绝。当前本包执行器为 `validate`；以 `describe.inventory.executors` 的实际目录与 Schema 为准。
+
+返回 `result.execution` 的真实 `exitCode`、`signal`、stdout/stderr，并重新读取同 runId 的包内状态形成 `result.integration`。`ok=true` 表示调用已完成，即使业务检查退出非零仍保留真实失败；宿主须查看执行与验证状态、实际检查文件和未验证项。输出有界，取消会终止本次业务 CLI 及其进程树。协议不代替真实宿主加载、模型读取或界面展示证据。
+
+适配器只发送执行器 ID 与结构化参数，无需维护本包 CLI argv。增加检查器时由本包更新目录、Schema 与原 CLI 映射；兼容接口下其他包与 Harness 不必同步发版。原 CLI/MCP 继续可独立使用。
 
 ## 能力地图
 
@@ -965,11 +986,11 @@ UNLICENSED — 仅限团队内部使用。
 
 任务判定保留原始文本，并将当前请求、历史引用和明确否定分开。自然语言判定覆盖已公开语料与规则，不能承诺任意表述都自动命中；遇到歧义或缺口应补充目标/领域或显式指定本包能力，不能静默选择。编辑前显示真实 `notice`，包括版本、技能、规则、目标、runId、动作与待检查项。
 
-`protocol describe --json` 声明 `task-intent-v1`、`result-core-v1`、`executor-catalog-v1`；`schemas.resultCore` 与五操作 `schemas.results` 可供宿主验证。原有结果字段保留，新增 `result.integration`：项目适用范围、动作模式、规则身份、目标、就绪状态、允许执行器和真实执行/验证状态。`ok` 只表示调用成功。未声明使用的输入字段进入 diagnostics，不会转成授权依据。
+`protocol describe --json` 声明 `task-intent-v1`、`result-core-v1`、`executor-catalog-v1`、`executor-invoke-v1`；`schemas.resultCore` 与六操作 `schemas.results` 可供宿主验证。原有结果字段保留，新增 `result.integration`：项目适用范围、动作模式、规则身份、目标、就绪状态、允许执行器和真实执行/验证状态。`ok` 只表示调用成功。判定与查询的未声明字段进入 diagnostics，不会转成授权依据；execute 的额外字段按 Schema 拒绝。
 
 `action.mode` 为 explain/plan/inspect/apply/unspecified；解释和规划不自动启动检查。`businessWritesAuthorized=false`，任务意图不能替代业务写入授权。`ruleRefs` 为包自有规则身份（包名、规则 ID、版本、来源、性质），自然语言约束有稳定 ID；原规则名称与列表保留。所有规则的机械/语义验证仍以实际回执为准。
 
-`inventory.executors` 声明本包业务只读检查器、目标与参数 Schema；其适用条件由本包判定。外部适配器须核对同项目、同包、同版本、同 runId 的真实计划、新鲜度与允许动作，指定一个目标，不能扩大范围；支持规则子集的执行器不得选择计划外规则。多目标需拆分调用。五包和 Harness 均为可选组合，不新增兄弟包或 Harness 运行时依赖；卸下适配器后原 CLI/MCP 继续独立使用。
+`inventory.executors` 声明本包业务只读检查器、目标与参数 Schema；其适用条件由本包判定。外部适配器须核对同项目、同包、同版本、同 runId 的真实计划、新鲜度与允许动作，指定一个目标，不能扩大范围；支持规则子集的执行器不得选择计划外规则。当前执行入口一次只接受与本包计划一致的一个目标；多目标应先拆分计划，再逐个执行。五包和 Harness 均为可选组合，不新增兄弟包或 Harness 运行时依赖；卸下适配器后原 CLI/MCP 继续独立使用。
 
 `validate`/`validate-page` 接受一个页面目录或页面 `index.vue`，可使用位置参数或 `--target <path>`/`--target=<path>`。文件目标只检查其所属页面，JSON 的 `requestedTarget` 保留原始目标，`scanPath` 显示实际页面目录；不自动扩大到兄弟页面。其他文件请明确指定所属页面目录。目标类型错误与执行异常返回失败回执，未执行检查保持 `unverified`；冲突、额外目标、缺值和该命令未实现的参数在检查和记录前拒绝。触发词事实来自 `task-map.json.triggers`，注册表由同步脚本生成，运行时不解析 Markdown 表格。
 
@@ -980,3 +1001,5 @@ UNLICENSED — 仅限团队内部使用。
 编辑前展示实际 `notice` 的包版本、判定、动作、技能/规则、目标、runId、待检查项与版本对齐信息；解释/规划和明确禁止检查时不自动执行检查。`runtime=mismatch/invalid` 或 `planStale=true` 必须先同步本包或重新判定。只读 `inspect` 输入变化后重新 `task`；`apply` 完成正常业务修改后可用同 runId 做实际复扫，但规则、配置或版本变化仍需重新判定。
 
 单包只读取自身公开能力；多包复用同 runId 并各存各的证据。`matched/ready/ok=true` 仅说明判定或调用成功，是否完成以实际 `executionStatus/validationStatus/checkedFiles` 为准。未接入或不适用的项目不借父目录规则；宿主发现、模型读取、反馈展示没有真实证据时继续标记未验证。
+
+维护边界、结构化执行和防漂移验收：[维护契约](docs/maintenance-contract.md)。

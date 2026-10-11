@@ -27,3 +27,9 @@ Kit Vite 插件显式配置后在 serve/build 生效，并对范围内 `.vue/.ts
 `validate src/views/example/index.vue --json --run-id <id>` 可以沿用任务的文件目标。校验器只处理该入口所属页面，返回 `requestedTarget` 与实际页面目录 `scanPath`，真实检查文件单独记录。普通组件文件或其他非入口文件不猜页面归属；应明确指定页面目录。此类目标错误或执行异常返回 JSON 失败与 `executionStatus=failed`，未检查内容保持未验证，不能以清理分支的成功收尾覆盖异常。
 
 泛生成触发词还必须满足 `task-map.json.triggerConditions` 的 PC 页面对象或目标条件。无目标的“帮我生成诗歌”不会进入页面生成，“帮我生成旅游管理列表页”仍选择页面技能；只说“帮我生成”需要补充对象或页面目标。目标证据只参与相关生成词的判定，不会让普通 Vue 文件修改自动选中 `page-codegen`。`protocol describe.inventory.skills[].triggerCondition` 与生成的 `_registry.md` 公开同一条件。
+
+## 稳定协议执行
+
+编排层先调用 `protocol request` 的 `task`，再发送 `operation: "execute"`、当前项目绝对 `projectRoot`、同一 `runId`、`executorId: "validate"` 与 `parameters.targets`。Kit 的文件目标必须为页面 `index.vue`，原校验器处理其所属页面并记录实际文件范围。请求的执行器必须在当前状态的 `integration.allowedExecutors` 内；目标不能扩大，参数按目录 Schema 校验。解释、规划、禁止检查、未接入/移动项目、缺口、计划过期与已知版本漂移不会启动执行器。
+
+执行接线只保留本包参数映射，复用原 validate CLI，不复制规则或检查器。业务文件只读，原执行器仍写本包真实回执；返回 `result.execution` 和重新回查的 `result.integration`。调用 `ok=true` 不等于检查通过，非零退出、取消信号、实际文件和未验证项须如实展示。稳定接口使本包新版本不要求适配器或兄弟包同步修改；宿主/模型的实际读取和展示仍需独立证据。

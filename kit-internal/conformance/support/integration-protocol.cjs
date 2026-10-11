@@ -12,13 +12,18 @@
  * - request：所有字段在执行前完成类型校验；非法输入返回 invalid-input，不触发执行器、
  *   不写入任何记录。非法的 operation/requestId 不回显到信封（保持 string|null）。
  * - 信封结构互斥：ok=true 必有 result 且无 error；ok=false 必有 error 且无 result。
- * - 本协议只统一判定、解释、任务记录、状态查询与宿主诊断；业务执行仍走各包原有 CLI/MCP。
+ * - executor-invoke-v1 增加结构化只读检查入口，复用包内原执行器；旧五操作保持兼容。
  */
 
 const PROTOCOL_VERSION = 1;
 const resultCore = require("./integration-result.cjs");
+const execution = require("./executor-invoke.cjs");
+const observability = require("./task-observability.cjs");
 const SUPPORTED_VERSIONS = [1];
-const ERROR_CODES = ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error"];
+const ERROR_CODES = ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error",
+  "unsupported-contract", "invalid-executor-input", "identity-mismatch", "missing-plan", "not-applicable", "catalog-load-error",
+  "unresolved-plan", "action-not-allowed", "stale-plan", "unsupported-executor", "executor-not-allowed", "target-mismatch", "rule-mismatch",
+  "unsupported-executor-range", "executor-start-failed", "executor-output-limit"];
 const OPTIONAL_STRING_FIELDS = ["requestId", "runId", "projectRoot", "skill", "host", "type", "domain", "profile"];
 
 const STRING_FIELD_SCHEMA = { type: "string", minLength: 1, pattern: "\\S" };
@@ -101,8 +106,10 @@ function requestSchema(config) {
       domain: STRING_FIELD_SCHEMA,
       profile: STRING_FIELD_SCHEMA,
       context: CONTEXT_FIELD_SCHEMA,
+      executorId: STRING_FIELD_SCHEMA,
+      parameters: { type: "object" },
     },
-    ...(conditional.length > 0 ? { allOf: conditional } : {}),
+    allOf: [...conditional, { if: { properties: { operation: { const: "execute" } }, required: ["operation"] }, then: execution.REQUEST_SCHEMA }],
   };
 }
 
@@ -130,6 +137,10 @@ function assertValidConfig(config) {
 }
 
 function createProtocol(config) {
+  assertValidConfig(config);
+  config = { ...config, operations: [...config.operations] };
+  const executionSupported = Array.isArray(config.executors) && config.executors.length > 0;
+  if (executionSupported) config.operations.push({ ...execution.OPERATION, mapping: `${config.bin || "<package-bin>"} ${execution.OPERATION.mapping}` });
   assertValidConfig(config);
 
   function base(operation, requestId) {
@@ -235,7 +246,7 @@ function validateFieldTypes(input) {
       mcpTools: inventory.mcpTools || [],
       loadErrors: inventory.loadErrors || [],
       executors: config.executors || [],
-      note: "业务执行仍走各包原 CLI/MCP；inventory 只声明公开调用映射与入口，不改变执行归属；loadErrors 非空表示目录派生存在异常，不得忽略",
+      note: "结构化 execute 复用本包原执行器；inventory 声明公开调用映射，不改变业务归属；loadErrors 非空阻止自动执行，需修复目录诊断",
     };
   }
 
@@ -248,6 +259,19 @@ function validateFieldTypes(input) {
     };
   }
 
+  async function invokeAndClose(input, admitted, before, original, invoke) {
+    const previousEventIds = new Set((original.records || []).map(record => record.eventId));
+    const interruptionOptions = { projectRoot: admitted.projectRoot, runId: input.runId, packageName: config.packageName, packageVersion: config.packageVersion };
+    let receipt;
+    try { receipt = await invoke({ ...admitted, plan: before.integration }); }
+    catch (error) {
+      observability.finishInterruptedExecutions(interruptionOptions, previousEventIds, error.processId, error.code || "executor-interrupted");
+      throw error;
+    }
+    if (receipt.cancelled || receipt.exitCode !== 0) observability.finishInterruptedExecutions(interruptionOptions, previousEventIds, receipt.processId, receipt.cancelled ? "executor-cancelled" : "executor-interrupted");
+    return receipt;
+  }
+
   return {
     PROTOCOL_VERSION,
     SUPPORTED_VERSIONS,
@@ -257,10 +281,12 @@ function validateFieldTypes(input) {
       return {
         ...base(null, null),
         capabilities: config.capabilities || [],
-        features: ["task-intent-v1", "result-core-v1", "executor-catalog-v1"],
+        support: require("./shared-support-manifest.json"),
+        features: ["task-intent-v1", "result-core-v1", "executor-catalog-v1", ...(executionSupported ? ["executor-invoke-v1"] : [])],
         operations: config.operations.map((operation) => ({ ...operation })),
         inventory: buildInventory(config),
         schemas: { request: requestSchema(config), envelope: envelopeSchema(config.packageName), resultCore: resultCore.SCHEMA,
+          ...(executionSupported ? { execute: execution.REQUEST_SCHEMA } : {}),
           results: Object.fromEntries(config.operations.map((operation) => [operation.id, { type: "object", required: ["integration"], properties: { integration: resultCore.SCHEMA }, additionalProperties: true }])) },
         constraints: buildConstraints(config),
         errorCodes: [...ERROR_CODES],
@@ -270,6 +296,7 @@ function validateFieldTypes(input) {
     request(input, runOperation) {
       const { operation, error } = validateRequest(input);
       if (error) return error;
+      if (operation.id === "execute") return fail(operation.id, input.requestId, "invalid-input", "execute 必须通过异步 requestExecute 接线调用");
       const diagnostics = [];
       const supportedFields = new Set(["operation", "protocolVersion", "requestId", ...operation.required, ...(operation.requireAny || []), ...operation.optional]);
       for (const field of Object.keys(input)) {
@@ -284,6 +311,24 @@ function validateFieldTypes(input) {
         const envelope = fail(operation.id, input.requestId, "internal-error", "操作执行异常，详见 diagnostics");
         envelope.diagnostics = diagnostics;
         return envelope;
+      }
+    },
+
+    async requestExecute(input, { readStatus, invoke }) {
+      const checked = validateRequest(input);
+      if (checked.error) return checked.error;
+      if (checked.operation.id !== "execute") return fail(input.operation, input.requestId, "invalid-input", "requestExecute 仅处理 execute 操作");
+      try {
+        execution.validateSchema(execution.REQUEST_SCHEMA, input);
+        const original = await readStatus(input.projectRoot, input.runId);
+        const before = resultCore.projectResult(original, input, config);
+        const admitted = execution.admit(config, input, before);
+        const receipt = await invokeAndClose(input, admitted, before, original, invoke);
+        const after = await readStatus(admitted.projectRoot, input.runId);
+        return { ...base("execute", input.requestId), ok: true,
+          result: { ...resultCore.projectResult(after, input, config), executorId: input.executorId, execution: receipt }, diagnostics: [] };
+      } catch (error) {
+        return fail("execute", input.requestId, ERROR_CODES.includes(error.code) ? error.code : "internal-error", error.message || "执行接口异常");
       }
     },
   };

@@ -32,9 +32,9 @@ for (const name of ["design", "kit", "ui", "bd", "test"]) {
       fs.mkdirSync(isolated);
       execute("tar", ["-xzf", path.join(temporary, packed.filename), "-C", isolated], temporary);
       const installed = path.join(isolated, "package");
-      // Only kit has ordinary npm runtime dependencies. Reuse its installed dependency
-      // graph, never another WL product package or the conformance support directory.
-      if (name === "kit") fs.symlinkSync(path.join(source, "node_modules"), path.join(installed, "node_modules"), "dir");
+      // Payload activation uses each package's own ordinary npm dependency graph.
+      // Actual independent npm installation is covered by compatibility:check.
+      if (Object.keys(JSON.parse(fs.readFileSync(path.join(installed, "package.json"))).dependencies || {}).length) fs.symlinkSync(path.join(source, "node_modules"), path.join(installed, "node_modules"), "dir");
       const project = path.join(temporary, "project");
       fs.mkdirSync(project);
       fs.writeFileSync(path.join(project, "package.json"), '{"name":"published-fixture","private":true}');

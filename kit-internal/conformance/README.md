@@ -37,7 +37,7 @@ CLI 可独立运行不代表生成物无需宿主。kit 编译器输出导入 UI
 
 ## 公开集成协议 v1
 
-五包提供统一 `<bin> protocol describe --json` 与 `<bin> protocol request --input-file <request.json> --json` 入口：`describe` 返回能力目录、协议版本、操作映射与错误码；`request` 以统一 JSON 信封提供 route/explain/task/status/doctor-host 五个操作，机器结果与 diagnostics 分离。协议实现是同源快照 `integration-protocol.cjs`（各包接线文件只做映射，复用各包原执行器，不复制业务实现）。bd 的 `integration` 命令属于业务系统集成域，与 `protocol` 命令互不相干。跨包一致性由 `test/integration-protocol.check.cjs` 验收：信封形状、五操作、错误码、退出码、快照同源哈希。
+五包提供统一 `<bin> protocol describe --json` 与 `<bin> protocol request --input-file <request.json> --json` 入口：`describe` 返回能力目录、协议版本、操作映射与错误码；`request` 以统一 JSON 信封提供 route/explain/task/status/doctor-host 五个原操作，以及 execute / executor-invoke-v1 结构化执行入口，机器结果与 diagnostics 分离。协议实现是同源快照 `integration-protocol.cjs`（各包接线文件只做映射，复用各包原执行器，不复制业务实现）。bd 的 `integration` 命令属于业务系统集成域，与 `protocol` 命令互不相干。跨包一致性由 `test/integration-protocol.check.cjs` 验收：信封形状、六操作、错误码、退出码、快照同源哈希。
 
 联动优先消费已经解析项目 Profile 的 `wl-api-contract`。兼容原始后端契约时必须使用同一生效 Profile；页面规格声明 `apiContract` 时应读取该引用，不能用页面路由猜接口。未知显式协议版本拒绝或进入显式迁移；未决业务事实保留为未决，不伪造完成状态。
 
@@ -62,6 +62,25 @@ WL_FULL_MATRIX=1 node --test test/coexistence.check.cjs
 验收目录的 Ajv 开发依赖用于校验真实生成的完整 JSON Schema 契约，不进入五个产品包。MCP 的工具入参校验器只覆盖它支持的入参规则，不能替代完整契约验证。
 
 包发版门禁应同时运行本包独立验证和这里的组合验收；旧版迁移、用户修改、失败回滚及最终生成物消费是必测行为。不同仓库可在 CI 中检出固定候选版本组合，避免仅靠源码中的模拟字符串证明兼容。
+
+### 独立仓库普通升级与发布版共存
+
+`scripts/compatibility-check.cjs` 是可复制到任意一个 WL 包 `scripts/` 后独立运行的开发验收脚本；只需当前仓库、Node22+ 和 npm，不寻找兄弟源码或业务目录，不调用 DSH。默认打包脚本所在包的真实源码候选；候选版本必须高于固定发布基线，禁止桥接/预发布和 `--force`。
+
+```bash
+node scripts/compatibility-check.cjs --package-root /checkout/wl-skills-kit --output ./artifacts/compatibility
+node scripts/compatibility-check.cjs --candidate-lock ./candidate-lock.json --key bd --output ./artifacts/compatibility
+WL_COMPAT_NPM_CACHE=/ci/npm-cache node scripts/compatibility-check.cjs --package-root /checkout/wl-skills-design --node20 /opt/node20/bin/node --output ./artifacts/compatibility
+node --test test/compatibility-runner.check.cjs
+```
+
+脚本内固定当前发布基线 kit 2.31.1 / ui 1.20.1 / bd 0.38.0 / design 0.18.0 / test 0.32.0；更新发布基线时统一修改脚本并分发，不能让浮动 latest 代替验收版本。锁格式为 `{"packages":[{"key":"bd","name":"@agile-team/wl-skills-bd","newVersion":"0.39.0","artifact":"tarballs/bd.tgz","sha256":"<64位实际sha256>"}]}`；相对产物路径以锁文件所在目录解析，包身份、递进版本和字节 hash 均校验。
+
+每轮只在本轮临时目录真实安装旧版、init、安装精确候选 tgz、普通 update、检查所有权/gateway/用户字节、task notice/同 runId status、安装版本漂移拒绝，再安全 clean。BD 生命周期使用真实预览 planHash 与确认。随后候选与其余四个精确发布版真实安装，共存 describe/status 身份分别检查，同 runId 不串包，独立子项目不继承父安装。
+
+默认缓存也位于临时目录；可用 `WL_COMPAT_NPM_CACHE` 指定 CI 依赖缓存。`--output` 指定证据父目录，每轮创建独立子目录保存精确 tgz、sha256、commands.jsonl、原始 cli.log、summary.json；无网络/安装失败/断言失败均退出非零。Design/Test 的可选 Node20 测试必须配置真实节点，禁用 require(esm) 并实测；未提供时摘要明确 `not-requested`，不宣称已通过。
+
+`compatibility-runner.check.cjs` 只验证输入拒绝、锁身份/hash、升级递进和沙盒护栏；合成 tgz 从不安装，不能冒充真实升级或共存结果。实际网络矩阵单独运行上述入口，以 summary 和原始日志验收。
 
 ## 任务与执行证据协议 v1
 

@@ -95,7 +95,7 @@ for (const name of names) test(`published ${name}: task protocol and native gate
     fs.renameSync(path.join(isolated, 'package'), extracted);
     const pkg = JSON.parse(fs.readFileSync(path.join(extracted, 'package.json'), 'utf8'));
     assert.equal(Object.keys(pkg.dependencies || {}).some(dep => /^@agile-team\/wl-skills-/.test(dep)), false);
-    if (name === 'kit') fs.symlinkSync(path.join(source, 'node_modules'), path.join(extracted, 'node_modules'), 'dir');
+    if (Object.keys(JSON.parse(fs.readFileSync(path.join(extracted, 'package.json'))).dependencies || {}).length) fs.symlinkSync(path.join(source, 'node_modules'), path.join(extracted, 'node_modules'), 'dir');
     install(name, extracted, project);
     const gateway = path.join(project, '.agents/skills', `wl-skills-${name}`, 'SKILL.md');
     assert.ok(fs.existsSync(gateway));
@@ -117,7 +117,7 @@ test('five-package composition: distinct native gateways and own receipts correl
       execute('tar', ['-xzf', path.join(project, packed.filename), '-C', staging], project);
       const extracted = path.join(project, 'node_modules', '@agile-team', `wl-skills-${name}`);
       fs.mkdirSync(path.dirname(extracted), { recursive: true }); fs.renameSync(path.join(staging, 'package'), extracted);
-      if (name === 'kit') fs.symlinkSync(path.join(source, 'node_modules'), path.join(extracted, 'node_modules'), 'dir');
+      if (Object.keys(JSON.parse(fs.readFileSync(path.join(extracted, 'package.json'))).dependencies || {}).length) fs.symlinkSync(path.join(source, 'node_modules'), path.join(extracted, 'node_modules'), 'dir');
       sources[name] = extracted;
       install(name, extracted, project);
     }

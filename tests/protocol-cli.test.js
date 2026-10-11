@@ -15,14 +15,15 @@ function tempRoot() {
 }
 
 describe("integration describe", () => {
-  it("返回协议版本、能力目录与五个统一操作", () => {
+  it("返回协议版本、能力目录与六个统一操作", () => {
     const described = protocol.describe();
     expect(described.protocolVersion).toBe(1);
     expect(described.package).toBe(pkg.name);
     expect(described.packageVersion).toBe(pkg.version);
     expect(Array.isArray(described.capabilities)).toBe(true);
     expect(described.capabilities.length).toBeGreaterThan(0);
-    expect(described.operations.map((operation) => operation.id)).toEqual(["route", "explain", "task", "status", "doctor-host"]);
+    expect(described.operations.map((operation) => operation.id)).toEqual(["route", "explain", "task", "status", "doctor-host", "execute"]);
+    expect(described.features).toContain("executor-invoke-v1");
     for (const operation of described.operations) {
       expect(typeof operation.readOnly).toBe("boolean");
       expect(Array.isArray(operation.required)).toBe(true);

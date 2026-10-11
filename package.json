@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.31.1",
-  "description": "AI Skill 模板包 v2.31.1 — 14 条编码规范 + 13 个 AI Skill + 34 个 MCP Tool，独立 API 契约与前后端严格兼容",
+  "version": "2.32.0",
+  "description": "AI Skill 模板包 v2.32.0 — 14 条编码规范 + 13 个 AI Skill + 34 个 MCP Tool，独立 API 契约与前后端严格兼容",
   "packageManager": "pnpm@11.5.3",
   "bin": {
     "wl-skills": "bin/wl-skills.js"
@@ -49,12 +49,14 @@
     "lint:skills": "node scripts/lint-skills.js",
     "test": "vitest run && node tests/menu-buildbody.check.js",
     "version:verify": "node scripts/verify-version.js && node scripts/sync-task-standards.cjs --check",
-    "verify": "pnpm version:verify && pnpm lint && pnpm lint:skills && pnpm test",
+    "verify": "npm run support:check && pnpm version:verify && pnpm lint && pnpm lint:skills && pnpm test",
     "ci": "pnpm install --frozen-lockfile && pnpm verify",
     "pack:dry": "npm pack --dry-run --ignore-scripts",
     "release:check": "pnpm verify && npm pack --dry-run --ignore-scripts",
-    "prepublishOnly": "node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run",
-    "version": "node scripts/sync-version.js"
+    "prepublishOnly": "npm run support:check && node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run",
+    "version": "node scripts/sync-version.js",
+    "support:check": "node lib/shared-support-check.cjs",
+    "compatibility:check": "node scripts/compatibility-check.cjs"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.20.0",
@@ -109,6 +111,7 @@
   "dependencies": {
     "jsonc-parser": "^3.3.1",
     "semver": "7.8.4",
-    "write-excel-file": "^4.1.1"
+    "write-excel-file": "^4.1.1",
+    "ajv": "8.17.1"
   }
 }
