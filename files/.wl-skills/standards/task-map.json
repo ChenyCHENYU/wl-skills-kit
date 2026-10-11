@@ -110,6 +110,16 @@
       ]
     }
   ],
+  "triggerConditions": {
+    "page-codegen": {
+      "description": "泛生成词只在当前任务明确涉及 PC 页面对象，或提供本项目页面目标时参与路由；安装 Kit 本身不是任务对象证据。",
+      "triggers": ["代码生成", "帮我生成", "mock", "假数据", "先能跑"],
+      "taskKeywords": ["前端", "页面", "Vue", "列表页", "管理页", "台账", "AGGrid", "skills-ui"],
+      "targetExtensions": [".vue"],
+      "targetNames": ["data.ts", "page-spec.json"],
+      "targetDirectories": ["src/views", "src/pages"]
+    }
+  },
   "triggers": {
     "prototype-scan": [
       "扫描原型",

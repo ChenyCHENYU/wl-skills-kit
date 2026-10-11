@@ -2,7 +2,7 @@
 
 > 项目范围：只对目标自身已接入且平台适用的项目判定规则；父工作区安装不启用子项目。移动端与未接入开源项目不套用。详见 [精准触发与范围配置](docs/project-scope.md)。
 
-**AI Skill 模板包 v2.30.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.31.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -969,4 +969,12 @@ UNLICENSED — 仅限团队内部使用。
 
 `inventory.executors` 声明本包业务只读检查器、目标与参数 Schema；其适用条件由本包判定。外部适配器须核对同项目、同包、同版本、同 runId 的真实计划、新鲜度与允许动作，指定一个目标，不能扩大范围；支持规则子集的执行器不得选择计划外规则。多目标需拆分调用。五包和 Harness 均为可选组合，不新增兄弟包或 Harness 运行时依赖；卸下适配器后原 CLI/MCP 继续独立使用。
 
-`validate`/`validate-page` 接受一个位置目标或 `--target <path>`/`--target=<path>`；冲突、额外目标、缺值和该命令未实现的参数在检查和记录前拒绝。触发词事实来自 `task-map.json.triggers`，注册表由同步脚本生成，运行时不解析 Markdown 表格。
+`validate`/`validate-page` 接受一个页面目录或页面 `index.vue`，可使用位置参数或 `--target <path>`/`--target=<path>`。文件目标只检查其所属页面，JSON 的 `requestedTarget` 保留原始目标，`scanPath` 显示实际页面目录；不自动扩大到兄弟页面。其他文件请明确指定所属页面目录。目标类型错误与执行异常返回失败回执，未执行检查保持 `unverified`；冲突、额外目标、缺值和该命令未实现的参数在检查和记录前拒绝。触发词事实来自 `task-map.json.triggers`，注册表由同步脚本生成，运行时不解析 Markdown 表格。
+
+`page-codegen` 的“帮我生成 / 代码生成 / mock / 假数据 / 先能跑”等泛词受 `task-map.json.triggerConditions` 限制：当前请求须提供 PC 页面对象，或明确页面目录、`.vue`、`data.ts`、`page-spec.json` 目标。仅安装 Kit 不会把诗歌、旅游攻略、图片或 Java 后端生成请求识别成页面生成；没有对象证据时返回不适用或缺上下文，不加载页面规则。`protocol describe` 同时公开此条件，人读注册表保持一致；旅游管理列表页等真实 PC 页面任务保留原有能力。
+
+### 任务反馈与执行边界
+
+编辑前展示实际 `notice` 的包版本、判定、动作、技能/规则、目标、runId、待检查项与版本对齐信息；解释/规划和明确禁止检查时不自动执行检查。`runtime=mismatch/invalid` 或 `planStale=true` 必须先同步本包或重新判定。只读 `inspect` 输入变化后重新 `task`；`apply` 完成正常业务修改后可用同 runId 做实际复扫，但规则、配置或版本变化仍需重新判定。
+
+单包只读取自身公开能力；多包复用同 runId 并各存各的证据。`matched/ready/ok=true` 仅说明判定或调用成功，是否完成以实际 `executionStatus/validationStatus/checkedFiles` 为准。未接入或不适用的项目不借父目录规则；宿主发现、模型读取、反馈展示没有真实证据时继续标记未验证。

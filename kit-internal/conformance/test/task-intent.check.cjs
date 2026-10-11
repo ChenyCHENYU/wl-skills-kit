@@ -1,6 +1,16 @@
 const test = require('node:test');const assert = require('node:assert/strict');
 const {analyzeTask,phraseMatches} = require('../support/task-intent.cjs');
 const cases = [
+ ['能不能介绍一下代码生成的约束','生成',true,'explain',false],
+ ['只列生成页面的步骤','生成页面',true,'plan',false],
+ ['先给页面生成做个方案','页面',true,'plan',false],
+ ['为了修复页面，先说明约束','修复页面',false,'explain',false],
+ ['修改页面标题，不过暂时不用校验','页面',true,'apply',false],
+ ['调整页面文案，本轮跳过扫描','页面',true,'apply',false],
+ ['先解释页面约束，再检查已有 Vue 页面','Vue',true,'inspect',true],
+ ['生成页面并说明你应用的规则','页面',true,'apply',true],
+ ['请检查已有页面，暂时先别改代码','页面',true,'inspect',true],
+ ['按照方案修改页面','页面',true,'apply',true],
  ['不要使用 React，给 Vue 页面补充注释','React',false,'apply',true],
  ['旧需求要求生成页面，本次只审查注释','生成页面',false,'inspect',true],
  ['只分析生成页面方案，暂不生成代码','生成页面',true,'explain',false],
@@ -11,6 +21,26 @@ const cases = [
  ['draw a flowchart','flowchart',true,'apply',true],
  ['列一个执行计划，暂不执行','执行计划',true,'plan',false],
  ['只说明 UI修复 的影响，不执行修改','UI修复',true,'explain',false],
+ ['请解释生成页面的约束','生成页面',true,'explain',false],
+ ['说明一下修改页面应该遵守哪些规则','修改页面',true,'explain',false],
+ ['请问怎么生成 Vue 页面','Vue',true,'explain',false],
+ ['Explain how to generate a Vue page','Vue',true,'explain',false],
+ ['Please describe how to fix the page','fix',true,'explain',false],
+ ['修改 Vue 页面的标题，不要检查代码','Vue',true,'apply',false],
+ ['修改页面，不要运行自动检查','页面',true,'apply',false],
+ ['修改页面，先不检查','页面',true,'apply',false],
+ ['modify the page, do not check the code','page',true,'apply',false],
+ ['review the page, don’t run checks','page',true,'inspect',false],
+ ['用户曾说“生成页面，创建菜单”，本次只审查已有页面的注释','创建菜单',false,'inspect',true],
+ ['previous request: "generate page, create menu"; now review comments','create menu',false,'inspect',true],
+ ['上次生成页面，这次审查注释','生成页面',false,'inspect',true],
+ ['先解释生成页面的约束，然后修改页面标题','页面',true,'apply',true],
+ ['修改页面，解释一下修改原因','页面',true,'apply',true],
+ ['给我一个页面重构执行计划','页面',true,'plan',false],
+ ['按计划修改页面','页面',true,'apply',true],
+ ['执行测试质量门','测试',true,'inspect',true],
+ ['run tests for this module','tests',true,'inspect',true],
+ ['检查 Vue 页面逻辑，不要扫描 UI 样式','Vue',true,'inspect',true],
 ];
 for(const [task,phrase,matched,mode,checks] of cases)test(task,() => {
  const evidence = analyzeTask(task);assert.equal(phraseMatches(task,phrase),matched);assert.equal(evidence.action.mode,mode);assert.equal(evidence.action.checksAllowed,checks);assert.equal(evidence.action.businessWritesAuthorized,false);

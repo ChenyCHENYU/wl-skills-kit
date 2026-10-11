@@ -1,0 +1,18 @@
+[
+  {"task":"帮我生成诗歌","status":"not-applicable","skills":[]},
+  {"task":"帮我生成旅游攻略","status":"not-applicable","skills":[]},
+  {"task":"帮我生成一张猫的图片","status":"needs-context","skills":[]},
+  {"task":"帮我生成 Java 后端接口","status":"needs-context","skills":[]},
+  {"task":"Java 后端代码生成","status":"needs-context","skills":[]},
+  {"task":"后端 mock 数据生成","status":"needs-context","skills":[]},
+  {"task":"请给服务端接口生成假数据","status":"needs-context","skills":[]},
+  {"task":"请让后端接口先能跑","status":"needs-context","skills":[]},
+  {"task":"请帮我生成","status":"needs-context","skills":[]},
+  {"task":"代码生成","status":"needs-context","skills":[]},
+  {"task":"帮我生成旅游管理列表页","status":"matched","skills":["page-codegen"]},
+  {"task":"帮我生成 Vue 页面","status":"matched","skills":["page-codegen"]},
+  {"task":"帮我生成","targets":["src/views/example/index.vue"],"status":"matched","skills":["page-codegen"]},
+  {"task":"代码生成","targets":["src/views/example"],"status":"matched","skills":["page-codegen"]},
+  {"task":"mock","targets":["src/views/example/data.ts"],"status":"matched","skills":["page-codegen"]},
+  {"task":"请调整页面注释","targets":["src/views/example/index.vue"],"status":"baseline","skills":[]}
+]

@@ -25,7 +25,8 @@ const registryUpdated = registrySource.replace(/^\|[^\n]+✅ 启用[^\n]+$/gm, (
   const cells = row.split("|");
   const id = cells[1].trim();
   if (!mapping.triggers[id]) throw new Error(`Skill ${id} 缺少机器触发词`);
-  cells[5] = " " + mapping.triggers[id].map((word) => `**${word}**`).join(" / ") + " ";
+  const conditional = mapping.triggerConditions?.[id]?.triggers || [];
+  cells[5] = " " + mapping.triggers[id].map((word) => `**${word}**${conditional.includes(word) ? "（需 PC 页面对象或目标证据）" : ""}`).join(" / ") + " ";
   return cells.join("|");
 });
 if (process.argv.includes("--check")) {

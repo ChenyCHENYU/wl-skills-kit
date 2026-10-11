@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.30.0
+ * wl-skills-kit CLI v2.31.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -2507,7 +2507,7 @@ function reportJsonValidation(scanPath, summary, issues) {
   const errors = countValidationIssues(issues, "error");
   const warns = countValidationIssues(issues, "warn");
   const ok = errors === 0 && (!strict || warns === 0);
-  console.log(JSON.stringify({ ok, scanPath, summary: { ...summary, errors, warns },
+  console.log(JSON.stringify({ ok, scanPath, requestedTarget: validationScanPath(), summary: { ...summary, errors, warns },
     ...(validationReceipt ? { runId: validationReceipt.runId, executionStatus: validationReceipt.executionStatus, validationStatus: validationReceipt.validationStatus, receiptPath: validationReceipt.recordPath } : {}),
     issues: issues.map((issue) => ({ level: issue.level || "warn", dir: issue.dir,
       rule: issue.rule || null, text: issue.text })) }));
@@ -2538,14 +2538,24 @@ function runValidate() {
   const opts = integration.taskOptions(TARGET_DIR, { runId: readOption("--run-id") || undefined, targets: [validationScanPath()], tool: command, readOnlyVerification: true });
   validationHandle = integration.core.beginExecution(opts);
   try { runValidatePipeline(); }
+  catch (error) { reportValidationFailure(error); }
   finally {
     if (!validationReceipt) validationReceipt = integration.core.finishExecution(validationHandle, { exitCode: process.exitCode || 0, validationStatus: "unverified", checks: [], summary: { reason: "Validation stopped before a page pipeline completed" } });
     console.error(integration.core.formatStatus(integration.core.readStatus(opts)));
   }
 }
 
-function runValidatePipeline() {
+function reportValidationFailure(error) {
+  process.exitCode = 1;
   const scanPath = validationScanPath();
+  const issues = [{ level: "error", dir: scanPath, rule: "VALIDATION", text: error.message || String(error) }];
+  recordValidation({ pages: 0, checkedFiles: [] }, issues);
+  if (args.includes("--json") && !preCommit) reportJsonValidation(scanPath, { pages: 0 }, issues);
+  else console.error(`  ✖ 校验未完成：${issues[0].text}`);
+}
+
+function runValidatePipeline() {
+  const scanPath = require("../lib/validation-scope").validationPageScope(TARGET_DIR, validationScanPath());
   const jsonOutput = args.includes("--json");
   loadValidateEngines();
   const stagedSet = getValidationStagedSet();

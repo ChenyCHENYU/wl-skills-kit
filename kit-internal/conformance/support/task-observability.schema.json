@@ -397,7 +397,7 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "resolution": {
-          "const": "project-internal-realpath"
+          "enum": ["project-internal-realpath", "authorized-read-realpath"]
         }
       }
     },

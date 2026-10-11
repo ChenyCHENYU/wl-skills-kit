@@ -82,3 +82,21 @@ test("guard：guardRun 拦截外部 cwd 与 --target/--project", () => {
   assert.throws(() => guard.guardRun("node", ["cli.js", "init", "--target", outside], { cwd: inside }), /--target/);
   assert.throws(() => guard.guardRun("node", ["cli.js", "init", "--project", outside], { cwd: inside }), /--project/);
 });
+
+test('guard：等号请求体的外部根在 spawn 前被拦截',t => {
+ const guard = createFixtureGuard('wl-guard-equals'); const inside = guard.fixture('inside');
+ const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'wl-guard-other-')));
+ t.after(() => {fs.rmSync(guard.root,{recursive:true,force:true});fs.rmSync(outside,{recursive:true,force:true});});
+ const input = path.join(inside,'request.json'); const sentinel = path.join(outside,'not-executed');
+ fs.writeFileSync(input,JSON.stringify({projectRoot:outside,operation:'task'}));
+ const args = ['-e',`require('node:fs').writeFileSync(${JSON.stringify(sentinel)},'x')`,'--','--input-file=' + input];
+ assert.throws(() => {guard.guardRun(process.execPath,args,{cwd:inside});spawnSync(process.execPath,args,{cwd:inside});},/projectRoot/);
+ assert.equal(fs.existsSync(sentinel),false);
+});
+
+test('guard：缺值、空值和非法 projectRoot 不启动命令',t => {
+ const guard = createFixtureGuard('wl-guard-values'); const inside = guard.fixture('inside');t.after(() => fs.rmSync(guard.root,{recursive:true,force:true}));
+ for(const args of [['--project'],['--target','--json'],['--input-file'],['--project='],['--input-file=']])assert.throws(() => guard.guardRun('node',args,{cwd:inside}),/非空值/);
+ const input = path.join(inside,'request.json');
+ for(const value of [null,false,{},'']){fs.writeFileSync(input,JSON.stringify({projectRoot:value}));assert.throws(() => guard.guardRun('node',['--input-file=' + input],{cwd:inside}),/非空字符串/);}
+});

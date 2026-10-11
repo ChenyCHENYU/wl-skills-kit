@@ -61,6 +61,7 @@ function createFixtureGuard(prefix) {
 
   function inspectInputFile(cwd, file, label) {
     const full = path.resolve(cwd, file);
+    assertTarget(full,'--input-file');
     if (!fs.existsSync(full)) return;
     let payload;
     try {
@@ -69,33 +70,32 @@ function createFixtureGuard(prefix) {
       return;
     }
     if (payload && typeof payload === "object" && payload.projectRoot !== undefined) {
-      assertTarget(path.resolve(cwd, String(payload.projectRoot)), `${label}（--input-file 内 projectRoot）`);
+      if(typeof payload.projectRoot !== 'string' || !payload.projectRoot.trim())throw new Error('fixture-guard：projectRoot 必须是非空字符串');
+      assertTarget(path.resolve(cwd, payload.projectRoot), `${label}（--input-file 内 projectRoot）`);
     }
   }
 
-  function inspectEqualsFormTargets(cwd, args) {
-    for (const arg of args) {
-      if (arg.startsWith("--project=")) assertTarget(path.resolve(cwd, arg.slice("--project=".length)), "--project");
-      if (arg.startsWith("--target=")) assertTarget(path.resolve(cwd, arg.slice("--target=".length)), "--target");
-    }
-  }
-
-  function inspectPairFormTargets(cwd, args) {
-    for (let index = 0; index < args.length - 1; index += 1) {
+  function inspectFlagTargets(cwd, args) {
+    for (let index = 0; index < args.length; index += 1) {
       const arg = args[index];
-      const {value} = { value: args[index + 1] };
-      if (["--target", "--project"].includes(arg)) assertTarget(path.resolve(cwd, value), arg);
-      if (arg === "--input-file") inspectInputFile(cwd, value, "projectRoot");
+      const flag = arg.split('=',1)[0];
+      if(!['--target','--project','--input-file'].includes(flag))continue;
+      const equals = arg.includes('='); const value = equals ? arg.slice(flag.length + 1) : args[++index];
+      if(typeof value !== 'string' || !value.trim() || value.startsWith('--'))throw new Error(`fixture-guard：${flag} 缺少非空值`);
+      if(flag === '--input-file')inspectInputFile(cwd,value,'projectRoot');
+      else assertTarget(path.resolve(cwd,value),flag);
     }
   }
 
   function guardRun(command, args, options = {}) {
     const cwd = path.resolve(options.cwd || process.cwd());
     assertTarget(cwd, "cwd");
-    inspectEqualsFormTargets(cwd, args);
-    inspectPairFormTargets(cwd, args);
+    inspectFlagTargets(cwd, args);
     const { input } = options;
-    if (input && typeof input === "object" && input.projectRoot !== undefined) assertTarget(path.resolve(cwd, String(input.projectRoot)), "projectRoot");
+    if (input && typeof input === "object" && input.projectRoot !== undefined) {
+      if(typeof input.projectRoot !== 'string' || !input.projectRoot.trim())throw new Error('fixture-guard：projectRoot 必须是非空字符串');
+      assertTarget(path.resolve(cwd,input.projectRoot),"projectRoot");
+    }
     return { command, args: [...args], options: { ...options, cwd } };
   }
 

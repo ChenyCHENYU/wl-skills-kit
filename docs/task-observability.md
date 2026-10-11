@@ -23,3 +23,7 @@ wl-skills status --run-id <runId> --json
 Kit Vite 插件显式配置后在 serve/build 生效，并对范围内 `.vue/.ts/.scss` 热更新去抖检查所属 index.vue 页面；`watch:false` 可关闭热更新。只运行 AST，完整 validate 和项目 typecheck 不因此通过。解析器不可用或零适用页面打印 skipped；构建 error 阻断，开发警告仍记录 failed 检查。
 
 当前验证回执覆盖 validate / Vite AST 与本包 MCP；其他 CLI 生成、同步、模板操作继续返回既有产物与日志，不自动等同于业务约束验证。未由执行器报告实际文件的操作，其检查范围明确未知；不能用输入目录快照或成功退出补造文件覆盖。
+
+`validate src/views/example/index.vue --json --run-id <id>` 可以沿用任务的文件目标。校验器只处理该入口所属页面，返回 `requestedTarget` 与实际页面目录 `scanPath`，真实检查文件单独记录。普通组件文件或其他非入口文件不猜页面归属；应明确指定页面目录。此类目标错误或执行异常返回 JSON 失败与 `executionStatus=failed`，未检查内容保持未验证，不能以清理分支的成功收尾覆盖异常。
+
+泛生成触发词还必须满足 `task-map.json.triggerConditions` 的 PC 页面对象或目标条件。无目标的“帮我生成诗歌”不会进入页面生成，“帮我生成旅游管理列表页”仍选择页面技能；只说“帮我生成”需要补充对象或页面目标。目标证据只参与相关生成词的判定，不会让普通 Vue 文件修改自动选中 `page-codegen`。`protocol describe.inventory.skills[].triggerCondition` 与生成的 `_registry.md` 公开同一条件。

@@ -41,6 +41,75 @@ test("runtime diagnosis catches version drift and malformed installation state w
   }
 });
 
+test("all package notices deny version drift without borrowing another package's state", (t) => {
+  const base = workspace(t);
+  for (const [key, manifest] of Object.entries({kit: ".wl-skills-manifest.json", ui: ".wl-skills-ui-manifest.json", bd: ".wl-skills-bd-manifest.json", design: ".wl-skills-design/state.json", test: ".wl-skills-test/manifest.json"})) {
+    const options = {...base, packageName: `@agile-team/wl-skills-${key}`};
+    const file = path.join(options.projectRoot, manifest);
+    fs.mkdirSync(path.dirname(file), {recursive: true});
+    fs.writeFileSync(file, JSON.stringify({version: "old"}));
+    const record = core.attachNotice({status: "baseline", ready: true, scope: {status: "applicable"}}, options);
+    assert.equal(record.status, "gap", key);
+    assert.equal(record.ready, false, key);
+    assert.equal(record.notice.runtime.status, "mismatch", key);
+    assert.match(core.formatDecision(record), /版本对齐=mismatch/u);
+    fs.writeFileSync(file, JSON.stringify({version: options.packageVersion}));
+    assert.equal(core.attachNotice({status: "baseline", ready: true, scope: {status: "applicable"}}, options).ready, true, key);
+  }
+});
+
+test("readonly planning becomes stale before its first check while apply tasks permit their intended edits", (t) => {
+  const options = workspace(t);
+  const inspect = core.startTask({...options, ...routeOptions("检查页面"), runId: "inspect-first"});
+  const apply = core.startTask({...options, ...routeOptions("生成页面"), runId: "apply-edit"});
+  fs.appendFileSync(path.join(options.projectRoot, "src/page.vue"), "<!-- business edit -->\n");
+  assert.equal(core.readStatus({...options, runId: inspect.runId}).planStale, true);
+  assert.equal(core.readStatus({...options, runId: apply.runId}).planStale, false);
+  execute({...options, runId: apply.runId});
+  assert.equal(core.readStatus({...options, runId: apply.runId}).validationStatus, "passed");
+});
+
+test("external own dependency rules remain readable and fresh without authorizing foreign reads or writes", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, "package.json"), JSON.stringify({devDependencies: {[options.packageName]: options.packageVersion}}));
+  const dependency = fs.mkdtempSync(path.join(os.tmpdir(), "wl-own-dependency-"));
+  t.after(() => fs.rmSync(dependency, {recursive: true, force: true}));
+  fs.writeFileSync(path.join(dependency, "package.json"), JSON.stringify({name: options.packageName, version: options.packageVersion}));
+  fs.writeFileSync(path.join(dependency, "SKILL.md"), "rule v1");
+  fs.mkdirSync(path.join(options.projectRoot, "node_modules/@agile-team"), {recursive: true});
+  fs.symlinkSync(dependency, path.join(options.projectRoot, "node_modules", options.packageName));
+  const rule = `node_modules/${options.packageName}/SKILL.md`;
+  const selected = core.evaluateTask(routeOptions("生成页面"));
+  selected.requiredFiles = [rule];
+  const plan = core.startTask({...options, task: "生成页面", decision: selected});
+  assert.equal(plan.ruleSnapshot.files[0].path, rule);
+  assert.equal(core.doctorHost({...options, gatewayPath: rule, skillPaths: [rule], entryFiles: []}).entryReadiness, "ready");
+  assert.equal(core.readStatus({...options, runId: plan.runId}).planStale, false);
+  fs.writeFileSync(path.join(dependency, "SKILL.md"), "rule v2");
+  assert.equal(core.readStatus({...options, runId: plan.runId}).planStale, true);
+  assert.throws(() => core.captureSnapshot({...options, targets: [rule]}), /symlinks/u);
+  const foreign = fs.mkdtempSync(path.join(os.tmpdir(), "wl-not-own-dependency-"));
+  t.after(() => fs.rmSync(foreign, {recursive: true, force: true}));
+  fs.writeFileSync(path.join(foreign, "SKILL.md"), "foreign");
+  fs.symlinkSync(path.join(foreign, "SKILL.md"), path.join(dependency, "escape.md"));
+  assert.throws(() => core.startTask({...options, task: "生成页面", decision: {...selected, requiredFiles: [`node_modules/${options.packageName}/escape.md`]}}), /own dependency/u);
+  fs.symlinkSync(dependency, path.join(options.projectRoot, "node_modules/foreign"));
+  assert.throws(() => core.startTask({...options, task: "生成页面", decision: {...selected, requiredFiles: ["node_modules/foreign/SKILL.md"]}}), /escapes/u);
+  assert.deepEqual(fs.readdirSync(foreign), ["SKILL.md"]);
+});
+
+test("rule evidence shares a cumulative read budget across separate targets", (t) => {
+  const options = workspace(t);
+  for (const name of ["first.md", "second.md"]) fs.writeFileSync(path.join(options.projectRoot, name), Buffer.alloc(9 * 1024 * 1024, 97));
+  const plan = core.startTask({...options, task: "生成页面", decision: {...core.evaluateTask(routeOptions("生成页面")), requiredFiles: []}, ruleFiles: ["first.md", "second.md"]});
+  assert.equal(plan.ruleSnapshot.complete, false);
+  assert.equal(plan.ruleSnapshot.files.length, 1);
+  assert.deepEqual(plan.ruleSnapshot.omitted, [{path: "second.md", reason: "snapshot-budget"}]);
+  const receipt = execute({...options, runId: plan.runId, ruleFiles: ["first.md", "second.md"]});
+  assert.equal(receipt.validationStatus, "partial");
+  assert.equal(core.readStatus({...options, runId: plan.runId}).validationStatus, "partial");
+});
+
 function execute(options, attributes = {}) {
   const checkedFiles = (options.targets || []).filter((target) => {
     const file = path.resolve(options.projectRoot, target);
