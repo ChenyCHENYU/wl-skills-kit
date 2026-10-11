@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { spawnSync } = require("node:child_process");
 const args = process.argv.slice(2);
 const options = new Map();
 for (let index = 0; index < args.length; index++) {
@@ -30,11 +31,28 @@ const developmentFiles = { "scripts/compatibility-check.cjs": hash(fs.readFileSy
 const sourceRevision = `sha256:${hash(JSON.stringify({ files, developmentFiles }))}`;
 const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, source: "conformance/support", sourceRevision, contracts: { protocol: 1, resultCore: 1, executorInvoke: 1 }, files, developmentFiles }, null, 2) + "\n");
 const writes = [[path.join(source, "shared-support-manifest.json"), manifest]];
-function add(destination, sourceFile) { writes.push([destination, fs.readFileSync(sourceFile)]); }
-function addTree(destination, sourceDir) {
+const licenseSource = path.join(source, "vendor/jsonc-parser/LICENSE.md");
+function declaresGitLf(repo, file) {
+  const result = spawnSync("git", ["-C", repo, "check-attr", "-z", "text", "eol", "--", path.relative(repo, file)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  if (result.status !== 0) return false;
+  const fields = result.stdout.split("\0");
+  const attributes = {};
+  for (let index = 0; index + 2 < fields.length; index += 3) attributes[fields[index + 1]] = fields[index + 2];
+  return ["set", "auto"].includes(attributes.text) && attributes.eol === "lf";
+}
+// Only this license is eligible, and only under declared source/destination Git
+// text/LF policy. Preserve every other byte, including core snapshot hashes.
+const licenseSourceLf = declaresGitLf(path.resolve(__dirname, "../../.."), licenseSource);
+const licenseLf = bytes => Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
+function add(destination, sourceFile, repo) {
+  const normalizeLicense = sourceFile === licenseSource && licenseSourceLf && repo && declaresGitLf(repo, destination);
+  const bytes = fs.readFileSync(sourceFile);
+  writes.push([destination, normalizeLicense ? licenseLf(bytes) : bytes, normalizeLicense]);
+}
+function addTree(destination, sourceDir, repo) {
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
-    if (entry.isDirectory()) addTree(path.join(destination, entry.name), path.join(sourceDir, entry.name));
-    else add(path.join(destination, entry.name), path.join(sourceDir, entry.name));
+    if (entry.isDirectory()) addTree(path.join(destination, entry.name), path.join(sourceDir, entry.name), repo);
+    else add(path.join(destination, entry.name), path.join(sourceDir, entry.name), repo);
   }
 }
 for (const key of selected) {
@@ -46,7 +64,7 @@ for (const key of selected) {
   add(path.join(repo, "scripts/compatibility-check.cjs"), path.join(__dirname, "compatibility-check.cjs"));
   if (key !== "design") {
     add(path.join(directory, "shared-jsonc.cjs"), path.join(source, "shared-jsonc.cjs"));
-    addTree(path.join(directory, "vendor/jsonc-parser"), path.join(source, "vendor/jsonc-parser"));
+    addTree(path.join(directory, "vendor/jsonc-parser"), path.join(source, "vendor/jsonc-parser"), repo);
   }
   if (["kit", "ui"].includes(key)) add(path.join(directory, "atomic-write.cjs"), path.join(source, "atomic-write.cjs"));
   const schema = { kit: "files/.wl-skills/contracts/wl-api-contract.schema.json", bd: "files/.wl-skills-bd/schemas/collaboration-contract.schema.json", test: "files/.wl-skills-test/contracts/wl-api-contract.schema.json" }[key];
@@ -54,7 +72,11 @@ for (const key of selected) {
   const profile = { kit: "files/.wl-skills/contracts/wl-delivery-profile.v1.json", bd: "files/.wl-skills-bd/contracts/wl-delivery-profile.v1.json", design: "files/.github/contracts/wl-delivery-profile.v1.json" }[key];
   if (profile) add(path.join(repo, profile), path.join(source, "contracts/wl-delivery-profile.v1.json"));
 }
-const changed = writes.filter(([file, bytes]) => !fs.existsSync(file) || !fs.readFileSync(file).equals(bytes));
+const changed = writes.filter(([file, bytes, normalizeLicense]) => {
+  if (!fs.existsSync(file)) return true;
+  const actual = fs.readFileSync(file);
+  return !(normalizeLicense ? licenseLf(actual) : actual).equals(bytes);
+});
 if (check) {
   console.log(JSON.stringify({ ok: changed.length === 0, packages: selected, drift: changed.map(([file]) => file) }));
   process.exitCode = changed.length ? 1 : 0;
