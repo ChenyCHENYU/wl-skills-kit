@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +44,51 @@ afterEach(() => {
 });
 
 describe("MCP stdio server", () => {
+  it("MCP dispatch rejects non-string names and prototype members without tool records", () => {
+    const project = mkdtempSync(path.join(tmpdir(), "wl-kit-rpc-dispatch-"));
+    try {
+      const names = [null, true, 1, [], ["toString"], {}, "", " ", "toString", "constructor", "__proto__"];
+      const requests = names.map((name, id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: {} } }));
+      requests.push({ jsonrpc: "2.0", id: "method", method: "toString" }, { jsonrpc: "2.0", id: "alive", method: "ping" });
+      const called = spawnSync(process.execPath, [SERVER], { cwd: project, env: { ...process.env, WL_PROJECT_ROOT: project }, input: requests.map(value => JSON.stringify(value)).join("\n") + "\n", encoding: "utf8", timeout: 30000 });
+      expect(called.status).toBe(0);
+      const replies = called.stdout.trim().split("\n").map(line => JSON.parse(line));
+      expect(replies).toHaveLength(requests.length);
+      for (let index = 0; index < names.length; index++) expect(replies[index]).toMatchObject({ id: index, error: { code: index < 8 ? -32602 : -32601 } });
+      expect(replies.at(-2)).toMatchObject({ id: "method", error: { code: -32601 } });
+      expect(replies.at(-1)).toEqual({ jsonrpc: "2.0", id: "alive", result: {} });
+      expect(existsSync(path.join(project, ".wl-skills/runs"))).toBe(false);
+    } finally { rmSync(project, { recursive: true, force: true }); }
+  });
+
+  it("raw JSON-RPC rejects malformed envelopes before execution and replies to null IDs", () => {
+    const project = mkdtempSync(path.join(tmpdir(), "wl-kit-rpc-envelope-"));
+    try {
+      const invalid = [null, true, 12, "raw", [], {},
+        { jsonrpc: "1.0", id: 1, method: "ping" }, { jsonrpc: "2.0", id: 2 },
+        { jsonrpc: "2.0", id: false, method: "ping" }, { jsonrpc: "2.0", id: {}, method: "ping" },
+        { jsonrpc: "2.0", id: [], method: "ping" }, { jsonrpc: "2.0", id: 3, method: "ping", params: null },
+        { jsonrpc: "2.0", id: 4, method: "tools/call", params: false }];
+      const lines = [" ", "{", ...invalid.map((value) => JSON.stringify(value)),
+        JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
+        JSON.stringify({ jsonrpc: "2.0", method: "tools/list" }),
+        JSON.stringify({ jsonrpc: "2.0", id: null, method: "ping" }),
+        JSON.stringify({ jsonrpc: "2.0", id: "alive", method: "ping" })];
+      const called = spawnSync(process.execPath, [SERVER], { cwd: project, env: { ...process.env, WL_PROJECT_ROOT: project }, input: lines.join("\n") + "\n", encoding: "utf8", timeout: 30000 });
+      expect(called.status).toBe(0);
+      const replies = called.stdout.trim().split("\n").map((line) => JSON.parse(line));
+      expect(replies).toHaveLength(invalid.length + 3);
+      expect(replies[0]).toMatchObject({ jsonrpc: "2.0", id: null, error: { code: -32700 } });
+      for (let index = 0; index < invalid.length; index++) {
+        const invalidParams = index >= invalid.length - 2;
+        expect(replies[index + 1]).toMatchObject({ jsonrpc: "2.0", id: invalidParams ? invalid[index].id : null, error: { code: invalidParams ? -32602 : -32600 } });
+      }
+      expect(replies.at(-2)).toEqual({ jsonrpc: "2.0", id: null, result: {} });
+      expect(replies.at(-1)).toEqual({ jsonrpc: "2.0", id: "alive", result: {} });
+      expect(existsSync(path.join(project, ".wl-skills/runs"))).toBe(false);
+    } finally { rmSync(project, { recursive: true, force: true }); }
+  });
+
   it("同一项目的两个写工具调用按顺序执行", async () => {
     const descriptor = HANDLERS.wls_standard_env_apply;
     const original = descriptor.handle;
@@ -93,8 +140,9 @@ describe("MCP stdio server", () => {
     expect(dict.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
-      idempotentHint: true,
+      idempotentHint: false,
     });
+    expect(dict._meta.wl.businessIdempotent).toBe(true);
     expect(dict.outputSchema.required).toContain("state");
     const menu = response.result.tools.find((tool) => tool.name === "wls_menu_upsert");
     expect(menu.inputSchema.properties).toHaveProperty("planHash");
@@ -130,5 +178,17 @@ describe("MCP stdio server", () => {
     expect(invalid.error).toMatchObject({ code: -32602 });
     const ping = await server.call(6, "ping");
     expect(ping.result).toEqual({});
+  });
+  it.each([null, false, 0, []])("不把畸形 arguments %j 当默认空对象执行", async (arguments_) => {
+    const server = startServer();
+    const response = await server.call(7, "tools/call", { name: "wls_validate_page", arguments: arguments_ });
+    expect(response.error).toMatchObject({ code: -32602 });
+    expect(response.result).toBeUndefined();
+  });
+  it("分页不安全整数在启动原校验器前拒绝", async () => {
+    const server = startServer();
+    const response = await server.call(8, "tools/call", { name: "wls_validate_page", arguments: { offset: Number.MAX_SAFE_INTEGER + 1 } });
+    expect(response.error).toMatchObject({ code: -32602 });
+    expect(response.result).toBeUndefined();
   });
 });

@@ -36,7 +36,7 @@ describe("mcp/registry.js", () => {
     }
   });
 
-  it("字典发布声明结构化输出和非破坏性幂等提示", () => {
+  it("字典发布区分业务幂等和追加本包执行记录", () => {
     const tool = reg.TOOLS.find((item) => item.name === "wls_dict_upsert");
     expect(tool.inputSchema.anyOf).toBeUndefined();
     expect(tool.inputSchema.additionalProperties).toBe(false);
@@ -47,9 +47,10 @@ describe("mcp/registry.js", () => {
     expect(tool.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
-      idempotentHint: true,
+      idempotentHint: false,
       openWorldHint: true,
     });
+    expect(tool._meta.wl.businessIdempotent).toBe(true);
   });
 
   it("菜单和权限写工具统一要求 planHash 并声明结构化输出", () => {
@@ -79,31 +80,36 @@ describe("mcp/registry.js", () => {
     );
     for (const [name, profileName] of Object.entries(reg.TOOL_RISK_PROFILE)) {
       expect(reg.RISK_PROFILES, name).toHaveProperty(profileName);
-      expect(reg.annotationsFor(name), name).toBe(reg.RISK_PROFILES[profileName]);
+      const profile = reg.RISK_PROFILES[profileName], tool = reg.TOOLS.find((t) => t.name === name);
+      expect(tool._meta.wl.businessReadOnly, name).toBe(profile.readOnlyHint);
+      expect(tool._meta.wl.businessIdempotent, name).toBe(profile.idempotentHint);
+      expect(reg.annotationsFor(name), name).toEqual(tool.annotations);
     }
     expect(() => reg.annotationsFor("wls_future_unclassified")).toThrow(
       /缺少风险画像/,
     );
   });
 
-  it("旧项目字典引导只写本地、幂等且不访问外部系统", () => {
+  it("旧项目字典引导保留业务幂等，但记录本地执行且不访问外部系统", () => {
     const tool = reg.TOOLS.find((item) => item.name === "wls_dict_bootstrap");
     expect(tool.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
-      idempotentHint: true,
+      idempotentHint: false,
       openWorldHint: false,
     });
+    expect(tool._meta.wl.businessIdempotent).toBe(true);
   });
 
-  it("应用域查询声明只读，菜单删除声明破坏性", () => {
+  it("应用域查询仅业务只读并记录执行，菜单删除声明破坏性", () => {
     const domainQuery = reg.TOOLS.find((item) => item.name === "wls_domain_query");
     const menuDelete = reg.TOOLS.find((item) => item.name === "wls_menu_delete");
     expect(domainQuery.annotations).toMatchObject({
-      readOnlyHint: true,
+      readOnlyHint: false,
       destructiveHint: false,
-      idempotentHint: true,
+      idempotentHint: false,
     });
+    expect(domainQuery._meta.wl.businessReadOnly).toBe(true);
     expect(menuDelete.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,

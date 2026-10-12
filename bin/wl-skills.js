@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.32.0
+ * wl-skills-kit CLI v2.33.0
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -167,27 +167,8 @@ const EXAMPLE_SYNC_CONFIG = ".wl-skills/skills/sync/env.example.json";
 const PKG = require("../package.json");
 
 // ─── 已知命令 / 选项白名单（A1: 防止未知 flag 默认走 init 误装）──────────
-const KNOWN_COMMANDS = new Set([
-  "init",
-  "update",
-  "clean",
-  "check",
-  "diff",
-  "validate",
-  "validate-page",
-  "doctor-ui",
-  "export",
-  "mock-clean",
-  "fix",
-  "env",
-  "standard-env",
-  "contract",
-  "component",
-  "template",
-  "snapshot",
-  "scenario",
-  "task", "route", "explain", "status", "doctor-host", "protocol",
-]);
+const { COMMAND_CATALOG } = require("../lib/command-catalog");
+const KNOWN_COMMANDS = new Set(COMMAND_CATALOG.map((command) => command.name));
 const KNOWN_FLAGS = new Set([
   "--dry-run",
   "--keep-reports",

@@ -45,6 +45,28 @@ function excluded(result, expected, reason) {
 }
 
 for (const name of names) {
+  test(`${name}: adopted tool workspace requires actual project context and writes nothing`, (t) => {
+    const root = fixture(t);
+    json(root, "package.json", { private: true, workspaces: ["apps/*"], devDependencies: { [`@agile-team/wl-skills-${name}`]: "1.0.0" } });
+    const before = bytes(root);
+    excluded(request(root, name, {}), "needs-context", "workspace-project-type-needs-context");
+    assert.deepEqual(bytes(root), before);
+    const type = { kit: "pc", ui: "pc", bd: "backend", design: "documents", test: "testing" }[name];
+    json(root, ".wl-skills-scope.json", { schemaVersion: 1, projectType: type });
+    const { scope } = resolveScope({ projectRoot: root, packageName: `@agile-team/wl-skills-${name}` });
+    assert.equal(scope.status, "applicable");
+  });
+}
+test("Vue PC workspace is preserved; a pnpm tooling root is not automatically PC", (t) => {
+  const root = fixture(t);
+  json(root, "package.json", { workspaces: { packages: ["packages/*"] }, devDependencies: { vue: "3.4.0", "@agile-team/wl-skills-kit": "1.0.0" } });
+  assert.equal(resolveScope({ projectRoot: root, packageName: "@agile-team/wl-skills-kit" }).scope.status, "applicable");
+  json(root, "package.json", { devDependencies: { "@agile-team/wl-skills-kit": "1.0.0" } });
+  fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n");
+  assert.equal(resolveScope({ projectRoot: root, packageName: "@agile-team/wl-skills-kit" }).scope.status, "needs-context");
+});
+
+for (const name of names) {
   test(`${name}: unadopted PC project receives no rules or task writes`, (t) => {
     const root = fixture(t); json(root, "package.json", { name: "opensource", dependencies: { vue: "3.4.0" } });
     const before = bytes(root); excluded(request(root, name, {}), "not-applicable", "package-not-adopted-in-target-project");

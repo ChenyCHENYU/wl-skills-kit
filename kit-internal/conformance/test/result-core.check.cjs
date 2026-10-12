@@ -9,5 +9,5 @@ for(const [key,bin,helper] of [['kit','wl-skills','lib'],['ui','wl-ui','bin'],['
   const request = path.join(root,'input.json');fs.writeFileSync(request,JSON.stringify({operation,projectRoot:root,task:'只解释本包接入方式',...(operation === 'status' ? {runId:'not-created'} : {}),extraHint:'not-authorization'}));
   const envelope = run(['protocol','request','--input-file',request]);assert.equal(envelope.ok,true);assert.ok(validate(envelope.result.integration),JSON.stringify(validate.errors));assert.ok(envelope.diagnostics.some(d => d.includes('extraHint')));assert.deepEqual(envelope.result.integration.allowedExecutors,[]);
  }
- for(const entry of described.inventory.executors){assert.equal(entry.sideEffects.business,'none');assert.equal(entry.parameters.additionalProperties,false);assert.deepEqual(entry.parameters.required,['targets']);assert.ok(entry.command.every(v => typeof v === 'string'));}
+ for(const entry of described.inventory.executors){assert.equal(entry.sideEffects.business,'none');assert.equal(entry.parameters.additionalProperties,false);assert.deepEqual(entry.parameters.required,key === 'test' && entry.id === 'sit-verify' ? ['targets','phase'] : ['targets']);if(key === 'test' && entry.id === 'sit-verify')assert.deepEqual(entry.parameters.properties.phase.enum,['pre-sit','pre-uat']);assert.ok(entry.command.every(v => typeof v === 'string'));}
 });

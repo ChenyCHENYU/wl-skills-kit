@@ -19,6 +19,7 @@ const { withFileLock } = require("../lib/process-lock");
 const { loadConfig } = require("./config");
 const { TOOLS, HANDLERS } = require("./registry");
 const { validateSchema } = require("./schema-validator");
+const { validateRequest } = require("../lib/json-rpc-request.cjs");
 
 const PKG = require("../package.json");
 const SUPPORTED_PROTOCOL_VERSIONS = [
@@ -45,8 +46,17 @@ function sendError(id, code, message) {
 
 // ─── Tool 调度（auto-dispatch via HANDLERS）─────────────────────────────
 
+function invalidToolName(name) {
+  return typeof name !== "string" || !name.trim();
+}
+
+function registeredTool(name) {
+  return Object.hasOwn(HANDLERS, name) ? HANDLERS[name] : undefined;
+}
+
 async function dispatchTool(id, toolName, toolArgs) {
-  const desc = HANDLERS[toolName];
+  if (invalidToolName(toolName)) return sendError(id, -32602, "工具 name 必须是非空 string");
+  const desc = registeredTool(toolName);
   if (!desc) {
     sendError(id, -32601, `未知工具: ${toolName}`);
     return;
@@ -81,11 +91,16 @@ async function dispatchTool(id, toolName, toolArgs) {
   await executeTool(id, desc, toolArgs, configResult.config);
 }
 
+function beginToolExecution(desc, args, beginMcpTool) {
+  if (desc.name === "wls_validate_page" && args.resultCursor !== undefined) return null;
+  return beginMcpTool(desc, args);
+}
+
 async function executeTool(id, desc, toolArgs, config) {
   const { beginMcpTool, finishMcpTool } = require("../lib/task-integration");
   let execution;
   try {
-    execution = beginMcpTool(desc, toolArgs);
+    execution = beginToolExecution(desc, toolArgs, beginMcpTool);
     const handlerResult = await desc.handle(execution ? { ...toolArgs, runId: execution.metadata.runId } : toolArgs, config);
     const normalized = typeof handlerResult === "string"
       ? { text: handlerResult }
@@ -101,7 +116,8 @@ async function executeTool(id, desc, toolArgs, config) {
         return;
       }
     }
-    const evidence = finishMcpTool(execution, desc, normalized);
+    const evidence = finishMcpTool(execution, desc, normalized.validationResult
+      ? { structuredContent: normalized.validationResult, isError: !normalized.validationResult.ok } : normalized);
     sendResult(id, {
       content: [{ type: "text", text: normalized.text }],
       ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
@@ -135,7 +151,7 @@ function resolveToolConfig(desc) {
 
 function parseMessage(line) {
   const raw = line.trim();
-  if (!raw) return null;
+  if (!raw) return undefined;
   try {
     return JSON.parse(raw);
   } catch {
@@ -144,7 +160,7 @@ function parseMessage(line) {
       id: null,
       error: { code: -32700, message: "Parse error" },
     });
-    return null;
+    return undefined;
   }
 }
 
@@ -168,21 +184,18 @@ const PARAMLESS_HANDLERS = {
 
 const PARAM_HANDLERS = {
   initialize,
-  "tools/call": (id, params) => dispatchTool(id, params.name, params.arguments || {}),
+  "tools/call": (id, params) => dispatchTool(id, params.name, params.arguments === undefined ? {} : params.arguments),
 };
 
-function isRecord(value) {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 async function handleMessage(msg) {
-  const { id, method, params } = msg;
-  if (id === undefined || id === null) return;
-  const paramlessHandler = PARAMLESS_HANDLERS[method];
+  const checked = validateRequest(msg);
+  if (checked.error) return send(checked.error);
+  if (checked.notification) return;
+  const { id, method, params = {} } = checked.request;
+  const paramlessHandler = Object.hasOwn(PARAMLESS_HANDLERS, method) ? PARAMLESS_HANDLERS[method] : undefined;
   if (paramlessHandler) return paramlessHandler(id);
-  const paramHandler = PARAM_HANDLERS[method];
+  const paramHandler = Object.hasOwn(PARAM_HANDLERS, method) ? PARAM_HANDLERS[method] : undefined;
   if (!paramHandler) return sendError(id, -32601, `Method not found: ${method}`);
-  if (!isRecord(params)) return sendError(id, -32602, "参数校验失败: params 必须是 object");
   return paramHandler(id, params);
 }
 
@@ -190,7 +203,7 @@ function startServer() {
   const rl = readline.createInterface({ input: process.stdin, terminal: false });
   rl.on("line", async (line) => {
     const msg = parseMessage(line);
-    if (msg) await handleMessage(msg);
+    if (msg !== undefined) await handleMessage(msg);
   });
 
   rl.on("close", () => {

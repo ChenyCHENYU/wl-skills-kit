@@ -24,7 +24,7 @@ const selected = (option("--packages") || Object.keys(directories).join(",")).sp
 if (selected.some(key => !Object.hasOwn(directories, key))) throw new Error("--packages 必须指定 kit,ui,bd,design,test 中的包");
 const root = path.resolve(option("--root") || process.env.WL_PACKAGES_ROOT || path.resolve(__dirname, "../../../.."));
 const source = path.resolve(__dirname, "../support");
-const names = ["task-observability.cjs", "task-observability.schema.json", "integration-protocol.cjs", "project-scope.cjs", "project-scope.schema.json", "task-intent.cjs", "integration-result.cjs", "executor-invoke.cjs", "executor-process.cjs", "shared-support-check.cjs"];
+const names = ["task-observability.cjs", "task-observability.schema.json", "integration-protocol.cjs", "project-scope.cjs", "project-scope.schema.json", "task-intent.cjs", "integration-result.cjs", "executor-invoke.cjs", "executor-process.cjs", "json-rpc-request.cjs", "shared-support-check.cjs"];
 const hash = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 const files = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(path.join(source, name)))]));
 const developmentFiles = { "scripts/compatibility-check.cjs": hash(fs.readFileSync(path.join(__dirname, "compatibility-check.cjs"))) };

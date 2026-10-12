@@ -7,6 +7,8 @@ const https = require("https");
 const { runValidationCli } = require("../../lib/validation-client");
 const { resolveProjectPath } = require("../../lib/project-path");
 const { writeBlockReason } = require("../write-guard");
+const { createResultPages, checkedInteger, fitPage } = require("../result-pages.cjs");
+const validationPages = createResultPages();
 
 function getProjectRoot() {
   return process.env.WL_PROJECT_ROOT
@@ -123,43 +125,76 @@ function readPackageDeps(root) {
   }
 }
 
-function formatValidationResult(result, options = {}) {
-  const offset = options.offset || 0;
-  const limit = options.limit || 40;
-  const selected = result.issues.slice(offset, offset + limit);
-  const remaining = Math.max(0, result.issues.length - offset - selected.length);
+function displayIssue(issue) {
+  const text = Array.from(String(issue.text || ""));
+  return text.length > 400 ? { ...issue, text: `${text.slice(0, 400).join("")}…[truncated]`, detailsTruncated: true } : issue;
+}
+
+function displaySummary(summary) {
+  if (!Array.isArray(summary.checkedFiles)) return { ...summary };
+  return { ...summary, checkedFiles: summary.checkedFiles.slice(0, 5),
+    checkedFileCount: summary.checkedFiles.length, checkedFilesOmitted: Math.max(0, summary.checkedFiles.length - 5) };
+}
+
+function validationDisplayText(result, selected, remaining) {
   const lines = [
     `${result.ok ? "✅" : "❌"} 页面校验完成：${result.scanPath}`,
     `页面 ${result.summary.pages}；error ${result.summary.errors}；warn ${result.summary.warns}；共 ${result.issues.length} 项`,
   ];
-  for (const issue of selected) {
-    lines.push(`- [${issue.rule || issue.level}] ${issue.dir}: ${issue.text}`);
-  }
-  if (remaining > 0) lines.push(`还有 ${remaining} 项；传 offset=${offset + selected.length} 继续查看`);
+  for (const issue of selected) lines.push(`- [${issue.rule || issue.level}] ${issue.dir}: ${issue.text}`);
+  if (remaining > 0) lines.push(`还有 ${remaining} 项；使用 nextCursor 作为 resultCursor 读取原扫描快照；无游标时查看完整 CLI 工件`);
+  return lines.join("\n");
+}
+
+function validationDisplayContent(result, selected, offset, limit, remaining, snapshot) {
   return {
-    text: lines.join("\n"),
-    structuredContent: {
-      ok: result.ok,
-      state: result.ok ? "valid" : "invalid",
-      summary: result.summary,
-      totalIssues: result.issues.length,
-      offset,
-      limit,
-      truncated: remaining > 0,
-      issues: selected,
-      runId: result.runId,
-      executionStatus: result.executionStatus,
-      validationStatus: result.validationStatus,
-      receiptPath: result.receiptPath,
-    },
-    isError: !result.ok,
+    ok: result.ok, state: result.ok ? "valid" : "invalid", summary: displaySummary(result.summary),
+    totalIssues: result.issues.length, offset, limit, truncated: remaining > 0, issues: selected,
+    runId: result.runId, executionStatus: result.executionStatus, validationStatus: result.validationStatus,
+    receiptPath: result.receiptPath, displayOnly: true, snapshotAt: snapshot.snapshotAt,
+    snapshotExpiresAt: snapshot.expiresAt || null,
+    nextCursor: snapshot.id && remaining > 0 ? `${snapshot.id}:${offset + selected.length}` : null,
   };
+}
+
+function formatValidationResult(result, options = {}, snapshot = {}) {
+  const offset = options.offset || 0;
+  const limit = options.limit ?? 40;
+  const selected = result.issues.slice(offset, offset + limit).map(displayIssue);
+  const remaining = Math.max(0, result.issues.length - offset - selected.length);
+  return { text: validationDisplayText(result, selected, remaining),
+    structuredContent: validationDisplayContent(result, selected, offset, limit, remaining, snapshot), isError: !result.ok };
 }
 
 async function handleValidatePage(args = {}) {
   const root = getProjectRoot();
-  const result = await runValidationCli(root, args.path || "src/views", args.typecheck === true, args.runId);
-  return formatValidationResult(result, args);
+  const limit = checkedInteger(args.limit, 40, 1, 200, "limit");
+  const maxBytes = checkedInteger(args.maxBytes, 12000, 4096, 65536, "maxBytes");
+  let snapshot;
+  let result;
+  let offset;
+  if (args.resultCursor !== undefined) {
+    if (args.path !== undefined || args.typecheck !== undefined || args.offset !== undefined) throw new Error("游标续取不能重设 path/typecheck/offset，请仅传 resultCursor 与读取预算");
+    snapshot = validationPages.get(root, args.resultCursor);
+    ({ result } = snapshot.value);
+    if (args.runId !== undefined && args.runId !== result.runId) throw new Error("游标与原扫描 runId 不匹配");
+    ({ offset } = snapshot);
+  } else {
+    offset = checkedInteger(args.offset, 0, 0, Number.MAX_SAFE_INTEGER, "offset");
+    result = await runValidationCli(root, args.path || "src/views", args.typecheck === true, args.runId);
+    const value = { result, snapshotAt: new Date().toISOString() };
+    snapshot = { ...validationPages.put(root, value), value };
+  }
+  if (offset > result.issues.length) throw new Error("分页位置越界");
+  const available = Math.min(limit, result.issues.length - offset);
+  const payload = fitPage((count) => {
+    const value = formatValidationResult(result, { offset, limit: count }, { ...snapshot, snapshotAt: snapshot.value.snapshotAt });
+    return { ...value, page: { returned: count } };
+  }, available, maxBytes);
+  delete payload.page;
+  // The server records complete CLI facts; this non-enumerable field is never sent to the model.
+  Object.defineProperty(payload, "validationResult", { value: result });
+  return payload;
 }
 async function handleDoctorUi() {
   const root = getProjectRoot();

@@ -2,7 +2,7 @@
 
 > 项目范围：只对目标自身已接入且平台适用的项目判定规则；父工作区安装不启用子项目。移动端与未接入开源项目不套用。详见 [精准触发与范围配置](docs/project-scope.md)。
 
-**AI Skill 模板包 v2.32.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
+**AI Skill 模板包 v2.33.0** — 一键将 14 条规范、13 个 AI Skill、34 个 MCP Tool、独立 API 契约、编辑器配置和文档导入 Vue 3 项目。
 
 它把“理解需求、生成页面、校验代码、沉淀模板、同步菜单/字典/权限”拆成可验证、可组合的工程步骤。确定性工作交给 CLI、AST 和 MCP，AI 只处理需要语义判断的部分。
 
@@ -74,6 +74,10 @@ pnpm dlx @agile-team/wl-skills-kit@latest validate
 ```
 
 默认安全策略：只读能力可以自动执行；本地写入先预览或限定目标；菜单、字典、角色、授权等后端写入必须经过“查询 → 计划哈希 → 人工确认 → 写入 → 回查”。
+
+本轮公开命令目录与 CLI 准入共用单源 catalog；describe 包含实际 24 个命令（含兼容别名）及 MCP 的真实参数 Schema/annotations。`snapshot` 输出到 stdout，不宣称写快照文件。工具聚合 workspace 未确认实际 Vue/Java/显式项目类型时请求上下文，不借接入痕迹判为 PC 项目。
+
+MCP 在调度前校验 JSON-RPC 2.0 请求信封；畸形值、版本、方法、ID 或 params 返回协议错误且不生成工具回执。无 ID 的合法通知不应答，显式 `id: null` 的请求正常回复。
 
 ## 公开集成协议 v1
 
@@ -175,7 +179,7 @@ wl-skills contract compare --left contracts/mdm-task.json \
 
 **v2.22.2**：收紧校验与发布闭环。
 
-- `validate --pre-commit` 覆盖暂存的 JSON 契约、场景源和删除；校验依赖有未暂存或未跟踪改动时阻断。`validate --json` 与 MCP `wls_validate_page` 使用同一规则，MCP 默认返回前 40 个问题，可用 `offset`/`limit` 续取。
+- `validate --pre-commit` 覆盖暂存的 JSON 契约、场景源和删除；校验依赖有未暂存或未跟踪改动时阻断。`validate --json` 与 MCP `wls_validate_page` 使用同一规则，MCP 默认每页最多 40 个问题、12,000 UTF-8 字节，使用 `nextCursor` → `resultCursor` 读取原扫描快照，无新增扫描/回执；旧 offset 请求仍执行 CLI。详见 [结果阅读边界](docs/result-reading.md)。
 - Mock 端点精确匹配；场景渲染中途失败会回滚；Blueprint、快照和场景源读取拒绝项目外符号链接。MCP 快照默认返回前 40 页，可指定 `limit`。
 
 **v2.22.0**：业务生成防漏闭环——把近期项目暴露的共性缺陷收敛为 page-spec 机器契约。
@@ -618,7 +622,7 @@ wl-skills scenario from-spec --input page-spec.json --service sale --resource cu
 `extract` / `from-spec` 对已有输出文件也需加 `--force`。所有输入和输出路径须位于当前项目内。
 
 性能/算力（`node scripts/benchmark-scenario.js` 实测）：单页 render ~0.5ms、批量 20 页 ~8ms、
-**模型 token 0**（vs AI 主流程每页输入 ~2 万 + 输出 ~3.5 千 token）；同一 JSON 字节级复现，
+**渲染脚本不调用模型 API**；AI 主流程每页输入约 2 万、输出约 3.5 千 token 是启发式估算，宿主调用与真实计费另计。同一 JSON 字节级复现，
 `tests/scenario-benchmark.test.js` 锁定量级承诺。防漂移：render 自动写入 `scenarioRef`，
 `wl-skills validate` 内置 W1 逐字节核对，手改产物提交即拦截。
 
@@ -1002,4 +1006,8 @@ UNLICENSED — 仅限团队内部使用。
 
 单包只读取自身公开能力；多包复用同 runId 并各存各的证据。`matched/ready/ok=true` 仅说明判定或调用成功，是否完成以实际 `executionStatus/validationStatus/checkedFiles` 为准。未接入或不适用的项目不借父目录规则；宿主发现、模型读取、反馈展示没有真实证据时继续标记未验证。
 
+规范和 canonical Skill 必须是可读文件，目录占位不能证明已安装。AST 的 `AST_PARSE` 表示 SFC、脚本或 data.ts 的实际解析失败，Vite 构建会中止；它不替代项目类型检查或完整业务验证。
+
 维护边界、结构化执行和防漂移验收：[维护契约](docs/maintenance-contract.md)。
+
+MCP 公开注解区分业务读写与本包记录：除 route/explain/status/doctor-host 外，工具仍会写任务或执行回执；业务幂等属性在 _meta.wl.businessIdempotent 保留，追加记录不冒称纯只读或整体幂等。

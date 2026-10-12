@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.33.0] — 2026-10-13
+
+- MCP 调度前统一校验 JSON-RPC 2.0 请求信封，拒绝畸形值/版本/方法/ID/params 且不生成执行回执；区分无 ID 通知与显式 null ID 请求，修正 JSON null 被消息循环吞掉的问题。
+- MCP 公开注解区分业务读写与本包记录：除 route/explain/status/doctor-host 外，工具仍会写任务或执行回执；业务幂等属性在 _meta.wl.businessIdempotent 保留，追加记录不冒称纯只读或整体幂等。
+
+- 公开 CLI 能力目录与真实命令准入单源，补齐 24 个命令/兼容别名，MCP 参数与注解从实际 registry 派生；纠正 snapshot 只读副作用。
+- 公共范围层识别纯工具聚合 workspace 的上下文缺口，保留真实 Vue monorepo、显式平台与移动端/未接入项目边界。
+
+- canonical Skill/规范就绪检查要求可读文件；目录占位返回 asset gap，route 保持只读。MCP 不再把 null/false 等畸形 arguments 当默认空参数执行。
+- AST 检查保留 SFC、脚本和 data.ts 的实际解析错误，返回独立 AST_PARSE 失败；Vite 构建据此中止，缓存和回执不再将未能解析的页面记成通过。
+- MCP 增加 resultCursor 原扫描快照续取和 UTF-8 读取预算；分页不重新扫描、不新增检查回执，保留完整检查事实与原判定。
+- 快照绑定项目与原 runId，固定有效期和内存总量限制；越界/过期游标明确失败。历史阅读标记 displayOnly，修复复验须重新检查。
+- 同步 README 与结果阅读文档；本次发版不自动升级业务项目。
+
 ## [2.32.0] — 2026-10-11
 
 - 协议参数校验运行依赖固定升级 Ajv 8.20.0，消除 GHSA-2g4f-4pwh-qvx6 已知版本风险；保留共享 Schema 与未受影响的依赖版本。

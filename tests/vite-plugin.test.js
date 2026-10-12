@@ -24,6 +24,42 @@ function logger() {
 }
 
 describe("Vite actually invokes the kit guard", () => {
+  it.each([
+    ["ts", "const value = <string>'valid';", "export const value = <string>'valid';"],
+    ["tsx", "const value = <div/>;", "export const value = 'valid';"],
+  ])("respects %s script syntax instead of blocking valid source", async (language, source, data) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "kit-vite-language-"));
+    fixtures.push(root);
+    const page = path.join(root, "src/views/Valid");
+    fs.mkdirSync(page, { recursive: true });
+    fs.writeFileSync(path.join(page, "index.vue"), `<template><div/></template><script setup lang="${language}">${source}</script>`);
+    fs.writeFileSync(path.join(page, "data.ts"), data);
+    const result = astRules.runAstRules(root, "src/views", { cache: false });
+    expect(result.issues.some((issue) => issue.rule === "AST_PARSE")).toBe(false);
+    await resolveConfig({ root, configFile: false, customLogger: logger(), plugins: [wlSkillsPlugin({ persist: false })] }, "build");
+  });
+  it.each([
+    ["malformed template", '<template><div><p></div></template>', "export const valid = 1;"],
+    ["fatal script syntax", '<template><div/></template><script setup>const broken = ;</script>', "export const valid = 1;"],
+    ["recoverable data syntax", '<template><div/></template>', "let duplicate; let duplicate;"],
+  ])("blocks %s through the real Vite callback and records AST failure", async (_label, source, data) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "kit-vite-syntax-"));
+    fixtures.push(root);
+    const page = path.join(root, "src/views/Bad");
+    fs.mkdirSync(page, { recursive: true });
+    fs.writeFileSync(path.join(page, "index.vue"), source);
+    fs.writeFileSync(path.join(page, "data.ts"), data);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const result = astRules.runAstRules(root, "src/views");
+    expect(result.issues.some((issue) => issue.rule === "AST_PARSE" && issue.level === "error")).toBe(true);
+    await expect(resolveConfig({ root, configFile: false, customLogger: logger(), plugins: [wlSkillsPlugin({ runId: "syntax-failure" })] }, "build")).rejects.toThrow("构建已中断");
+    const { core, taskOptions, validationFacts } = require("../lib/task-integration");
+    const status = core.readStatus(taskOptions(root, { runId: "syntax-failure" }));
+    expect(status.tools[0].validationStatus).toBe("failed");
+    expect(status.tools[0].checks.find((check) => check.id === "ast").status).toBe("failed");
+    const facts = validationFacts({ pages: result.pages, astPages: result.pages, astAvailable: true }, result.issues);
+    expect(facts.checks.find((check) => check.id === "ast").status).toBe("failed");
+  });
   it("records the actual AST executor's Vue/data/style scope through a real Vite configuration", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "kit-vite-ast-"));
     fixtures.push(root);

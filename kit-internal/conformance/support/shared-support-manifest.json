@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "conformance/support",
-  "sourceRevision": "sha256:01fd34623e8641d867d4f95eb4ef115ebc2be8900b3589736d9b0b01aff214e0",
+  "sourceRevision": "sha256:393519d63e1bc8afdf9e8d7d2504ce3f764021ff892a1022fcf40b5ca038af42",
   "contracts": {
     "protocol": 1,
     "resultCore": 1,
@@ -11,12 +11,13 @@
     "task-observability.cjs": "5a042f28604e5bff3f9c20ad0f69c225bfafc336c35bc95e49cc8311712d0376",
     "task-observability.schema.json": "fd66fd710d529fadf1a523b9e57a8380bc5f3edfc9eb93479e55b3744fef55de",
     "integration-protocol.cjs": "6856d674526121010bbc5a0348306f9f3374819ec3cb6bb75eb8f305484d535c",
-    "project-scope.cjs": "bf3d4448407ceb84bb33576438f65fce342477a975dcfcfde1963d47af7282c0",
+    "project-scope.cjs": "9867a8c53a4f8719cadaa46a9682c418975244902a65ae8a6cdf7a85652ffdbf",
     "project-scope.schema.json": "05512ab16189a7beaafc12d6a85ebd1b4784f1c199888fff68d556becb15f42f",
     "task-intent.cjs": "b603a5115fd9d2718b5d4edc7459c5b9c23eb9a95a0cd1089a242fd0e77e787a",
     "integration-result.cjs": "56370e200bb78c7ec0ad577dcc76e28490f271d9cc78bfaa314dbd863fd0b57c",
     "executor-invoke.cjs": "e06c71317f80e3c0647aa0c46ecc89a44f0b621a2b6320353e526f754f33104e",
     "executor-process.cjs": "cceff60e2896947becbd86a364c96b94c4dab7c47a1bd90e6d4837a442e543ce",
+    "json-rpc-request.cjs": "ecc688629a0c817d30d836193617f9ed43c1e51836e263adab9ed0d0efb3a699",
     "shared-support-check.cjs": "a3a6fae30ae93f8dbd0f6cab3f871cc0f61a6611a72c9c8d330423ab3f66dc66"
   },
   "developmentFiles": {

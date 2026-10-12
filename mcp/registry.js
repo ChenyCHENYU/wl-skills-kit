@@ -639,8 +639,10 @@ const DESCRIPTORS = [
           description:
             "是否额外执行 vue-tsc/tsc --noEmit 类型检查（K14，体积较大，CI 场景开启）",
         },
-        offset: { type: "integer", minimum: 0, description: "问题列表起点，默认 0" },
+        offset: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER, description: "旧问题列表起点，默认 0；每次仍校验，原快照续取使用 resultCursor" },
         limit: { type: "integer", minimum: 1, maximum: 200, description: "本次最多返回的问题数，默认 40" },
+        resultCursor: { type: "string", pattern: "^[a-f0-9]{32}:[0-9]+$", description: "读取同进程原扫描快照，不重新扫描；使用 structuredContent.nextCursor" },
+        maxBytes: { type: "integer", minimum: 4096, maximum: 65536, description: "返回 payload 字节预算，默认 12000；不含 JSON-RPC/宿主元信息" },
       },
       required: [],
     },
@@ -877,7 +879,17 @@ function annotationsFor(name) {
   const profileName = TOOL_RISK_PROFILE[name];
   const profile = RISK_PROFILES[profileName];
   if (!profile) throw new Error(`[mcp/registry] 工具缺少风险画像: ${name}`);
-  return profile;
+  // Non-routing calls persist an execution receipt, even when their business action is read-only.
+  const descriptor = DESCRIPTORS.find((tool) => tool.name === name);
+  return descriptor?.observabilityAction ? profile : { ...profile, readOnlyHint: false, idempotentHint: false };
+}
+
+function effectMetadata(descriptor) {
+  const businessReadOnly = RISK_PROFILES[TOOL_RISK_PROFILE[descriptor.name]].readOnlyHint;
+  const records = descriptor.observabilityAction ? descriptor.name === "wls_task" : true;
+  return { wl: { businessReadOnly, businessIdempotent: RISK_PROFILES[TOOL_RISK_PROFILE[descriptor.name]].idempotentHint, recordsOwnReceipt: records,
+    sideEffects: records ? `${businessReadOnly ? "业务输入只读；" : "按工具原写入/确认边界；"}写本包任务计划或执行回执；resultCursor 续取只读已扫描结果`
+      : "无写入；不证明宿主已加载或执行检查" } };
 }
 
 for (const descriptor of DESCRIPTORS) {
@@ -892,6 +904,7 @@ const TOOLS = DESCRIPTORS.map((d) => ({
   description: d.description,
   inputSchema: d.inputSchema,
   annotations: annotationsFor(d.name),
+  _meta: effectMetadata(d),
   ...(d.outputSchema ? { outputSchema: d.outputSchema } : {}),
 }));
 

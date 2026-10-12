@@ -48,6 +48,20 @@ describe("kit real task evidence", () => {
       expect(decision.gaps.length).toBeGreaterThan(0);
     }
   });
+  it("treats a directory at the selected Skill path as an asset gap without recording a route", () => {
+    const root = fixture();
+    expect(run(root, ["init"]).status).toBe(0);
+    const initial = JSON.parse(run(root, ["route", "创建页面", "--json"]).stdout);
+    const asset = initial.requiredFiles.find((file) => file.endsWith("/SKILL.md"));
+    fs.unlinkSync(path.join(root, asset));
+    fs.mkdirSync(path.join(root, asset));
+    const decision = JSON.parse(run(root, ["route", "创建页面", "--json"]).stdout);
+    expect(decision.routingStatus).toBe("matched");
+    expect(decision.status).toBe("gap");
+    expect(decision.ready).toBe(false);
+    expect(decision.missingInputs).toContain(asset);
+    expect(fs.existsSync(path.join(root, ".wl-skills/runs"))).toBe(false);
+  });
   it("routes ordinary changes to baseline, explicit generation to its Skill, and unrelated work outside the domain", () => {
     const root = fixture();
     fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
