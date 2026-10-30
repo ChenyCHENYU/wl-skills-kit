@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.29.0
+ * wl-skills-kit CLI v2.29.1
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1860,42 +1860,72 @@ function findMockFiles() {
 function addDictsUnder(root, result) {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return;
   for (const rel of walkDir(root, root)) {
-    if (path.basename(rel) === "dicts.ts") result.add(path.join(root, rel));
+    if (path.basename(rel) === "dicts.ts") result.add(resolveProjectPath(TARGET_DIR, path.join(root, rel)));
   }
 }
 
-function findRelevantDictContracts(scanPath) {
+function findRelevantDictContracts(scanPath, { descendants = true } = {}) {
   const result = new Set();
   const viewsRoot = path.join(TARGET_DIR, "src", "views");
-  let scanRoot = path.resolve(TARGET_DIR, scanPath);
+  let scanRoot = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
   if (fs.existsSync(scanRoot) && fs.statSync(scanRoot).isFile()) scanRoot = path.dirname(scanRoot);
-  addDictsUnder(scanRoot, result);
+  if (descendants) addDictsUnder(scanRoot, result);
   let cursor = scanRoot;
-  while (cursor.startsWith(viewsRoot) && cursor.length >= viewsRoot.length) {
+  while (isPathWithin(path.relative(TARGET_DIR, cursor), "src/views")) {
     const candidate = path.join(cursor, "dicts.ts");
-    if (fs.existsSync(candidate)) result.add(candidate);
+    if (fs.existsSync(candidate)) result.add(resolveProjectPath(TARGET_DIR, candidate));
     if (cursor === viewsRoot) break;
     cursor = path.dirname(cursor);
   }
   return Array.from(result).sort();
 }
 
-function appendDictionaryContractIssues(issues, scanPath) {
-  const files = findRelevantDictContracts(scanPath);
+/** Contract edits affect their owning module; other staged files only inherit ancestor contracts. */
+function stagedDictionaryRoots(stagedFiles) {
+  const roots = new Set();
+  for (const file of stagedFiles.filter((file) => /\/(?:dicts\.ts|api\.md)$/.test(file))) {
+    roots.add(path.dirname(file).replace(/\\/g, "/"));
+    for (const contract of findRelevantDictContracts(file)) {
+      roots.add(path.relative(TARGET_DIR, path.dirname(contract)).replace(/\\/g, "/"));
+    }
+  }
+  return [...roots];
+}
+
+function validationDictionaryFiles(scanPath, pages, stagedSet, validationConfig) {
+  const stagedFiles = stagedSet ? [...stagedSet] : [];
+  if (!preCommit || !stagedSet || globallyRelevantStaged(stagedFiles, validationConfig)) {
+    return findRelevantDictContracts(scanPath);
+  }
+  const result = new Set(pages.flatMap((page) => findRelevantDictContracts(page.dir)));
+  for (const file of stagedFiles.filter((file) => isPathWithin(file, scanPath))) {
+    const descendants = /\/(?:dicts\.ts|api\.md)$/.test(file);
+    for (const contract of findRelevantDictContracts(file, { descendants })) result.add(contract);
+    // Keep a deleted contract in scope when the owning module still exists.
+    if (file.endsWith("/dicts.ts") && fs.existsSync(path.join(TARGET_DIR, path.dirname(file)))) {
+      result.add(resolveProjectPath(TARGET_DIR, file));
+    }
+  }
+  return [...result].sort();
+}
+
+function appendDictionaryReferenceIssues(issues, file, dir) {
+  try {
+    const references = validateDictionaryReferences(path.dirname(file), { projectRoot: TARGET_DIR });
+    for (const text of references.errors) issues.push({ level: "error", dir, text, rule: "D2" });
+    for (const text of references.warnings) issues.push({ level: "warn", dir, text, rule: "D2" });
+  } catch (error) {
+    issues.push({ level: "error", dir, text: error.message, rule: "D2" });
+  }
+}
+
+function appendDictionaryContractIssues(issues, files) {
   for (const file of files) {
     const result = validateContractAlignment(path.dirname(file));
     const dir = path.relative(TARGET_DIR, file).replace(/\\/g, "/");
     for (const text of result.errors) issues.push({ level: "error", dir, text, rule: "D1" });
     for (const text of result.warnings) issues.push({ level: "warn", dir, text, rule: "D1" });
-    const references = validateDictionaryReferences(path.dirname(file), {
-      projectRoot: TARGET_DIR,
-    });
-    for (const text of references.errors) {
-      issues.push({ level: "error", dir, text, rule: "D2" });
-    }
-    for (const text of references.warnings) {
-      issues.push({ level: "warn", dir, text, rule: "D2" });
-    }
+    appendDictionaryReferenceIssues(issues, file, dir);
   }
   return files.length;
 }
@@ -1968,8 +1998,7 @@ function stagedTouchesPage(stagedFiles, page) {
 }
 
 function globallyRelevantStaged(stagedFiles, validationConfig) {
-  if (stagedFiles.some((file) => file === ".wl-skills-validate.json"
-    || file.endsWith("/dicts.ts") || file.endsWith("/api.md"))) return true;
+  if (stagedFiles.includes(".wl-skills-validate.json")) return true;
   return Array.from(validationConfig.definitionValidators.keys()).some((source) =>
     stagedFiles.some((file) => isPathWithin(file, source)));
 }
@@ -1978,7 +2007,9 @@ function selectValidationPages(allPages, stagedSet, validationConfig) {
   if (!preCommit || !stagedSet) return allPages;
   const stagedFiles = Array.from(stagedSet);
   if (globallyRelevantStaged(stagedFiles, validationConfig)) return allPages;
-  return allPages.filter((page) => stagedTouchesPage(stagedFiles, page));
+  const dictionaryRoots = stagedDictionaryRoots(stagedFiles);
+  return allPages.filter((page) => stagedTouchesPage(stagedFiles, page)
+    || dictionaryRoots.some((root) => isPathWithin(page.dir, root)));
 }
 
 /**
@@ -1998,8 +2029,9 @@ function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig,
   return allPages.some((page) => stagedTouchesPage(stagedFiles, page));
 }
 
-function rejectDirtyValidationInputs(pages, validationConfig) {
-  if (!preCommit || validationUnstaged.size === 0 || pages.length === 0) return false;
+function rejectDirtyValidationInputs(pages, validationConfig, dictionaryFiles) {
+  if (!preCommit || validationUnstaged.size === 0) return false;
+  const dictionaryRoots = dictionaryFiles.map((file) => path.relative(TARGET_DIR, path.dirname(file)));
   const dependencies = new Set([".wl-skills-validate.json", "package.json"]);
   for (const page of pages) {
     const source = scenarioSourceForPage(page);
@@ -2009,7 +2041,8 @@ function rejectDirtyValidationInputs(pages, validationConfig) {
   const dirty = Array.from(validationUnstaged).filter((file) => {
     if (dependencies.has(file)) return true;
     if (validationConfig.mockPolicy !== "disabled" && isPathWithin(file, "mock")) return true;
-    return pages.some((page) => isPathWithin(file, page.dir));
+    return pages.some((page) => isPathWithin(file, page.dir))
+      || dictionaryRoots.some((root) => isPathWithin(file, root));
   });
   if (dirty.length === 0) return false;
   console.error("  ✖ 本次校验会读取未暂存或未跟踪的文件，结果与提交内容不一致：");
@@ -2458,7 +2491,7 @@ function handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPa
   return true;
 }
 
-function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig) {
+function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig, dictionaryFiles) {
   const issues = [];
   const mockFiles = validationConfig.mockPolicy === "disabled" ? [] : findMockFiles();
   const mockEndpoints = collectMockEndpoints(TARGET_DIR, mockFiles);
@@ -2474,7 +2507,7 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
     sourceFiles: preCommit && stagedSet ? Array.from(stagedSet) : undefined,
   });
   issues.push(...componentResult.issues);
-  const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
+  const dictContractCount = appendDictionaryContractIssues(issues, dictionaryFiles);
   const astResult = runValidationAst(issues, scanPath, stagedSet, pageFiles.hasSymlink ? undefined : pageFiles);
   const specResult = appendSpecIssues(issues, pages);
   const definitionValidators = appendDefinitionValidatorIssues(
@@ -2544,6 +2577,11 @@ function runValidate() {
   }
 }
 
+function validationPageFiles(scanPath) {
+  const scanDir = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
+  return fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
+}
+
 function runValidatePipeline() {
   const scanPath = validationScanPath();
   const jsonOutput = args.includes("--json");
@@ -2552,17 +2590,17 @@ function runValidatePipeline() {
   if (preCommit && stagedSet === undefined) return;
   if (rejectBrokenPageEntrypoints(stagedSet)) return;
   const validationConfig = loadValidationConfig(TARGET_DIR);
-  const scanDir = resolveProjectPath(TARGET_DIR, scanPath, { allowRoot: true });
-  const pageFiles = fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
+  const pageFiles = validationPageFiles(scanPath);
   const allPages = scanPageDirs(scanPath, validationConfig, pageFiles);
   const pages = selectValidationPages(allPages, stagedSet, validationConfig);
-  if (rejectDirtyValidationInputs(pages, validationConfig)) return;
+  const dictionaryFiles = validationDictionaryFiles(scanPath, pages, stagedSet, validationConfig);
+  if (rejectDirtyValidationInputs(pages, validationConfig, dictionaryFiles)) return;
   if (!jsonOutput) printValidationHeader(scanPath);
-  if (pages.length === 0) {
+  if (pages.length === 0 && dictionaryFiles.length === 0) {
     reportEmptyValidation(scanPath, jsonOutput, stagedSet, validationConfig, allPages);
     return;
   }
-  const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig);
+  const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig, dictionaryFiles);
   recordValidation(summary, issues);
   if (jsonOutput && !preCommit) return reportJsonValidation(scanPath, summary, issues);
   const errors = countValidationIssues(issues, "error");
