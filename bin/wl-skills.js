@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.33.3
+ * wl-skills-kit CLI v2.33.4
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -572,12 +572,9 @@ function isReportFile(relPath) {
 // ─── 编辑器配置生成（规则薄壳 + 原生 Skill 发现适配器）──────────────────
 
 function getEditorConfigs(raw) {
-  try {
-    return buildEditorConfigs(FILES_DIR, raw);
-  } catch (error) {
-    console.warn("  ⚠ 多 AI 编辑器配置生成失败：" + error.message);
-    return [];
-  }
+  // init、update 与独立 diff 共用生成入口，失败必须停止，不能以空集规划残留清理。
+  loadInstallEngines();
+  return buildEditorConfigs(FILES_DIR, raw);
 }
 
 // ─── 命令: init / update ────────────────────────────────────────────────
@@ -1136,7 +1133,6 @@ function preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationP
 }
 
 function runInstall(incremental) {
-  loadInstallEngines();
   const label = incremental ? "update" : "init";
   printInstallHeader(label);
   if (!fs.existsSync(FILES_DIR)) {

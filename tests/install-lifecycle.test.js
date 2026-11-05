@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { extractBlock } = require("../lib/managed-markdown");
+const { buildEditorConfigs } = require("../lib/editor-adapters");
 const root = path.resolve(import.meta.dirname, "..");
 const fixtures = [];
 const md5 = (text) => crypto.createHash("md5").update(text).digest("hex");
@@ -16,9 +17,39 @@ function fixture() {
   fixtures.push(dir);
   return dir;
 }
-function run(dir, args) {
-  const result = spawnSync(process.execPath, [path.join(root, "bin/wl-skills.js"), ...args], { cwd: dir, encoding: "utf8", timeout: 30000 });
+function run(dir, args, preload) {
+  const options = preload ? ["--require", preload] : [];
+  const result = spawnSync(process.execPath, [...options, path.join(root, "bin/wl-skills.js"), ...args], { cwd: dir, encoding: "utf8", timeout: 30000 });
   return result;
+}
+function diskSnapshot(dir) {
+  const snapshot = {};
+  function visit(directory) {
+    const stat = fs.statSync(directory);
+    snapshot[path.relative(dir, directory) || "."] = { directory: true, mode: stat.mode, mtime: stat.mtimeMs };
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else {
+        const stat = fs.statSync(file);
+        snapshot[path.relative(dir, file)] = { mode: stat.mode, mtime: stat.mtimeMs, hash: md5(fs.readFileSync(file)) };
+      }
+    }
+  }
+  visit(dir);
+  return snapshot;
+}
+function failingEditorPreload(mode) {
+  const preload = path.join(fixture(), "inject-editor-failure.cjs");
+  fs.writeFileSync(preload, `const Module = require("node:module");
+const original = Module._load;
+Module._load = function (request, ...args) {
+  if (request !== "../lib/editor-adapters") return original.call(this, request, ...args);
+  if (${JSON.stringify(mode)} === "load") throw new Error("Injected editor adapter load failure");
+  const adapters = original.call(this, request, ...args);
+  return { ...adapters, buildEditorConfigs() { throw new Error("Injected editor config generation failure"); } };
+};\n`);
+  return preload;
 }
 function failingPreload(dir, basename) {
   const preload = path.join(dir, "inject-write-failure.cjs");
@@ -40,6 +71,71 @@ fs.writeFileSync = function (file, ...args) {
 afterEach(() => fixtures.splice(0).forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
 
 describe("kit shared install lifecycle", () => {
+  it("diff in a fresh process includes every editor entry and performs zero disk writes", () => {
+    const dir = fixture();
+    expect(run(dir, ["init"]).status).toBe(0);
+    const before = diskSnapshot(dir);
+    const result = run(dir, ["diff"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).not.toMatch(/buildEditorConfigs|配置生成失败/);
+    expect(output).toMatch(/旧版残留: 0(?:\r?\n|$)/);
+    expect(diskSnapshot(dir)).toEqual(before);
+  });
+
+  it("normal update from a 2.33.1 manifest preserves native entries, team routers and business WIP", () => {
+    const dir = fixture();
+    const agents = path.join(dir, "AGENTS.md");
+    const foreign = "# Team instructions  \r\n\r\n<!-- wl-skills-ui:begin -->\r\nKeep UI router. \t\r\n<!-- wl-skills-ui:end -->\r\n";
+    fs.writeFileSync(agents, foreign);
+    expect(run(dir, ["init"]).status).toBe(0);
+    const wip = path.join(dir, "src/views/produce/local-work.ts");
+    fs.mkdirSync(path.dirname(wip), { recursive: true });
+    const work = Buffer.from('export const pending = "业务草稿";  \r\n// uncommitted WIP\r\n');
+    fs.writeFileSync(wip, work);
+    const filesDir = path.join(root, "files");
+    const entry = fs.readFileSync(path.join(filesDir, ".github/copilot-instructions.md"), "utf8");
+    const nativePaths = buildEditorConfigs(filesDir, entry).map(([file]) => file === ".clinerules" ? ".clinerules/wl-skills-kit.md" : file);
+    expect(nativePaths).toContain("AGENTS.md");
+    expect(nativePaths).toContain(".agents/skills/wl-skills-kit/SKILL.md");
+    const originals = Object.fromEntries(nativePaths.map(file => [file, fs.readFileSync(path.join(dir, file))]));
+    const manifestPath = path.join(dir, ".wl-skills-manifest.json");
+    const old = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    old.version = "2.33.1";
+    fs.writeFileSync(manifestPath, JSON.stringify(old));
+    const result = run(dir, ["update"]);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    const updated = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    for (const file of nativePaths) {
+      expect(updated.files[file], file).toBeDefined();
+      expect(fs.readFileSync(path.join(dir, file)), file).toEqual(originals[file]);
+    }
+    expect(fs.readFileSync(agents, "utf8").startsWith(foreign)).toBe(true);
+    expect(fs.readFileSync(wip)).toEqual(work);
+  });
+
+  it.each([
+    { command: "diff", mode: "load", message: "Injected editor adapter load failure" },
+    { command: "update", mode: "load", message: "Injected editor adapter load failure" },
+    { command: "diff", mode: "generate", message: "Injected editor config generation failure" },
+    { command: "update", mode: "generate", message: "Injected editor config generation failure" },
+  ])("$command fails closed without writes when editor adapters fail at $mode", ({ command, mode, message }) => {
+    const dir = fixture();
+    expect(run(dir, ["init"]).status).toBe(0);
+    const manifestPath = path.join(dir, ".wl-skills-manifest.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    manifest.version = "2.33.1";
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+    const preload = failingEditorPreload(mode);
+    const before = diskSnapshot(dir);
+    const result = run(dir, [command], preload);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).not.toBe(0);
+    expect(output).toContain(message);
+    expect(output).not.toMatch(/旧版残留:|update 会迁移清理|清理: \d+ 个未修改的旧版受管文件/);
+    expect(diskSnapshot(dir)).toEqual(before);
+  });
+
   it("keeps shared Markdown and MCP originals intact when CLI temporary writes fail", () => {
     for (const [rel, original] of [["AGENTS.md", "# Team  \r\n\r\nTail \t"], [".mcp.json", '{"mcpServers":{"team":{"command":"team"}}}\n']]) {
       const dir = fixture();
