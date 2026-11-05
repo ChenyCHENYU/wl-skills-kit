@@ -13,7 +13,7 @@
  * messages; we match on ASCII substrings guaranteed to appear alongside.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -79,6 +79,33 @@ function writePage(root, relDir, indexVue, dataTs) {
   fs.writeFileSync(path.join(dir, "index.vue"), indexVue);
   if (dataTs !== undefined) fs.writeFileSync(path.join(dir, "data.ts"), dataTs);
   return dir;
+}
+
+// 完整模块契约与页面引用共同作为基线，坏模块用于证明增量检查不会串扫兄弟模块。
+function writeDictionaryModule(root, name, { invalid = false } = {}) {
+  const relDir = `src/views/produce/${name}`;
+  const contract = {
+    schemaVersion: 1,
+    module: { code: name, name: `${name}模块` },
+    dictionaries: [{
+      code: `${name}_status`,
+      name: "状态",
+      order: { field: "STR_KEY", direction: "asc" },
+      items: [{ value: "0", label: "停用" }],
+      sources: ["page/api.md"],
+    }],
+  };
+  const reference = invalid ? "unregistered_status" : contract.dictionaries[0].code;
+  const pageDir = writePage(root, `${relDir}/page`, COMPLIANT_INDEX,
+    `${COMPLIANT_DATA}\nexport const status = { dictCode: "${reference}" };\n`);
+  const moduleDir = path.dirname(pageDir);
+  const stored = structuredClone(contract);
+  if (invalid) stored.dictionaries[0].items[0].label = "错误名称";
+  fs.writeFileSync(path.join(moduleDir, "dicts.ts"),
+    `export const MODULE_DICTIONARIES = ${JSON.stringify(stored)} as const\n`);
+  fs.writeFileSync(path.join(pageDir, "api.md"),
+    ["```dict-contract", JSON.stringify(contract), "```"].join("\n"));
+  return { relDir, moduleDir, pageDir, contract };
 }
 
 const LONG_WORKBENCH_INDEX =
@@ -612,6 +639,200 @@ describe("validate end-to-end integration", () => {
     expect(output).toMatch(/C1/);
     expect(output).toMatch(/component ensure/);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+});
+
+describe("pre-commit 字典契约增量范围", () => {
+  const roots = [];
+  function project() {
+    const root = makeProject();
+    roots.push(root);
+    return root;
+  }
+  afterEach(() => {
+    for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it.each([
+    { sibling: "pm", upgrade: false },
+    { sibling: "pm", upgrade: true },
+    { sibling: "steelmaking-other", upgrade: false },
+  ])("staged 页面不扫描未修改的 $sibling 字典，依赖升级 $upgrade", ({ sibling, upgrade }) => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, sibling, { invalid: true });
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { report: "2.19.1" } }));
+    commitFixture(root);
+    fs.appendFileSync(path.join(current.pageDir, "index.vue"), "<!-- report adjustment -->\n");
+    const staged = [`${current.relDir}/page/index.vue`];
+    if (upgrade) {
+      fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { report: "file:vendor/report-2.20.0.tgz" } }));
+      fs.mkdirSync(path.join(root, "vendor"));
+      fs.writeFileSync(path.join(root, "vendor/report-2.20.0.tgz"), "offline archive fixture");
+      staged.push("package.json", "vendor/report-2.20.0.tgz");
+    }
+    expect(runGit(root, ["add", ...staged]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).toMatch(/字典契约 1/);
+    expect(output).not.toMatch(/unregistered_status|value=0|D1|D2/);
+  });
+
+  it("真实暂存字典删项仍阻断未修改页面的契约与引用", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, "pm", { invalid: true });
+    commitFixture(root);
+    const next = { ...current.contract, dictionaries: [] };
+    fs.writeFileSync(path.join(current.moduleDir, "dicts.ts"),
+      `export const MODULE_DICTIONARIES = ${JSON.stringify(next)} as const\n`);
+    expect(runGit(root, ["add", `${current.relDir}/dicts.ts`]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1/);
+    expect(output).toMatch(/D2/);
+    expect(output).toMatch(/steelmaking_status/);
+    expect(output).not.toMatch(/unregistered_status/);
+  });
+
+  it("真实暂存页面契约变更仍执行模块D1校验", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, "pm", { invalid: true });
+    commitFixture(root);
+    current.contract.dictionaries[0].items[0].label = "启用";
+    fs.writeFileSync(path.join(current.pageDir, "api.md"),
+      ["```dict-contract", JSON.stringify(current.contract), "```"].join("\n"));
+    expect(runGit(root, ["add", `${current.relDir}/page/api.md`]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1/);
+    expect(output).toMatch(/value=0/);
+    expect(output).not.toMatch(/unregistered_status/);
+  });
+
+  it("暂存页面新增未登记字典引用仍阻断D2", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    commitFixture(root);
+    fs.appendFileSync(path.join(current.pageDir, "data.ts"),
+      'export const material = { dictCode: "missing_material" };\n');
+    expect(runGit(root, ["add", `${current.relDir}/page/data.ts`]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D2/);
+    expect(output).toMatch(/missing_material/);
+  });
+
+  it("非precommit全量仍报告未修改模块的D1和D2", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, "pm", { invalid: true });
+    commitFixture(root);
+    fs.appendFileSync(path.join(current.pageDir, "index.vue"), "<!-- report adjustment -->\n");
+    expect(runGit(root, ["add", `${current.relDir}/page/index.vue`]).status).toBe(0);
+    const result = runValidate(root);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1/);
+    expect(output).toMatch(/D2/);
+    expect(output).toMatch(/unregistered_status/);
+    expect(output).toMatch(/produce\/pm\/dicts\.ts/);
+  });
+
+  it("暂存删除dicts.ts但现存页面仍引用时阻断", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    commitFixture(root);
+    fs.rmSync(path.join(current.moduleDir, "dicts.ts"));
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1|D2/);
+    expect(output).toMatch(/dicts\.ts/);
+  });
+
+  it("完整删除模块不会因已删除契约或无关坏模块阻断", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, "pm", { invalid: true });
+    commitFixture(root);
+    fs.rmSync(current.moduleDir, { recursive: true });
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(0);
+    expect(output).not.toMatch(/unregistered_status|value=0/);
+  });
+
+  it("暂存删除最后的dict-contract页面文档时明确阻断D1", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    commitFixture(root);
+    fs.rmSync(path.join(current.pageDir, "api.md"));
+    expect(runGit(root, ["add", "-u"]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1/);
+    expect(output).toMatch(/api\.md|dict-contract/);
+  });
+
+  it("仅暂存共享字典引用时不扩大页面范围且仍阻断D2", () => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    const shared = path.join(current.moduleDir, "shared.ts");
+    fs.writeFileSync(shared, "export const material = 1;\n");
+    fs.appendFileSync(path.join(current.pageDir, "data.ts"),
+      'import { material } from "../shared";\nexport const sharedMaterial = material;\n');
+    commitFixture(root);
+    fs.writeFileSync(shared, 'export const material = { dictCode: "missing_material" };\n');
+    expect(runGit(root, ["add", `${current.relDir}/shared.ts`]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/页面目录: 0/);
+    expect(output).toMatch(/D2/);
+    expect(output).toMatch(/missing_material/);
+    expect(output).not.toMatch(/未发现包含 index|跳过页面检测/);
+  });
+
+  it.each(["../../pm/dicts", "@/views/produce/pm/dicts"])("暂存页面通过 %s 导入的跨模块字典也应校验", (source) => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    writeDictionaryModule(root, "pm", { invalid: true });
+    commitFixture(root);
+    fs.appendFileSync(path.join(current.pageDir, "data.ts"),
+      `import { MODULE_DICTIONARIES } from "${source}";\nexport const importedModule = MODULE_DICTIONARIES.module.code;\n`);
+    expect(runGit(root, ["add", `${current.relDir}/page/data.ts`]).status).toBe(0);
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/D1/);
+    expect(output).toMatch(/produce\/pm\/dicts\.ts/);
+    expect(output).toMatch(/value=0/);
+  });
+
+  it.each(["dicts.ts", "page/api.md", "shared.ts"])("相关字典校验依赖 %s 有未暂存修改时阻断", (file) => {
+    const root = project();
+    const current = writeDictionaryModule(root, "steelmaking");
+    fs.writeFileSync(path.join(current.moduleDir, "shared.ts"), "export const material = 1;\n");
+    fs.appendFileSync(path.join(current.pageDir, "data.ts"),
+      'import { material } from "../shared";\nexport const sharedMaterial = material;\n');
+    commitFixture(root);
+    fs.appendFileSync(path.join(current.pageDir, "index.vue"), "<!-- report adjustment -->\n");
+    expect(runGit(root, ["add", `${current.relDir}/page/index.vue`]).status).toBe(0);
+    fs.appendFileSync(path.join(current.moduleDir, file), "\n// unstaged change\n");
+    const result = runValidate(root, ["--pre-commit"]);
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(1);
+    expect(output).toMatch(/未暂存|未跟踪/);
+    expect(output).toContain(`${current.relDir}/${file}`);
   });
 });
 

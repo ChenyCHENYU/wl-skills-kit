@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.33.1
+ * wl-skills-kit CLI v2.33.3
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -1852,7 +1852,7 @@ function findRelevantDictContracts(scanPath) {
   if (fs.existsSync(scanRoot) && fs.statSync(scanRoot).isFile()) scanRoot = path.dirname(scanRoot);
   addDictsUnder(scanRoot, result);
   let cursor = scanRoot;
-  while (cursor.startsWith(viewsRoot) && cursor.length >= viewsRoot.length) {
+  while (isPathWithin(path.relative(TARGET_DIR, cursor), path.relative(TARGET_DIR, viewsRoot))) {
     const candidate = path.join(cursor, "dicts.ts");
     if (fs.existsSync(candidate)) result.add(candidate);
     if (cursor === viewsRoot) break;
@@ -1861,16 +1861,28 @@ function findRelevantDictContracts(scanPath) {
   return Array.from(result).sort();
 }
 
-function appendDictionaryContractIssues(issues, scanPath) {
-  const files = findRelevantDictContracts(scanPath);
-  for (const file of files) {
-    const result = validateContractAlignment(path.dirname(file));
+function appendDictionaryWarnings(issues, dir, file, warnings, references, scope) {
+  const sourceChanged = scope.changedApis.some(source => isPathWithin(source, path.dirname(file)));
+  for (const text of warnings) {
+    const removedSource = sourceChanged && /未在模块 api\.md 中找到 dict-contract/.test(text)
+      && (references.references.length > 0 || require("../lib/dict-contract").readModuleContract(file).dictionaries.length > 0);
+    issues.push({ level: removedSource ? "error" : "warn", dir, text, rule: "D1" });
+  }
+}
+
+function appendDictionaryContractIssues(issues, scope) {
+  for (const file of scope.files) {
     const dir = path.relative(TARGET_DIR, file).replace(/\\/g, "/");
+    if (!fs.existsSync(file)) {
+      issues.push({ level: "error", dir, text: `${dir}: 删除字典契约后仍存在字典来源或引用`, rule: "D1" });
+      continue;
+    }
+    const result = validateContractAlignment(path.dirname(file));
     for (const text of result.errors) issues.push({ level: "error", dir, text, rule: "D1" });
-    for (const text of result.warnings) issues.push({ level: "warn", dir, text, rule: "D1" });
     const references = validateDictionaryReferences(path.dirname(file), {
       projectRoot: TARGET_DIR,
     });
+    appendDictionaryWarnings(issues, dir, file, result.warnings, references, scope);
     for (const text of references.errors) {
       issues.push({ level: "error", dir, text, rule: "D2" });
     }
@@ -1878,7 +1890,7 @@ function appendDictionaryContractIssues(issues, scanPath) {
       issues.push({ level: "warn", dir, text, rule: "D2" });
     }
   }
-  return files.length;
+  return scope.files.length;
 }
 
 let validationUnstaged = new Set();
@@ -1979,9 +1991,9 @@ function hasValidationRelevantStagedFiles(stagedSet, scanPath, validationConfig,
   return allPages.some((page) => stagedTouchesPage(stagedFiles, page));
 }
 
-function rejectDirtyValidationInputs(pages, validationConfig) {
-  if (!preCommit || validationUnstaged.size === 0 || pages.length === 0) return false;
-  const dependencies = new Set([".wl-skills-validate.json", "package.json"]);
+function rejectDirtyValidationInputs(pages, validationConfig, dictionaryScope) {
+  if (!preCommit || validationUnstaged.size === 0 || (pages.length === 0 && !dictionaryScope.explicit)) return false;
+  const dependencies = new Set([".wl-skills-validate.json", "package.json", ...dictionaryScope.inputs.map(file => path.relative(TARGET_DIR, file).replace(/\\/g, "/"))]);
   for (const page of pages) {
     const source = scenarioSourceForPage(page);
     if (source) dependencies.add(source);
@@ -2439,7 +2451,7 @@ function handleEmptyValidationPages(stagedSet, scanPath, validationConfig, allPa
   return true;
 }
 
-function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig) {
+function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig, dictionaryScope) {
   const issues = [];
   const mockFiles = validationConfig.mockPolicy === "disabled" ? [] : findMockFiles();
   const mockEndpoints = collectMockEndpoints(TARGET_DIR, mockFiles);
@@ -2455,7 +2467,7 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
     sourceFiles: preCommit && stagedSet ? Array.from(stagedSet) : undefined,
   });
   issues.push(...componentResult.issues);
-  const dictContractCount = appendDictionaryContractIssues(issues, scanPath);
+  const dictContractCount = appendDictionaryContractIssues(issues, dictionaryScope);
   const astResult = runValidationAst(issues, scanPath, stagedSet, pageFiles.hasSymlink ? undefined : pageFiles);
   const specResult = appendSpecIssues(issues, pages);
   const definitionValidators = appendDefinitionValidatorIssues(
@@ -2535,6 +2547,10 @@ function reportValidationFailure(error) {
   else console.error(`  ✖ 校验未完成：${issues[0].text}`);
 }
 
+function hasValidationWork(pages, dictionaryScope) {
+  return pages.length > 0 || (preCommit && dictionaryScope.explicit && dictionaryScope.files.length > 0);
+}
+
 function runValidatePipeline() {
   const scanPath = require("../lib/validation-scope").validationPageScope(TARGET_DIR, validationScanPath());
   const jsonOutput = args.includes("--json");
@@ -2547,13 +2563,16 @@ function runValidatePipeline() {
   const pageFiles = fs.existsSync(scanDir) ? walkDir(scanDir, TARGET_DIR) : [];
   const allPages = scanPageDirs(scanPath, validationConfig, pageFiles);
   const pages = selectValidationPages(allPages, stagedSet, validationConfig);
-  if (rejectDirtyValidationInputs(pages, validationConfig)) return;
+  const dictionaryScope = require("../lib/dictionary-validation-scope").resolveDictionaryValidationScope(
+    TARGET_DIR, scanPath, findRelevantDictContracts(scanPath), stagedSet,
+  );
+  if (rejectDirtyValidationInputs(pages, validationConfig, dictionaryScope)) return;
   if (!jsonOutput) printValidationHeader(scanPath);
-  if (pages.length === 0) {
+  if (!hasValidationWork(pages, dictionaryScope)) {
     reportEmptyValidation(scanPath, jsonOutput, stagedSet, validationConfig, allPages);
     return;
   }
-  const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig);
+  const { issues, summary } = collectValidation(scanPath, pages, pageFiles, stagedSet, validationConfig, dictionaryScope);
   recordValidation(summary, issues);
   if (jsonOutput && !preCommit) return reportJsonValidation(scanPath, summary, issues);
   const errors = countValidationIssues(issues, "error");
