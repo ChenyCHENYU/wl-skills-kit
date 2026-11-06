@@ -11,16 +11,15 @@ const { parseJsonc } = require("../support/shared-jsonc.cjs");
 const root = require("../support/workspace-root.cjs");
 const names = ["design", "kit", "ui", "bd", "test"];
 const bins = { design: "wl-skills-design.js", kit: "wl-skills.js", ui: "wl-ui.js", bd: "wl-skills-bd.js", test: "wl-skills-test.js" };
-const states = { design: ".wl-skills-design/state.json", kit: ".wl-skills-manifest.json", ui: ".wl-skills-ui-manifest.json", bd: ".wl-skills-bd-manifest.json", test: ".wl-skills-test/manifest.json" };
+const states = Object.fromEntries(names.map(name => [name, `.wl-skills/state/${name}/manifest.json`]));
 const sharedPaths = new Set(["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md", "copilot-instructions.md", ".github/skills/_registry.md", ".github/skills/_pipeline.md", ".github/standards/index.md", ".github/guides/usage.md", ".github/guides/architecture.md", ".mcp.json", ".cursor/mcp.json", ".kiro/settings/mcp.json", ".vscode/mcp.json", ".kilo/kilo.jsonc", "kilo.jsonc", "kilo.json", ".clinerules"]);
 
 function command(name, action, project, extra = []) {
   const bin = path.join(root, `wl-skills-${name}/bin`, bins[name]);
   const args = [bin, action];
-  if (name === "design" && action !== "uninstall") args.push("--editor", "all");
   if (name === "ui") {
     args.push("--project", project);
-    if (action !== "clean") args.push("--editor", "all", "--profile", "native-element", "--skills-only");
+    if (action !== "clean") args.push("--profile", "native-element", "--skills-only");
   }
   if (name === "bd") args.push("--target", project, "--json");
   return spawnSync(process.execPath, [...args, ...extra], { cwd: project, encoding: "utf8", timeout: 60000, maxBuffer: 8 * 1024 * 1024 });
@@ -99,6 +98,11 @@ function assertSentinels(project, sentinels) {
     if (relative === ".mcp.json") {
       assert.match(actual, /\/\/ team MCP configuration/);
       assert.deepEqual(parseJsonc(actual).mcpServers.team, { command: "team-server" });
+    } else if (relative === "package.json") {
+      const previous = JSON.parse(content), current = JSON.parse(actual);
+      for (const [key, value] of Object.entries(previous)) assert.deepEqual(current[key], value, `changed project metadata ${key}`);
+      assert.equal(current.wlSkills?.integration, "compact");
+      assert.deepEqual(current.wlSkills?.hosts, ["codex"]);
     } else assert.ok(actual.includes(content), `changed project content ${relative}`);
   }
 }
@@ -108,6 +112,10 @@ function snapshot(project, name) {
   assert.ok(fs.existsSync(statePath), `${name} installation state missing: ${states[name]}`);
   const manifest = JSON.parse(fs.readFileSync(statePath, "utf8"));
   const paths = Array.isArray(manifest.files) ? manifest.files.map((file) => file.path) : Object.keys(manifest.files || {});
+  for (const relative of paths) {
+    assert.ok(!/^(?:\.claude|\.cline|\.roo|\.kilo|\.kiro|\.cursor|\.windsurf|\.trae|\.qoder)\//.test(relative), `${name} installed an unselected host adapter: ${relative}`);
+    assert.ok(!/^(?:\.github|\.wl-skills)\/(?:skills|standards|templates|guides)\//.test(relative), `${name} copied canonical package resources: ${relative}`);
+  }
   const gateway = `.agents/skills/wl-skills-${name}/SKILL.md`;
   assert.ok(paths.includes(gateway), `${name} native gateway missing from its ownership manifest`);
   const all = tree(project);
@@ -188,12 +196,12 @@ for (const name of names) {
     const project = fs.mkdtempSync(path.join(os.tmpdir(), "wl-preflight-"));
     try {
       write(project, "package.json", '{"name":"preflight-fixture","private":true}');
-      write(project, ".cursor", "project owned cursor file\n");
+      write(project, ".claude", "project owned claude file\n");
       const before = tree(project);
-      let result = command(name, "init", project);
+      let result = command(name, "init", project, ["--hosts", "claude"]);
       if (name === "bd" && result.status === 0) {
         const plan = JSON.parse(result.stdout);
-        result = command(name, "init", project, ["--confirm", "--plan-hash", plan.planHash]);
+        result = command(name, "init", project, ["--hosts", "claude", "--confirm", "--plan-hash", plan.planHash]);
       }
       assert.notEqual(result.status, 0, `${name} should reject parent type conflict`);
       assert.deepEqual(tree(project), before, `${name} wrote a partial installation`);

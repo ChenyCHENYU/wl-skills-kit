@@ -9,7 +9,7 @@ const repo = path.resolve(import.meta.dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8"));
 const cli = path.join(repo, "bin", 'wl-skills.js');
 const key = 'kit';
-const manifestName = key === "kit" ? ".wl-skills-manifest.json" : ".wl-skills-ui-manifest.json";
+const manifestName = key === "kit" ? ".wl-skills/state/kit/manifest.json" : ".wl-skills-ui-manifest.json";
 const selected = "src/views/Example/index.vue";
 
 function fixture() {
@@ -93,15 +93,13 @@ test("规则资产存在不能替代适用scope、无歧义与计划新鲜度", 
       readiness(request(root, transport, "status", {runId: "absent"}), false);
     }
     const owned = key === "kit" ? path.join(root, ".wl-skills/standards/03-comments.md") : path.join(root, "node_modules", pkg.name);
-    const bytes = key === "kit" ? fs.readFileSync(owned) : null;
-    fs.unlinkSync(owned);
+    fs.mkdirSync(owned, {recursive: true});
     for (const transport of ["legacy", "protocol"]) {
       const result = request(root, transport, "route", {task: "检查当前 Vue 代码", targets: [selected]});
       readiness(result, false, "gap");
       assert.ok((result.decision || result).missingInputs.length > 0);
     }
-    if (key === "kit") fs.writeFileSync(owned, bytes);
-    else fs.symlinkSync(repo, owned, "dir");
+    fs.rmdirSync(owned);
     readiness(request(root, "legacy", "task", {task: "检查当前 Vue 代码", targets: [selected], runId: "freshness"}), true, "baseline");
     fs.appendFileSync(path.join(root, selected), "<!-- modified after inspect plan -->\n");
     for (const transport of ["legacy", "protocol"]) {
@@ -127,7 +125,7 @@ test("未接入和移动项目即使有Vue任务对象也不准入，不新建�
         readiness(result, false, "not-applicable");
         assert.deepEqual(result.requiredRules, []);
       }
-      assert.equal(fs.existsSync(path.join(root, key === "kit" ? ".wl-skills/runs" : ".wl-skills-ui/runs")), false);
+      assert.equal(fs.existsSync(path.join(root, key === "kit" ? ".wl-skills/state/kit/runs" : ".wl-skills-ui/runs")), false);
     } finally {fs.rmSync(root, {recursive: true, force: true});}
   }
 }, 20000);

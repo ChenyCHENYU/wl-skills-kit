@@ -30,6 +30,7 @@ test('当前请求、否定、历史引用与只讨论：公开协议精确回�
       if(row.rules)assert.deepEqual(d.requiredRules,row.rules,row.task);
       assert.equal(d.action.mode,row.mode,row.task);assert.equal(d.action.businessWritesAuthorized,false);
       if(row.mode === 'explain')assert.equal(d.action.checksAllowed,false);
+      if(row.checksAllowed !== undefined)assert.equal(d.action.checksAllowed,row.checksAllowed,row.task);
       const core = envelope.result.integration;assert.equal(core.packageName,pkg.name);assert.equal(core.packageVersion,pkg.version);
       assert.equal(core.contractVersion,1);assert.equal(core.runId,null);
       assert.ok(core.ruleRefs.every(rule => rule.packageName === pkg.name && rule.ruleVersion === pkg.version));

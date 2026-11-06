@@ -15,6 +15,7 @@ const CLI = path.join(ROOT, "bin", "wl-skills.js");
 vi.setConfig({ testTimeout: 30000 });
 
 function runCli(args, opts = {}) {
+  if (["init", "update"].includes(args[0])) args = [...args, "--integration", "expanded", "--hosts", "all", "--mcp"];
   return spawnSync("node", [CLI, ...args], {
     cwd: opts.cwd || os.tmpdir(),
     encoding: "utf8",
@@ -223,7 +224,7 @@ describe("CLI 参数防护（A1）", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it("check 应识别 .wl-skills/skills/sync/env.local.json", () => {
+  it("check 应识别 .wl-skills/config/kit-sync.local.json", () => {
     const dir = makeIsolatedDir();
     const envDir = path.join(dir, ".wl-skills", "skills", "sync");
     fs.mkdirSync(envDir, { recursive: true });
@@ -274,17 +275,17 @@ describe("CLI 参数防护（A1）", () => {
     const dir = makeIsolatedDir();
     const res = runCli(["init"], { cwd: dir, timeout: 60000 });
     expect(res.status).toBe(0);
-    const localRel = ".wl-skills/skills/sync/env.local.json";
+    const localRel = ".wl-skills/config/kit-sync.local.json";
     const exampleRel = ".wl-skills/skills/sync/env.example.json";
     expect(fs.existsSync(path.join(dir, localRel))).toBe(true);
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf8")).toContain(localRel);
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills/state/kit/manifest.json"), "utf8"));
     expect(manifest.files[localRel]).toBeUndefined();
     expect(manifest.files[exampleRel]).toBeTruthy();
-    expect(fs.existsSync(path.join(dir, ".kilo/rules/wl-skills.md"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "AGENTS.md"))).toBe(true);
     expect(fs.existsSync(path.join(dir, ".kilo/steering/conventions.md"))).toBe(false);
-    expect(fs.existsSync(path.join(dir, ".kilo/skills/page-codegen/SKILL.md"))).toBe(true);
-    expect(manifest.files[".kilo/skills/page-codegen/SKILL.md"]).toBeTruthy();
+    expect(fs.existsSync(path.join(dir, ".agents/skills/wl-skills-kit/SKILL.md"))).toBe(true);
+    expect(manifest.files[".agents/skills/wl-skills-kit/SKILL.md"]).toBeTruthy();
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -351,7 +352,7 @@ describe("CLI 参数防护（A1）", () => {
     expect(updated.status).toBe(0);
     const installed = JSON.parse(fs.readFileSync(profilePath, "utf8"));
     expect(installed.transport.operations.remove.path).toBe("deleteById");
-    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"));
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".wl-skills/state/kit/manifest.json"), "utf8"));
     expect(manifest.files[rel]).toBeTruthy();
     const updatedAgain = runCli(["update", "--force"], { cwd: dir, timeout: 120000 });
     expect(updatedAgain.status).toBe(0);
@@ -385,6 +386,7 @@ describe("CLI 参数防护（A1）", () => {
       }),
       "utf8",
     );
+    const vscodeOriginal = fs.readFileSync(path.join(dir, ".vscode", "mcp.json"), "utf8");
     fs.mkdirSync(path.join(dir, ".kilo"), { recursive: true });
     fs.writeFileSync(
       path.join(dir, ".kilo", "kilo.jsonc"),
@@ -406,16 +408,18 @@ describe("CLI 参数防护（A1）", () => {
     expect(mcp.mcpServers["wl-skills"]).toBeTruthy();
     const vscodeMcp = JSON.parse(fs.readFileSync(path.join(dir, ".vscode", "mcp.json"), "utf8"));
     expect(vscodeMcp.servers["wl-skills-ui"]).toBeTruthy();
-    expect(vscodeMcp.servers["wl-skills"]).toBeTruthy();
+    expect(vscodeMcp.servers["wl-skills"]).toBeUndefined();
+    expect(fs.readFileSync(path.join(dir, ".vscode", "mcp.json"), "utf8")).toBe(vscodeOriginal);
     const kilo = JSON.parse(fs.readFileSync(path.join(dir, ".kilo", "kilo.jsonc"), "utf8"));
-    expect(kilo.instructions).toEqual(["docs/team-rule.md", ".kilo/rules/wl-skills.md"]);
+    expect(kilo.instructions).toEqual(["docs/team-rule.md"]);
     expect(kilo.provider.zhipu.model).toBe("glm-5.2");
     expect(kilo.mcp["team-server"]).toBeTruthy();
     expect(kilo.mcp["wl-skills"]).toBeTruthy();
     const manifest = JSON.parse(
-      fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
+      fs.readFileSync(path.join(dir, ".wl-skills/state/kit/manifest.json"), "utf8"),
     );
-    for (const rel of [".clinerules", "AGENTS.md", "CLAUDE.md"]) expect(manifest.managedBlocks[rel]).toBeTruthy();
+    for (const rel of ["AGENTS.md", "CLAUDE.md"]) expect(manifest.managedBlocks[rel]).toBeTruthy();
+    expect(manifest.managedBlocks[".clinerules"]).toBeUndefined();
     expect(runCli(["clean"], { cwd: dir }).status).toBe(0);
     for (const rel of [".clinerules", "AGENTS.md", "CLAUDE.md"]) expect(fs.readFileSync(path.join(dir, rel), "utf8")).toContain(uiHeader);
     fs.rmSync(dir, { recursive: true, force: true });
@@ -442,10 +446,10 @@ describe("CLI 参数防护（A1）", () => {
     expect(content).toContain('"model": "glm-5.2"');
     expect(content).toContain('"team-server"');
     expect(content).toContain('"wl-skills"');
-    expect(content).toContain('".kilo/rules/wl-skills.md"');
+    expect(content).toContain('"instructions": ["docs/team-rule.md"]');
     expect(fs.existsSync(path.join(dir, ".kilo", "kilo.jsonc"))).toBe(false);
     const manifest = JSON.parse(
-      fs.readFileSync(path.join(dir, ".wl-skills-manifest.json"), "utf8"),
+      fs.readFileSync(path.join(dir, ".wl-skills/state/kit/manifest.json"), "utf8"),
     );
     expect(manifest.files["kilo.jsonc"]).toBeTruthy();
     expect(manifest.files[".kilo/kilo.jsonc"]).toBeUndefined();
@@ -455,7 +459,7 @@ describe("CLI 参数防护（A1）", () => {
   it("clean 不删除本地凭据配置", () => {
     const dir = makeIsolatedDir();
     expect(runCli(["init"], { cwd: dir, timeout: 60000 }).status).toBe(0);
-    const localPath = path.join(dir, ".wl-skills", "skills", "sync", "env.local.json");
+    const localPath = path.join(dir, ".wl-skills/config/kit-sync.local.json");
     const config = JSON.parse(fs.readFileSync(localPath, "utf8"));
     config.token = "keep-after-clean";
     fs.writeFileSync(localPath, JSON.stringify(config));
@@ -512,6 +516,24 @@ describe("CLI 独立 API 契约", () => {
     expect(render.status).toBe(0);
     expect(fs.readFileSync(path.join(dir, "contracts", "api.md"), "utf8")).toMatch(/wl-api-contract/);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("CLI doctor-ui", () => {
+  it("returns machine-readable checks when requested and preserves a failed exit code", () => {
+    const cwd = makeIsolatedDir();
+    try {
+      fs.writeFileSync(path.join(cwd, "package.json"), '{"name":"ui-diagnostics-fixture"}');
+      const result = runCli(["doctor-ui", "--json"], { cwd });
+      const report = JSON.parse(result.stdout);
+      expect(result.status).toBe(1);
+      expect(report).toMatchObject({ ok: false, summary: { total: 7 } });
+      expect(report.checks).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: "@agile-team/wl-skills-ui", ok: false }),
+      ]));
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 });
 

@@ -26,5 +26,82 @@
       "page-codegen"
     ],
     "mode": "apply"
+  },
+  {
+    "task": "美化登录页面",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": true
+  },
+  {
+    "task": "beautify the Vue login page",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": true
+  },
+  {
+    "task": "修正现有页面的间距",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": true
+  },
+  {
+    "task": "不要美化页面，只解释页面布局",
+    "status": "baseline",
+    "skills": [],
+    "mode": "explain",
+    "checksAllowed": false
+  },
+  {
+    "task": "美化现有页面，不要扫描",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": false
+  },
+  {
+    "task": "我不想美化页面，只解释页面布局",
+    "status": "baseline",
+    "skills": [],
+    "mode": "explain",
+    "checksAllowed": false
+  },
+  {
+    "task": "不是让你创建菜单，只解释页面规范",
+    "status": "baseline",
+    "skills": [],
+    "mode": "explain",
+    "checksAllowed": false
+  },
+  {
+    "task": "我并不是让你创建菜单，只解释页面布局",
+    "status": "baseline",
+    "skills": [],
+    "mode": "explain",
+    "checksAllowed": false
+  },
+  {
+    "task": "我不需要你创建菜单，只介绍页面配置",
+    "status": "baseline",
+    "skills": [],
+    "mode": "explain",
+    "checksAllowed": false
+  },
+  {
+    "task": "不是只解释，而是美化页面",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": true
+  },
+  {
+    "task": "不要创建菜单，只美化现有页面",
+    "status": "baseline",
+    "skills": [],
+    "mode": "apply",
+    "checksAllowed": true
   }
 ]

@@ -20,6 +20,7 @@ const { loadConfig } = require("./config");
 const { TOOLS, HANDLERS } = require("./registry");
 const { validateSchema } = require("./schema-validator");
 const { validateRequest } = require("../lib/json-rpc-request.cjs");
+const observation = require("../lib/task-observability.cjs");
 
 const PKG = require("../package.json");
 const SUPPORTED_PROTOCOL_VERSIONS = [
@@ -28,7 +29,9 @@ const SUPPORTED_PROTOCOL_VERSIONS = [
   "2025-03-26",
   "2024-11-05",
 ];
-const WRITE_TOOLS = new Set(TOOLS.filter((tool) => tool.annotations.readOnlyHint === false).map((tool) => tool.name));
+// Receipt persistence affects MCP annotations, but does not require serializing
+// unrelated business reads behind a remote write. Unknown effects stay guarded.
+const WRITE_TOOLS = new Set(TOOLS.filter((tool) => tool._meta?.wl?.businessReadOnly !== true).map((tool) => tool.name));
 
 // ─── JSON-RPC 协议层 ────────────────────────────────────────────────────
 
@@ -70,25 +73,35 @@ async function dispatchTool(id, toolName, toolArgs) {
 
   const configResult = resolveToolConfig(desc);
   if (configResult.error) {
-    sendResult(id, configResult.error);
+    sendResult(id, { ...configResult.error, content: [{ type: "text", text:
+      observation.formatExecutionReceipt({}, { tool: desc.name, mcpOutcome: "blocked" })
+      + "\n\n" + configResult.error.content[0].text,
+    }] });
     return;
   }
 
-  if (WRITE_TOOLS.has(toolName)) {
-    const { config } = configResult;
-    const scope = config
-      ? `${config.gatewayPath}|${config.sysAppNo || ""}`
-      : path.resolve(process.env.WL_PROJECT_ROOT || process.cwd());
-    try {
-      await withFileLock(`mcp-write:${scope}`, () => executeTool(id, desc, toolArgs, config), {
-        waitMs: 180000,
-      });
-    } catch (error) {
-      sendResult(id, { content: [{ type: "text", text: `❌ 写操作排队失败: ${error.message}` }], isError: true });
-    }
-    return;
+  const { config } = configResult;
+  const invoke = () => observation.withMcpInvocation(desc.name, () => executeTool(id, desc, toolArgs, config));
+  if (WRITE_TOOLS.has(toolName)) return executeLockedTool(id, desc.name, config, invoke);
+  await invoke();
+}
+
+async function executeLockedTool(id, tool, config, invoke) {
+  const scope = config ? `${config.gatewayPath}|${config.sysAppNo || ""}` : path.resolve(process.env.WL_PROJECT_ROOT || process.cwd());
+  let entered = false;
+  let replied = false;
+  try {
+    await withFileLock(`mcp-write:${scope}`, async () => {
+      entered = true;
+      await invoke();
+      replied = true;
+    }, { waitMs: 180000 });
+  } catch (error) {
+    // The lock release can fail after the response was already sent.
+    if (replied) { console.error(`MCP 写锁释放失败: ${error.message}`); return; }
+    const summary = observation.formatExecutionReceipt({}, { tool, mcpOutcome: entered ? "failed" : "blocked" });
+    sendResult(id, { content: [{ type: "text", text: `${summary}\n❌ 写工具调用异常: ${error.message}` }], isError: true });
   }
-  await executeTool(id, desc, toolArgs, configResult.config);
 }
 
 function beginToolExecution(desc, args, beginMcpTool) {
@@ -98,39 +111,75 @@ function beginToolExecution(desc, args, beginMcpTool) {
 
 async function executeTool(id, desc, toolArgs, config) {
   const { beginMcpTool, finishMcpTool } = require("../lib/task-integration");
-  let execution;
+  const state = { execution: null, finishAttempted: false };
+  const finish = (result) => { state.finishAttempted = true; return finishMcpTool(state.execution, desc, result); };
   try {
-    execution = beginToolExecution(desc, toolArgs, beginMcpTool);
+    const execution = state.execution = beginToolExecution(desc, toolArgs, beginMcpTool);
     const handlerResult = await desc.handle(execution ? { ...toolArgs, runId: execution.metadata.runId } : toolArgs, config);
-    const normalized = typeof handlerResult === "string"
-      ? { text: handlerResult }
-      : handlerResult;
-    if (desc.outputSchema) {
-      const outputValidation = validateSchema(desc.outputSchema, normalized.structuredContent);
-      if (!outputValidation.valid) {
-        finishMcpTool(execution, desc, { isError: true });
-        sendResult(id, {
-          content: [{ type: "text", text: `❌ 工具输出不符合契约: ${outputValidation.errors.join("；")}` }],
-          isError: true,
-        });
-        return;
-      }
+    const normalized = normalizeHandlerResult(desc, handlerResult);
+    const outputError = toolOutputError(desc, normalized);
+    if (outputError) {
+      const evidence = finish({ isError: true });
+      return sendResult(id, { content: receiptContent(desc, execution, evidence, outputError, "failed"), isError: true });
     }
-    const evidence = finishMcpTool(execution, desc, normalized.validationResult
+    const evidence = finish(normalized.validationResult
       ? { structuredContent: normalized.validationResult, isError: !normalized.validationResult.ok } : normalized);
-    sendResult(id, {
-      content: [{ type: "text", text: normalized.text }],
-      ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
-      ...(normalized.isError ? { isError: true } : {}),
-      ...(evidence ? { _meta: { wlExecution: evidence } } : {}),
-    });
+    sendResult(id, toolResponse(desc, execution, evidence, normalized, desc.name === "wls_validate_page" && toolArgs.resultCursor !== undefined));
   } catch (e) {
-    finishMcpTool(execution, desc, { isError: true });
-    sendResult(id, {
-      content: [{ type: "text", text: `❌ 工具执行异常: ${e.message}` }],
-      isError: true,
-    });
+    sendResult(id, failedToolResponse(desc, state, finish, e));
   }
+}
+
+function normalizeHandlerResult(desc, handlerResult) {
+  const normalized = typeof handlerResult === "string" ? { text: handlerResult } : handlerResult;
+  // Preserve legacy JSON text, and also expose a native structured payload.
+  if (desc.observabilityAction && !normalized.structuredContent) {
+    try { normalized.structuredContent = JSON.parse(normalized.text); } catch { /* Preserve the original response. */ }
+  }
+  return normalized;
+}
+
+function toolOutputError(desc, normalized) {
+  if (!desc.outputSchema) return null;
+  const validation = validateSchema(desc.outputSchema, normalized.structuredContent);
+  return validation.valid ? null : `❌ 工具输出不符合契约: ${validation.errors.join("；")}`;
+}
+
+function toolResponse(desc, execution, evidence, normalized, continuation) {
+  const failed = normalized.isError === true;
+  const outcome = failed ? "failed" : continuation ? "continuation"
+    : normalized.structuredContent?.mode === "preview" && normalized.structuredContent.ok === true ? "preview" : "returned";
+  return {
+    content: receiptContent(desc, execution, evidence || normalized.structuredContent, normalized.text, outcome),
+    ...(normalized.structuredContent ? { structuredContent: normalized.structuredContent } : {}),
+    ...(normalized.isError ? { isError: true } : {}),
+    ...(evidence ? { _meta: { wlExecution: evidence } } : {}),
+  };
+}
+
+function failedToolResponse(desc, state, finish, error) {
+  let evidence;
+  let receiptError;
+  if (!state.finishAttempted) {
+    try { evidence = finish({ isError: true }); } catch (failure) { receiptError = failure; }
+  } else if (state.execution) receiptError = new Error("完成回执或响应未能可靠交付，请核对同一任务记录后重试");
+  return {
+    content: receiptContent(desc, state.execution, evidence, `❌ 工具执行异常: ${error.message}${receiptError ? `\n执行回执不可用：${receiptError.message}` : ""}`, "failed"),
+    isError: true,
+  };
+}
+
+function receiptContent(desc, execution, record, text, mcpOutcome) {
+  let current = record || {};
+  let unavailable = "";
+  if (execution && record) {
+    try { current = observation.readStatus({ ...execution.options, runId: record.runId }); }
+    catch (error) { unavailable = `\n执行回执状态不可用：${error.message}`; }
+  }
+  const summary = observation.formatExecutionReceipt(current, { tool: desc.name, packageName: PKG.name, packageVersion: PKG.version, mcpOutcome });
+  const body = String(text || "");
+  if (desc.observabilityAction) return [{ type: "text", text: summary + unavailable }, { type: "text", text: body }];
+  return [{ type: "text", text: `${summary}${unavailable}\n\n${body}` }];
 }
 
 function resolveToolConfig(desc) {
@@ -173,7 +222,7 @@ function initialize(id, params) {
     protocolVersion,
     capabilities: { tools: {} },
     serverInfo: { name: "wl-skills", version: PKG.version },
-    instructions: "写操作默认先预览；仅在用户确认后传对应 confirm 参数。字典支持项目级自动发现；缺少 dicts.ts 时先 bootstrap 本地契约，线上发布只读取 dicts.ts 并校验 planHash。",
+    instructions: "写操作默认先预览；仅在用户确认后传对应 confirm 参数。字典支持项目级自动发现；缺少 dicts.ts 时先 bootstrap 本地契约，线上发布只读取 dicts.ts 并校验 planHash。" + observation.MCP_RECEIPT_GUIDANCE,
   });
 }
 

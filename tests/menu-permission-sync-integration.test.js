@@ -13,6 +13,7 @@ async function startBackend() {
     roles: [],
     assignable: [{ id: "menu-1", menuName: "客户管理" }],
     actions: [],
+    domainData: null,
     writes: [],
     assignableFails: false,
     permissionTree: null,
@@ -50,6 +51,7 @@ function routeRequest(state, key, body) {
 }
 
 function routeReadRequest(state, key) {
+  if (key === "GET /system/sysDomain/list") return state.domainData;
   if (key === "GET /system/menu/getMenuTreeByDomainId") return state.menus;
   if (key === "GET /system/menu/getPermissionMenuTree") return state.permissionTree || state.menus;
   if (key === "GET /system/role/list") {
@@ -77,7 +79,7 @@ function routeWriteRequest(state, key, body) {
   }
   if (key === "PUT /system/menu/update") {
     const target = state.menus.find((menu) => menu.id === body.id);
-    if (target) Object.assign(target, body);
+    if (target && !state.ignoreOrderWrite) Object.assign(target, body);
     return target || null;
   }
   return null;
@@ -90,6 +92,65 @@ afterEach(async () => {
 });
 
 describe("menu planHash workflow", () => {
+  it.each([
+    ["bare", (domain) => [domain]],
+    ["records", (domain) => ({ records: [domain] })],
+    ["page records", (domain) => ({ page: { records: [domain] } })],
+  ])("queries application domains from %s responses", async (_name, envelope) => {
+    const backend = await startBackend();
+    const domain = { id: "domain-1", name: "验收应用", code: "fixture" };
+    backend.state.domainData = envelope(domain);
+    const result = await menuSync.handleDomainQuery(backend.config);
+    expect(result.structuredContent).toMatchObject({ ok: true, state: "completed", count: 1, items: [domain] });
+  });
+
+  it("reports malformed domain responses without treating them as an empty list", async () => {
+    const backend = await startBackend();
+    backend.state.domainData = { page: { records: {} } };
+    const malformed = await menuSync.handleDomainQuery(backend.config);
+    expect(malformed.structuredContent).toMatchObject({ ok: false, state: "query-failed" });
+    expect(malformed.text).toContain("有效的 records 数组");
+  });
+
+  it("orderOnly preserves every known field and verifies the persisted order", async () => {
+    const backend = await startBackend();
+    const original = { id: "menu-1", menuName: "配料站", path: "batching", parentId: "parent-1", type: "C", component: "steelmaking/performance/batching", permission: "station:read", orderNum: 10, icon: "list", sysAppNo: "test-app" };
+    const unchanged = { id: "menu-2", menuName: "库存", orderNum: "10" };
+    backend.state.menus.push({ ...original }, { ...unchanged });
+    const args = { orderOnly: true, items: [{ id: unchanged.id, orderNum: 10 }, { id: original.id, orderNum: 2 }] };
+    const preview = await menuSync.handleMenuUpsert(args, backend.config);
+    expect(preview.structuredContent).toMatchObject({ mode: "preview", actions: [{ action: "update", id: original.id, orderNum: 2 }] });
+    expect(backend.state.writes).toEqual([]);
+    const applied = await menuSync.handleMenuUpsert({ ...args, confirmApply: true, planHash: preview.structuredContent.planHash }, backend.config);
+    expect(applied.structuredContent).toMatchObject({ ok: true, orderVerification: { checked: true, passed: true, mismatches: [] } });
+    expect(backend.state.writes[0].body).toEqual({ ...original, orderNum: 2 });
+    expect(backend.state.writes).toHaveLength(1);
+    expect(backend.state.menus[1]).toEqual(unchanged);
+    const unknown = await menuSync.handleMenuUpsert({ orderOnly: true, items: [{ id: "not-found", orderNum: 1 }] }, backend.config);
+    expect(unknown.structuredContent.state).toBe("blocked");
+    expect(backend.state.writes).toHaveLength(1);
+  });
+  it("orderOnly reports an already satisfied order and never sends a save", async () => {
+    const backend = await startBackend();
+    backend.state.menus.push({ id: "menu-1", orderNum: 10 });
+    const args = { orderOnly: true, items: [{ id: "menu-1", orderNum: 10 }] };
+    const preview = await menuSync.handleMenuUpsert(args, backend.config);
+    expect(preview.structuredContent).toMatchObject({ ok: true, mode: "preview", actions: [] });
+    expect(preview.text).toContain("无需提交");
+    const applied = await menuSync.handleMenuUpsert({ ...args, confirmApply: true, planHash: preview.structuredContent.planHash }, backend.config);
+    expect(applied.structuredContent).toMatchObject({ ok: true, results: [], orderVerification: { checked: true, passed: true } });
+    expect(backend.state.writes).toHaveLength(0);
+  });
+  it("orderOnly detects silent non-persistence even when the save response is successful", async () => {
+    const backend = await startBackend();
+    backend.state.menus.push({ id: "menu-1", menuName: "配料站", type: "C", path: "batching", orderNum: 5 });
+    const args = { orderOnly: true, items: [{ id: "menu-1", orderNum: 1 }] };
+    const preview = await menuSync.handleMenuUpsert(args, backend.config);
+    backend.state.ignoreOrderWrite = true;
+    const result = await menuSync.handleMenuUpsert({ ...args, confirmApply: true, planHash: preview.structuredContent.planHash }, backend.config);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({ ok: false, state: "partial", orderVerification: { passed: false, mismatches: ["menu-1"] } });
+  });
   it("预览零写入，线上漂移使旧 planHash 失效，重新预览后可写入", async () => {
     const backend = await startBackend();
     const args = { items: [{ menuName: "模型管理", path: "/model", type: "C" }] };

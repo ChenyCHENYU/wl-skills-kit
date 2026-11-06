@@ -1,261 +1,72 @@
 # wl-skills-kit 使用指南
 
-> **目标读者**：使用 `@agile-team/wl-skills-kit` 的 Vue 3 业务项目团队成员。
-> **适用版本**：v2.4.x
-> **维护者**：CHENY（工号 409322）
+面向目标自身已接入 Kit 的 PC Vue/Web 管理端。UniApp、小程序、App/PDA、移动 H5 和未接入的兄弟项目不套用本包规则；先读取实际项目的 AGENTS 与技术约定。
 
----
+## 安装与入口
 
-## 5 分钟上手
+在实际项目根目录使用项目既有包管理器安装经评审的本地版本，再初始化。例如使用 pnpm：
 
-### 第 1 步：安装工具链
-
-```bash
-# 进入你的 Vue 3 项目根目录
-cd your-vue3-project
-
-# 安装工程化规范（强制前置）
-npx @robot-admin/git-standards init
-
-# 安装 AI Skill 体系
-npx @agile-team/wl-skills-kit
+```sh
+pnpm add -D --save-exact @agile-team/wl-skills-kit@<已确认版本>
+pnpm exec wl-skills init --hosts codex
+pnpm exec wl-skills doctor-host --host codex --json
 ```
 
-### 第 2 步：确认编辑器
+`init` 默认 compact：具体 Skill、规范和模板保留在已安装包内，项目仅保存选中宿主的薄入口、配置和本包状态。通过任务返回的完整路径按需读取资源，不要求项目根出现整套 `.wl-skills/skills`。需要把参考资源落到项目时显式使用 `--integration expanded`。多宿主用 `--hosts codex,claude,zcode`；MCP 必须显式 `--mcp`，详见 [MCP 接入](mcp-setup.md)。
 
-推荐使用以下任一 AI 编辑器：
+`doctor-host` 只诊断静态入口、版本和配置，不能证明当前宿主已经加载、模型已读取 Skill 或 MCP 已连接。按工具返回的宿主提示核对技能列表与启用状态，再进行一次真实任务。
 
-- VS Code + GitHub Copilot
-- Cursor
-- Windsurf
-- Claude Code
-- Cline
-- Kiro
-- Trae
-- Qoder
+## 执行任务与验收
 
-打开项目后，AI 会按编辑器自动加载对应规则文件：Copilot 读 `.github/copilot-instructions.md`，Claude Code 读 `CLAUDE.md`，Cline 读 `.clinerules`，通用 Agent 读 `AGENTS.md`，Qoder 读 `.qoder/rules/conventions.md`。
-
-### 第 3 步：开始使用
-
-在 AI 对话中直接说出需求即可：
-
-```
-"帮我生成一个客户管理列表页"
-"扫描这份原型 HTML"
-"审计 src/views/sale 这个目录的代码规范"
-"提取 mmwr-rolling-management 这个页面作为模板"
-"同步菜单到后端"
-"帮我做个台账页面，后端没好先 mock，菜单也加上"
+```sh
+pnpm exec wl-skills task "审计指定页面" --target src/views/example --run-id <任务ID> --json
+# 按 notice 返回路径读取适用 Skill/规范，再执行任务。
+pnpm exec wl-skills validate src/views/example --run-id <任务ID> --json
+pnpm exec wl-skills status --run-id <任务ID> --json
 ```
 
-AI 会自动识别意图，触发对应的 Skill。
+`task` 只建立计划；`route`、`explain` 不写计划。自然语言触发取决于宿主发现、技能启用和任务匹配，不能承诺每次自动触发。模型的 Pre-flight 声明用于沟通，实际执行、检查结果、遗漏与过期证据以同 runId 的工具回执为准。
 
----
+通过必须结合真实检查范围。静态 0 error 不证明类型检查已运行、功能正确或后端写入生效；`partial`、pending 和 stale 都需要继续处理。代码完成后按项目命令运行相关类型检查、构建与功能回归，缺少依赖或无法运行时明确未验证。
 
-## 13 个 Skill 速览
+- 批量页面改动：核对共享组件和独立页，声明逐页预期与排除理由，再做静态覆盖和实际功能验证，见 [范围验收](change-scope.md)。
+- 仅调整菜单顺序：定位菜单数据，保留页面目录、注册分组与路由结构；不能借排序重构页面。
+- 菜单、字典、权限写入：查询事实 → 预览 planHash → 对具体计划明确确认 → 写前重查 → 写后回查，不能从一次工具响应推断全部业务已生效。
 
-| Skill              | 触发关键词                     | 用途                                                 |
-| ------------------ | ------------------------------ | ---------------------------------------------------- |
-| `prototype-scan`   | 扫描原型 / 解析原型 / 口述需求 | 原型 / 详设 → page-spec JSON                         |
-| `spec-doc-parse`   | 解析说明书 / IPO 转页面        | 标准说明书 → page-spec JSON（与原型线二选一）        |
-| `api-contract`     | 接口约定 / api.md / 字段定义   | 生成接口约定文档                                     |
-| `page-codegen`     | 生成页面 / 帮我生成            | 生成页面骨架 + 菜单注册（pattern 已实现时优先 scenario render） |
-| `menu-sync`        | 创建菜单 / 同步菜单            | 菜单数据同步到后端（MCP 自动 / prompt 手动两种模式） |
-| `dict-sync`        | 同步字典 / 创建字典 / 字典审计 | 字典基线同步到后端（MCP 自动 / prompt 手动两种模式） |
-| `convention-audit` | 规范审计 / 代码审计            | 14 条规范扫描 + 偏差报告                             |
-| `business-doc-extract` | 语义级智能触发（无关键词列表） | 原型/详设/字段/字典/现有页面 → .wl-skills/docs/business 业务文档 |
-| `template-extract` | 提取模板 / 提取场景            | 成熟页面 → wl-scenario JSON 场景模板（确定性提取） |
-| `permission-sync`  | 创建角色 / 角色授权 / 同步权限 | 角色+授权+动作权限同步（MCP）                        |
-| `code-fix`         | 自动修复 / 整改偏差 / 规范整改 | 受控自动修复审计报告中的偏差                         |
-| `standard-env-config` | 标准环境配置 / 五套环境     | 存量子应用环境标准化迁移与验证                       |
-| `status-column-audit` | 状态列审计 / 字典列Tag      | 存量字典列升级语义自动判色 Tag                       |
+## 按任务使用能力
 
-完整调度规则见 `.wl-skills/skills/_registry.md`。
+技能路由和命令清单由当前包提供：
 
----
-
-## 项目目录结构
-
-安装后业务项目得到的关键目录：
-
-```
-你的项目/
-├── .wl-skills/                       统一隔离目录（所有 Skill/规范/指南/报告/模板）
-│   ├── copilot-instructions-full.md  AI 主入口完整指令
-│   ├── standards/                    14 条模块化规范
-│   ├── skills/                       13 个启用 Skill + 多编辑器适配
-│   ├── guides/                       使用指南 + 架构设计
-│   ├── docs/                         组件 API 文档 + 场景模板契约（scenario-template.md）
-│   ├── templates/                    领域样例 + 场景模板库（scenarios/*.scenario.json）
-│   └── reports/                      AI 生成报告（SYS_MENU_INFO 等）
-├── .wl-skills-validate.json          可选：validate 项目级豁免配置（kit 不创建）
-└── src/
-    ├── components/                   全局/局部/远程组件
-    └── types/
+```sh
+pnpm exec wl-skills route "<任务>" --target <实际路径> --json
+pnpm exec wl-skills protocol describe --json
+pnpm exec wl-skills --help
 ```
 
----
+页面开发可按需组合原型/详设解析、API 契约、页面生成、规范审计和机械修复；成熟页面可提取 Blueprint 或场景契约复用。不存在必须执行全部技能的固定流水线，未使用的兄弟包也不自动安装。
 
-## 完整流水线（从原型到上线）
+- 生成前确认规格和接口事实，保留项目现有组件、目录和已声明表格技术；不能仅因任务触发就迁移 UI 技术。
+- 确定性场景：先 `scenario validate`，再预览 `scenario render`，经评审后显式 `--confirm`，最后复扫与相关项目测试。模式是否已实现以当前模式注册表为准，不沿用旧版本支持数量。
+- 机械修复：`fix --dry-run` 先看具体差异，自动修改限当前执行器支持项；业务语义和无法确定的项由人工处理，不按告警颜色猜自动修复权限。
+- UI 风格需要时单独使用已安装且适用的 UI 包；各包独立工作，不能用安装清单代替实际执行。
 
-```
-1. 原型/详设 → prototype-scan          → page-spec JSON
-2. page-spec → api-contract            → api.md
-3. api.md    → page-codegen            → 页面骨架 + reports/SYS_MENU_INFO.md
-   ↳ 确定性捷径：交互模式已实现（查 patterns.json）时，规格写成 scenario JSON
-      → wl-skills scenario render --confirm（零 AI 代码生成，毫秒级出标准页面）
-4. SYS_MENU_INFO → menu-sync           → 后端菜单表
-5. 代码完成  → dict-sync               → 字典基线同步到后端字典表
-6. 完成      → convention-audit        → 偏差报告（reports/规范审查报告.md）
-7. 报告      → code-fix                → 受控自动修复 🟡/🟢 偏差，逐条 diff 确认
-8. 沉淀      → template-extract        → 标杆页面提取为 wl-scenario JSON 场景模板
-```
+## 升级与清理
 
-> **说明**：每一步都可以单独触发，也可以按用户意图自动接续。
->
-> - `dict-sync`：`dicts.ts` 是唯一发布真值。首次连接环境先用 `wls_dict_query` 核对目标网关/应用，再由 `wls_dict_upsert` 预览 `safe-additive` 计划；没有 `dicts.ts` 的旧项目先用 `wls_dict_bootstrap` 从 `api.md dict-contract` 生成本地契约。
-> - `code-fix`：只修复 🟡/🟢 偏差；🔴 严重偏差必须人工或 page-codegen 处理。每条修复前强制 diff 预览确认。
+升级本地依赖和锁文件后，用同一版本执行 `update --dry-run` 查看受管变化，再按项目授权执行更新并复验。`init/update` 不是本地 npm 依赖安装器，也不会自动执行业务迁移。旧版本的复制资源与宿主入口只在本包登记所有权且未被修改时安全退役，用户与其他包内容保留。
 
-### 页面生成最终标准
-
-`page-codegen` 生成的业务列表/台账/主从/树表页面必须满足：
-
-- `AbstractPageQueryHook + BaseQuery + BaseToolbar + BaseTable + jh-pagination`
-- `BaseTable` 必须 `render-type="agGrid"`
-- 每个 `BaseTable` 必须有全局唯一 `cid`
-- 列定义必须使用 `@agile-team/wl-skills-ui/runtime` 的 `defineColumns()`
-- 操作列必须使用 `renderOps()`，禁止旧式 `operations: []`
-- Mock 服从项目策略：`disabled` 不生成；`optional` 仅需求明确时生成；`required` 必须生成。关闭 Mock 后业务 URL 不需要改
-
-生成后建议运行：
-
-```bash
-wl-skills validate-page src/views/<页面目录>
-wl-skills doctor-ui
+```sh
+pnpm exec wl-skills update --dry-run
+pnpm exec wl-skills check
+pnpm exec wl-skills diff
+pnpm exec wl-skills clean --dry-run
 ```
 
-### 确定性页面生成（wl-scenario，推荐）
-
-交互模式已在 `patterns.json` 标 `implemented`（当前：标准列表页 / 工位实绩）时，
-页面代码可以**完全不经 AI** 生成——AI 只负责写/审 scenario JSON：
-
-```bash
-# 从种子模板起步（.wl-skills/templates/scenarios/universal/list.scenario.json）
-cp .wl-skills/templates/scenarios/universal/list.scenario.json contracts/customer.scenario.json
-# 填充 pageId/page/字段/字典码/apiConfig 后：
-wl-skills scenario validate --input contracts/customer.scenario.json
-wl-skills scenario render   --input contracts/customer.scenario.json            # 预览
-wl-skills scenario render   --input contracts/customer.scenario.json --confirm # 落盘四件套
-wl-skills validate-page src/views/<目标目录>                                    # 门禁复扫
-
-# 产物被手改时随时校验漂移（JSON 是唯一事实源）：
-wl-skills scenario verify   --input contracts/customer.scenario.json --page src/views/<目标目录>
-# validate 已内置 W1：带 scenarioRef 的页面提交/CI 时自动逐字节核对，手改即拦截
-
-# 存量成熟页面反向沉淀：
-wl-skills scenario extract  --page src/views/<页面目录> --output contracts/x.scenario.json
-
-# 已有 page-spec（原型扫描/说明书解析产物）零手写引导为 scenario：
-wl-skills scenario from-spec --input <page-spec.json> --service sale --resource customer \
-  --table-cid cust-0001 --output contracts/customer.scenario.json --confirm
-```
-
-已有产物内容不同时，`render` 需加 `--force` 才能覆盖，旧文件会备份为 `.bak.<时间戳>`；
-`extract` 和 `from-spec` 覆盖已有输出也需加 `--force`。输入、输出路径须在当前项目内。
-
-收益（scripts/benchmark-scenario.js 实测，可重复执行）：同 JSON 永远得到同一份标准代码
-（字节级可复现）；单页 render ~0.5ms、批量 20 页 ~8ms；**模型 token 消耗 0**
-（对比 AI 主流程每页输入 ~2 万 + 输出 ~3.5 千 token）；review 对象从几百行代码缩小为
-一份结构化 JSON。契约详见 `.wl-skills/docs/scenario-template.md`。
-
----
-
-## 常见问题
-
-**Q: AI 生成的代码不符合规范怎么办？**
-A: 触发 `convention-audit`，输出偏差报告到 `reports/规范审查报告.md`，按 🔴 严重 → 🟡 轻微的优先级修复。
-
-**Q: 工具链检测一直失败？**
-A: 检查 `.prettierrc.js` / `eslint.config.ts` / `.husky/` 是否齐全。重新执行 `npx @robot-admin/git-standards init`，或联系 CHENY（工号 409322）。
-
-**Q: 本团队有特殊的页面模式，通用模板不适用？**
-A: 触发 `template-extract`，从现有标杆页面提取为领域专属模板，沉淀到 `templates/domains/{你的领域}/`。
-
-**Q: 多个 AI 编辑器之间会冲突吗？**
-A: 不会。`bin/wl-skills.js` 已自动生成 10 种 AI 编辑器配置（含 Kilo Code / Qoder）；规则正文来自同一入口。Kilo 的 `.kilo/skills/` 也只是指向 `.wl-skills/skills/` 的薄适配器，不复制流程正文。
-
-**Q: MCP Server 是什么？需要额外配置吗？**
-A: `wl-skills init` 会自动为 **Cursor**（`.cursor/mcp.json`）、**Claude Code**（`.mcp.json`）、**VS Code / GitHub Copilot**（`.vscode/mcp.json`）、**Kiro**（`.kiro/settings/mcp.json`）和 **Kilo Code** 生成项目级 MCP 配置。Kilo 优先无损合并已有根目录 `kilo.jsonc` / `kilo.json`，否则创建 `.kilo/kilo.jsonc`；现有注释、GLM provider、团队规则和其他 MCP 均保留。
-
-Windsurf、Cline、Trae、Qoder 仅支持全局配置，需手动操作一次，详见 `.wl-skills/guides/mcp-setup.md`。
-
-配置完成后在 `.wl-skills/skills/sync/env.local.json` 中填好 `token`、`gatewayPath`、`menu.domainId`，重启编辑器，对 AI 说「扩展菜单」或「加字典」，AI 会自动调用 MCP 工具完成同步，无需手动粘贴接口响应。
-
-**Q: 如何和 wl-skills-ui 一起用？**
-A: 两个包不互相依赖。先用 `wl-skills-kit` 做页面生成、规范审计、菜单字典权限同步；如需统一 UI 风格或老系统化妆层，再单独安装 `@agile-team/wl-skills-ui` 并执行 `wl-ui init/update`。
-
-**Q: 部署到生产环境前如何清理 AI 文件？**
-A: 执行 `npx @agile-team/wl-skills-kit clean`。会移除可清理的 AI 辅助文件，保留 kit 组件模板、已按需落盘的 `src/components/` 和 `src/types/`。
-
----
-
-## 升级与维护
-
-### 生命周期命令
-
-```bash
-npx @agile-team/wl-skills-kit check        # 环境/MCP/manifest 体检
-npx @agile-team/wl-skills-kit diff         # 查看与当前包版本差异
-npx @agile-team/wl-skills-kit validate-page src/views/xxx # 单页/目录强校验
-npx @agile-team/wl-skills-kit doctor-ui    # wl-skills-ui 接入体检
-npx @agile-team/wl-skills-kit update       # 增量更新
-npx @agile-team/wl-skills-kit clean        # 清理 AI 文件，保留 src/components + src/types
-npx @agile-team/wl-skills-kit export       # 导出菜单/字典/权限基线 xlsx
-```
-
-### 增量更新
-
-```bash
-npx @agile-team/wl-skills-kit@latest update
-# 仅覆盖有变化的文件，未变文件不动
-```
-
-### 预览模式
-
-任何命令都可加 `--dry-run` 预览变更：
-
-```bash
-npx @agile-team/wl-skills-kit update --dry-run
-npx @agile-team/wl-skills-kit clean --dry-run
-```
-
----
-
-## Pre-flight 声明阅读指南
-
-每次 AI 触发 Skill 时会输出"Pre-flight 声明"，告诉你它读取了哪些文件、做了哪些前置检查：
-
-```
-🚀 已触发技能 page-codegen/SKILL.md   → 页面代码生成
-✅ 已读取 standards/02-code-structure.md → 三文件分离+接口契约 + 三段式 + script 9 段顺序
-✅ 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓
-✅ cid 已生成：cl-745831
-```
-
-如果 AI 没输出此声明，说明它跳过了前置检查，**请提示它"补 Pre-flight 声明"**，或重新触发。
-
----
-
-## 反馈与贡献
-
-- 使用问题 / Bug：联系 CHENY（工号 409322）
-- 模板贡献：使用 `template-extract` Skill 自动提取并 PR
-- 规范修改：在 `standards/` 编辑后，团队评审通过后合入
-
----
+`clean` 清理本包拥有且可清理的开发资产，不回退已生成的业务源码，不删除本地凭据。不要把升级、清理或诊断命令当作线上发布验证。
 
 ## 进一步阅读
 
-- 架构与决策记录：[architecture.md](architecture.md)
-- 编辑器适配说明：`.wl-skills/skills/_compat/README.md`
+- [当前架构与维护边界](architecture.md)
+- [MCP 接入与验收](mcp-setup.md)
+- [批量页面与菜单排序范围验收](change-scope.md)
+
+使用问题和模板贡献联系 CHENY。历史演进查包根 `CHANGELOG.md` 和 `docs/version-history.md`，不把旧安装路径当作当前协议。

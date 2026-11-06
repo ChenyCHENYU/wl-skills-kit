@@ -28,6 +28,7 @@ import {
   TableColumnDesc,
   ActionButtonDesc
 } from "@/types/page";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import { postAction } from "@jhlc/common-core/src/api/action";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { defineColumns } from "@agile-team/wl-skills-ui/runtime";
@@ -54,9 +55,9 @@ export function resetOperationFormData() {
 }
 
 // ===== 操作表单字段配置 =====
-export const operationFormItems = [
-  { name: "[formField1]", label: "[字段名]", disabled: true },
-  { name: "[formField2]", label: "[字段名2]" }
+export const operationFormItems: BaseFormItemDesc<any>[] = [
+  { name: "[formField1]", label: "[字段名]", showColon: false, disabled: true },
+  { name: "[formField2]", label: "[字段名2]", showColon: false }
 ];
 
 // ===== 待处理清单 =====
@@ -67,7 +68,7 @@ export function createPendingPage() {
     }
     queryDef(): BaseQueryItemDesc<any>[] {
       return [
-        { name: "[queryField]", label: "[查询字段]", placeholder: "请输入" }
+        { name: "[queryField]", label: "[查询字段]", showColon: false, placeholder: "请输入" }
       ];
     }
     toolbarDef(): ActionButtonDesc[] { return []; }

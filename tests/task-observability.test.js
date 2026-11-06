@@ -52,15 +52,14 @@ describe("kit real task evidence", () => {
     const root = fixture();
     expect(run(root, ["init"]).status).toBe(0);
     const initial = JSON.parse(run(root, ["route", "创建页面", "--json"]).stdout);
-    const asset = initial.requiredFiles.find((file) => file.endsWith("/SKILL.md"));
-    fs.unlinkSync(path.join(root, asset));
-    fs.mkdirSync(path.join(root, asset));
+    const asset = initial.resources.find((file) => file.resourceId.endsWith("/SKILL.md")).resourceId;
+    fs.mkdirSync(path.join(root, asset), { recursive: true });
     const decision = JSON.parse(run(root, ["route", "创建页面", "--json"]).stdout);
     expect(decision.routingStatus).toBe("matched");
     expect(decision.status).toBe("gap");
     expect(decision.ready).toBe(false);
     expect(decision.missingInputs).toContain(asset);
-    expect(fs.existsSync(path.join(root, ".wl-skills/runs"))).toBe(false);
+    expect(fs.existsSync(path.join(root, ".wl-skills/state/kit/runs"))).toBe(false);
   });
   it("routes ordinary changes to baseline, explicit generation to its Skill, and unrelated work outside the domain", () => {
     const root = fixture();
@@ -70,7 +69,7 @@ describe("kit real task evidence", () => {
       expect(result.status, result.stderr).toBe(0);
       const decision = JSON.parse(result.stdout);
       expect(decision.routingStatus || decision.status).toBe(expected);
-      if (decision.applicable === true) { expect(decision.status).toBe("gap"); expect(decision.ready).toBe(false); }
+      if (decision.applicable === true) { expect(decision.status).toBe(expected); expect(decision.ready).toBe(expected !== "ambiguous"); }
     }
     expect(fs.readdirSync(root)).toEqual(["package.json"]);
   });
@@ -88,7 +87,7 @@ describe("kit real task evidence", () => {
     expect(result.runId).toBe(plan.runId);
     expect(result.summary.pages).toBe(1);
     expect(result.executionStatus).toBe(checked.status === 0 ? "completed" : "failed");
-    expect(result.receiptPath).toContain(".wl-skills/runs/");
+    expect(result.receiptPath).toContain(".wl-skills/state/kit/runs/");
     const status = JSON.parse(run(root, ["status", "--run-id", plan.runId, "--json"]).stdout);
     expect(status.tools).toHaveLength(1);
     expect(status.tools[0].checkedFiles.map((file) => file.path).sort()).toEqual(["src/views/Demo/data.ts", "src/views/Demo/index.scss", "src/views/Demo/index.vue"]);
@@ -105,8 +104,8 @@ describe("kit real task evidence", () => {
     expect(result.status).toBe(1);
     const status = JSON.parse(run(root, ["status", "--json"]).stdout);
     expect(status.tools[0].validationStatus).toBe("unverified");
-    const diagnostic = JSON.parse(run(root, ["doctor-host", "--json"]).stdout);
-    expect(diagnostic.entryReadiness).toBe("incomplete");
+    const diagnostic = JSON.parse(run(root, ["doctor-host", "--host", "codex", "--json"]).stdout);
+    expect(diagnostic.entryReadiness).toBe("not-applicable");
     expect(diagnostic.hostDiscovery).toBe("unverified");
   });
 
@@ -116,7 +115,8 @@ describe("kit real task evidence", () => {
     const gateway = path.join(root, ".agents/skills/wl-skills-kit/SKILL.md");
     expect(fs.readdirSync(path.dirname(path.dirname(gateway)))).toEqual(["wl-skills-kit"]);
     fs.appendFileSync(gateway, "\nUser instruction\n");
-    expect(run(root, ["update"]).status).toBe(0);
+    expect(run(root, ["update"]).status).toBe(2);
+    expect(fs.readFileSync(gateway, "utf8")).toContain("User instruction");
     expect(run(root, ["clean"]).status).toBe(0);
     expect(fs.readFileSync(gateway, "utf8")).toContain("User instruction");
   });

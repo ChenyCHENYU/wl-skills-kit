@@ -1,6 +1,6 @@
 ---
 name: convention-audit
-description: "Use when: auditing project source code against the 14 modular standards in .wl-skills/standards/. Outputs deviation report and component-extraction suggestions to reports/. Triggers on: 规范审计, 规范检查, 代码审计, 对齐规范, 规范偏差, 接手新项目, 存量代码分析, 项目体检, audit code, check conventions, onboard project."
+description: "按本包14类编码规范审计现有前端源码，定位偏差、输出问题清单与组件提取建议。用于项目接手、规范体检或存量代码核查；审计本身只读，不代替修复或业务验收。"
 ---
 
 实现驱动页面以实际业务三文件为审计对象。`role: "mirror"` 的 page-spec 用于领域留存，过期只提示重新提取，不按镜像反向约束代码。无镜像的有效页面兼容；旧需求规格和显式 scenario 项目保持原约定校验。
@@ -20,16 +20,13 @@ description: "Use when: auditing project source code against the 14 modular stan
 
 ---
 
-## Pre-flight 声明（执行前必须输出）
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 convention-audit/SKILL.md → 规范审计：扫描源码 + 偏差报告 + 提取建议
-✅ 已读取 standards/index.md          → 规范门控
-✅ 已读取 standards/01 ~ 14           → 完整 14 条规范基线（审计场景需全量加载）
-✅ 已读取 reports/规范审查报告.md      → 现有报告（用于追加，不覆盖）
-✅ 审计范围：{用户指定的目录或单文件}
-✅ 工具链检测：ESLint {状态} / tsc {状态} / Husky {状态}
-```
+- [ ] 读取 standards/index.md          → 规范门控
+- [ ] 读取 standards/01 ~ 14           → 完整 14 条规范基线（审计场景需全量加载）
+- [ ] 读取 reports/规范审查报告.md      → 现有报告（用于追加，不覆盖）
+- [ ] 审计范围：{用户指定的目录或单文件}
+- [ ] 工具链检测：ESLint {状态} / tsc {状态} / Husky {状态}
 
 ---
 

@@ -793,13 +793,19 @@ describe("pre-commit 字典契约增量范围", () => {
     commitFixture(root);
     fs.writeFileSync(shared, 'export const material = { dictCode: "missing_material" };\n');
     expect(runGit(root, ["add", `${current.relDir}/shared.ts`]).status).toBe(0);
-    const result = runValidate(root, ["--pre-commit"]);
+    const runId = "staged-shared-dictionary";
+    const result = runValidate(root, ["--pre-commit", "--run-id", runId]);
     const output = result.stdout + result.stderr;
     expect(result.status, output).toBe(1);
     expect(output).toMatch(/页面目录: 0/);
     expect(output).toMatch(/D2/);
     expect(output).toMatch(/missing_material/);
     expect(output).not.toMatch(/未发现包含 index|跳过页面检测/);
+    const status = spawnSync(process.execPath, [CLI, "status", "--run-id", runId, "--json"], { cwd: root, encoding: "utf8" });
+    const receipt = JSON.parse(status.stdout);
+    expect(receipt.validationStatus).toBe("failed");
+    expect(receipt.tools[0].checks).toContainEqual(expect.objectContaining({ id: "dictionary-contract", status: "failed", reason: expect.stringContaining("D2") }));
+    expect(receipt.tools[0].checkedFiles).toContainEqual(expect.objectContaining({ path: `${current.relDir}/dicts.ts` }));
   });
 
   it.each(["../../pm/dicts", "@/views/produce/pm/dicts"])("暂存页面通过 %s 导入的跨模块字典也应校验", (source) => {

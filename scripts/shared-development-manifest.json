@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "revision": "sha256:0173811cbaef5218fa4c423f7ca63cd7d0955d662fa8881d9c897613c590d043",
+  "files": {
+    "scripts/compatibility-check.cjs": "4003bc01e25deaba531255350c88a75ae7117f99b8cda6d89031a009cb022a3c",
+    "scripts/pack-integrity-check.cjs": "6d515109a8def6117cfd22d9a107e1e182fbb1c3883c2ad6de31d5f1e24ab2ab"
+  }
+}

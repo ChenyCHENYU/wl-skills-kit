@@ -1,7 +1,7 @@
 {
   "name": "@agile-team/wl-skills-kit",
-  "version": "2.33.4",
-  "description": "AI Skill 模板包 v2.33.4 — 14 条编码规范 + 13 个 AI Skill + 34 个 MCP Tool，独立 API 契约与前后端严格兼容",
+  "version": "2.33.5",
+  "description": "AI Skill 模板包 v2.33.5 — 14 条编码规范 + 13 个 AI Skill + 34 个 MCP Tool，独立 API 契约与前后端严格兼容",
   "packageManager": "pnpm@11.5.3",
   "bin": {
     "wl-skills": "bin/wl-skills.js"
@@ -24,7 +24,6 @@
     "template",
     "codegen",
     "cursor",
-    "windsurf",
     "kiro",
     "kilo",
     "kilo-code",
@@ -50,14 +49,15 @@
     "lint:skills": "node scripts/lint-skills.js",
     "test": "vitest run && node tests/menu-buildbody.check.js",
     "version:verify": "node scripts/verify-version.js && node scripts/sync-task-standards.cjs --check",
-    "verify": "npm run support:check && pnpm version:verify && pnpm lint && pnpm lint:skills && pnpm test",
+    "verify": "npm run support:check && npm run version:verify && npm run lint && npm run lint:skills && npm test",
     "ci": "pnpm install --frozen-lockfile && pnpm verify",
     "pack:dry": "npm pack --dry-run --ignore-scripts",
-    "release:check": "pnpm verify && npm pack --dry-run --ignore-scripts",
-    "prepublishOnly": "npm run support:check && node scripts/verify-version.js && pnpm lint && node scripts/lint-skills.js && vitest run",
+    "release:check": "npm run verify && npm pack --dry-run --ignore-scripts",
+    "prepublishOnly": "npm run support:check && npm run support:pack-check && node scripts/verify-version.js && npm run lint && node scripts/lint-skills.js && vitest run",
     "version": "node scripts/sync-version.js",
     "support:check": "node lib/shared-support-check.cjs",
-    "compatibility:check": "node scripts/compatibility-check.cjs"
+    "compatibility:check": "node scripts/compatibility-check.cjs",
+    "support:pack-check": "node scripts/pack-integrity-check.cjs"
   },
   "optionalDependencies": {
     "@babel/parser": "^7.20.0",

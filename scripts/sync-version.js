@@ -7,7 +7,6 @@
  *   - files/.wl-skills/guides/architecture.md  "当前版本" 行
  *   - bin/wl-skills.js                       顶部注释行
  *   - package.json description               npm 页面描述
- *   - files/.wl-skills/skills/_compat/headers/  三个含版本描述的 header 文件
  *
  * 同时维护「Skill 数量」常量：当 _registry.md 中 ✅ 启用 的行数变化时，
  * 手动更新下方 SKILL_COUNT，sync-version 会自动将其同步到所有引用处。
@@ -60,8 +59,6 @@ function countMcpTools() {
 const MCP_TOOL_COUNT = countMcpTools();
 // ──────────────────────────────────────────────────────────────────────────────
 
-const SKILL_DESC_PATTERN = /14 条标准 \+ \d+ 个 Skill 自动调度/g;
-const SKILL_DESC_REPLACE = `14 条标准 + ${SKILL_COUNT} 个 Skill 自动调度`;
 
 const updates = [
   {
@@ -89,21 +86,7 @@ const updates = [
     regex: /"description": ".*?"/,
     replace: `"description": "AI Skill 模板包 v${version} — 14 条编码规范 + ${SKILL_COUNT} 个 AI Skill + ${MCP_TOOL_COUNT} 个 MCP Tool，独立 API 契约与前后端严格兼容"`,
   },
-  {
-    file: "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
-    regex: SKILL_DESC_PATTERN,
-    replace: SKILL_DESC_REPLACE,
-  },
-  {
-    file: "files/.wl-skills/skills/_compat/headers/trae.txt",
-    regex: SKILL_DESC_PATTERN,
-    replace: SKILL_DESC_REPLACE,
-  },
-  {
-    file: "files/.wl-skills/skills/_compat/headers/kiro.txt",
-    regex: SKILL_DESC_PATTERN,
-    replace: SKILL_DESC_REPLACE,
-  },
+
 ];
 
 let ok = true;

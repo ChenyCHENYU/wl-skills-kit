@@ -113,11 +113,34 @@
   "triggerConditions": {
     "page-codegen": {
       "description": "泛生成词只在当前任务明确涉及 PC 页面对象，或提供本项目页面目标时参与路由；安装 Kit 本身不是任务对象证据。",
-      "triggers": ["代码生成", "帮我生成", "mock", "假数据", "先能跑"],
-      "taskKeywords": ["前端", "页面", "Vue", "列表页", "管理页", "台账", "AGGrid", "skills-ui"],
-      "targetExtensions": [".vue"],
-      "targetNames": ["data.ts", "page-spec.json"],
-      "targetDirectories": ["src/views", "src/pages"]
+      "triggers": [
+        "代码生成",
+        "帮我生成",
+        "mock",
+        "假数据",
+        "先能跑"
+      ],
+      "taskKeywords": [
+        "前端",
+        "页面",
+        "Vue",
+        "列表页",
+        "管理页",
+        "台账",
+        "AGGrid",
+        "skills-ui"
+      ],
+      "targetExtensions": [
+        ".vue"
+      ],
+      "targetNames": [
+        "data.ts",
+        "page-spec.json"
+      ],
+      "targetDirectories": [
+        "src/views",
+        "src/pages"
+      ]
     }
   },
   "triggers": {
@@ -240,5 +263,257 @@
       "华新环境",
       "自定义环境 Profile"
     ]
+  },
+  "skillPolicies": {
+    "page-codegen": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:创建|新建|新增|生成|实现|开发)[^，。；;\\n]{0,16}(?:页面|管理页|列表页)(?!的|内|中|上)"
+      ]
+    },
+    "convention-audit": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:检查|审计|核查|核对|评估)[^，。；;\\n]{0,24}(?:源码|代码|项目)[^，。；;\\n]{0,24}(?:团队规则|编码规范|项目规范|遵守规范)",
+        "(?:源码|代码)[^，。；;\\n]{0,20}(?:是否遵守|是否符合|符合)[^，。；;\\n]{0,16}(?:规范|团队规则)"
+      ]
+    },
+    "code-fix": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:编码|代码|规范)[^，。；;\\n]{0,12}(?:偏差|违规|问题清单)[^，。；;\\n]{0,20}(?:整改|修复|改正)",
+        "(?:整改|修复|纠正)[^，。；;\\n]{0,20}(?:编码偏差|规范偏差|规范违规)"
+      ]
+    },
+    "api-contract": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:接口|请求参数|分页响应|响应结构|错误(?:码|约定))[^，。；;\\n]{0,32}(?:约定|契约|对齐|确认|写清楚|定义)",
+        "(?:梳理|定义|编写|确认)[^，。；;\\n]{0,24}(?:接口契约|请求参数|响应结构|分页响应)"
+      ]
+    },
+    "prototype-scan": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:Axure|原型)[^。；;\\n]{0,48}(?:导出|HTML|html)[^。；;\\n]{0,64}(?:业务页面|页面清单|共享框架|页面结构)",
+        "(?:梳理|识别|扫描|解析)[^，。；;\\n]{0,24}(?:Axure|原型HTML|原型目录)"
+      ]
+    },
+    "spec-doc-parse": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:阅读|解析|解构|整理)[^，。；;\\n]{0,24}(?:标准详设|详细设计|需求说明书)[^。；;\\n]{0,56}(?:页面开发输入|功能|字段|交互|页面需求)"
+      ]
+    },
+    "business-doc-extract": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:整套|整个|全部|批量|已导出)[^，。；;\\n]{0,24}(?:原型|详设|业务文档)[^。；;\\n]{0,64}(?:模块职责|业务疑点|业务规则|业务知识|模块文档)"
+      ]
+    },
+    "template-extract": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:提炼|抽取|提取|沉淀)[^。；;\\n]{0,36}(?:复用|通用|模板)[^。；;\\n]{0,24}(?:页面|蓝图|模板)",
+        "(?:提炼|抽取|提取|沉淀)[^，。；;\\n]{0,24}页面蓝图"
+      ]
+    },
+    "menu-sync": {
+      "domain": "backend-menu",
+      "baselinePolicy": "own-domain",
+      "checks": [
+        "backend-preview"
+      ],
+      "intentPatterns": [
+        "(?:批量\\s*)?(?:创建|新建|新增|增加|添加|注册|登记|同步|更新|补齐|删除)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:菜单|(?:系统)?导航(?:项|节点)?)(?!配置|组件|页面|样式|标题|字段|数据)",
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:菜单|(?:系统)?导航(?:项|节点)?)(?!配置|组件|页面|样式|标题|字段|数据)"
+      ],
+      "queryPatterns": [
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:菜单|(?:系统)?导航(?:项|节点)?)(?!配置|组件|页面|样式|标题|字段|数据)"
+      ],
+      "negativePatterns": [
+        "(?:创建|新建|新增|生成)[^，。；;\\n]{0,16}菜单(?:配置)?(?:页面|组件)",
+        "(?:给|为)[^，。；;\\n]{0,20}角色[^，。；;\\n]{0,16}(?:分配|授权)[^，。；;\\n]{0,8}菜单",
+        "(?:查询|查看|获取|列出|检索)[^，。；;\\n]{0,20}角色[^，。；;\\n]{0,16}(?:的菜单|可分配菜单|菜单权限)"
+      ]
+    },
+    "dict-sync": {
+      "domain": "backend-dictionary",
+      "baselinePolicy": "own-domain",
+      "checks": [
+        "backend-preview"
+      ],
+      "intentPatterns": [
+        "(?:批量\\s*)?(?:创建|新建|新增|增加|添加|注册|登记|同步|更新|补齐|删除)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}字典(?!列|标签|样式|字段|组件)",
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}字典(?!列|标签|样式|字段|组件)"
+      ],
+      "queryPatterns": [
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}字典(?!列|标签|样式|字段|组件)"
+      ],
+      "negativePatterns": [
+        "(?:创建|新建|新增|生成)[^，。；;\\n]{0,16}字典(?:显示)?(?:列|标签|组件|页面)"
+      ]
+    },
+    "permission-sync": {
+      "domain": "backend-permission",
+      "baselinePolicy": "own-domain",
+      "checks": [
+        "backend-preview"
+      ],
+      "intentPatterns": [
+        "(?:批量\\s*)?(?:创建|新建|新增|增加|添加|注册|登记|同步|更新|补齐|删除)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:角色(?!菜单|列表|页面|组件|字段|下拉)|权限(?:码)?|动作(?:按钮)?)",
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:角色(?!菜单|列表|页面|组件|字段|下拉)|权限(?:码)?|动作(?:按钮)?)",
+        "(?:给|为)[^，。；;\\n]{0,20}角色[^，。；;\\n]{0,16}(?:分配|授权)",
+        "(?:分配|授权)[^，。；;\\n]{0,20}(?:给|到)[^，。；;\\n]{0,20}角色",
+        "(?:给|为)[^，。；;\\n]{0,20}(?:授予|赋予|授权)[^，。；;\\n]{0,12}(?:访问)?权限"
+      ],
+      "queryPatterns": [
+        "(?:批量\\s*)?(?:查询|查看|获取|列出|检索)\\s*(?:(?:[0-9]{1,6}|[一二三四五六七八九十百千万两几若干]+)\\s*(?:个|条|项|套|批|种)?\\s*)?[^，。；;\\n]{0,20}(?:角色(?!菜单|列表|页面|组件|字段|下拉)|权限(?:码)?|动作(?:按钮)?)"
+      ],
+      "negativePatterns": [
+        "(?:创建|新建|新增|生成)[^，。；;\\n]{0,16}角色(?:管理)?(?:页面|组件|列表)",
+        "角色(?:管理)?(?:页面|组件|列表)"
+      ]
+    },
+    "standard-env-config": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:Vite|前端|子应用)[^。；;\\n]{0,64}(?:开发|测试|生产)[^。；;\\n]{0,48}(?:配置|环境)[^。；;\\n]{0,24}(?:标准|统一|整理)",
+        "(?:规范|统一|整理)[^，。；;\\n]{0,20}(?:前端|Vite|子应用)[^，。；;\\n]{0,20}(?:环境|配置)"
+      ]
+    },
+    "status-column-audit": {
+      "domain": "frontend",
+      "baselinePolicy": "frontend",
+      "checks": [
+        "validate"
+      ],
+      "intentPatterns": [
+        "(?:检查|审计|扫描|找出)[^。；;\\n]{0,40}(?:状态|类型|枚举)[^。；;\\n]{0,12}列[^。；;\\n]{0,56}(?:字典|标签|Tag|纯文本)"
+      ]
+    }
+  },
+  "frontendEvidence": {
+    "taskKeywords": [
+      ".vue",
+      "data.ts",
+      "api.md",
+      "页面代码",
+      "修改页面",
+      "创建页面",
+      "生成页面",
+      "编辑页面",
+      "修复页面",
+      "页面文字",
+      "页面布局",
+      "Vue组件",
+      "组件代码",
+      "列表页",
+      "管理页"
+    ],
+    "targetExtensions": [
+      ".vue"
+    ],
+    "targetNames": [
+      "data.ts",
+      "page-spec.json"
+    ],
+    "targetDirectories": [
+      "src/views",
+      "src/pages"
+    ]
+  },
+  "backendTools": {
+    "wls_domain_query": {
+      "kind": "query"
+    },
+    "wls_menu_query": {
+      "kind": "query"
+    },
+    "wls_dict_query": {
+      "kind": "query"
+    },
+    "wls_role_query": {
+      "kind": "query"
+    },
+    "wls_assignable_menus_query": {
+      "kind": "query"
+    },
+    "wls_action_query": {
+      "kind": "query"
+    },
+    "wls_menu_upsert": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    },
+    "wls_menu_delete": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    },
+    "wls_menu_sync_from_report": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    },
+    "wls_dict_upsert": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    },
+    "wls_role_upsert": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    },
+    "wls_role_assign_menus": {
+      "kind": "guarded-write",
+      "confirmation": "confirmFullReplace"
+    },
+    "wls_action_upsert": {
+      "kind": "guarded-write",
+      "confirmation": "confirmApply"
+    }
+  },
+  "backendCheckCompatibility": {
+    "legacy": "backend-preview-and-confirmation",
+    "replacement": [
+      "backend-preview",
+      "backend-apply",
+      "backend-postverify"
+    ],
+    "policy": "New plans require the first safe stage; legacy aggregate is emitted only after a guarded apply with matching confirmed planHash. Preview does not prove confirmation, apply or post-verification."
   }
 }

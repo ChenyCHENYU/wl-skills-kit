@@ -17,7 +17,7 @@
 | MCP Tool 风险矩阵 | `docs/mcp-tool-risk-matrix.md` |
 | Skill 路由表 / 触发词 | `files/.wl-skills/skills/_registry.md` |
 | Skill I/O 契约 | `files/.wl-skills/skills/_pipeline.md` |
-| 多编辑器适配注册表 | `files/.wl-skills/skills/_compat/editors.json` |
+| 多编辑器适配注册表 | `lib/project-integration.cjs` |
 | MCP Tool 描述符（auto-discovery） | `mcp/registry.js` |
 | 业务方使用指南 | `files/.wl-skills/guides/usage.md` |
 | 业务方架构说明 | `files/.wl-skills/guides/architecture.md` |
@@ -192,8 +192,8 @@
 
 **做了什么**：
 
-- `_compat/editors.json` 作为编辑器注册表
-- `_compat/headers/` 各编辑器 frontmatter 单独维护
+- `project-integration.cjs` 统一配置、宿主分组和包内资源解析
+- `host-profiles.cjs` 记录当前宿主入口与静态诊断边界；旧格式仅保留迁移识别
 - `bin/wl-skills.js#getEditorConfigs()` 仅从注册表读，不再硬编码
 
 **为什么**：

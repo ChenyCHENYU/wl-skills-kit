@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 const SERVER = fileURLToPath(new URL("../mcp/server.js", import.meta.url));
 const TOOL = "wls_validate_page";
-const RECORDS = ".wl-skills/runs";
+const RECORDS = ".wl-skills/state/kit/runs";
 const FIRST = { path: "src/views", limit: 1, maxBytes: 4096 };
 const CHANGED = { path: "src/views" };
 const unpack = (r) => r.result.structuredContent;
@@ -66,6 +66,7 @@ test("真实 MCP 续页只读同次快照，不新增回执；重新扫描产生
       writeFileSync(path.join(dir, "data.ts"), "export const value = 1;");
     }
     const first = await server.call(FIRST);
+    assert.doesNotMatch(first.result.content[0].text, /结果续页：/);
     assert.ok(first.result._meta?.wlExecution, JSON.stringify(first));
     const initial = unpack(first);
     assert.ok(total(initial) > 1);
@@ -85,6 +86,7 @@ test("真实 MCP 续页只读同次快照，不新增回执；重新扫描产生
     const readPages = async (cursor) => {
       if (!cursor) return 0;
       const response = await server.call({ resultCursor: cursor, limit: 2, maxBytes: 4096 });
+      assert.match(response.result.content[0].text, /结果续页：只读取原快照，未重新执行或新增检查/);
       assert.equal(response.result._meta, undefined);
       const view = unpack(response);
       assert.equal(view.displayOnly, true); assert.equal(total(view), total(initial));

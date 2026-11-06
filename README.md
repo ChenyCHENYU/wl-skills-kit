@@ -21,7 +21,7 @@
 
 面向**已接入 Kit 的 PC Vue 3 / Web 管理端**，支持新页面开发、存量整改和领域模板复用。移动 H5、UniApp、小程序、App / PDA 不套用 PC 规则；父工作区安装不会自动启用子项目。
 
-AI Skill 模板包 v2.33.4：14 条编码规范、13 个 AI Skill、34 个 MCP Tool，配套 CLI、编辑器入口与项目内文档。
+AI Skill 模板包 v2.33.5：14 条编码规范、13 个 AI Skill、34 个 MCP Tool，配套 CLI、编辑器入口与项目内文档。
 
 | 需要做什么 | Kit 提供什么 | 交付结果 |
 | --- | --- | --- |
@@ -30,6 +30,21 @@ AI Skill 模板包 v2.33.4：14 条编码规范、13 个 AI Skill、34 个 MCP T
 | 整改存量代码 | 规范审计、确定性机械修复、复扫 | 已修复与需人工判断的项分开反馈 |
 | 复用成熟页面 | 紧凑项目快照、脱敏 Blueprint、场景 JSON 确定性渲染 | 减少逐页读源码与重复生成 |
 | 补齐交付配置 | 菜单、字典、角色与动作权限 MCP | 查询 → 预览 → 确认 → 写入 → 回查 |
+
+**确认技能是否生效：**
+
+- GPT、GLM 等模型由 Codex、Claude Code 或具体 VS Code 插件读取项目入口；模型名称本身不代表已加载技能。
+- 先在实际项目根运行 `pnpm exec wl-skills doctor-host --host codex --json`，按实际宿主调整 `--host`；这是入口诊断，不能代替一次真实调用。
+- 支持原生技能时可说：`$wl-skills-kit 请在 <项目绝对路径> 中 <完整任务>`；不支持该语法时，让 Agent 先读取 `.agents/skills/wl-skills-kit/SKILL.md`。
+- 首条进度应展示真实 `notice.summary`（旧版 `notice`），交付用 `pnpm exec wl-skills status --run-id <runId> --json` 核对执行与待检查项；自动选择取决于宿主，不能据安装承诺每次隐式任务都会触发。
+
+`doctor-host` 的 `discoveryCoverage` 会并列展示当前项目五包的安装版本、原生入口候选、需复核项与缺失入口。候选表示元数据可解析；本地修改、执行器版本、宿主加载和真实执行分别核验，未接入的兄弟包不会自动安装。
+
+同时使用多个宿主时，在项目 `wlSkills.hosts` 或安装命令 `--hosts codex,claude,zcode` 中明确选择实际宿主；模型名不参与目录选择。五包各保留一个任务网关，具体 Skill 按需读取，不复制整套技能到每个编辑器。Qoder 使用 `.qoder/skills` 原生目录；Trae 当前仅核实规则引导和手动导入，不把 `.agents` 文件存在当作原生发现成功。
+
+四个 MCP 服务会先显示简短中文调用回执，保留实际 `runId`、工具名与执行/验证状态；部分验证会说明未完成原因。机器调用方优先读取 `structuredContent`，兼容 JSON 保留在后续文本块，不再固定对 `content[0].text` 做 `JSON.parse`。仅工具返回、计划建立、检查通过分别展示；没有关联检查记录时明确说明。
+
+ZCode 用户请使用 `--host zcode`，打开实际项目，在 Settings → Skills 刷新并核对启用；仍未出现时用新会话验证。ZCode 不会递归发现所有子项目，也不会合并子项目 AGENTS；不要为显示五包而复制同名入口。每包说明应把具体用途放在前 250 字符，超 1024 字符会被丢弃。显式选择和自然语言自动选择共用技能清单，自动选择还受元数据预算、当前 Agent 的工具开关与任务匹配影响。[官方技能说明](https://zcode.z.ai/en/docs/skill)
 
 ## 快速开始
 
@@ -42,7 +57,19 @@ pnpm add -D -E @agile-team/wl-skills-kit@latest
 pnpm exec wl-skills init
 ```
 
-生成 `.wl-skills/` 规范与 Skill、`.agents/skills/wl-skills-kit/SKILL.md` 发现入口、编辑器与 MCP 配置。已有项目内容按受管归属保护；冲突先审阅，不用 `--force` 覆盖未知内容。
+默认使用 `compact`：规范、Skill、模板和适配逻辑留在 npm 包，只生成所选宿主的简短入口；清单、运行记录和缓存集中到 `.wl-skills/state/kit/`。已有项目内容按受管归属保护。
+
+五包共用项目 `package.json` 的 `wlSkills` 配置，例如 `{"schemaVersion":1,"integration":"compact","hosts":["codex","zcode","kilo"],"mcp":false}`。没有 package.json 时使用 `.wl-skills/config.json`，不额外创建 npm 项目。CLI `--hosts` 优先，兼容 `--editor`；配置优先于已记录选择，不通过已有编辑器目录扩大宿主。上述三个宿主共用一个 `.agents/skills` 入口。
+
+`init --hosts claude,cline` 按所选宿主生成入口；`--mcp` 才生成支持的 MCP 配置和本地凭据模板。需要把参考资源落到项目时，显式使用 `--integration expanded`。旧 `.windsurfrules`、`.cursorrules` 和逐技能多份副本退出默认输出；Windsurf 名称按 Devin Desktop 兼容识别。
+
+MCP 按所选宿主生成项目原生配置：Codex 使用 `.codex/config.toml`，ZCode 使用 `.zcode/config.json`（复用已存在且有效的 `.agents/mcp.json` 回退配置），Kilo 复用唯一的现有配置或创建 `.kilo/kilo.jsonc`，Copilot 使用 `.mcp.json` 或已有 `.vscode/mcp.json`。Claude、Cursor、Kiro、Roo 使用各自已验证的项目配置。Cline 等尚无已验证项目配置契约的宿主显示手动接入诊断，不写猜测路径。只生成选中宿主的配置，不默认复制全部适配文件。
+
+未显式选择宿主且没有项目配置或历史选择时，默认 `codex`。共用的 `.agents/skills` 可供兼容宿主发现技能；需要 ZCode MCP 时明确使用 `--hosts zcode --mcp`，技能目录兼容不代表已经生成该宿主的 MCP 配置。
+
+启动参数使用项目本地 MCP 脚本的绝对路径，并设置 `WL_PROJECT_ROOT`，不依赖宿主启动目录或在线 npx。项目仍须安装本包依赖；`check` 按实际配置内容区分缺失、禁用、启动参数不同和运行依赖缺失，连接状态始终保留“未验证”。`update --no-mcp`、切换宿主和 `clean` 仅撤销本包未修改节点；同名外来服务及用户修改保留，`--force` 不覆盖这些内容。归属在 `managedMcp` 中记录，旧 `managedJson` 节点会迁移，初始化、更新和清理的写入失败恢复事务前文件与清单。
+
+升级会预检配置、路径和所有权，再执行可回滚写入；仅退休本包拥有且未修改的文件或区块。用户规则、凭据、业务契约、报告与其他包的内容保留，`--dry-run` 可预览。`--force` 不授权删除已修改的退休入口。
 
 ### 2. 检查接入并完成首扫
 
@@ -94,6 +121,12 @@ pnpm exec wl-skills status --run-id <runId> --json
 
 `task` 只生成计划；`validate` 才实际检查，`status` 汇总证据和过期状态。没有运行、范围未覆盖、宿主读取未验证的内容会明确保留，不当作检查通过。
 
+菜单、字典、角色与权限能力按任务目录的 `domain` / `baselinePolicy` 判定，不要求纯后端操作运行页面 `validate`；任务同时修改页面时仍保留页面检查。支持“批量创建 10 个菜单”“新增三个字典”等数量表达；明确禁止的动作不参与匹配。
+
+后端任务将查询、预览、应用、回查分别记录为 `backend-query` / `backend-preview` / `backend-apply` / `backend-postverify`，MCP `_meta.wlExecution.backend` 与 status 工具摘要显示实际阶段。新写入任务首先要求预览；后续应用仍须原有确认标记与同一 `planHash`。预览不等于确认或写入，写入成功也不等于回查通过。纯后端阶段不冒充源码规则验证通过。
+
+旧 `backend-preview-and-confirmation` 检查兼容读取；只有同一 runId 内存在相同工具、相同 planHash 的真实预览，并收到确认后的成功应用结果，才生成兼容完成事实。未知响应、查询或仅预览都不会完成旧检查。项目业务写入与生产环境护栏保持原有约定。
+
 ## 常用操作
 
 | 目的 | 命令 / 入口 |
@@ -119,7 +152,7 @@ pnpm exec wl-skills status --run-id <runId> --json
 | 菜单、字典、权限与写入确认 | [MCP 风险矩阵](./docs/mcp-tool-risk-matrix.md) · [交付闭环](./docs/business-closure-playbook.md) |
 | 模板、场景与环境配置 | [使用指南](./files/.wl-skills/guides/usage.md) · [前后端交付兼容](./files/.wl-skills/guides/delivery-compatibility.md) |
 
-后端写入与外部报告推送须核对具体计划并确认；生产写入默认阻断。项目连接凭据放在被忽略的 `.wl-skills/skills/sync/env.local.json`，不提交仓库。
+后端写入与外部报告推送须核对具体计划并确认；生产写入默认阻断。项目连接凭据放在被忽略的 `.wl-skills/config/kit-sync.local.json`，兼容读取旧 `.wl-skills/skills/sync/env.local.json`，不提交仓库。
 
 ## WL 系列
 

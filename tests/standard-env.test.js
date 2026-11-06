@@ -101,6 +101,20 @@ function makeLegacyProject() {
 }
 
 describe("standard-env profiles", () => {
+  it("reports missing standard files when verifying a legacy app against a profile", () => {
+    const project = makeLegacyProject();
+    try {
+      const profile = resolveProfile({ profile: "walsin" });
+      const result = standardEnv.verifyStandardEnv(project, { profile });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "CONFIG_MISSING", rel: "vite/config/environments.ts" }),
+      ]));
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+
   it("完整支持域名、IP 和端口", () => {
     const profile = validateProfile({
       name: "customer",

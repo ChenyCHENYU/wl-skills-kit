@@ -29,7 +29,7 @@ describe("路由准确性：逐技能语料（预期经人工复核冻结）", (
   }, 180000);
 
   for (const item of cases) {
-    const expectedBare = item.skill ? "gap" : item.status;
+    const expectedBare = item.installedStatus || (item.skill ? "matched" : item.status);
     const expectedInstalled = item.installedStatus || (item.skill ? "matched" : item.status);
 
     it(`已声明接入但未初始化：「${item.task}」→ ${expectedBare}${item.skill ? ` + ${item.skill}` : ""}`, () => {

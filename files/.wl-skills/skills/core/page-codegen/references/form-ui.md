@@ -15,6 +15,26 @@
 - 不得在页面 `index.scss` 中覆盖 `.el-input__inner` 或 `.el-input__wrapper` 的左右 padding（尤其是 `padding: 0`）。统一间距由 wl-skills-ui 提供，placeholder 与输入值自然共享该间距。
 - `el-input-number`/`jh-input-number` 只配置 `controls`、`textAlign` 等业务语义，不隐藏或绝对定位步进箭头；箭头的尺寸和上下布局由 UI 包统一治理。
 
+### 0.1 jh/Base 平台字段关闭冒号
+
+先确认项目实际使用 `@jhlc/common-core` 的 `BaseForm` / `BaseQuery` 字段契约。
+其 `BaseFormItemDesc` / `BaseQueryItemDesc` 的 `showColon` 缺省可能在组件内把中文冒号
+直接拼入文本，CSS 伪元素覆盖无法消除。生成字段数组、`queryDef` 和公共字段工厂时，
+每个最终字段显式输出 `showColon: false`，`label` 使用不带尾部 `:` / `：` 的纯标签。
+使用展开时将该属性放在展开之后，避免被未知配置覆盖；保留业务字段、校验和动态显隐逻辑。
+
+```typescript
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
+
+export const formItems: BaseFormItemDesc[] = [
+  { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" }
+];
+```
+
+这项属性只用于已确认的平台字段，不添加到原生 `el-form-item`、表格列或字典选项。
+公共工厂需检查生成后的 JS/TS；项目已接入 wl-skills-ui 且采用 jh/Base Profile 时可执行
+`wl-ui scan --only R045`，否则人工核对生成配置，并验收实际页面标签文本。
+
 ### 1. 平台组件 label 隐藏
 
 `jh-select`、`jh-date`、`jh-file-upload` 等平台组件自带 `label` prop（默认会渲染"下拉选择框："、"日期："等文字）。

@@ -63,7 +63,7 @@
     "observability": {
       "recordVersion": 1,
       "schema": "lib/task-observability.schema.json",
-      "storage": ".wl-skills/runs",
+      "storage": ".wl-skills/state/kit/runs",
       "runCorrelation": "explicit-runId-or-WL_TASK_RUN_ID",
       "eventPublication": "immutable-per-package-events",
       "hostDiscovery": "unverified-without-host-events",

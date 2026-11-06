@@ -18,6 +18,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "@babel/parser";
 import { validateScenario, scenarioToPageSpec } from "../lib/scenario-template.js";
 import { compileScenario } from "../lib/scenario-compiler.js";
 import { extractScenario } from "../lib/scenario-extract.js";
@@ -204,6 +205,7 @@ describe("codegen 轨：canonical 编译与门禁", () => {
     expect(Object.keys(compiled.files).sort()).toEqual(
       ["data.ts", "index.scss", "index.vue", "page-spec.json"].sort(),
     );
+    expect(() => parse(compiled.files["data.ts"], { sourceType: "module", plugins: ["typescript"] })).not.toThrow();
   });
 
   it("输出符合 canonical 最佳实践形态", () => {
@@ -424,6 +426,7 @@ describe("codegen 轨：master-detail（新增 pattern）", () => {
     expect(compiled.ok, JSON.stringify(compiled.errors)).toBe(true);
     const vue = compiled.files["index.vue"];
     const dataTs = compiled.files["data.ts"];
+    expect(() => parse(dataTs, { sourceType: "module", plugins: ["typescript"] })).not.toThrow();
     expect(vue).toContain("<jh-drag-row :top-height=\"350\">");
     expect(vue).toContain("<template #top>");
     expect(vue).toContain("<template #bottom>");
@@ -618,6 +621,8 @@ describe("codegen 轨：tree-list / record-form / form-route / change-history（
   function expectRoundtripFixedPoint(doc, expectedPattern) {
     const compiled = compileScenario(doc);
     expect(compiled.ok, JSON.stringify(compiled.errors)).toBe(true);
+    // 往返相同仍可能两次输出相同语法错误；实际解析每个模式的完整 TS 产物。
+    expect(() => parse(compiled.files["data.ts"], { sourceType: "module", plugins: ["typescript"] })).not.toThrow();
     expect(compiled.tableCid).toBe(doc.tableCid);
     const spec = scenarioToPageSpec(doc, { quiet: true });
     const { doc: doc2 } = extractScenario({
@@ -642,6 +647,37 @@ describe("codegen 轨：tree-list / record-form / form-route / change-history（
     expect(compiled.files["data.ts"]).toContain('tree: "/md/material-class/tree"');
     expect(compiled.files["data.ts"]).toContain("export async function loadTree()");
     expect(compiled.files["data.ts"]).toContain("created.queryParam.value.treeId = data.id");
+  });
+
+  it("tree-list 的 select 查询项引用实际声明的选项，且完整产物可解析和往返", () => {
+    const doc = treeListDoc();
+    const options = [{ label: "原料", value: "raw" }, { label: "成品", value: "finished" }];
+    doc.query.push({ name: "category", label: "物料类别", type: "select", options });
+    const compiled = expectRoundtripFixedPoint(doc, "tree-list");
+    const ast = parse(compiled.files["data.ts"], { sourceType: "module", plugins: ["typescript"] });
+    const declaration = ast.program.body
+      .filter((node) => node.type === "VariableDeclaration")
+      .flatMap((node) => node.declarations)
+      .find((node) => node.id.name === "OPTS");
+    expect(declaration?.init?.type).toBe("ObjectExpression");
+    const declared = new Map(declaration.init.properties.map((node) => [node.key.name, node.value]));
+    const references = [];
+    function visit(node) {
+      if (!node || typeof node !== "object") return;
+      if (node.type === "MemberExpression" && node.object.type === "Identifier" && node.object.name === "OPTS") {
+        references.push(node.property.name);
+      }
+      for (const child of Object.values(node)) {
+        if (Array.isArray(child)) child.forEach(visit);
+        else if (child?.type) visit(child);
+      }
+    }
+    visit(ast.program);
+    expect(references).toEqual(["categoryOptions"]);
+    expect(references.every((name) => declared.has(name))).toBe(true);
+    expect(declared.get("categoryOptions").elements.map((node) =>
+      Object.fromEntries(node.properties.map((property) => [property.key.name, property.value.value]))
+    )).toEqual(options);
   });
 
   it("tree-list 缺 treeResource 被阻断", () => {

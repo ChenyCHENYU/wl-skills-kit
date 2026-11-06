@@ -121,7 +121,7 @@ describe("runAstRules 优雅降级", () => {
     expect(result.pages).toBe(0);
     // v2.21.0：扫描目标不存在时不得落缓存，避免凭空创建目录链
     expect(
-      require("node:fs").existsSync(path.join(target, ".wl-skills-cache")),
+      require("node:fs").existsSync(path.join(target, ".wl-skills/state/kit/cache")),
     ).toBe(false);
   });
 

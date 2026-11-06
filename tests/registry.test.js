@@ -81,7 +81,8 @@ describe("mcp/registry.js", () => {
     for (const [name, profileName] of Object.entries(reg.TOOL_RISK_PROFILE)) {
       expect(reg.RISK_PROFILES, name).toHaveProperty(profileName);
       const profile = reg.RISK_PROFILES[profileName], tool = reg.TOOLS.find((t) => t.name === name);
-      expect(tool._meta.wl.businessReadOnly, name).toBe(profile.readOnlyHint);
+      // Task planning persists its receipt without changing business inputs.
+      expect(tool._meta.wl.businessReadOnly, name).toBe(name === "wls_task" || profile.readOnlyHint);
       expect(tool._meta.wl.businessIdempotent, name).toBe(profile.idempotentHint);
       expect(reg.annotationsFor(name), name).toEqual(tool.annotations);
     }

@@ -29,8 +29,8 @@ test("Kit workspace store preserves actual checker file freshness without siblin
     const status = () => JSON.parse(run(["status", "--run-id", plan.runId, "--json"]));
     const before = status();assert.equal(before.planStale, false);
     const snapshot = before.records.find(record => record.kind === "task-decision").ruleSnapshot;
-    assert.ok(snapshot.targets.includes(`node_modules/${pkg.name}/lib/ast-rules.js`));
-    assert.ok(snapshot.targets.includes(`node_modules/${pkg.name}/bin/wl-skills.js`));
+    assert.ok(snapshot.targets.includes(path.join(physical, "lib/ast-rules.js")));
+    assert.ok(snapshot.targets.includes(path.join(physical, "bin/wl-skills.js")));
     const rule = path.join(physical, "lib/ast-rules.js");const original = fs.readFileSync(rule);
     fs.appendFileSync(rule, "\n// isolated fixture change\n");assert.equal(status().planStale, true);
     fs.writeFileSync(rule, original);assert.equal(status().planStale, false);

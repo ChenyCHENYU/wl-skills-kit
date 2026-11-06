@@ -106,7 +106,7 @@ test("execute 需要本项目仍有效的只读检查计划：解释、过期、
   fs.writeFileSync(path.join(root, ".wl-skills-scope.json"), JSON.stringify({ schemaVersion: 1, projectType: "pc", packages: { kit: false } }));
   assert.equal(execute(root, "disabled").ok, false);
   assert.equal(execute(root, "unknown-run").ok, false);
-  assert.equal(fs.existsSync(path.join(root, ".wl-skills/runs/unknown-run")), false);
+  assert.equal(fs.existsSync(path.join(root, ".wl-skills/state/kit/runs/unknown-run")), false);
 }), 30000);
 
 test("复制项目不能重用原根的任务计划：status 过期、execute 身份拒绝且零新回执", () => fixture(root => {

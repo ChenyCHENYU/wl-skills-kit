@@ -20,12 +20,13 @@ export const modalConfig = {
   columns: 2,
   labelWidth: "110px",
   formItems: [
-    { name: "code", label: "编码", disabled: true, placeholder: "系统自动生成" },
-    { name: "name", label: "名称", required: true, placeholder: "请输入" },
+    { name: "code", label: "编码", showColon: false, disabled: true, placeholder: "系统自动生成" },
+    { name: "name", label: "名称", showColon: false, required: true, placeholder: "请输入" },
     // 下拉用 jh-select 组件
     {
       name: "type",
       label: "类型",
+      showColon: false,
       component: () => ({ tag: "jh-select", items: OPTS.type })
     }
   ] as BaseFormItemDesc<any>[],

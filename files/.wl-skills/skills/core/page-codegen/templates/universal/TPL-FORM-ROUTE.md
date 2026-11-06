@@ -35,7 +35,7 @@ export const API_CONFIG = {
   update: "/[服务]/[资源]/updateById"
 };
 export const formItems: BaseFormItemDesc[] = [
-  { name: "name", label: "名称", placeholder: "请输入名称", required: true,
+  { name: "name", label: "名称", showColon: false, placeholder: "请输入名称", required: true,
     rules: [ELEMENT_RULES.required("名称", "blur")] }
 ];
 

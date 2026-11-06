@@ -1,6 +1,6 @@
 ---
 name: standard-env-config
-description: "Use when standardizing or migrating frontend Vite subapp environments. Triggers on: 标准环境配置, 前端环境标准化, 五套环境, 本地联调, public 联调, 172/9000 迁移, sit-api, uat-api, pre-api, prod-api, environment profile."
+description: "整理或迁移 Vite 前端子应用的开发、测试、预发与生产环境配置，按项目环境 Profile 对齐地址和变量；凭据保留在环境变量中，不写入业务代码或聊天记录。"
 ---
 
 # Skill: 标准环境配置

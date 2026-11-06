@@ -5,7 +5,7 @@
  *
  * 每包：protocol task 建计划（not-executed/unverified）→ 调用本包真实校验命令（带 runId）→
  * protocol status 回查同一 runId：执行状态必须翻转且不虚报（失败≠通过、空检查≠通过、
- * 输入变更后过期≠通过）。bd 的 review 尚未与协议 runId 关联，显式记录为已知缺口（不视为通过）。
+ * 输入变更后过期≠通过）。BD 缺少 Git 变更基线时验证 review 的阻断回执。
  */
 
 const fs = require("node:fs");
@@ -25,7 +25,7 @@ function run(bin, args, cwd) {
 }
 
 function request(bin, cwd, payload) {
-  const file = path.join(cwd, "closure-request.json");
+  const file = path.join(guard.root, path.basename(cwd) + "-request.json");
   fs.writeFileSync(file, JSON.stringify(payload));
   const runResult = run(bin, ["protocol", "request", "--input-file", file], cwd);
   assert.equal(runResult.status, 0, `${bin} protocol request 失败：${runResult.stdout}${runResult.stderr}`);
@@ -34,6 +34,7 @@ function request(bin, cwd, payload) {
 
 function fixtureWithKit(target, name) {
   const project = guard.fixture(name);
+  fs.writeFileSync(path.join(project, "package.json"), JSON.stringify({ name, private: true }));
   const install = run(target, ["init"], project);
   assert.equal(install.status, 0, `${target} init 失败：${install.stdout}${install.stderr}`);
   return project;
@@ -107,7 +108,7 @@ test("test：audit 真实执行后同 runId 状态翻转且可过期", () => {
   assert.notEqual(stale.result.validationStatus, "passed");
 });
 
-test("bd：review run 真实执行后同 runId 闭环（completed/partial，不虚报通过）", () => {
+test("bd：缺少变更基线时 review 阻断，协议状态保留同 runId 的失败", () => {
   const project = guard.fixture("bd-closure");
   const preview = run("wl-skills-bd/bin/wl-skills-bd.js", ["init", "--target", project, "--json"], project);
   const plan = JSON.parse(preview.stdout);
@@ -118,12 +119,15 @@ test("bd：review run 真实执行后同 runId 闭环（completed/partial，不�
   assert.equal(planned.result.executionStatus, "not-executed");
   assert.equal(planned.result.validationStatus, "unverified");
 
-  // 正确调用形态：review run --run-id（review 的顶层 --run-id 不是合法子命令）
   const executed = run("wl-skills-bd/bin/wl-skills-bd.js", ["review", "run", "--run-id", "bd-exec", "--target", project, "--json"], project);
-  assert.equal(executed.status, 0, executed.stdout + executed.stderr);
+  assert.equal(executed.status, 1, executed.stdout + executed.stderr);
+  const review = JSON.parse(executed.stdout);
+  assert.equal(review.decision, "block");
+  assert.ok(review.findings.some(item => item.rule === "CHANGE_BASELINE_REQUIRED"));
+  assert.equal(review.receipt.executionStatus, "failed");
 
   const status = request("wl-skills-bd/bin/wl-skills-bd.js", project, { operation: "status", projectRoot: project, runId: "bd-exec" });
   assert.equal(status.result.runId, "bd-exec");
-  assert.equal(status.result.executionStatus, "completed", "review run 后同 runId 应为 completed");
-  assert.ok(["partial", "failed", "unverified", "stale"].includes(status.result.validationStatus), "空项目审计不得报 passed（partial/unverified/stale 为真实语义）");
+  assert.equal(status.result.executionStatus, "failed");
+  assert.equal(status.result.validationStatus, "failed");
 });

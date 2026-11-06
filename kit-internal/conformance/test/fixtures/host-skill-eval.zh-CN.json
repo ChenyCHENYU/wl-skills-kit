@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "kit-menu-sort-preview", "family": "kit-menu-sort", "split": "dev",
+      "prompt": "导航里的质检放到库存前面。菜单 502 顺序改成 5，菜单 501 保持 10。只看排序预览，页面、路由、权限和后端数据都先别动。",
+      "fixture": {"kind": "pc", "service": "kit-menu", "files": {
+        "pages/stock/index.vue": "<template><main>库存</main></template>\n",
+        "pages/quality/index.vue": "<template><main>质检</main></template>\n",
+        "src/router/index.ts": "export const routes = ['/stock', '/quality'];\n"
+      }},
+      "expect": {"skill": "kit", "subskill": "menu-sync", "invocation": "implicit", "requiredTools": ["mcp:wls_menu_upsert"],
+        "requiredReceipts": ["mcp:wls_menu_upsert"],
+        "expectedMcpResults": [{"tool": "wls_menu_upsert", "fields": {"ok": true, "state": "ready", "mode": "preview"},
+          "menuPlan": [{"action": "update", "id": "502", "orderNum": 5}]}],
+        "assertions": [{"kind": "unchanged", "path": "pages"}, {"kind": "unchanged", "path": "src/router"}, {"kind": "unchanged", "path": ".wl-eval/menu-writes.log"}]}
+    },
+    {
+      "id": "kit-menu-batch-preview", "family": "kit-menu-create", "split": "holdout",
+      "prompt": "按 navigation.md 一次新增两条导航，先走预览，把实际计划给我确认。今天先别提交，也不要顺便生成页面。",
+      "fixture": {"kind": "pc", "service": "kit-menu", "files": {
+        "navigation.md": "应用 WL_EVAL，父菜单 500。\n|名称|路径|组件|顺序|\n|---|---|---|---|\n|盘点|/stocktake|pages/stocktake/index|30|\n|抽检|/sampling|pages/sampling/index|40|\n",
+        "pages/stock/index.vue": "<template><main>库存</main></template>\n"
+      }},
+      "expect": {"skill": "kit", "subskill": "menu-sync", "invocation": "implicit", "requiredTools": ["mcp:wls_menu_upsert"],
+        "requiredReceipts": ["mcp:wls_menu_upsert"],
+        "expectedMcpResults": [{"tool": "wls_menu_upsert", "fields": {"ok": true, "state": "ready", "mode": "preview"},
+          "menuPlan": [{"action": "create", "menuName": "盘点"}, {"action": "create", "menuName": "抽检"}]}],
+        "assertions": [{"kind": "unchanged", "path": "pages"}, {"kind": "unchanged", "path": ".wl-eval/menu-writes.log"}]}
+    },
+    {
+      "id": "kit-menu-explain-only", "family": "kit-menu-create", "split": "holdout",
+      "prompt": "别人说下周要批量创建菜单，我想先了解预览和确认的步骤。这次只解释，别查菜单、别调用同步工具，也别改文件。",
+      "fixture": {"kind": "pc", "packages": ["kit"], "files": {"src/router/index.ts": "export const routes = ['/stock'];\n"}},
+      "expect": {"forbiddenTools": ["mcp:wls_menu_query", "mcp:wls_menu_upsert", "mcp:wls_menu_delete", "mcp:wls_menu_sync_from_report"],
+        "assertions": [{"kind": "unchanged", "path": "src/router"}, {"kind": "absent", "path": "pages"}]}
+    },
+    {
+      "id": "kit-web-review", "family": "kit-web-review", "split": "dev",
+      "prompt": "看一下这个 PC 管理端的订单页，检查列表逻辑、接口和模板分层。先只做代码审查，我准备拿结论开评审。",
+      "fixture": {"kind": "pc", "files": {"src/views/order/index.vue": "<script setup>import axios from 'axios';\nconst orders = await axios.get('/api/orders');</script>\n<template><div>{{ orders }}</div></template>\n"}},
+      "expect": {"skill": "kit", "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "src/views"}]}
+    },
+    {
+      "id": "kit-mobile-near-miss", "family": "kit-mobile", "split": "dev",
+      "prompt": "这是 PDA 的 UniApp，看看移动端拣货页为什么要保留 pages.json 里的条件编译。只解释这个项目的写法。",
+      "fixture": {"kind": "mobile", "packages": ["kit"], "files": {"pages.json": "{\"pages\":[{\"path\":\"pages/pick/index\"}]}\n", "pages/pick/index.vue": "<template><view>拣货</view></template>\n"}},
+      "expect": {"skill": null, "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "pages"}, {"kind": "unchanged", "path": "pages.json"}]}
+    },
+    {
+      "id": "ui-form-scan", "family": "ui-form", "split": "dev",
+      "prompt": "扫描 src/views/order/index.vue 这个 Element Plus 表单的样式，重点看输入控件尺寸和表单标签。用项目本地 CLI 扫描，原样保留 JSON 到 docs/ui-form-scan.json，并说明发现，不改页面。",
+      "fixture": {"kind": "pc", "files": {"src/views/order/index.vue": "<template><el-form><el-form-item label=\"编号：\"><el-input /></el-form-item></el-form></template>\n"}},
+      "expect": {"skill": "ui", "subskill": "element/el-form", "invocation": "implicit", "requiredReceipts": ["cli:ui:scan"],
+        "assertions": [{"kind": "contains", "path": "docs/ui-form-scan.json", "value": "\"rule\": \"R006\""}, {"kind": "unchanged", "path": "src/views"}]}
+    },
+    {
+      "id": "ui-spacing-scope", "family": "ui-form", "split": "dev",
+      "prompt": "只把订单表单两列的间距调到 16px。样式在 src/views/order/index.scss，业务逻辑和 API 约定别改。",
+      "fixture": {"kind": "pc", "files": {
+        "src/views/order/index.vue": "<template><el-form class=\"order-form\"><el-input /><el-input /></el-form></template>\n<style src=\"./index.scss\" scoped></style>\n",
+        "src/views/order/index.scss": ".order-form { display: grid; grid-template-columns: 1fr 1fr; column-gap: 4px; }\n",
+        "src/views/order/data.ts": "export const api = '/api/orders';\n",
+        "src/views/order/api.md": "GET /api/orders\n"
+      }},
+      "expect": {"skill": "ui", "invocation": "implicit", "assertions": [{"kind": "contains", "path": "src/views/order/index.scss", "value": "16px"}, {"kind": "unchanged", "path": "src/views/order/data.ts"}, {"kind": "unchanged", "path": "src/views/order/api.md"}]}
+    },
+    {
+      "id": "ui-no-frontend-on-backend", "family": "ui-http-review", "split": "holdout",
+      "prompt": "接口响应样式改成统一错误 JSON 会不会影响兼容性？只审查这个 Java 后端返回值，别改代码。",
+      "fixture": {"kind": "backend", "packages": ["ui"], "files": {"src/main/java/ApiResponse.java": "public record ApiResponse(int code, String message) {}\n"}},
+      "expect": {"skill": null, "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "src"}]}
+    },
+    {
+      "id": "ui-dense-table-review", "family": "ui-table", "split": "holdout",
+      "prompt": "库存表头和数字列挤在一起了，帮我做个 UI 复核。我现在只要阅读报告，不要换表格组件。",
+      "fixture": {"kind": "pc", "files": {"src/views/stock/index.vue": "<template><el-table><el-table-column prop=\"quantity\" label=\"库存量\" width=\"40\" /></el-table></template>\n"}},
+      "expect": {"skill": "ui", "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "src/views/stock"}]}
+    },
+    {
+      "id": "bd-bean-review", "family": "bd-bean-assembly", "split": "dev",
+      "prompt": "审一下 TagPrintClient 的 Spring Bean 装配，模拟注入的测试都过了。帮我核对两个构造器上线时谁会被 Spring 选中，只看不改。",
+      "fixture": {"kind": "backend", "files": {"src/main/java/TagPrintClient.java": "import org.springframework.stereotype.Component;\n@Component\npublic class TagPrintClient {\n  TagPrintClient(String host) {}\n  TagPrintClient(String host, int port) {}\n}\n"}},
+      "expect": {"skill": "bd", "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "src"}, {"kind": "unchanged", "path": "pom.xml"}]}
+    },
+    {
+      "id": "bd-manual-sit-ddl", "family": "bd-manual-ddl", "split": "holdout",
+      "prompt": "帮我做一遍上线前评审。新增 equipment_code，DEV 已迁移，SIT 手动管库，工单没有 SIT 执行记录。只写 docs/sit-readiness.md，用 `BLOCKED` 标记阻断，写清还欠什么证据。不要执行 DDL。",
+      "fixture": {"kind": "backend", "files": {
+        "src/main/resources/db/migration/V2__equipment_code.sql": "ALTER TABLE station ADD COLUMN equipment_code VARCHAR(32);\n",
+        "src/main/java/Station.java": "public record Station(String equipmentCode) {}\n"
+      }},
+      "expect": {"skill": "bd", "invocation": "implicit", "assertions": [{"kind": "contains", "path": "docs/sit-readiness.md", "value": "BLOCKED"}, {"kind": "contains", "path": "docs/sit-readiness.md", "value": "equipment_code"}, {"kind": "unchanged", "path": "src"}]}
+    },
+    {
+      "id": "bd-ops-config-review", "family": "bd-ops-ownership", "split": "dev",
+      "prompt": "这个 Spring 服务的 bootstrap.yml 归运维管理。用项目本地配置体检静态核对它的 Nacos 兜底是否会把 DEV 连到 SIT。原始 JSON 保留在 docs/bd-config-doctor.json，即使有告警也要保留。不探测连通性，不改配置。",
+      "fixture": {"kind": "backend", "files": {"src/main/resources/bootstrap.yml": "spring:\n  cloud:\n    nacos:\n      server-addr: ${NACOS_SERVER:sit.example.invalid:8848}\n"}},
+      "expect": {"skill": "bd", "subskill": ["data-safety", "standard-env-config-be"], "invocation": "implicit",
+        "assertions": [{"kind": "contains", "path": "docs/bd-config-doctor.json", "value": "\"id\": \"config-nacos\""}, {"kind": "contains", "path": "docs/bd-config-doctor.json", "value": "\"probeRequested\": false"}, {"kind": "unchanged", "path": "src/main/resources"}]}
+    },
+    {
+      "id": "bd-frontend-near-miss", "family": "bd-frontend-binding", "split": "holdout",
+      "prompt": "列表的 equipment_code 返回已有，前端字段映射可能漏了。帮我看看表格绑定，不用审查数据库或 Java。",
+      "fixture": {"kind": "pc", "packages": ["bd"], "files": {"src/views/list/index.vue": "<template><el-table-column prop=\"equipmentCode\" /></template>\n"}},
+      "expect": {"skill": null, "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "src"}]}
+    },
+    {
+      "id": "design-api-contract-only", "family": "design-interface", "split": "dev",
+      "prompt": "为按站点查库存设计一个接口契约，写到 docs/stock-api.md。写出 GET /stock、分页和错误语义，再用项目本地 CLI 校验这份接口文档的结构。项目现有代码先不用实现。",
+      "fixture": {"kind": "generic", "files": {"src/index.ts": "export const service = 'stock';\n"}},
+      "expect": {"skill": "design", "subskill": "api.restful", "invocation": "implicit", "requiredReceipts": ["cli:design:design-mechanical-validator"],
+        "assertions": [{"kind": "contains", "path": "docs/stock-api.md", "value": "GET /stock"}, {"kind": "unchanged", "path": "src"}]}
+    },
+    {
+      "id": "design-db-model", "family": "design-data-model", "split": "holdout",
+      "prompt": "给仓库批次做数据库建模评审，重点看同仓库同批次的唯一性和回溯。方案放 docs/lot-design.md，注明 `warehouse_id` 和 `lot_no`，暂时别生成迁移脚本。",
+      "fixture": {"kind": "generic", "files": {"src/index.ts": "export const moduleName = 'lot';\n"}},
+      "expect": {"skill": "design", "invocation": "implicit", "assertions": [{"kind": "contains", "path": "docs/lot-design.md", "value": "warehouse_id"}, {"kind": "contains", "path": "docs/lot-design.md", "value": "lot_no"}, {"kind": "absent", "path": "migrations"}, {"kind": "unchanged", "path": "src"}]}
+    },
+    {
+      "id": "design-rename-typo", "family": "design-document-copyedit", "split": "holdout",
+      "prompt": "docs/note.md 里只有一个错字，把“质检站点名成”改成“质检站点名称”。就换这几个字。",
+      "fixture": {"kind": "generic", "packages": ["design"], "files": {"docs/note.md": "质检站点名成\n"}},
+      "expect": {"skill": null, "invocation": "implicit", "assertions": [{"kind": "contains", "path": "docs/note.md", "value": "质检站点名称"}]}
+    },
+    {
+      "id": "test-generate-only", "family": "test-design-only", "split": "dev",
+      "prompt": "从 docs/order-contract.md 写接口测试清单到 docs/order-tests.md，覆盖 400 和 403。只生成用例，不跑接口，不准备环境，也不要改已有测试。",
+      "fixture": {"kind": "generic", "files": {"docs/order-contract.md": "POST /orders。数量为 0 时返回 400。无订单写权限时返回 403。\n", "tests/keep.test.js": "// existing test\n"}},
+      "expect": {"skill": "test", "subskill": "test-case-generator", "invocation": "implicit", "forbiddenTools": ["mcp:wls_test_run_api", "mcp:wls_test_run_playwright", "mcp:wls_test_run_jmeter", "mcp:wls_test_fix"],
+        "assertions": [{"kind": "contains", "path": "docs/order-tests.md", "value": "400"}, {"kind": "contains", "path": "docs/order-tests.md", "value": "403"}, {"kind": "unchanged", "path": "tests"}]}
+    },
+    {
+      "id": "test-weak-assertion-review", "family": "test-audit", "split": "holdout",
+      "prompt": "测试报告说都通过了，但 tests/stock.spec.js 可能没验库存回显。用项目本地测试审计命令检查 Playwright 断言有效性，把机器报告保留到 test-reports/audit-result.json。别跑浏览器，不改脚本。",
+      "fixture": {"kind": "generic", "files": {"tests/stock.spec.js": "import {test,expect} from '@playwright/test';\ntest('stock', async ({page}) => { await page.goto('/stock'); expect(true).toBe(true); });\n"}},
+      "expect": {"skill": "test", "subskill": "universal-test-rules", "invocation": "implicit", "requiredReceipts": ["cli:test:audit"], "forbiddenTools": ["mcp:wls_test_run_playwright", "mcp:wls_test_fix"],
+        "assertions": [{"kind": "contains", "path": "test-reports/audit-result.json", "value": "\"rule\": \"T3\""}, {"kind": "unchanged", "path": "tests"}]}
+    },
+    {
+      "id": "test-no-run-on-production", "family": "test-unsafe-target", "split": "holdout",
+      "prompt": "上线前想确认接口权限。现在只有生产地址，没有测试环境凭据，先给个安全的验证方案，任何接口都别发。",
+      "fixture": {"kind": "generic", "files": {"docs/environment.md": "唯一现有地址 https://production.example.invalid。生产不允许运行验证。\n"}},
+      "expect": {"skill": "test", "invocation": "implicit", "forbiddenTools": ["mcp:wls_test_run_api", "mcp:wls_test_run_jmeter", "mcp:wls_test_run_playwright", "mcp:wls_test_dict_sync"], "assertions": [{"kind": "unchanged", "path": "docs"}]}
+    },
+    {
+      "id": "test-explicit-audit", "family": "test-explicit-invocation", "split": "dev",
+      "prompt": "$wl-skills-test 帮我复核 tests/invoice.test.js 的断言，只读检查，不改文件也不跑外部测试。",
+      "fixture": {"kind": "generic", "files": {"tests/invoice.test.js": "import {test} from 'node:test';\ntest('invoice', () => {});\n"}},
+      "expect": {"skill": "test", "invocation": "explicit", "forbiddenTools": ["mcp:wls_test_run_api", "mcp:wls_test_run_playwright", "mcp:wls_test_fix"], "assertions": [{"kind": "unchanged", "path": "tests"}]}
+    },
+    {
+      "id": "all-explain-markdown", "family": "all-unrelated", "split": "dev",
+      "prompt": "Markdown 里想在引号里展示反引号，这个标点怎么转义？一句话解释就好。",
+      "fixture": {"kind": "generic", "packages": ["kit", "ui", "bd", "design", "test"], "files": {"docs/note.md": "# Sample\n"}},
+      "expect": {"skill": null, "invocation": "implicit", "assertions": [{"kind": "unchanged", "path": "docs"}]}
+    }
+  ]
+}

@@ -169,6 +169,15 @@ function lifecycleArgs(key, action, root) {
   return args;
 }
 
+function manifestPath(key, root, version) {
+  const compact = path.join(root, ".wl-skills", "state", key, "manifest.json");
+  const legacy = path.join(root, PACKAGES[key].state);
+  if (version === PACKAGES[key].baseline) return fs.existsSync(compact) ? compact : legacy;
+  assert.ok(fs.existsSync(compact), `${key} 候选未生成统一状态清单`);
+  assert.ok(!fs.existsSync(legacy), `${key} 候选升级后仍保留旧状态清单`);
+  return compact;
+}
+
 function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) {
@@ -224,12 +233,14 @@ function main(argv = process.argv.slice(2)) {
     }
   }
   function manifest(key, root, version) {
-    const state = JSON.parse(fs.readFileSync(path.join(root, PACKAGES[key].state), "utf8"));
+    const file = manifestPath(key, root, version);
+    const state = JSON.parse(fs.readFileSync(file, "utf8"));
     assert.equal(state.version || state.packageVersion || state.installedVersion, version);
     const gateway = `.agents/skills/wl-skills-${key}/SKILL.md`;
     const paths = Array.isArray(state.files) ? state.files.map(item => typeof item === "string" ? item : item.path) : Object.keys(state.files || {});
     assert.ok(paths.includes(gateway), `${key} gateway 未登记所有权`);
     assert.ok(fs.readFileSync(path.join(root, gateway), "utf8").trim());
+    return file;
   }
   function request(key, root, input, node = process.execPath) {
     const file = path.join(sandbox.root, `request-${crypto.randomUUID()}.json`);
@@ -277,11 +288,13 @@ function main(argv = process.argv.slice(2)) {
     lifecycle(key, "init", single.root); manifest(key, single.root, PACKAGES[key].baseline); preserve(single);
     install([candidate.artifact], single.root);
     assert.equal(JSON.parse(fs.readFileSync(path.join(single.root, "node_modules/@agile-team/wl-skills-" + key, "package.json"))).version, candidate.version);
-    lifecycle(key, "update", single.root); manifest(key, single.root, candidate.version); preserve(single);
+    lifecycle(key, "update", single.root);
+    const statePath = manifest(key, single.root, candidate.version);
+    preserve(single);
     assert.deepEqual(KEYS.filter(other => other !== key && fs.existsSync(path.join(single.root, "node_modules/@agile-team/wl-skills-" + other))), []);
     const singleFeedback = feedback(key, single.root, candidate.version, "compat-single-" + key);
     const host = request(key, single.root, { operation: "doctor-host", host: "codex" }); assert.equal(host.result.runtime.status, "aligned");
-    const statePath = path.join(single.root, PACKAGES[key].state), original = fs.readFileSync(statePath);
+    const original = fs.readFileSync(statePath);
     try {
       const state = JSON.parse(original); state.version = PACKAGES[key].baseline; fs.writeFileSync(statePath, JSON.stringify(state));
       const drift = request(key, single.root, { operation: "task", task: PACKAGES[key].task, targets: [PACKAGES[key].target], runId: "compat-drift-" + key });
@@ -331,4 +344,4 @@ function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   try { process.exitCode = main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = { PACKAGES, parseArgs, selectCandidate, createSandbox, guardedSpawn, lifecycleArgs, main };
+module.exports = { PACKAGES, parseArgs, selectCandidate, createSandbox, guardedSpawn, lifecycleArgs, manifestPath, main };

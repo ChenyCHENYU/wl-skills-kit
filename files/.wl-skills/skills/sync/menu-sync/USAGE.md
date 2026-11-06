@@ -1,112 +1,17 @@
-# 使用指南：menu-sync（菜单同步）
+# 菜单同步使用指南
 
-> 所有菜单写入均先读取线上并返回 `planHash`。正式执行必须同时携带确认参数与该哈希；线上状态变化后旧哈希失效，本次零写入。
+已接入 Kit 的项目可以查询菜单、按报告批量同步、单独新增或调整已有菜单。先在当前编辑器确认 Kit MCP 已连接本项目并列出菜单工具。首次配置或切换宿主时按 [MCP 接入指南](../../../guides/mcp-setup.md) 操作。
 
-> **谁读这个文档**：团队成员（前端 + 后端联调时）
-> **AI 触发文件**：同目录 `SKILL.md`
+## 开始任务
 
----
+- 查询父菜单时，可以说「查当前测试环境的仓储菜单，告诉我入库页面应该挂在哪个父目录」。
+- 批量创建时，给出报告和范围，例如「按当前项目的 `SYS_MENU_INFO.md` 预览仓储模块菜单，先不要写入」。
+- 只调整顺序时，提供目标菜单和期望顺序。预览应只包含已有菜单的 ID 和新顺序。
 
-## 这个 Skill 解决什么问题
+工具可用时，先看匹配的技能和本次调用。需要变更时核对预览中的目标环境、父级、新增与更新项，再决定是否确认。若显示「预览已返回」，此时业务数据仍未写入。
 
-新页面写完后，需要在系统菜单中**注册一条菜单记录**才能从 UI 访问。这个 Skill：
+## 核对结果
 
-1. 拉取**线上菜单数据**到 `reports/SYS_MENU_INFO.md`（团队基线）
-2. 对比已生成页面 vs 线上菜单，**自动补齐缺失菜单项**
-3. 调用菜单注册接口（或生成 SQL 让后端执行）
+写入结束后检查菜单是否已保存，以及当前用户是否可见。若工具失败或结果不明，先只读回查，再决定是否需要新预览。保留 `runId`，可用项目的 `wl-skills status --run-id <id>` 或已连接的 `wls_status` 查看原调用和待验证项。
 
----
-
-## 何时使用
-
-- 新增页面后，从 UI 访问报"菜单不存在"
-- 一次性创建一批页面，需要批量注册菜单
-- 同步线上菜单基线（PROD/UAT/DEV 拉齐）
-
----
-
-## 触发关键词
-
-`创建菜单` / `注册菜单` / `同步菜单` / `补菜单`
-
----
-
-## 前置条件
-
-`.wl-skills/skills/sync/env.local.json`（首次使用先填写，已加入 `.gitignore`）：
-
-```json
-{
-  "gatewayPath": "http://192.168.10.50:9000",
-  "sysAppNo": "应用编码（非明文，从已有菜单接口响应获取）",
-  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）",
-  "menu": {
-    "parentMenuId": "父级菜单 ID（菜单管理后台获取）",
-    "domainId": "应用域 ID（Network 面板 getMenuTreeByDomainId?domainId=xxx 获取）"
-  }
-}
-```
-
-> **`env.local.json` 不入 git**。每个开发者本地填自己的 token（更新 token 时只换 token 字段，其他不动）。
-> 字段获取详见 `env/guide.md`。
-
----
-
-## 标准对话示例
-
-```
-你：把 src/views/produce/aiflow/ 下新建的 7 个页面同步到菜单
-AI：[Pre-flight]
-    步骤 1：读取线上菜单基线 reports/SYS_MENU_INFO.md（最新更新：2025-04-20）
-    步骤 2：扫描 src/views/produce/aiflow/ 共 7 个页面
-    步骤 3：对比缺失：5 项缺失，2 项已存在
-    步骤 4：将调用 wls_menu_sync_from_report 创建 5 项
-    [需你确认]：
-    - 父菜单：精整作业 → 客户管理（menu.parentMenuId: xxx）
-    - 排序：orderNum 自动递增
-    - 权限标识：mmwrCustomerArchive 等
-    确认 yes/no？
-```
-
----
-
-## 输出物
-
-1. **基线文件**：`.wl-skills/reports/SYS_MENU_INFO.md` —— 线上菜单的本地基线（团队 review 用）
-2. **同步报告**：`.wl-skills/reports/MENU_SYNC_<YYYYMMDD>.md` —— 本次新增/更新了哪些菜单
-3. **回滚 SQL**：报告里附带 DELETE SQL，用于回退
-
----
-
-## 常见踩坑
-
-| 现象                 | 原因                         | 解法                                           |
-| -------------------- | ---------------------------- | ---------------------------------------------- |
-| 同步成功但 UI 看不到 | 用户角色没分配新菜单         | 跑 permission-sync（PLANNED）或后台手工分配    |
-| 401/403 报错         | env.local.json 的 token 过期 | 重新登录系统，从 Network 抓 Authorization 替换 |
-| AI 用 curl/Invoke-RestMethod 调接口，返回 4004 | AI 没走 MCP，自行拼接了错误的接口路径 | 确认 MCP 已连接（Cursor/Kiro 设置里可见 wls_menu_sync_from_report），然后重新说「帮我同步菜单」|
-| token 填了 `Bearer eyJ...` 整串，接口 401 | Authorization Header 变成 `Bearer Bearer eyJ...` | token 字段只填 `eyJ...` 纯 JWT 部分，去掉 `bearer ` 前缀 |
-| 同名菜单重复创建     | 没读 SYS_MENU_INFO.md 基线   | 先跑一遍"刷新基线"再 sync                      |
-| 父菜单 ID 不对       | menu.parentMenuId 配错     | 从菜单后台编辑页复制菜单 ID，填入 env.local.json |
-
----
-
-## 团队协作流程
-
-1. 新人入职，让他先把 `env.local.json` 填一份（参考 env.example.json）
-2. **每周一**由 lead 跑一次"刷新基线"，确保 reports/SYS_MENU_INFO.md 最新
-3. PR 提交前自查"我加的菜单有没有提交进基线"
-4. 上线前再 sync 一次到生产环境（切换 env 文件中的 gatewayPath）
-
----
-
-## FAQ
-
-**Q：env.local.json 泄露 token 危险吗？**
-A：危险。token 视同密码。已加 .gitignore + .npmignore。**不要 commit**。
-
-**Q：能不能直接给 SQL 让后端跑？**
-A：能。在指令里加"只生成 SQL，不调用接口"即可。
-
-**Q：和 dict-sync / permission-sync 关系？**
-A：菜单是入口，字典是值域，权限是访问控制。三者独立但配合。建议顺序：menu-sync → permission-sync → dict-sync。
+工具未列出或权限被宿主拒绝时，任务会停在未执行。请在当前宿主检查项目和工具连接。凭据只在本机配置，按 [配置字段说明](env/guide.md) 核对。

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRequire } from "node:module";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createInterface } from "node:readline";
 import path from "node:path";
@@ -44,6 +44,35 @@ afterEach(() => {
 });
 
 describe("MCP stdio server", () => {
+  it("shows a readable task plan and a real execution receipt without replacing its JSON payload", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "wl-kit-visible-mcp-"));
+    const before = process.env.WL_PROJECT_ROOT;
+    const output = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      process.env.WL_PROJECT_ROOT = root;
+      writeFileSync(path.join(root, "package.json"), JSON.stringify({ devDependencies: { "@agile-team/wl-skills-kit": "*" } }));
+      mkdirSync(path.join(root, "src/views/Demo"), { recursive: true });
+      writeFileSync(path.join(root, "src/views/Demo/index.vue"), "<template><div /></template>");
+      await dispatchTool(201, "wls_task", { task: "修改页面文字", targets: ["src/views/Demo"], runId: "visible-kit" });
+      const planned = JSON.parse(output.mock.calls.at(-1)[0]).result;
+      expect(planned.content[0].text).toMatch(/^\[WL MCP\] 本次工具=wls_task/);
+      expect(planned.content[0].text).toMatch(/kit@/);
+      expect(planned.content[0].text).toMatch(/runId=visible-kit/);
+      expect(planned.content[0].text).toMatch(/执行=not-executed/);
+      expect(JSON.parse(planned.content[1].text)).toEqual(planned.structuredContent);
+      await dispatchTool(202, "wls_validate_page", { path: "src/views/Demo", runId: "visible-kit" });
+      const checked = JSON.parse(output.mock.calls.at(-1)[0]).result;
+      expect(checked.content[0].text).toMatch(/本次工具=wls_validate_page/);
+      expect(checked.content[0].text).toMatch(/实际工具：MCP wls_validate_page/);
+      expect(checked.content[0].text).toMatch(/runId=visible-kit/);
+      expect(checked._meta.wlExecution.runId).toBe("visible-kit");
+      expect(checked.content[0].text).not.toMatch(/状态不可用/);
+    } finally {
+      if (before === undefined) delete process.env.WL_PROJECT_ROOT; else process.env.WL_PROJECT_ROOT = before;
+      output.mockRestore(); rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("MCP dispatch rejects non-string names and prototype members without tool records", () => {
     const project = mkdtempSync(path.join(tmpdir(), "wl-kit-rpc-dispatch-"));
     try {
@@ -57,7 +86,7 @@ describe("MCP stdio server", () => {
       for (let index = 0; index < names.length; index++) expect(replies[index]).toMatchObject({ id: index, error: { code: index < 8 ? -32602 : -32601 } });
       expect(replies.at(-2)).toMatchObject({ id: "method", error: { code: -32601 } });
       expect(replies.at(-1)).toEqual({ jsonrpc: "2.0", id: "alive", result: {} });
-      expect(existsSync(path.join(project, ".wl-skills/runs"))).toBe(false);
+      expect(existsSync(path.join(project, ".wl-skills/state/kit/runs"))).toBe(false);
     } finally { rmSync(project, { recursive: true, force: true }); }
   });
 
@@ -85,7 +114,7 @@ describe("MCP stdio server", () => {
       }
       expect(replies.at(-2)).toEqual({ jsonrpc: "2.0", id: null, result: {} });
       expect(replies.at(-1)).toEqual({ jsonrpc: "2.0", id: "alive", result: {} });
-      expect(existsSync(path.join(project, ".wl-skills/runs"))).toBe(false);
+      expect(existsSync(path.join(project, ".wl-skills/state/kit/runs"))).toBe(false);
     } finally { rmSync(project, { recursive: true, force: true }); }
   });
 

@@ -1,110 +1,38 @@
-# MCP Server 配置指南
+# MCP 接入与验收
 
-`wl-skills init` 已自动为以下编辑器生成项目级 MCP 配置：
+技能发现和 MCP 是两件事。先安装项目本地 Kit 执行器，再按实际使用的宿主选择项目入口；`init` 默认不配置 MCP，只有明确传 `--mcp` 才生成选中宿主的原生配置和本地凭据模板。
 
-| 编辑器 | 自动生成的配置文件 |
-| ---- | --------------- |
-| Cursor | `.cursor/mcp.json` |
-| Claude Code | `.mcp.json` |
-| VS Code / GitHub Copilot | `.vscode/mcp.json` |
-| Kiro | `.kiro/settings/mcp.json` |
-| Kilo Code / CLI | 优先复用根目录 `kilo.jsonc` / `kilo.json`，否则创建 `.kilo/kilo.jsonc` |
-
-以下编辑器仅支持全局配置，需手动添加一次（添加后对所有项目生效，无需重复操作）：
-
----
-
-## Windsurf
-
-编辑全局文件 `~/.codeium/windsurf/mcp_config.json`，在 `mcpServers` 中追加：
-
-```json
-{
-  "mcpServers": {
-    "wl-skills": {
-      "command": "node",
-      "args": ["/你的项目绝对路径/node_modules/@agile-team/wl-skills-kit/mcp/server.js"]
-    }
-  }
-}
+```sh
+pnpm exec wl-skills init --hosts codex,claude,zcode --mcp --dry-run
+# 核对计划后，在已授权的项目内去掉 --dry-run 执行。
+pnpm exec wl-skills doctor-host --host codex --json
+pnpm exec wl-skills check
 ```
 
-> 提示：Windsurf 不支持 `${workspaceFolder}` 变量，需填写绝对路径；或使用相对路径 `node_modules/...`（Windsurf 会从工作区根目录解析）。
+宿主路径、配置格式和现有文件复用由当前包的 host profiles / MCP 安装器决定，不在多份指南维护另一套路径表。原生项目配置契约未核实的宿主会返回手动接入诊断；按诊断提供的官方入口配置，不向猜测的 settings.json/global 路径写入。旧宿主名称和已登记文件可能保留为升级兼容，这不代表仍默认生成旧入口。
 
----
+## 本地连接信息
 
-## Cline（VS Code 插件）
-
-打开 VS Code 设置（`Ctrl+,`），搜索 `cline mcpServers`，或直接编辑 `settings.json` 追加：
+当前默认配置在 `.wl-skills/config/kit-sync.local.json`；旧项目 `.wl-skills/skills/sync/env.local.json` 仍可兼容读取。两者同时存在时使用 compact 路径，不复制第二份凭据。模板会说明需要填写的字段：
 
 ```json
 {
-  "cline.mcpServers": {
-    "wl-skills": {
-      "command": "node",
-      "args": ["${workspaceFolder}/node_modules/@agile-team/wl-skills-kit/mcp/server.js"]
-    }
-  }
-}
-```
-
-也可通过 Cline 侧边栏 → **MCP Servers** → **Edit Config** 进行图形化配置。
-
----
-
-## Trae IDE
-
-1. 打开 **Trae 设置**（`Ctrl+Shift+,`）→ **MCP**
-2. 点击 **+** 新增服务器
-3. 在弹出的 JSON 中填入：
-
-```json
-{
-  "mcpServers": {
-    "wl-skills": {
-      "command": "node",
-      "args": ["node_modules/@agile-team/wl-skills-kit/mcp/server.js"]
-    }
-  }
-}
-```
-
-4. 保存后重启 Trae，MCP 工具即可使用。
-
----
-
-## Qoder IDE
-
-1. 打开 **Qoder 设置**（`Ctrl+Shift+,`）→ **MCP**
-2. 切换到 **我的服务器** 标签 → 点击右上角 **+** 新增
-3. 在弹出的 JSON 中填入：
-
-```json
-{
-  "mcpServers": {
-    "wl-skills": {
-      "command": "node",
-      "args": ["node_modules/@agile-team/wl-skills-kit/mcp/server.js"]
-    }
-  }
-}
-```
-
-4. 关闭并保存，链接图标变绿表示连接成功。
-
----
-
-## 配置完成后
-
-`init` 会从 `env.example.json` 创建本地 `env.local.json` 并加入 `.gitignore`；确保已填写：
-
-```json
-{
-  "gatewayPath": "https://你的网关域名/api",
-  "token": "eyJhbGci...（纯 JWT/Token，不含 bearer 前缀）",
-  "menu": { "domainId": 1 },
+  "gatewayPath": "https://项目实际网关/api",
+  "sysAppNo": "实际应用编码",
+  "token": "实际登录凭据，纯Token而非Bearer前缀",
+  "environment": "test",
+  "menu": {"domainId": "从同环境真实查询取得的应用域ID"},
   "dict": {}
 }
 ```
 
-配置完成后重启编辑器，对 AI 说「扩展菜单」或「加字典」，AI 会自动调用 MCP 工具完成同步。
+密钥只在本地文件或 `WL_SKILLS_TOKEN` 环境变量中注入，不写进聊天、受管规则、报告或 Git。沿用模板中的请求头和网络选项；不猜 parentMenuId、应用编码或跨环境复用上下文。`update/clean` 不覆盖、删除本地凭据。
+
+## 从可发现到真实执行
+
+1. 在当前宿主中确认本项目服务已启用；首次批准、重新加载等步骤遵循宿主返回的实际状态。
+2. 真实列出工具，并执行一次已授权的只读查询，确认网关、应用、权限及返回语义。配置文件存在和连接指示灯不能证明业务可用。
+3. 需要写入时，先查询、预览具体 planHash，确认后由原工具写前重查并写后回查；显示失败、未验证或缺配置就停止相应写入，不从工具名称猜“已成功”。
+4. 在同 runId 的 `status` 查看工具执行、后验检查、缺失项和证据新鲜度。菜单排序、批量范围另见 [范围验收](change-scope.md)。
+
+本包不会因安装完成就保证所有宿主、模型或 VS Code 插件隐式触发。只读查询、计划、真正写入、业务效果必须分别验证。

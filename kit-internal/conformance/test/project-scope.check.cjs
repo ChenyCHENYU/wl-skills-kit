@@ -139,14 +139,63 @@ test("aggregate workspace needs a target project; target instructions/config win
   const next = resolveScope({ projectRoot: root, packageName: "@agile-team/wl-skills-kit", targets: ["pc/src/New.vue"] });
   assert.equal(next.projectRoot, path.join(root, "pc")); assert.equal(next.scope.status, "applicable");
 });
-test("Java Maven modules share backend adoption while a nested independent repository does not", (t) => {
-  const root = fixture(t); fs.writeFileSync(path.join(root, "pom.xml"), "<project><modules><module>service</module></modules></project>");
-  json(root, MANIFESTS.bd, { version: "1.0.0" }); fs.mkdirSync(path.join(root, "service"));
-  fs.writeFileSync(path.join(root, "service/pom.xml"), "<project><parent/></project>");
-  const input = { projectRoot: root, packageName: "@agile-team/wl-skills-bd", targets: ["service/src/New.java"] };
-  assert.equal(resolveScope(input).projectRoot, root); assert.equal(resolveScope(input).scope.status, "applicable");
-  fs.mkdirSync(path.join(root, "service/.git"));
-  assert.equal(resolveScope(input).scope.status, "not-applicable"); assert.equal(resolveScope(input).projectRoot, path.join(root, "service"));
+function reactor(root, prefix = "backend") {
+  const backend = path.join(root, prefix); fs.mkdirSync(path.join(backend, "service"), { recursive: true });
+  const pom = `<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>example</groupId><artifactId>backend</artifactId><version>1.0</version><packaging>pom</packaging><modules><module>service</module></modules></project>`;
+  const child = `<project><modelVersion>4.0.0</modelVersion><parent><groupId>example</groupId><artifactId>backend</artifactId><version>1.0</version></parent><artifactId>service</artifactId></project>`;
+  fs.writeFileSync(path.join(backend, "pom.xml"), pom); fs.writeFileSync(path.join(backend, "service/pom.xml"), child);
+  json(backend, MANIFESTS.bd, { version: "1.0.0" }); return { backend, pom, child };
+}
+test("Maven reactor scope is independent of the caller's workspace directory", (t) => {
+  const root = fixture(t); json(root, ".wl-skills-scope.json", { schemaVersion: 1, projectType: "workspace" });
+  const { backend } = reactor(root);
+  const fromWorkspace = resolveScope({ projectRoot: root, packageName: "@agile-team/wl-skills-bd", targets: ["backend/service/src/New.java"] });
+  const fromProject = resolveScope({ projectRoot: backend, packageName: "@agile-team/wl-skills-bd", targets: ["service/src/New.java"] });
+  assert.deepEqual(fromWorkspace, fromProject); assert.equal(fromProject.scope.status, "applicable"); assert.equal(fromProject.projectRoot, backend);
+});
+for (const [label, transform] of [
+  ["duplicate scalar", (p,c) => [p, c.replace("<artifactId>service</artifactId>", "<groupId>other</groupId><groupId>example</groupId><artifactId>service</artifactId>")]],
+  ["empty explicit coordinate", (p,c) => [p, c.replace("<artifactId>service</artifactId>", "<groupId/><artifactId>service</artifactId>")]],
+  ["duplicate parent", (p,c) => [p, c.replace("</project>", "<parent/></project>")]],
+  ["missing modelVersion", (p,c) => [p, c.replace("<modelVersion>4.0.0</modelVersion>", "")]],
+  ["undeclared module", (p,c) => [p.replace("<module>service</module>", "<module>other</module>"), c]],
+  ["parent GAV mismatch", (p,c) => [p, c.replace("<version>1.0</version>", "<version>2.0</version>")]],
+  ["repository-only parent", (p,c) => [p, c.replace("</parent>", "<relativePath/></parent>")]],
+  ["external parent", (p,c) => [p, c.replace("</parent>", "<relativePath>../../../pom.xml</relativePath></parent>")]],
+  ["commented module", (p,c) => [p.replace("<module>service</module>", "<!-- <module>service</module> -->"), c]],
+  ["profile-only module", (p,c) => [p.replace("<modules><module>service</module></modules>", "<profiles><profile><modules><module>service</module></modules></profile></profiles>"), c]],
+  ["DTD", (p,c) => ['<!DOCTYPE project [<!ENTITY module "service">]>' + p.replace("<module>service</module>", "<module>&module;</module>"), c]],
+  ["malformed XML", (p,c) => [p.replace("</project>", ""), c]],
+  ["unresolved property", (p,c) => [p.replace("<version>1.0</version>", "<version>${revision}</version>"), c.replace("<version>1.0</version>", "<version>${revision}</version>")]],
+]) test(`Maven scope rejects ${label} as parent adoption evidence`, t => {
+  const root = fixture(t); const { backend, pom, child } = reactor(root); const [p,c] = transform(pom, child);
+  fs.writeFileSync(path.join(backend, "pom.xml"),p); fs.writeFileSync(path.join(backend, "service/pom.xml"),c);
+  for (const caller of [root, backend]) {
+    const result = resolveScope({ projectRoot: caller, packageName: "@agile-team/wl-skills-bd", targets: [path.relative(caller, path.join(backend, "service/src/New.java"))] });
+    assert.equal(result.projectRoot, path.join(backend,"service")); assert.equal(result.scope.status,"not-applicable");
+  }
+});
+for (const marker of [".git", "package.json", ".wl-skills-scope.json", MANIFESTS.bd]) test(`Maven reactor stops at independent ${marker}`, t => {
+  const root = fixture(t); const { backend } = reactor(root); const service = path.join(backend, "service");
+  if (marker === ".git") fs.mkdirSync(path.join(service,marker));
+  else json(service,marker, marker === ".wl-skills-scope.json" ? {schemaVersion:1,projectType:"backend",packages:{bd:false}} : marker === MANIFESTS.bd ? {version:"2.0"} : {name:"independent"});
+  const result = resolveScope({projectRoot:root,packageName:"@agile-team/wl-skills-bd",targets:["backend/service/src/New.java"]});
+  assert.equal(result.projectRoot,service); assert.equal(result.scope.adopted, marker === MANIFESTS.bd);
+});
+test("Maven scope fingerprint includes the child relationship and separates reactors", t => {
+  const root = fixture(t); const { backend, child } = reactor(root); reactor(root,"other");
+  const input = {projectRoot:root,packageName:"@agile-team/wl-skills-bd",targets:["backend/service/src/New.java"]};
+  const first = resolveScope(input); fs.writeFileSync(path.join(backend,"service/pom.xml"),child.replace("<artifactId>service</artifactId>","<artifactId>renamed</artifactId>"));
+  assert.notEqual(first.scope.fingerprint,resolveScope(input).scope.fingerprint);
+  assert.equal(resolveScope({...input, targets:[...input.targets,"other/service/src/New.java"]}).scope.reason,"multiple-project-targets-split-required");
+});
+test("Maven child relationship edits invalidate a saved task plan", t => {
+  const root = fixture(t); const { backend, child } = reactor(root);
+  request(backend, "bd", { runId: "maven-scope-stale", targets: ["service/src/New.java"] });
+  const status = () => request(backend, "bd", {runId:"maven-scope-stale",targets:[]}, "status");
+  assert.equal(status().planStale,false);
+  fs.writeFileSync(path.join(backend,"service/pom.xml"),child.replace("<artifactId>service</artifactId>","<artifactId>renamed</artifactId>"));
+  assert.equal(status().planStale,true);
 });
 test("scope config creation after a plan invalidates old eligibility evidence", (t) => {
   const root = fixture(t); json(root, "package.json", { devDependencies: { "@agile-team/wl-skills-kit": "*" } });

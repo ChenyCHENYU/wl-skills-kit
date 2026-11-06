@@ -1,6 +1,6 @@
 ---
 name: prototype-scan
-description: "Use when: analyzing Axure exported HTML prototype files to extract page inventory, classify interaction patterns, identify reusable components, and produce a structured page checklist for Vue development. Also supports NON-standard detailed design documents (free-form MD/Word) or natural language descriptions as input. DO NOT use for standard requirement-spec documents produced by wl-skills-design (path contains .wl-skills/docs/spec/, has function codes like PMMB001, IPO tables, flow five-elements) — route those to spec-doc-parse instead. Triggers on: prototype analysis, axure scan, page inventory, 原型解析, 页面清单, axure转vue, 口述需求, 自然语言建页面, natural language page request, 建个页面, 写个页面, 口头描述页面."
+description: "解析 Axure 导出的 HTML、普通原型目录、非标准详设或口述页面需求，识别业务页面、共享框架和交互，形成页面规格清单。wl-skills-design 产出的标准说明书应交给 spec-doc-parse。"
 ---
 
 # Skill: 原型解析（prototype-scan）

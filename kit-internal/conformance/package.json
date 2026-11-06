@@ -6,6 +6,8 @@
     "test": "node --test test/*.check.cjs",
     "test:matrix": "WL_FULL_MATRIX=1 node --test test/coexistence.check.cjs",
     "test:upgrade": "node --test test/suites/upgrade-matrix.check.cjs",
+    "eval:host": "node scripts/host-skill-eval.cjs",
+    "eval:summary": "node scripts/host-skill-eval-summary.cjs",
     "support:sync": "node scripts/sync-support.cjs"
   },
   "engines": { "node": ">=22" },

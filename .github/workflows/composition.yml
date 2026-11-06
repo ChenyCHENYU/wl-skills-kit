@@ -1,0 +1,87 @@
+name: Pinned five-package composition
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report composition configuration
+        env:
+          ENABLED: ${{ vars.WL_COMPOSITION_CHECKOUTS != '' }}
+        run: |
+          if [ "$ENABLED" != 'true' ]; then
+            echo '::notice::Combination not run: configure WL_COMPOSITION_CHECKOUTS with four repositories and pinned commit SHAs; private repositories also need WL_COMPOSITION_READ_TOKEN.'
+          fi
+
+  composition:
+    if: vars.WL_COMPOSITION_CHECKOUTS != ''
+    runs-on: ubuntu-latest
+    env:
+      WL_PACKAGES_ROOT: ${{ github.workspace }}/packages
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: packages/wl-skills-kit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate explicitly pinned checkout plan
+        env:
+          WL_COMPOSITION_CHECKOUTS: ${{ vars.WL_COMPOSITION_CHECKOUTS }}
+        run: node packages/wl-skills-kit/kit-internal/conformance/scripts/composition-checkouts.cjs
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).ui.repository }}
+          ref: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).ui.ref }}
+          path: packages/wl-skills-ui
+          token: ${{ secrets.WL_COMPOSITION_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).bd.repository }}
+          ref: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).bd.ref }}
+          path: packages/wl-skills-bd
+          token: ${{ secrets.WL_COMPOSITION_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).design.repository }}
+          ref: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).design.ref }}
+          path: packages/wl-skills-design
+          token: ${{ secrets.WL_COMPOSITION_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).test.repository }}
+          ref: ${{ fromJSON(vars.WL_COMPOSITION_CHECKOUTS).test.ref }}
+          path: packages/wl-skills-test
+          token: ${{ secrets.WL_COMPOSITION_READ_TOKEN || github.token }}
+          persist-credentials: false
+      - name: Verify canonical distribution before dependency installation
+        run: node packages/wl-skills-kit/kit-internal/conformance/scripts/sync-support.cjs --root packages --check
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      - name: Enable package-declared pnpm versions
+        run: corepack enable
+      - name: Install locked dependencies
+        run: |
+          for key in kit ui; do (cd "packages/wl-skills-$key" && corepack pnpm install --frozen-lockfile --ignore-scripts); done
+          for key in bd design test; do npm ci --ignore-scripts --prefix "packages/wl-skills-$key"; done
+          npm ci --ignore-scripts --prefix packages/wl-skills-kit/kit-internal/conformance
+      - name: Verify each independent runtime and npm payload
+        run: |
+          for key in kit ui bd design test; do
+            (cd "packages/wl-skills-$key" && npm run support:check && npm run support:pack-check)
+          done
+      - name: Exercise public protocol, contract consumption and lifecycle composition
+        working-directory: packages/wl-skills-kit/kit-internal/conformance
+        run: node --test test/integration-protocol.check.cjs test/contracts.check.cjs test/schema-producers.check.cjs test/coexistence.check.cjs

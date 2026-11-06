@@ -51,6 +51,7 @@ export const queryItems: BaseQueryItemDesc<any>[] = [
   {
     name: "[keyField]",
     label: "[主键名]",
+    showColon: false,
     placeholder: "请输入[主键名]",
   },
   // 如需关联 Picker，使用 componentVNode 渲染（参考 mmsm-convert-progress PlanMainPicker）
@@ -90,15 +91,17 @@ export const formItems: BaseFormItemDesc<any>[] = [
   {
     name: "divider1",
     label: "",
+    showColon: false,
     labelWidth: "0px",
     span: 4,
     componentVNode: () => h(c_spliterTitle, { title: "[分区名称]" }),
   },
   // 普通文本
-  { label: "[字段名]", name: "[fieldName]", placeholder: "请输入[字段名]" },
+  { label: "[字段名]", showColon: false, name: "[fieldName]", placeholder: "请输入[字段名]" },
   // 字典下拉
   {
     label: "[字典字段]",
+    showColon: false,
     name: "[dictField]",
     placeholder: "请选择[字典字段]",
     logicType: BusLogicDataType.dict,
@@ -108,6 +111,7 @@ export const formItems: BaseFormItemDesc<any>[] = [
   // 时间
   {
     label: "[时间字段]",
+    showColon: false,
     name: "[timeField]",
     placeholder: "请选择[时间字段]",
     logicType: BusLogicDataType.datetime,
@@ -115,6 +119,7 @@ export const formItems: BaseFormItemDesc<any>[] = [
   // 数值
   {
     label: "[数值字段]",
+    showColon: false,
     name: "[numField]",
     placeholder: "请输入[数值字段]",
     logicType: BusLogicDataType.number,

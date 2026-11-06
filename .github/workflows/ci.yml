@@ -32,7 +32,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=moderate
         if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+      - name: Verify canonical single-repository distribution
+        run: node kit-internal/conformance/scripts/sync-support.cjs --packages kit --check
+      - name: Verify distribution guards without sibling checkouts
+        run: node --test kit-internal/conformance/test/distribution-integrity.check.cjs kit-internal/conformance/test/sync-support.check.cjs kit-internal/conformance/test/composition-checkouts.check.cjs kit-internal/conformance/test/release-artifact.check.cjs
+      - name: Verify host evaluation grading and mock boundaries without a model
+        run: node --test kit-internal/conformance/test/host-skill-runner.check.cjs kit-internal/conformance/test/host-skill-cases.check.cjs
       - run: npm run support:check
+      - run: npm run support:pack-check
       - run: pnpm verify
       - run: npm pack --dry-run --ignore-scripts
 

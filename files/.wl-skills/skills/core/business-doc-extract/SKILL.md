@@ -1,6 +1,6 @@
 ---
 name: business-doc-extract
-description: "Use when: 用户提供原型目录（如已发布的 Axure HTML 文件夹）、详设/需求文档、字段或字典资料、已有页面目录等业务资料，并希望沉淀业务理解、对齐产品/后端、维护字段字典或维护待确认事项。Skill 不依赖固定关键词，依据资料源 + 用户意图 + 范围完整度智能判断；碎片化问答、单截图、小修小改默认不触发。Triggers on (语义级，仅作示例): 业务梳理 / 业务文档 / .wl-skills/docs/business / 模块大纲 / 字段字典整理 / 待确认事项 / 产品确认 / 业务全景 / 原型转业务文档 / 详设转业务文档 / 业务闭环。"
+description: "从整套原型、详设、字段字典或已有页面资料中，整理模块职责、业务规则、关键字段与待确认问题，形成可供产品和后端核对的业务文档。单截图、零散问答或小修小改不进入全量业务抽取。"
 ---
 
 # Skill: 业务文档抽取（business-doc-extract）
@@ -96,17 +96,14 @@ description: "Use when: 用户提供原型目录（如已发布的 Axure HTML �
 
 ---
 
-## 5. Pre-flight 声明（必须输出）
+## 5. Pre-flight 检查清单
 
-```text
-🚀 已触发技能 business-doc-extract/SKILL.md  → 业务理解文档抽取与维护
-✅ 已识别资料源：{原型目录 / 详设文件 / 字段表 / 字典表 / 现有代码 + api.md}
-✅ 已判断范围：{preview / module / project / incremental}
-✅ 已读取 standards/index.md       → task-map.json：business-doc-extract（业务梳理与注释约束）
-✅ 已读取 _pipeline.md              → 与 prototype-scan / api-contract / page-codegen 的衔接关系
-✅ 计划落盘：{是/否}，目标路径：{.wl-skills/docs/business/...}
-⚠ 涉及写文件：是/否；需要用户确认：是/否
-```
+- [ ] 识别资料源：{原型目录 / 详设文件 / 字段表 / 字典表 / 现有代码 + api.md}
+- [ ] 判断范围：{preview / module / project / incremental}
+- [ ] 读取 standards/index.md       → task-map.json：business-doc-extract（业务梳理与注释约束）
+- [ ] 读取 _pipeline.md              → 与 prototype-scan / api-contract / page-codegen 的衔接关系
+- [ ] 计划落盘：{是/否}，目标路径：{.wl-skills/docs/business/...}
+- [ ] ⚠ 涉及写文件：是/否；需要用户确认：是/否
 
 资料缺失时必须暂停：
 

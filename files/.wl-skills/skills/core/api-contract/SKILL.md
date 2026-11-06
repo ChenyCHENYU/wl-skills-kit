@@ -1,6 +1,6 @@
 ---
 name: api-contract
-description: "Use when: designing API contracts between frontend and backend based on prototype page inventory, defining request/response field structures, establishing naming conventions, and generating an api.md file per page for team alignment before coding. Triggers on: api contract, interface design, 接口约定, 前后端对齐, 字段定义, 接口设计, api.md."
+description: "在页面开发前对齐前后端接口契约：定义请求参数、响应字段、分页结构、命名与错误约定，按页面生成 api.md 供团队确认。适用于已接入 Kit 的 PC 管理端；不代替后端接口实现。"
 ---
 
 # Skill: 接口约定（api-contract）

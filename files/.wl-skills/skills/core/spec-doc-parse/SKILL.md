@@ -1,6 +1,6 @@
 ---
 name: spec-doc-parse
-description: "Use when: parsing STANDARD requirement-design specification documents produced by wl-skills-design (path contains .wl-skills/docs/spec/, files like ch1-3.md / 4.x-{module}.md / 4.N-data-report.md, with function codes like PMMB001, IPO tables containing 处理逻辑, and flow descriptions with five-elements) into the SAME page-spec JSON consumed by page-codegen. This is the 规范线 (spec line) counterpart to prototype-scan (原型线). Self-validating, self-correcting, report-producing. Triggers on: 解析说明书, 解析需求文档, 解析详设, 规范文档转页面, 根据说明书生成, spec doc parse, IPO 转页面, .wl-skills/docs/spec, 功能编码, 需求设计说明书."
+description: "解构 wl-skills-design 产出的标准需求详设，包括功能编码、IPO表、字段和交互流程，转换为页面开发使用的 page-spec JSON，并输出核对报告。普通原型或非标准文档交给 prototype-scan。"
 ---
 
 # Skill: 规范文档解构（spec-doc-parse）
@@ -25,18 +25,15 @@ description: "Use when: parsing STANDARD requirement-design specification docume
 
 ---
 
-## Pre-flight 声明（执行前必须输出）
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 spec-doc-parse/SKILL.md       → 规范文档解构：标准说明书 → page-spec JSON
-✅ 已读取 standards/index.md                 → 规范门控（任务类型：解析规范文档转页面）
-✅ 已读取 core/prototype-scan/SKILL.md       → page-spec JSON 结构定义（统一汇聚格式）
-✅ 已读取 standards/12-base-table.md         → AGGrid 列定义约束（供下游 page-codegen）
-✅ 已识别文档结构：{doc-skeleton 5 文件 / 单卷 / 单子模块}
-✅ 来源文件：{.wl-skills/docs/spec/{项目代号}/...}
-✅ 输出：reports/SPEC_PARSE_{模块}_{日期}.md（page-spec JSON + 解析报告）
-✅ 不会生成代码（解析 + 报告，代码生成由 page-codegen 承接）
-```
+- [ ] 读取 standards/index.md                 → 规范门控（任务类型：解析规范文档转页面）
+- [ ] 读取 core/prototype-scan/SKILL.md       → page-spec JSON 结构定义（统一汇聚格式）
+- [ ] 读取 standards/12-base-table.md         → AGGrid 列定义约束（供下游 page-codegen）
+- [ ] 识别文档结构：{doc-skeleton 5 文件 / 单卷 / 单子模块}
+- [ ] 来源文件：{.wl-skills/docs/spec/{项目代号}/...}
+- [ ] 输出：reports/SPEC_PARSE_{模块}_{日期}.md（page-spec JSON + 解析报告）
+- [ ] 不会生成代码（解析 + 报告，代码生成由 page-codegen 承接）
 
 **结构不合规时（红叉 + 暂停）**：
 

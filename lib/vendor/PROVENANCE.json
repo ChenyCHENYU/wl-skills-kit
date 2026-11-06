@@ -1,0 +1,39 @@
+{
+  "saxes": "6.0.0",
+  "xmlchars": "2.2.0",
+  "source": "npm distributions already installed in the workspace; license included; only saxes require paths changed to local snapshots",
+  "files": [
+    {
+      "path": "saxes/saxes.js",
+      "upstreamSha256": "d00e2ba27ed7d6ac961d03ff14d6b8c0eb5bf063ed2c996c22c6df06ac121423"
+    },
+    {
+      "path": "saxes/README.md",
+      "upstreamSha256": "ade6061f7c778cdd868d9b0f711530e4c1ec1f33767222ce33bb05e295bf6f0c"
+    },
+    {
+      "path": "saxes/package.json",
+      "upstreamSha256": "32052572b41c2a890ed0854798c48454cc5991dcaafe5fb1718a4253046acfd3"
+    },
+    {
+      "path": "xmlchars/xml/1.0/ed5.js",
+      "upstreamSha256": "ea350479ab6f6553c0c3395c30ec440fb39821f6902081939831ddf1b5e8fd0f"
+    },
+    {
+      "path": "xmlchars/xml/1.1/ed2.js",
+      "upstreamSha256": "461d5c71cc6076dc16aebbfd2d3c506481df5a74f43631d82372a6ffdc239d69"
+    },
+    {
+      "path": "xmlchars/xmlns/1.0/ed3.js",
+      "upstreamSha256": "ff14ffa3a2cdfdd1b6077c4a8443dc949f53d5bb56de5ed89d4dbc5d9fdf08f7"
+    },
+    {
+      "path": "xmlchars/LICENSE",
+      "upstreamSha256": "45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c"
+    },
+    {
+      "path": "xmlchars/package.json",
+      "upstreamSha256": "a91c0b20003ff9399dde1de8c59681f1b6901c6fb1aac71780a3a876dc548583"
+    }
+  ]
+}

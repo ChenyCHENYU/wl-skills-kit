@@ -56,6 +56,16 @@ for (const pkg of PACKAGES) {
     for (const code of ["unsupported-protocol", "unknown-operation", "missing-input", "invalid-input", "internal-error", "invalid-executor-input", "stale-plan"]) assert.ok(described.errorCodes.includes(code));
     assert.ok(described.constraints.instructionOnly);
     assert.ok(described.constraints.evidence);
+    assert.ok(described.features.includes("host-mcp-config-v1"));
+    const mcp = described.inventory.mcpIntegration;
+    if (pkg.name === "wl-skills-design") {
+      assert.equal(mcp.status, "not-provided"); assert.equal(mcp.transport, null);
+    } else {
+      assert.equal(mcp.status, "provided"); assert.equal(mcp.transport, "stdio");
+      assert.equal(mcp.packageName, pkg.npm); assert.equal(mcp.projectRootEnvironment, "WL_PROJECT_ROOT");
+      assert.equal(mcp.hosts.find(host => host.hostId === "codex").layout.format, "toml");
+      assert.equal(mcp.hosts.find(host => host.hostId === "zcode").layout.container.join("."), "mcp.servers");
+    }
   });
 
   test(`request(route)：${pkg.npm} 返回六类判定且 ok`, () => {

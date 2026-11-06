@@ -19,19 +19,22 @@ for (let index = 0; index < args.length; index++) {
 }
 const option = name => options.get(name);
 const check = args.includes("--check");
-const directories = { kit: "lib", ui: "bin", bd: "lib", design: "lib", test: "lib" };
-const selected = (option("--packages") || Object.keys(directories).join(",")).split(",");
-if (selected.some(key => !Object.hasOwn(directories, key))) throw new Error("--packages 必须指定 kit,ui,bd,design,test 中的包");
+const { CORE_FILES: names, DIRECTORIES: directories, DEFAULT_PACKAGES, DEVELOPMENT_MANIFEST, EXTRA_FILES, LICENSE, distributionFiles, developmentScripts } = require("../support/shared-distribution.cjs");
+const selected = (option("--packages") || DEFAULT_PACKAGES.join(",")).split(",");
+if (selected.some(key => !Object.hasOwn(directories, key))) throw new Error("--packages 必须指定 kit,ui,bd,design,test,gate 中的包");
 const root = path.resolve(option("--root") || process.env.WL_PACKAGES_ROOT || path.resolve(__dirname, "../../../.."));
 const source = path.resolve(__dirname, "../support");
-const names = ["task-observability.cjs", "task-observability.schema.json", "integration-protocol.cjs", "project-scope.cjs", "project-scope.schema.json", "task-intent.cjs", "integration-result.cjs", "executor-invoke.cjs", "executor-process.cjs", "json-rpc-request.cjs", "shared-support-check.cjs"];
 const hash = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 const files = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(path.join(source, name)))]));
-const developmentFiles = { "scripts/compatibility-check.cjs": hash(fs.readFileSync(path.join(__dirname, "compatibility-check.cjs"))) };
-const sourceRevision = `sha256:${hash(JSON.stringify({ files, developmentFiles }))}`;
-const manifest = Buffer.from(JSON.stringify({ schemaVersion: 1, source: "conformance/support", sourceRevision, contracts: { protocol: 1, resultCore: 1, executorInvoke: 1 }, files, developmentFiles }, null, 2) + "\n");
-const writes = [[path.join(source, "shared-support-manifest.json"), manifest]];
-const licenseSource = path.join(source, "vendor/jsonc-parser/LICENSE.md");
+const distributionSources = Object.fromEntries(EXTRA_FILES.map(name => [name, hash(fs.readFileSync(path.join(source, name)))]));
+const licenseLf = bytes => Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
+const normalizationHashes = { [LICENSE]: hash(licenseLf(fs.readFileSync(path.join(source, LICENSE)))) };
+const sourceRevision = `sha256:${hash(JSON.stringify({ files, distributionSources, normalizationHashes }))}`;
+const baseManifest = { schemaVersion: 3, source: "conformance/support", sourceRevision, contracts: { protocol: 1, resultCore: 1, executorInvoke: 1 }, files, distributionSources, normalizationHashes };
+const developmentFiles = Object.fromEntries(developmentScripts("canonical").map(name => [name, hash(fs.readFileSync(path.join(__dirname, path.basename(name))))]));
+const developmentManifest = Buffer.from(JSON.stringify({ schemaVersion: 1, revision: `sha256:${hash(JSON.stringify(developmentFiles))}`, files: developmentFiles }, null, 2) + "\n");
+const writes = [];
+const licenseSource = path.join(source, LICENSE);
 function declaresGitLf(repo, file) {
   const result = spawnSync("git", ["-C", repo, "check-attr", "-z", "text", "eol", "--", path.relative(repo, file)], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   if (result.status !== 0) return false;
@@ -43,34 +46,38 @@ function declaresGitLf(repo, file) {
 // Only this license is eligible, and only under declared source/destination Git
 // text/LF policy. Preserve every other byte, including core snapshot hashes.
 const licenseSourceLf = declaresGitLf(path.resolve(__dirname, "../../.."), licenseSource);
-const licenseLf = bytes => Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
 function add(destination, sourceFile, repo) {
   const normalizeLicense = sourceFile === licenseSource && licenseSourceLf && repo && declaresGitLf(repo, destination);
   const bytes = fs.readFileSync(sourceFile);
   writes.push([destination, normalizeLicense ? licenseLf(bytes) : bytes, normalizeLicense]);
 }
-function addTree(destination, sourceDir, repo) {
-  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
-    if (entry.isDirectory()) addTree(path.join(destination, entry.name), path.join(sourceDir, entry.name), repo);
-    else add(path.join(destination, entry.name), path.join(sourceDir, entry.name), repo);
+function addManifest(directory, key, repo) {
+  const entries = distributionFiles(key);
+  const distributionHashes = {};
+  const distributionNormalizations = {};
+  for (const [destination, original] of Object.entries(entries)) {
+    const sourceFile = path.join(source, original);
+    const target = path.join(directory, destination);
+    add(target, sourceFile, repo);
+    const [, bytes, normalized] = writes.at(-1);
+    distributionHashes[destination] = hash(bytes);
+    if (normalized) distributionNormalizations[destination] = "lf";
   }
+  const distribution = { distributionProfile: key, distributionFiles: distributionHashes, distributionNormalizations };
+  const distributionRevision = `sha256:${hash(JSON.stringify(distribution))}`;
+  const manifest = Buffer.from(JSON.stringify({ ...baseManifest, ...distribution, distributionRevision }, null, 2) + "\n");
+  const manifestDirectory = key === "canonical" ? directory : path.join(directory, directories[key]);
+  writes.push([path.join(manifestDirectory, "shared-support-manifest.json"), manifest]);
 }
+addManifest(source, "canonical");
+writes.push([path.resolve(__dirname, "..", DEVELOPMENT_MANIFEST), developmentManifest]);
 for (const key of selected) {
   const repo = path.join(root, `wl-skills-${key}`);
   if (!fs.existsSync(path.join(repo, "package.json"))) throw new Error(`缺少选定包：${repo}`);
-  const directory = path.join(repo, directories[key]);
-  for (const name of names) add(path.join(directory, name), path.join(source, name));
-  writes.push([path.join(directory, "shared-support-manifest.json"), manifest]);
-  add(path.join(repo, "scripts/compatibility-check.cjs"), path.join(__dirname, "compatibility-check.cjs"));
-  if (key !== "design") {
-    add(path.join(directory, "shared-jsonc.cjs"), path.join(source, "shared-jsonc.cjs"));
-    addTree(path.join(directory, "vendor/jsonc-parser"), path.join(source, "vendor/jsonc-parser"), repo);
-  }
-  if (["kit", "ui"].includes(key)) add(path.join(directory, "atomic-write.cjs"), path.join(source, "atomic-write.cjs"));
-  const schema = { kit: "files/.wl-skills/contracts/wl-api-contract.schema.json", bd: "files/.wl-skills-bd/schemas/collaboration-contract.schema.json", test: "files/.wl-skills-test/contracts/wl-api-contract.schema.json" }[key];
-  if (schema) add(path.join(repo, schema), path.join(source, "contracts/wl-api-contract.schema.json"));
-  const profile = { kit: "files/.wl-skills/contracts/wl-delivery-profile.v1.json", bd: "files/.wl-skills-bd/contracts/wl-delivery-profile.v1.json", design: "files/.github/contracts/wl-delivery-profile.v1.json" }[key];
-  if (profile) add(path.join(repo, profile), path.join(source, "contracts/wl-delivery-profile.v1.json"));
+  addManifest(repo, key, repo);
+  const scripts = developmentScripts(key);
+  if (scripts.length) writes.push([path.join(repo, DEVELOPMENT_MANIFEST), developmentManifest]);
+  for (const name of scripts) add(path.join(repo, name), path.join(__dirname, path.basename(name)));
 }
 const changed = writes.filter(([file, bytes, normalizeLicense]) => {
   if (!fs.existsSync(file)) return true;

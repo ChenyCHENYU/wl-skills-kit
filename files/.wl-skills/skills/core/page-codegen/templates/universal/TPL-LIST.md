@@ -13,6 +13,7 @@
 ```typescript
 import { proxyRefs, ref, type Ref } from "vue";
 import type CFormModal from "@/components/local/c_formModal/index.vue";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import type {
   BaseQueryItemDesc,
   TableColumnDesc,
@@ -39,10 +40,11 @@ export const API_CONFIG = {
 };
 
 export const queryItems: BaseQueryItemDesc<Query>[] = [
-  { name: "name", label: "名称", placeholder: "请输入名称" },
+  { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" },
   {
     name: "status",
     label: "状态",
+    showColon: false,
     placeholder: "请选择",
     logicType: BusLogicDataType.dict,
     logicValue: "[字典code]"
@@ -57,14 +59,15 @@ export const modalConfig = {
     update: API_CONFIG.update
   },
   formItems: [
-    { name: "name", label: "名称", placeholder: "请输入名称" },
+    { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" },
     {
       name: "status",
       label: "状态",
+      showColon: false,
       logicType: BusLogicDataType.dict,
       logicValue: "[字典code]"
     }
-  ]
+  ] satisfies BaseFormItemDesc<any>[]
 };
 
 export function createPage(

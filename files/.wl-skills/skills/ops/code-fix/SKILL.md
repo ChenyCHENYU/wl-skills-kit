@@ -1,6 +1,6 @@
 ---
 name: code-fix
-description: "Use when: fixing code convention issues found in convention-audit reports. Triggers on: 自动修复, 整改偏差, 修复报告, 规范整改, 修复偏差, code fix, 整改规范."
+description: "根据已经确认的编码规范偏差或审计报告，逐项执行受控修复并复查；保留证据、修改范围与尚未验证的检查。普通功能修改不等于规范自动整改。"
 ---
 
 # Skill: 受控自动修复（code-fix）
@@ -9,6 +9,8 @@ description: "Use when: fixing code convention issues found in convention-audit 
 
 > **前置**：必须先运行 `convention-audit` 生成审计报告，code-fix 依赖其输出。  
 > **范围**：修复用户授权且依据明确的偏差。严重问题需有契约或行为证据，不按等级强制重生成页面；未知业务要求先核实。
+
+批量页面修复先读取 `guides/change-scope.md`，用同 runId 的 `task --page-scope` 声明页面清单（含独立页）、功能预期及排除理由。`validate` 分别记录静态覆盖与逐页功能验证；尚有 pending、越界或行为未验收时不得把“0 error”表述为整体闭环。仅调整菜单顺序不得改页面文件目录、注册分组、组件路径或路由。
 
 ---
 
@@ -39,7 +41,7 @@ reports/规范审查报告.md（convention-audit 输出）
 [6] ★ 强制复扫验证（闭环关键步骤，不可跳过）
     ├─ 本轮修复完成后，自动执行 wl-skills validate 检测修复结果
     ├─ 如仍有 error → 提示未完全修复，建议继续处理
-    └─ 全部通过 → 输出 ✔ 闭环完成，可安全提交
+    └─ 复扫及同 runId 必要检查通过 → 按实际范围说明验证结果与未验收项
 ```
 
 ---
@@ -51,7 +53,7 @@ reports/规范审查报告.md（convention-audit 输出）
 AI 在完成**本轮全部修复**后（单条或批量），**必须自动执行**：
 
 1. 调用 `wl-skills validate`（或 MCP `wls_validate_page`）对修复文件检测
-2. 检测通过（0 error）→ 输出 "✔ 复扫通过，闭环完成"
+2. 检测通过（0 error）→ 只说明本次静态复扫通过，再读取同 runId 的 `wl-skills status` 核对范围、功能验收和 pending
 3. 检测仍有 error → 输出残余问题清单，建议继续修复或标记人工
 4. 完成摘要中记录复扫结果
 
@@ -64,7 +66,7 @@ AI 在完成**本轮全部修复**后（单条或批量），**必须自动执�
 ## 复扫验证
 - 执行：wl-skills validate
 - error: 0 / warn: {N}
-- 结论：可安全提交 / 需继续处理
+- 结论：本次静态检查通过 / 需继续处理；另列功能验收及 status pending
 
 ## 建议下一步
 - next_suggest：git add + git commit（复扫通过时）
@@ -114,14 +116,11 @@ AI 在完成**本轮全部修复**后（单条或批量），**必须自动执�
 
 ---
 
-## Pre-flight 声明示例
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 ops/code-fix/SKILL.md → 受控自动修复偏差
-✅ 已读取 reports/规范审查报告.md    → 找到 12 条偏差（rule-based 8 条，ai-based 4 条）
-✅ 当前目标：issue#3（EColumn 缺 cid）→ 文件 src/views/sale/order/data.ts L42
-✅ 已审查差异，在已授权范围内执行；超出授权时再说明理由并请求确认
-```
+- [ ] 读取 reports/规范审查报告.md    → 找到 12 条偏差（rule-based 8 条，ai-based 4 条）
+- [ ] 当前目标：issue#3（EColumn 缺 cid）→ 文件 src/views/sale/order/data.ts L42
+- [ ] 审查差异，在已授权范围内执行；超出授权时再说明理由并请求确认
 
 ---
 

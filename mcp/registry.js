@@ -118,8 +118,8 @@ const DESCRIPTORS = [
     name: "wls_menu_query",
     description:
       "查询当前应用域的完整菜单树（管理域树，不按当前用户 permission 过滤）。自动从 " +
-      ".wl-skills/skills/sync/env.local.json 读取 domainId，无需传参。在 wls_menu_upsert 前调用，" +
-      "用于判断哪些菜单需要新增、哪些需要更新；它不等同于登录用户最终可见的权限树。",
+      "项目本地同步配置读取 domainId，无需传参。用于确认未知菜单 ID、父级及新增或更新范围。" +
+      "已有 ID 的仅排序任务可直接调用 wls_menu_upsert 的 orderOnly 预览，预览会读取菜单树。域树不等同于当前用户权限树。",
     inputSchema: { type: "object", properties: {}, required: [] },
     outputSchema: STRUCTURED_RESULT_SCHEMA,
     needsBackendConfig: true,
@@ -145,6 +145,7 @@ const DESCRIPTORS = [
             "component(type=C时传), permission(可选；传入后当前角色无此权限码会看不到菜单)",
           items: { type: "object" },
         },
+        orderOnly: { type: "boolean", description: "仅排序：items只接受已有id和整数orderNum；从线上快照保留其余字段，跳过顺序未变化的项，拒绝新增或改路径/父级/权限。菜单排序task自动启用。" },
         confirmApply: {
           type: "boolean",
           description: "默认 false，仅预览；明确确认后传 true 才写入菜单",
@@ -639,6 +640,7 @@ const DESCRIPTORS = [
           description:
             "是否额外执行 vue-tsc/tsc --noEmit 类型检查（K14，体积较大，CI 场景开启）",
         },
+        pageVerifier: { type: "string", description: "显式选用的项目内JS逐页测试适配脚本；以Node无shell运行，30秒上限。stdin包含pages与源码指纹，stdout需为pages[{path,status,assertions}]。不传则功能验收保持未验证。" },
         offset: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER, description: "旧问题列表起点，默认 0；每次仍校验，原快照续取使用 resultCursor" },
         limit: { type: "integer", minimum: 1, maximum: 200, description: "本次最多返回的问题数，默认 40" },
         resultCursor: { type: "string", pattern: "^[a-f0-9]{32}:[0-9]+$", description: "读取同进程原扫描快照，不重新扫描；使用 structuredContent.nextCursor" },
@@ -885,7 +887,7 @@ function annotationsFor(name) {
 }
 
 function effectMetadata(descriptor) {
-  const businessReadOnly = RISK_PROFILES[TOOL_RISK_PROFILE[descriptor.name]].readOnlyHint;
+  const businessReadOnly = descriptor.observabilityAction || RISK_PROFILES[TOOL_RISK_PROFILE[descriptor.name]].readOnlyHint;
   const records = descriptor.observabilityAction ? descriptor.name === "wls_task" : true;
   return { wl: { businessReadOnly, businessIdempotent: RISK_PROFILES[TOOL_RISK_PROFILE[descriptor.name]].idempotentHint, recordsOwnReceipt: records,
     sideEffects: records ? `${businessReadOnly ? "业务输入只读；" : "按工具原写入/确认边界；"}写本包任务计划或执行回执；resultCursor 续取只读已扫描结果`

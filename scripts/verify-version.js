@@ -7,7 +7,6 @@
  *   - README.md                      标题行
  *   - package.json#description       npm 页面描述
  *   - files/.wl-skills/guides/architecture.md   "当前版本"
- *   - files/.wl-skills/skills/_compat/headers/{cursor-mdc, kiro, trae}.txt 描述行
  *
  * 同时校验：
  *   - README.md 中的 "{N} 个 AI Skill" 与 _registry.md ✅ 启用 行数一致
@@ -72,7 +71,6 @@ checkVersionMatch(
   /\*\*当前版本\*\*：v\d+\.\d+\.\d+/,
   "guides/architecture.md",
 );
-// headers/*.txt 不含 vX.Y.Z，改为校验"N 个 Skill"是否与 _registry.md 一致（在下方 Skill 计数检查中处理）
 
 // description 字段单独验证
 const descMatch = (PKG.description || "").match(/v(\d+\.\d+\.\d+)/);
@@ -181,26 +179,6 @@ if (standardsCount > 0) {
   if (descStdMatch && parseInt(descStdMatch[1], 10) !== standardsCount) {
     errors.push(
       `package.json#description: '${descStdMatch[0]}' 与 standards/*.md 实际条数 (${standardsCount}) 不一致`,
-    );
-  }
-}
-
-// headers/*.txt 中 "14 条标准 + N 个 Skill" 描述也校验
-for (const headerFile of [
-  "files/.wl-skills/skills/_compat/headers/cursor-mdc.txt",
-  "files/.wl-skills/skills/_compat/headers/trae.txt",
-  "files/.wl-skills/skills/_compat/headers/kiro.txt",
-]) {
-  let content;
-  try {
-    content = read(headerFile);
-  } catch {
-    continue;
-  }
-  const m = content.match(/14 条标准 \+ (\d+) 个 Skill 自动调度/);
-  if (m && parseInt(m[1], 10) !== enabledCount) {
-    errors.push(
-      `${headerFile}: '${m[0]}' 与 _registry.md ✅ 启用 (${enabledCount}) 不一致`,
     );
   }
 }

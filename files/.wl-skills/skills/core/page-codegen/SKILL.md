@@ -1,6 +1,6 @@
 ---
 name: page-codegen
-description: "Use when: generating complete Vue 3 page code (index.vue + data.ts + modal components + api.md + pages.ts registration) from a prototype page inventory and API contract, following the current project component and API contracts. Read SKILL.md first (rules+constraints), then read the matching TPL-*.md for the template code. Triggers on: generate page, create page, code generation, 生成页面, 页面代码, 代码生成, vue页面, 帮我生成, natural language page generation. NOTE: 口述需求/建个页面/写个页面/按原型生成 belong to prototype-scan first (page-codegen chains from it via 模式 0)."
+description: "依据已确认的页面规格与接口契约生成 Vue 3 管理页，包含 index.vue、data.ts、弹窗、api.md 和 pages.ts 注册，并遵守项目组件约定。口述需求、截图或原型尚未结构化时先做原型解析。"
 ---
 
 # Skill: 页面代码生成（page-codegen）
@@ -9,25 +9,22 @@ description: "Use when: generating complete Vue 3 page code (index.vue + data.ts
 
 ---
 
-## Pre-flight 规范声明（执行前必须输出）
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 page-codegen/SKILL.md          → 页面代码生成：骨架文件 + 模板调度 + 前置检查
-✅ 已读取 templates/_index.md                → 模板注册表，匹配 → {TPL路径}
-✅ 已读取 templates/{universal|domains/xxx}/TPL-XXX.md → {当前模板说明}
-✅ 已读取 standards/index.md                 → 规范门控（task-map.json：page-codegen）
-✅ 已读取 standards/02-code-structure.md     → 三文件分离、扁平业务与接口契约
-✅ 已读取 standards/12-base-table.md         → 优先复用 BaseTable、稳定 CID 与兼容规则
-✅ 已读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
-✅ 已读取 standards/14-layout-containers.md   → 布局容器（必须用 jh-drag-row/jh-drag-col）
-✅ 已读取 standards/11-form-validation.md     → 表单校验库 + 契约边界（页面含表单时）
-✅ 已读取 .wl-skills/docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
-✅ 已读取 references/component-materialization.md（使用标准业务组件时）→ 按需落盘与契约防护
-✅ 已读取 references/form-validation-library.md（页面含表单时）→ Element/RuleSpec API 选择
-✅ 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓  [全部就绪]
-✅ 表单校验库：@robot-admin/form-validate {版本/不适用}
-✅ cid 已生成：{value}（{首字母缩写说明}）
-```
+- [ ] 读取 templates/_index.md                → 模板注册表，匹配 → {TPL路径}
+- [ ] 读取 templates/{universal|domains/xxx}/TPL-XXX.md → {当前模板说明}
+- [ ] 读取 standards/index.md                 → 规范门控（task-map.json：page-codegen）
+- [ ] 读取 standards/02-code-structure.md     → 三文件分离、扁平业务与接口契约
+- [ ] 读取 standards/12-base-table.md         → 优先复用 BaseTable、稳定 CID 与兼容规则
+- [ ] 读取 standards/13-platform-components.md → 平台组件对照表 + docs前置读取清单
+- [ ] 读取 standards/14-layout-containers.md   → 布局容器（必须用 jh-drag-row/jh-drag-col）
+- [ ] 读取 standards/11-form-validation.md     → 表单校验库 + 契约边界（页面含表单时）
+- [ ] 读取 .wl-skills/docs/{涉及的jh-*文档}              → 当前页涉及组件的使用规范
+- [ ] 读取 references/component-materialization.md（使用标准业务组件时）→ 按需落盘与契约防护
+- [ ] 读取 references/form-validation-library.md（页面含表单时）→ Element/RuleSpec API 选择
+- [ ] 工具链检测：.prettierrc.js ✓  eslint.config.ts ✓  .husky/ ✓  [全部就绪]
+- [ ] 表单校验库：@robot-admin/form-validate {版本/不适用}
+- [ ] cid 已生成：{value}（{首字母缩写说明}）
 
 **工具链失败时（红叉 + 暂停）**：
 
@@ -151,6 +148,7 @@ src/views/[域]/[模块]/dicts.ts
 - 所有直接生成的 `el-input`、`el-input-number`、`jh-select`、`jh-date` 等输入控件显式使用 `size="small"`（或等价的 `size` 配置），保留标准 `placeholder`；不得在页面样式中把 `.el-input__inner`、`.el-input__wrapper` 的 `padding` 清零。展示值、只读值与 placeholder 必须复用同一控件结构和间距。
 - 数字输入框只声明业务语义（`controls`、`textAlign` 等）；不得在页面中隐藏步进按钮、重写箭头的绝对定位或高度。UI 包统一负责右侧上下箭头的几何。
 - 复杂表单控件在表单列中统一 `width: 100%`，避免选择器、日期、数字框宽度漂移。
+- 已确认采用 jh/Base 平台组件时，`BaseFormItemDesc` / `BaseQueryItemDesc` 字段与公共构造器显式输出 `showColon: false`，`label` 不拼接 `:` / `：`；不依赖 CSS 隐藏文本冒号。模板与配置工厂遵循 `references/form-ui.md`，原生 Element、表格列和字典选项不套用该平台字段属性。
 - 列表分页必须位于表格之后的独立 `.list-page__pager` 容器，并右对齐；不要把分页器塞进表格或工具栏布局。
 - 操作列必须 `fixed: "right"`、`align: "center"`，使用 `renderOps` 图标语义；宽度按同时可见按钮最大数量确定（2 个约 140px，3 个约 200px），查看/编辑/删除不得生成裸文字按钮。
 - 状态/字典列必须使用 `logicType: BusLogicDataType.dict` 或 runtime Tag 渲染，不生成无语义的纯文本状态列。

@@ -58,7 +58,8 @@ describe("CLI 写删路径边界", () => {
 
   it("clean 拒绝越界 manifest，并保留本地改过的受管文件", () => {
     const root = project();
-    const manifestPath = path.join(root, ".wl-skills-manifest.json");
+    const manifestPath = path.join(root, ".wl-skills/state/kit/manifest.json");
+    fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
     fs.writeFileSync(manifestPath, JSON.stringify({ version: "2.22.0", files: { "../outside.txt": "x" } }));
     expect(run(root, "clean").status).not.toBe(0);
     fs.writeFileSync(path.join(root, "managed.txt"), "customized");

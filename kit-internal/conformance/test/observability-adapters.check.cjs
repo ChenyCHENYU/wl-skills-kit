@@ -42,12 +42,68 @@ function install(name, source, project) {
   }
   call(name, source, 'init', project, extra);
 }
+function applyMcpUpdate(name, source, project, options = []) {
+  if (name === 'bd') {
+    const preview = JSON.parse(call(name, source, 'update', project, [...options, '--json']));
+    assert.match(preview.planHash, /^[a-f0-9]{64}$/);
+    options = [...options, '--confirm', '--plan-hash', preview.planHash];
+  }
+  call(name, source, 'update', project, options);
+}
+function verifyRelocation(name, source, project) {
+  const config = '.codex/config.toml', userPrefix = '# independent user settings\n[profiles.user]\nmodel = "example"\n';
+  fs.mkdirSync(path.dirname(path.join(project, config)), { recursive: true });
+  fs.writeFileSync(path.join(project, config), userPrefix);
+  applyMcpUpdate(name, source, project, ['--mcp', '--hosts', 'codex,zcode']);
+  const original = fs.readFileSync(path.join(project, config), 'utf8');
+  const copied = fs.mkdtempSync(path.join(os.tmpdir(), 'wl-relocated project-'));
+  const root = fs.realpathSync(copied);
+  try {
+    fs.cpSync(project, root, { recursive: true, verbatimSymlinks: true });
+    const local = path.join(root, path.relative(project, source));
+    const diagnose = (host = 'codex') => JSON.parse(call(name, local, 'doctor-host', root, ['--host', host, '--json'], [0, 1]));
+    const moved = diagnose();
+    assert.equal(moved.mcpConfiguration.status, 'managed-project-relocated', JSON.stringify(moved.mcpConfiguration));
+    assert.deepEqual(moved.mcpConfiguration.relocation, { previousProjectRoot: project, projectRoot: root });
+    assert.equal(moved.mcpConnection, 'unverified');
+    const preview = moved.nextActions.find(action => action.code === 'repair-relocated-project-mcp');
+    assert.equal(preview.cwd, root);
+    assert.ok(preview.argv.includes('--dry-run'));
+    assert.equal(preview.argv.at(-1), root);
+    if (name === 'bd') assert.match(preview.message, /--confirm --plan-hash <planHash>/);
+    execute(preview.argv[0], preview.argv.slice(1), preview.cwd);
+    assert.equal(fs.readFileSync(path.join(root, config), 'utf8'), original, 'preview does not write');
+    applyMcpUpdate(name, local, root);
+    assert.ok(fs.readFileSync(path.join(root, config), 'utf8').startsWith(userPrefix));
+    assert.equal(diagnose().mcpConfiguration.status, 'configured');
+    assert.equal(diagnose('zcode').mcpConfiguration.status, 'configured', 'retains the other selected host');
+    assert.equal(fs.readFileSync(path.join(project, config), 'utf8'), original, 'the original project remains unchanged');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+}
 function events(project, name) {
   const dir = path.join(project, core.STORAGE[`@agile-team/wl-skills-${name}`]);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).flatMap(run => fs.readdirSync(path.join(dir, run)).filter(file => file.endsWith('.json')).map(file => JSON.parse(fs.readFileSync(path.join(dir, run, file), 'utf8'))));
 }
 function taskProtocol(name, source, project, runId) {
+  const gateway = path.join(project, '.agents/skills', `wl-skills-${name}`, 'SKILL.md');
+  const originalGateway = fs.readFileSync(gateway, 'utf8');
+  const diagnose = () => JSON.parse(call(name, source, 'doctor-host', project, ['--host', 'codex', '--json'], [0, 1]));
+  const cleanHost = diagnose();
+  assert.equal(cleanHost.entryReadiness, 'ready', `${name}: installed gateway must pass its actual manifest baseline`);
+  assert.equal(cleanHost.gateways[0].frontmatter.name, `wl-skills-${name}`);
+  assert.equal(cleanHost.gateways[0].ownership.status, 'verified');
+  try {
+    fs.writeFileSync(gateway, originalGateway.replace(`name: wl-skills-${name}`, 'name: unrelated-package'));
+    const wrongName = diagnose();
+    assert.equal(wrongName.entryReadiness, 'incomplete', `${name}: an unrelated skill must not be ready`);
+    assert.equal(wrongName.gateways[0].status, 'invalid');
+    fs.writeFileSync(gateway, originalGateway + '\nChanged instructions with valid metadata.\n');
+    const changed = diagnose();
+    assert.equal(changed.entryReadiness, 'incomplete', `${name}: changed owned gateway must not be ready`);
+    assert.equal(changed.gateways[0].ownership.status, 'modified');
+    assert.equal(changed.hostDiscovery, 'unverified');
+  } finally { fs.writeFileSync(gateway, originalGateway); }
   const before = events(project, name).length;
   const routed = JSON.parse(call(name, source, 'route', project, [tasks[name], '--json'], [0, 1, 2]));
   const routeDecision = routed.decision || routed;
@@ -62,12 +118,17 @@ function taskProtocol(name, source, project, runId) {
   assert.equal(planned.notice.runId, runId);
   assert.equal(planned.notice.decision, (planned.decision || planned).status);
   assert.equal(planned.notice.displayEvidence, 'unverified');
+  assert.ok(planned.notice.summary.includes(`${name}@`), `${name} JSON consumers need a displayable summary`);
+  assert.deepEqual(planned.notice.usageChain.map(stage => stage.stage), ['routing', 'host-discovery', 'content-loading', 'tool-execution', 'validation']);
+  assert.equal(planned.notice.usageChain.find(stage => stage.stage === 'tool-execution').status, 'not-executed');
+  assert.ok(planned.notice.nextActions.length, `${name} must tell the consumer how to continue`);
   assert.ok(planned.notice.rules.length, `${name} must explain its actual applicable rules`);
   assert.ok(planned.notice.requiredChecks.length, `${name} must list pending checks`);
   const visible = call(name, source, 'task', project, [tasks[name], '--run-id', runId], [0, 1, 2]);
   assert.match(visible, new RegExp(`${name}@`));
   assert.match(visible, /适用规则：/);
   assert.match(visible, /验证=unverified/);
+  assert.match(visible, /使用链：任务路由/);
   assert.ok(visible.includes(runId));
   const status = JSON.parse(call(name, source, 'status', project, ['--run-id', runId, '--json'], [0, 1]));
   assert.equal(status.runId, runId);
@@ -76,6 +137,21 @@ function taskProtocol(name, source, project, runId) {
   assert.equal(status.validationStatus, 'unverified');
   assert.equal(status.stages.contentLoaded, 'unverified');
   assert.equal(status.stages.hostDiscovered, 'unverified');
+  assert.ok(status.notice.summary.includes('执行工具尚未运行'));
+  const missing = JSON.parse(call(name, source, 'status', project, ['--run-id', 'not-started', '--json'], [0, 1]));
+  assert.ok(missing.notice.summary.includes('没有任务记录'));
+  assert.ok(missing.notice.nextActions.some(action => action.code === 'start-task'));
+  const suggested = missing.notice.nextActions.find(action => action.code === 'start-task');
+  assert.ok(suggested.argv, `${name} isolated local executor must produce an actual command`);
+  const rootFlag = { kit: '--project', ui: '--project', test: '--root', bd: '--target', design: '--target' }[name];
+  assert.ok(suggested.argv.includes(rootFlag), `${name} command must use its real CLI project-root flag`);
+  const suggestedArgs = suggested.argv.slice(1).map(value => value === '<任务描述>' ? tasks[name] : value === 'not-started' ? runId : value);
+  const fromSuggestion = execute(suggested.argv[0], suggestedArgs, suggested.cwd, [0, 1, 2]);
+  assert.ok(fromSuggestion.includes(`${name}@`), `${name} suggested argv must execute the actual local CLI`);
+  const modelOnly = JSON.parse(call(name, source, 'doctor-host', project, ['--host', 'glm', '--json'], [0, 1]));
+  assert.equal(modelOnly.entryReadiness, 'needs-host', `${name} must require a host rather than infer a host from GLM`);
+  assert.equal(modelOnly.hostDiscovery, 'unverified');
+  assert.equal(modelOnly.launchCwd, 'unverified');
   return status;
 }
 for (const name of names) test(`published ${name}: task protocol and native gateway work independently without sibling packages`, () => {
@@ -86,6 +162,7 @@ for (const name of names) test(`published ${name}: task protocol and native gate
     const payloadNames = new Set(packed.files.map(file => file.path));
     const support = name === 'ui' ? 'bin' : 'lib';
     assert.ok(payloadNames.has(`${support}/task-observability.cjs`));
+    assert.ok(payloadNames.has(`${support}/host-profiles.cjs`));
     assert.ok(payloadNames.has(`${support}/task-observability.schema.json`));
     assert.equal([...payloadNames].some(file => /(?:conformance|kit-internal)/.test(file)), false);
     const isolated = path.join(project, 'isolated'); fs.mkdirSync(isolated);
@@ -103,6 +180,7 @@ for (const name of names) test(`published ${name}: task protocol and native gate
     assert.equal(fs.readFileSync(path.join(project, '.agents/skills/company/SKILL.md'), 'utf8'), 'Company workflow survives.\n');
     assert.ok(fs.readFileSync(path.join(project, 'AGENTS.md'), 'utf8').includes('# User-owned task instructions\n'));
     taskProtocol(name, extracted, project, `independent-${name}`);
+    if (name !== 'design') verifyRelocation(name, extracted, project);
     for (const other of names.filter(other => other !== name)) assert.equal(events(project, other).length, 0);
   } finally { fs.rmSync(project, { recursive: true, force: true }); }
 });

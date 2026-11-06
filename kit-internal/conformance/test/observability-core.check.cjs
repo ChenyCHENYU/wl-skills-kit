@@ -19,6 +19,12 @@ function workspace(t) {
   return { projectRoot, packageName: "@agile-team/wl-skills-kit", packageVersion: "test-1", targets: ["src/page.vue"] };
 }
 
+function trackGateway(options, paths) {
+  const hash = content => require("node:crypto").createHash("md5").update(content).digest("hex");
+  const files = Object.fromEntries(paths.map(relative => [relative, hash(fs.readFileSync(path.join(options.projectRoot, relative)))]));
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({version:options.packageVersion,files}));
+}
+
 function routeOptions(task) {
   return {
     task,
@@ -26,6 +32,148 @@ function routeOptions(task) {
     policy: { domainKeywords: ["页面", "Vue"], domainExtensions: [".vue"], baselineRules: ["K1"], baselineChecks: ["K1"], negativeKeywords: ["旅游", "天气"], unsupportedIntents: ["量子渲染"] },
   };
 }
+
+test("a standalone notice respects explain-only intent and establishes a run before suggesting checks", t => {
+  const options = workspace(t);
+  const view = (task, runId) => core.attachNotice({
+    task, runId, decision: { status: "matched", selectedSkills: ["menu-sync"], requiredChecks: ["preview"] },
+  }, options);
+  const explanation = view("解释一下怎么批量创建菜单，先不要执行", "explain-menu");
+  assert.equal(explanation.notice.action.checksAllowed, false);
+  assert.ok(explanation.notice.nextActions.some(action => action.code === "stay-in-scope"));
+  assert.ok(!explanation.notice.nextActions.some(action => action.code === "execute-required-checks"));
+  assert.match(core.formatDecision(explanation), /参考检查：preview/);
+  const routed = view("检查页面");
+  assert.ok(routed.notice.nextActions.some(action => action.code === "start-task"));
+  assert.ok(!routed.notice.nextActions.some(action => action.code === "execute-required-checks"));
+  assert.ok(view("检查页面", "inspection").notice.nextActions.some(action => action.code === "execute-required-checks"));
+  const prohibited = view("检查页面，不调用工具", "inspection-no-tools").notice;
+  assert.equal(prohibited.action.checksAllowed, false);
+  assert.ok(prohibited.nextActions.some(action => action.code === "stay-in-scope"));
+  assert.ok(!prohibited.nextActions.some(action => action.code === "execute-required-checks"));
+});
+
+test("empty status gives an actionable local task command without claiming a skill was used", (t) => {
+  const options = workspace(t);
+  const dependency = path.join(options.projectRoot, "node_modules", options.packageName);
+  fs.mkdirSync(path.join(dependency, "bin"), { recursive: true });
+  fs.writeFileSync(path.join(dependency, "package.json"), JSON.stringify({ name: options.packageName, version: options.packageVersion }));
+  fs.writeFileSync(path.join(dependency, "bin/wl-skills.js"), "fixture");
+  const status = core.readStatus({ ...options, runId: "not-started" });
+  assert.deepEqual(status.tools, []);
+  assert.match(status.notice.summary, /没有任务记录/u);
+  assert.equal(status.notice.skills.length, 0);
+  assert.equal(status.notice.usageChain.find(stage => stage.stage === "host-discovery").status, "unverified");
+  assert.equal(status.notice.usageChain.find(stage => stage.stage === "content-loading").status, "unverified");
+  const action = status.notice.nextActions.find(item => item.code === "start-task");
+  const root = fs.realpathSync(options.projectRoot);
+  assert.equal(action.cwd, root);
+  assert.deepEqual(action.argv, ["node", "./node_modules/@agile-team/wl-skills-kit/bin/wl-skills.js", "task", "<任务描述>", "--run-id", "not-started", "--project", root]);
+  assert.match(core.formatStatus(status), /下一步：.*先运行 task/u);
+  assert.equal(fs.existsSync(path.join(options.projectRoot, ".wl-skills/runs")), false);
+});
+
+test("suggested commands require a readable matching local package and never guess an execution path", (t) => {
+  const options = workspace(t);
+  const empty = () => core.readStatus({ ...options, runId: "missing-local-executor" }).notice.nextActions.find(action => action.code === "start-task");
+  assert.equal(empty().argv, undefined);
+  assert.match(empty().commandHint, /沿用本次实际 CLI 入口/u);
+  const dependency = path.join(options.projectRoot, "node_modules", options.packageName);
+  fs.mkdirSync(path.join(dependency, "bin"), { recursive: true });
+  const metadata = path.join(dependency, "package.json");
+  fs.writeFileSync(path.join(dependency, "bin/wl-skills.js"), "fixture");
+  for (const value of [{ name: "another-package", version: options.packageVersion }, { name: options.packageName, version: "old" }]) {
+    fs.writeFileSync(metadata, JSON.stringify(value));
+    assert.equal(empty().argv, undefined);
+  }
+  fs.writeFileSync(metadata, JSON.stringify({ name: options.packageName, version: options.packageVersion }));
+  assert.equal(empty().argv[0], "node");
+  fs.rmSync(path.join(dependency, "bin/wl-skills.js"));
+  assert.equal(empty().argv, undefined);
+});
+
+test("routing receipts explain planned files and checks while finished tools alone establish execution", (t) => {
+  const options = workspace(t);
+  fs.mkdirSync(path.join(options.projectRoot, "skills/page"), { recursive: true });
+  fs.writeFileSync(path.join(options.projectRoot, "skills/page/SKILL.md"), "Page workflow");
+  const planned = core.startTask({ ...options, ...routeOptions("生成页面"), runId: "readable-receipts" });
+  assert.match(planned.notice.summary, /匹配技能：page-create；执行工具尚未运行/u);
+  assert.equal(planned.notice.usageChain.find(stage => stage.stage === "tool-execution").evidence, "no-finished-tool-receipts");
+  assert.deepEqual(planned.notice.nextActions.find(item => item.code === "read-selected-files").files, ["skills/page/SKILL.md"]);
+  assert.equal(validate(planned), true, JSON.stringify(validate.errors));
+  assert.match(core.formatDecision(planned), /使用链：任务路由/u);
+  assert.match(core.formatDecision(planned), /task 本身只记录计划/u);
+  execute({ ...options, runId: planned.runId });
+  const finished = core.readStatus({ ...options, runId: planned.runId });
+  assert.match(finished.notice.summary, /实际工具：kit.validate；执行=completed；验证=passed/u);
+  const stages = finished.notice.usageChain;
+  assert.deepEqual(stages.find(stage => stage.stage === "tool-execution").tools, ["kit.validate"]);
+  assert.deepEqual(stages.find(stage => stage.stage === "validation").pendingChecks, []);
+  assert.equal(stages.find(stage => stage.stage === "content-loading").status, "unverified");
+  assert.equal(finished.notice.unverified.includes("planned-actions-not-executed"), false);
+  assert.equal(finished.notice.unverified.includes("model-read-canonical-files"), true);
+  assert.match(core.formatStatus(finished), /实际工具：kit.validate/u);
+});
+
+test("overlapping MCP calls keep their exact tool on durable receipts without leaking onto CLI runs", async (t) => {
+  const options = workspace(t);
+  const runId = "same-run-mixed-tools";
+  const executeAs = (tool, wait) => core.withMcpInvocation(tool, async () => {
+    const handle = core.beginExecution({ ...options, runId, tool: "internal-" + tool });
+    if (wait) await new Promise(resolve => setImmediate(resolve));
+    return core.finishExecution(handle);
+  });
+  const [first, second] = await Promise.all([executeAs("wls_first", true), executeAs("wls_second", false)]);
+  const direct = core.finishExecution(core.beginExecution({ ...options, runId, tool: "direct-cli" }));
+  assert.deepEqual(first.invocation, { channel: "mcp", tool: "wls_first" });
+  assert.deepEqual(second.invocation, { channel: "mcp", tool: "wls_second" });
+  assert.equal(direct.invocation, undefined);
+  assert.equal(validate(first), true, JSON.stringify(validate.errors));
+  const status = core.readStatus({ ...options, runId });
+  assert.match(status.notice.summary, /MCP wls_first → internal-wls_first/u);
+  assert.match(status.notice.summary, /MCP wls_second → internal-wls_second/u);
+  assert.doesNotMatch(status.notice.summary, /MCP direct-cli/u);
+  assert.equal(status.stages.contentLoaded, "unverified");
+  assert.deepEqual(status.notice.usageChain.find(stage => stage.stage === "tool-execution").mcpTools.sort(), ["wls_first", "wls_second"]);
+});
+
+test("the two-line display summary carries bounded project, target, run, rules and pending-check identity", (t) => {
+  const options = workspace(t);
+  const targets = ["src/page.vue", "src/second.vue", "src/third.vue", "src/fourth.vue", "src/fifth.vue"];
+  const rules = Array.from({ length: 8 }, (_, index) => `K${index + 1}`);
+  const checks = Array.from({ length: 5 }, (_, index) => `check-${index + 1}`);
+  const task = "original task text must never enter the display summary";
+  const record = core.attachNotice({ task, runId: "bounded-summary", targets, status: "matched", selectedSkills: ["page-create"], requiredRules: rules, requiredChecks: checks }, options);
+  const text = record.notice.summary;
+  assert.equal(text.split("\n").length, 2);
+  assert.ok(text.includes(`项目=${fs.realpathSync(options.projectRoot)}`));
+  assert.ok(text.includes("目标=src/page.vue、src/second.vue、src/third.vue（另 2 项）"));
+  assert.ok(text.includes("runId=bounded-summary"));
+  assert.ok(text.includes("规则=K1、K2、K3、K4、K5、K6（另 2 项）"));
+  assert.ok(text.includes("参考检查=check-1、check-2、check-3（另 2 项）"));
+  assert.match(text, /验证=unverified（尚未验证）/u);
+  assert.equal(text.includes(task), false);
+  const completed = core.attachNotice({ ...record, pendingChecks: [], validationStatus: "passed" }, options).notice.summary;
+  assert.match(completed, /验证=passed（检查通过）/u);
+  assert.match(completed, /待检查=无/u);
+  const readonly = core.attachNotice({ status: "baseline" }, options).notice.summary;
+  assert.match(readonly, /runId=未建立/u);
+});
+
+test("running, failure and stale feedback never turn a plan into completed validation", (t) => {
+  const options = workspace(t);
+  const handle = core.beginExecution({ ...options, runId: "visible-running", tool: "kit.validate" });
+  const running = core.readStatus({ ...options, runId: handle.metadata.runId });
+  assert.match(running.notice.summary, /工具执行中，尚无完成回执/u);
+  assert.ok(running.notice.nextActions.some(item => item.code === "await-execution"));
+  core.finishExecution(handle, { exitCode: 1, validationStatus: "failed", checks: [{ id: "K1", status: "failed" }], checkedFiles: options.targets });
+  const failed = core.readStatus({ ...options, runId: handle.metadata.runId });
+  assert.ok(failed.notice.nextActions.some(item => item.code === "resolve-failed-checks"));
+  fs.appendFileSync(path.join(options.projectRoot, "src/page.vue"), "changed");
+  const stale = core.readStatus({ ...options, runId: handle.metadata.runId });
+  assert.ok(stale.notice.nextActions.some(item => item.code === "rerun-stale-checks"));
+  assert.equal(stale.notice.validationStatus, "stale");
+});
 
 test("runtime diagnosis catches version drift and malformed installation state without claiming host loading", (t) => {
   const options = workspace(t);
@@ -83,7 +231,9 @@ test("external own dependency rules remain readable and fresh without authorizin
   selected.requiredFiles = [rule];
   const plan = core.startTask({...options, task: "生成页面", decision: selected});
   assert.equal(plan.ruleSnapshot.files[0].path, rule);
-  assert.equal(core.doctorHost({...options, gatewayPath: rule, skillPaths: [rule], entryFiles: []}).entryReadiness, "ready");
+  const host = core.doctorHost({...options, gatewayPath: rule, skillPaths: [rule], entryFiles: []});
+  assert.equal(host.gateway.status, "present");
+  assert.equal(host.entryReadiness, "needs-host");
   assert.equal(core.readStatus({...options, runId: plan.runId}).planStale, false);
   fs.writeFileSync(path.join(dependency, "SKILL.md"), "rule v2");
   assert.equal(core.readStatus({...options, runId: plan.runId}).planStale, true);
@@ -362,7 +512,8 @@ test("pnpm-style internal rule symlinks can be inspected while evidence writes r
   const plan = core.startTask({ ...options, task: "生成页面", decision: selected });
   assert.equal(plan.ruleSnapshot.files[0].path, ".pnpm/local-package/SKILL.md");
   const diagnostic = core.doctorHost({ ...options, gatewayPath: "node_modules/local-package/SKILL.md", skillPaths: selected.requiredFiles, entryFiles: [] });
-  assert.equal(diagnostic.entryReadiness, "ready");
+  assert.equal(diagnostic.gateway.status, "present");
+  assert.equal(diagnostic.entryReadiness, "needs-host");
   assert.equal(diagnostic.hostDiscovery, "unverified");
   assert.equal(core.readStatus({ ...options, runId: plan.runId }).planStale, false);
   fs.mkdirSync(path.join(options.projectRoot, ".pnpm/new-package"));
@@ -384,10 +535,177 @@ test("checked absolute paths through a project root alias resolve to the same pr
 
 test("host readiness checks assets without claiming discovery or MCP connection", (t) => {
   const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({ version: options.packageVersion }));
   const diagnostic = core.doctorHost({ ...options, host: "codex", gatewayPath: "src/page.vue", skillPaths: ["src/page.vue"], entryFiles: ["AGENTS.md"] });
   assert.equal(diagnostic.entryReadiness, "incomplete");
   assert.equal(diagnostic.hostDiscovery, "unverified");
   assert.equal(diagnostic.mcpConnection, "unverified");
+});
+
+test("model names and bare VS Code never borrow AGENTS as a working host", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({ version: options.packageVersion }));
+  fs.writeFileSync(path.join(options.projectRoot, "AGENTS.md"), "Instructions");
+  for (const host of ["glm", "gpt", "vscode", "unknown"]) {
+    const report = core.doctorHost({ ...options, host, entryFiles: ["AGENTS.md"], gatewayPath: "src/page.vue", skillPaths: ["src/page.vue"] });
+    assert.equal(report.entryReadiness, "needs-host", host);
+    assert.equal(report.hostId, null);
+    assert.deepEqual(report.entries, []);
+    assert.equal(report.nextActions[0].code, "select-host");
+    assert.match(core.formatHostDiagnostic(report), /需要指定实际宿主/u);
+    assert.equal(report.launchCwd, "unverified");
+  }
+});
+
+test("known host diagnosis uses its native paths and aliases with actionable activation guidance", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({ version: options.packageVersion }));
+  for (const file of ["AGENTS.md", ".agents/skills/wl-skills-kit/SKILL.md", ".codex/config.toml"]) {
+    fs.mkdirSync(path.dirname(path.join(options.projectRoot, file)), { recursive: true });
+    fs.writeFileSync(path.join(options.projectRoot, file), file.endsWith("SKILL.md") ? "---\nname: wl-skills-kit\ndescription: fixture\n---\nGateway\n" : "fixture");
+  }
+  trackGateway(options, [".agents/skills/wl-skills-kit/SKILL.md"]);
+  const report = core.doctorHost({ ...options, host: "codex-vscode", entryFiles: ["wrong-profile.md"], skillPaths: ["src/page.vue"] });
+  assert.equal(report.hostId, "codex");
+  assert.equal(report.entryReadiness, "ready");
+  assert.equal(report.instructionReadiness, "incomplete", "an unrelated AGENTS file proves no WL guidance");
+  assert.equal(report.entries[0].packageGuidance, "unverified");
+  assert.deepEqual(report.entries.map(item => item.path), ["AGENTS.md"]);
+  assert.equal(report.gateways[0].status, "present");
+  assert.equal(report.mcpConfigs[0].status, "present");
+  assert.equal(report.mcpConnection, "unverified");
+  assert.ok(report.nextActions.some(item => item.code === "activate-skill" && item.message.includes("$wl-skills-kit")));
+  assert.ok(report.nextActions.some(item => item.code === "verify-mcp-connection"));
+  const text = core.formatHostDiagnostic(report);
+  assert.match(text, /kit@test-1.*静态入口就绪/u);
+  assert.match(text, /宿主发现=unverified；模型读取=unverified；MCP连接=unverified/u);
+  assert.match(text, /宿主启动目录=unverified/u);
+  fs.appendFileSync(path.join(options.projectRoot, "AGENTS.md"), "\n<!-- wl-skills-kit:begin -->\nUse the local task gateway.\n<!-- wl-skills-kit:end -->\n");
+  assert.equal(core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"] }).instructionReadiness, "ready");
+  fs.rmSync(path.join(options.projectRoot, "AGENTS.md"));
+  const nativeOnly = core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"] });
+  assert.equal(nativeOnly.entryReadiness, "ready", "native skills do not require AGENTS.md for discovery");
+  assert.equal(nativeOnly.instructionReadiness, "incomplete");
+  assert.ok(nativeOnly.nextActions.some(item => item.code === "sync-instruction-entries"));
+  fs.rmSync(path.join(options.projectRoot, ".agents"), { recursive: true });
+  const missing = core.doctorHost({ ...options, host: "codex", gatewayPath: "src/page.vue", skillPaths: ["src/page.vue"] });
+  assert.equal(missing.entryReadiness, "incomplete");
+  assert.ok(missing.nextActions.some(item => item.code === "repair-host-assets"));
+});
+
+test("host diagnosis never suggests installation or update outside an applicable adopted project", (t) => {
+  const options = workspace(t);
+  for (const projectType of ["mobile", "workspace", null]) {
+    const config = path.join(options.projectRoot, ".wl-skills-scope.json");
+    if (projectType) fs.writeFileSync(config, JSON.stringify({ schemaVersion: 1, projectType }));
+    else fs.rmSync(config);
+    const report = core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"] });
+    assert.equal(report.entryReadiness, "not-applicable");
+    assert.deepEqual(report.nextActions.map(action => action.code), ["select-applicable-project"]);
+    assert.equal(/\b(?:init|update)\b/u.test(core.formatHostDiagnostic(report)), false);
+    assert.match(report.nextActions[0].message, /实际已接入且适用的项目根/u);
+  }
+});
+
+test("ZCode duplicate discovery paths are visible warnings while either standalone path remains usable", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({ version: options.packageVersion }));
+  const entries = [".zcode/skills/wl-skills-kit/SKILL.md", ".agents/skills/wl-skills-kit/SKILL.md"];
+  const content = "---\nname: wl-skills-kit\ndescription: fixture\n---\nTracked fixture content\n";
+  for (const relative of entries) {
+    fs.mkdirSync(path.dirname(path.join(options.projectRoot, relative)), { recursive: true });
+    fs.writeFileSync(path.join(options.projectRoot, relative), content);
+  }
+  trackGateway(options, entries);
+  const diagnose = () => core.doctorHost({ ...options, host: "zcode", skillPaths: ["src/page.vue"] });
+  const report = diagnose();
+  assert.equal(report.entryReadiness, "ready");
+  const duplicate = report.nextActions.find((action) => action.code === "duplicate-host-gateway");
+  assert.deepEqual(duplicate.files, entries);
+  assert.match(duplicate.message, /声明同名技能/u);
+  assert.match(duplicate.message, /是否重复加载仍未验证/u);
+  assert.ok(report.warnings.some((warning) => warning.includes("duplicate-host-gateway")));
+  assert.match(core.formatHostDiagnostic(report), /下一步：ZCode 的多个候选入口声明同名技能/u);
+  for (const relative of entries) assert.equal(fs.readFileSync(path.join(options.projectRoot, relative), "utf8"), content);
+  for (const absent of entries) {
+    fs.rmSync(path.join(options.projectRoot, absent));
+    const single = diagnose();
+    assert.equal(single.entryReadiness, "ready");
+    assert.equal(single.nextActions.some((action) => action.code === "duplicate-host-gateway"), false);
+    fs.writeFileSync(path.join(options.projectRoot, absent), content);
+  }
+  assert.equal(report.hostDiscovery, "unverified");
+  assert.equal(report.contentLoaded, "unverified");
+});
+
+test("gateway required fields must describe this package before static readiness can be reported", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, ".wl-skills-manifest.json"), JSON.stringify({ version: options.packageVersion }));
+  const relative = ".agents/skills/wl-skills-kit/SKILL.md", gateway = path.join(options.projectRoot, relative);
+  fs.mkdirSync(path.dirname(gateway), { recursive: true });
+  const diagnose = () => core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"], gatewayPath: relative });
+  for (const content of ["Missing YAML", "---\nname: another-skill\ndescription: fixture\n---\n", "---\nname: wl-skills-kit\ndescription: true\n---\n", "---\nname: wl-skills-kit\ndescription: ''\n---\n", "---\nname: wl-skills-kit\nname: wl-skills-kit\ndescription: duplicate\n---\n"]) {
+    fs.writeFileSync(gateway, content);
+    const report = diagnose();
+    assert.equal(report.entryReadiness, "incomplete", content);
+    assert.equal(report.gateway.status, "invalid", content);
+    assert.ok(report.nextActions.some(action => action.code === "review-host-gateway"));
+    assert.equal(report.contentLoaded, "unverified");
+  }
+  for (const description of ['"quoted description"', "'single quoted description'", ">-\n  Multiline description\n  for this package"]) {
+    fs.writeFileSync(gateway, `---\nname: 'wl-skills-kit'\ndescription: ${description}\n---\nGateway\n`);
+    trackGateway(options, [relative]);
+    assert.equal(diagnose().entryReadiness, "ready", description);
+  }
+});
+
+test("gateway ownership matches all five manifest formats and changed valid content is never ready", (t) => {
+  const hash = (algorithm, content) => require("node:crypto").createHash(algorithm).update(content).digest("hex");
+  for (const key of ["kit", "ui", "bd", "design", "test"]) {
+    const options = { ...workspace(t), packageName: `@agile-team/wl-skills-${key}` };
+    const relative = `.agents/skills/wl-skills-${key}/SKILL.md`, gateway = path.join(options.projectRoot, relative);
+    const content = `---\nname: wl-skills-${key}\ndescription: fixture\n---\nOriginal instructions\n`;
+    fs.mkdirSync(path.dirname(gateway), { recursive: true }); fs.writeFileSync(gateway, content);
+    const installedHash = hash(key === "kit" ? "md5" : "sha256", content);
+    const files = key === "kit" || key === "ui" ? { [relative]: installedHash } : key === "bd" ? { [relative]: { kind: "file", installedHash } } : [{ path: relative, kind: "file", hash: installedHash }];
+    const manifestPath = path.join(options.projectRoot, `.wl-skills/state/${key}/manifest.json`);
+    fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+    fs.writeFileSync(manifestPath, JSON.stringify({ schemaVersion: 1, package: options.packageName, version: options.packageVersion, files }));
+    const diagnose = () => core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"], gatewayPath: relative });
+    assert.equal(diagnose().entryReadiness, "ready", key);
+    assert.equal(diagnose().gateway.ownership.status, "verified", key);
+    fs.appendFileSync(gateway, "\nChanged instructions retain valid frontmatter.\n");
+    const changed = diagnose();
+    assert.equal(changed.entryReadiness, "incomplete", key);
+    assert.equal(changed.gateway.status, "modified", key);
+    assert.equal(changed.gateway.frontmatter.valid, true, key);
+    assert.equal(changed.gateway.ownership.status, "modified", key);
+    assert.equal(changed.hostDiscovery, "unverified");
+    if (key === "bd") {
+      fs.writeFileSync(gateway, content.replace(/\n/g, "\r\n"));
+      assert.equal(diagnose().entryReadiness, "ready", "BD normalized ownership retains CRLF compatibility");
+    }
+  }
+});
+
+test("a requested MCP connection diagnoses the selected host configuration without borrowing another host or claiming connection", (t) => {
+  const options = workspace(t);
+  fs.writeFileSync(path.join(options.projectRoot, "package.json"), JSON.stringify({ dependencies: { [options.packageName]: options.packageVersion }, wlSkills: { hosts: ["codex", "zcode", "kilo"], mcp: true } }));
+  fs.writeFileSync(path.join(options.projectRoot, ".mcp.json"), JSON.stringify({ mcpServers: { unrelated: {} } }));
+  for (const host of ["codex", "zcode", "kilo"]) {
+    const report = core.doctorHost({ ...options, host, skillPaths: ["src/page.vue"] });
+    assert.equal(report.mcpConfiguration.requested, true, host);
+    assert.equal(report.mcpConfiguration.status, "missing", host);
+    assert.ok(report.nextActions.some(action => action.code === "configure-selected-host-mcp"), host);
+    assert.equal(report.mcpConnection, "unverified", host);
+  }
+  fs.mkdirSync(path.join(options.projectRoot, ".codex"));
+  fs.writeFileSync(path.join(options.projectRoot, ".codex/config.toml"), "# unrelated host setting only\n");
+  const present = core.doctorHost({ ...options, host: "codex", skillPaths: ["src/page.vue"] });
+  assert.equal(present.mcpConfiguration.status, "missing-server");
+  assert.equal(present.mcpConfiguration.contentsInspected, true);
+  assert.equal(present.mcpConfiguration.connection, "unverified");
+  assert.equal(core.doctorHost({ ...options, host: "cline", skillPaths: ["src/page.vue"] }).mcpConfiguration.status, "unsupported-manual");
 });
 
 test("metadata records redact credentials and never store source contents", (t) => {

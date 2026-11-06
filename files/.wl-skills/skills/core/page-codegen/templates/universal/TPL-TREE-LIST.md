@@ -11,6 +11,7 @@
 ```typescript
 import { proxyRefs, ref, type Ref } from "vue";
 import type CFormModal from "@/components/local/c_formModal/index.vue";
+import type { BaseFormItemDesc } from "@jhlc/common-core/src/components/form/common/type";
 import type {
   BaseQueryItemDesc,
   TableColumnDesc,
@@ -40,7 +41,7 @@ export const API_CONFIG = {
   update: "/[服务]/[资源]/updateById"
 };
 export const queryItems: BaseQueryItemDesc<Query>[] = [
-  { name: "name", label: "名称", placeholder: "请输入名称" }
+  { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" }
 ];
 export const modalConfig = {
   titlePrefix: "[业务名称]",
@@ -49,7 +50,9 @@ export const modalConfig = {
     save: API_CONFIG.save,
     update: API_CONFIG.update
   },
-  formItems: [{ name: "name", label: "名称", placeholder: "请输入名称" }]
+  formItems: [
+    { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" }
+  ] satisfies BaseFormItemDesc<any>[]
 };
 
 export function createPage(

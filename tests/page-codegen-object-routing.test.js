@@ -39,7 +39,7 @@ test("单包真实协议：泛生成词需要 PC 页面对象，目录与文件�
         assert.deepEqual(decision.requiredChecks, [], row.task);
       }
     }
-    assert.equal(fs.existsSync(path.join(project, ".wl-skills/runs")), false, "route 不写任务记录");
+    assert.equal(fs.existsSync(path.join(project, ".wl-skills/state/kit/runs")), false, "route 不写任务记录");
   } finally {
     fs.rmSync(temporary, {recursive: true, force: true});
   }

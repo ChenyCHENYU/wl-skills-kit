@@ -60,6 +60,15 @@
     "tool": {
       "type": "string"
     },
+    "invocation": {
+      "type": "object",
+      "required": ["channel", "tool"],
+      "properties": {
+        "channel": { "const": "mcp" },
+        "tool": { "type": "string", "minLength": 1, "maxLength": 128 }
+      },
+      "additionalProperties": false
+    },
     "executionStatus": {
       "enum": [
         "not-executed",
@@ -323,8 +332,173 @@
         "displayEvidence": {
           "const": "unverified"
         },
+        "summary": {
+          "type": "string"
+        },
+        "usageChain": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "stage",
+              "status"
+            ],
+            "properties": {
+              "stage": {
+                "enum": [
+                  "routing",
+                  "host-discovery",
+                  "content-loading",
+                  "tool-execution",
+                  "validation"
+                ]
+              },
+              "status": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "string"
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mcpTools": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "pendingChecks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "nextActions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "commandHint": {
+                "type": "string"
+              },
+              "cwd": {
+                "type": "string"
+              },
+              "argv": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
         "scope": {
           "$ref": "#/definitions/scope"
+        },
+        "skillDetails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "validationIssues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "tool": {
+                "type": "string"
+              },
+              "check": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "description"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
         }
       }
     },
@@ -397,7 +571,10 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "resolution": {
-          "enum": ["project-internal-realpath", "authorized-read-realpath"]
+          "enum": [
+            "project-internal-realpath",
+            "authorized-read-realpath"
+          ]
         }
       }
     },

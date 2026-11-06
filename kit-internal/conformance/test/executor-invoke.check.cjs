@@ -18,7 +18,11 @@ test('complete parameter Schema enforces future constraints and refuses unknown 
 test('snapshot checks are standalone and catch changed files without canonical or siblings', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(),'wl-snapshot-check-'));t.after(() => fs.rmSync(root,{recursive:true,force:true}));
   const source = path.join(__dirname,'../support');const manifest = JSON.parse(fs.readFileSync(path.join(source,'shared-support-manifest.json')));
-  for(const file of [...Object.keys(manifest.files),'shared-support-manifest.json'])fs.copyFileSync(path.join(source,file),path.join(root,file));
+  for(const file of [...Object.keys(manifest.distributionFiles),'shared-support-manifest.json']){
+    const destination = path.join(root, file);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(path.join(source, file), destination);
+  }
   assert.equal(verifySupport(root).ok,true);
   fs.appendFileSync(path.join(root,'task-intent.cjs'),'\n// drift');
   assert.throws(() => verifySupport(root),/漂移/);

@@ -174,14 +174,14 @@ async function handleValidatePage(args = {}) {
   let result;
   let offset;
   if (args.resultCursor !== undefined) {
-    if (args.path !== undefined || args.typecheck !== undefined || args.offset !== undefined) throw new Error("游标续取不能重设 path/typecheck/offset，请仅传 resultCursor 与读取预算");
+    if ([args.path, args.typecheck, args.offset, args.pageVerifier].some(value => value !== undefined)) throw new Error("游标续取不能重设 path/typecheck/offset/pageVerifier，请仅传 resultCursor 与读取预算");
     snapshot = validationPages.get(root, args.resultCursor);
     ({ result } = snapshot.value);
     if (args.runId !== undefined && args.runId !== result.runId) throw new Error("游标与原扫描 runId 不匹配");
     ({ offset } = snapshot);
   } else {
     offset = checkedInteger(args.offset, 0, 0, Number.MAX_SAFE_INTEGER, "offset");
-    result = await runValidationCli(root, args.path || "src/views", args.typecheck === true, args.runId);
+    result = await runValidationCli(root, args.path || "src/views", args.typecheck === true, args.runId, args.pageVerifier);
     const value = { result, snapshotAt: new Date().toISOString() };
     snapshot = { ...validationPages.put(root, value), value };
   }
@@ -340,6 +340,7 @@ async function handleGitLogExtract(args) {
 
 function findEnvLocal(root) {
   return [
+    path.join(root, ".wl-skills/config/kit-sync.local.json"),
     path.join(root, ".wl-skills", "skills", "sync", "env.local.json"),
     path.join(root, ".github", "skills", "sync", "env.local.json"),
   ].find((envPath) => fs.existsSync(envPath));

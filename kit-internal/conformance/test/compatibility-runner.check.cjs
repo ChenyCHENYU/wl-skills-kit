@@ -28,6 +28,22 @@ test("runner 发布基线是精确版本，普通生命周期无 force/bridge �
   }
 });
 
+test("兼容夹具接受历史状态清单，候选必须迁移到统一目录", () => temporary(root => {
+  for (const [key, config] of Object.entries(runner.PACKAGES)) {
+    const legacy = path.join(root, config.state), compact = path.join(root, ".wl-skills", "state", key, "manifest.json");
+    fs.mkdirSync(path.dirname(legacy), { recursive: true });
+    fs.writeFileSync(legacy, "{}");
+    assert.equal(runner.manifestPath(key, root, config.baseline), legacy);
+    assert.throws(() => runner.manifestPath(key, root, "99.0.0"), /未生成统一状态清单/);
+    fs.mkdirSync(path.dirname(compact), { recursive: true });
+    fs.writeFileSync(compact, "{}");
+    assert.equal(runner.manifestPath(key, root, config.baseline), compact);
+    assert.throws(() => runner.manifestPath(key, root, "99.0.0"), /仍保留旧状态清单/);
+    fs.rmSync(legacy);
+    assert.equal(runner.manifestPath(key, root, "99.0.0"), compact);
+  }
+}));
+
 test("候选源码身份、正式版本和升级递进在 pack 前校验", () => temporary(root => {
   const source = path.join(root, "standalone-package"); fs.mkdirSync(source);
   const write = version => fs.writeFileSync(path.join(source, "package.json"), JSON.stringify({ name: "@agile-team/wl-skills-kit", version }));

@@ -1,6 +1,6 @@
 ---
 name: status-column-audit
-description: "Use when: auditing list pages for dict-rendered columns still shown as plain text and upgrading them to semantic auto-color tags (renderAutoTag/dictAutoTag). Triggers on: 状态列审计, 字典列Tag, 状态tag补齐, 列表彩色化, dict column audit, status tag scan, 存量改造."
+description: "审计列表中的状态、类型和枚举字典列，定位仍以纯文本显示的列，并按项目约定改为语义化字典标签。用于状态列、字典列及颜色标签改造，不处理后端字典发布。"
 ---
 
 # Skill: 状态列审计（status-column-audit）v1
@@ -21,30 +21,32 @@ description: "Use when: auditing list pages for dict-rendered columns still show
 
 ---
 
-## Pre-flight 声明（执行前必须输出）
-```
-🚀 已触发技能 status-column-audit/SKILL.md → 状态列审计：扫描字典列 + 分级报告 + 可选自动转换
-✅ 已确认 @agile-team/wl-skills-ui >= 1.10.0（renderAutoTagByLabel 在该版本引入）
-✅ 审计范围：--dir 指定目录或默认 src/views
-✅ 模式：仅审计（加 --fix 转换 P1，--fix --all 全转）
-```
+## Pre-flight 检查清单
+- [ ] 确认 @agile-team/wl-skills-ui >= 1.10.0（renderAutoTagByLabel 在该版本引入）
+- [ ] 审计范围：--dir 指定目录或默认 src/views
+- [ ] 模式：仅审计（加 --fix 转换 P1，--fix --all 全转）
 
 ---
 
 ## 用法（项目根目录执行）
 
+脚本位于实际读取的本技能 `SKILL.md` 同一目录。保持项目根目录为当前工作目录；精简安装使用包内脚本，展开安装可使用项目副本。审计仅报告，`--fix` 会修改匹配的项目文件。
+
 ```bash
+# 精简安装；展开安装时可改成 .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs
+AUDIT="node_modules/@agile-team/wl-skills-kit/files/.wl-skills/skills/core/status-column-audit/audit-status-columns.mjs"
+
 # 0)（一次性）生成本地桥接文件 src/utils/dict-auto-tag.ts
-node .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs --init-bridge
+node "$AUDIT" --init-bridge
 
 # 1) 审计（只报告，不改代码）
-node .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs
+node "$AUDIT"
 
 # 2) 自动转换 P1（状态/类型类标签）
-node .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs --fix
+node "$AUDIT" --fix
 
 # 3) 连中性列也转（计量单位等，转了也走纯文本兜底）
-node .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs --fix --all
+node "$AUDIT" --fix --all
 
 # 可选参数
 #   --dir src/views/xxx   指定扫描目录
@@ -68,7 +70,7 @@ node .wl-skills/skills/core/status-column-audit/audit-status-columns.mjs --fix -
    不靠邻近行猜测（邻近行取 label 只用于 P1/P2 分级展示）；
 2. 自动补 import（去重 / 扩展既有命名导入 / 多锚点插入）；
 3. 转换后别名无引用则清理 const 定义；
-4. 括号平衡 sanity 检查，不平衡则跳过该文件并告警；
+4. 检查项目路径和括号平衡；跳过符号链接及无法安全插入导入的文件；
 5. 语义判色兜底：中性文案原样纯文本，**任何误转换最多"没变化"，不会破坏渲染**。
 
 ## 依赖

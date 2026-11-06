@@ -28,7 +28,7 @@ export const API_CONFIG = {
   detailList: "/[服务]/[从资源]/queryPage"
 };
 export const queryItems: BaseQueryItemDesc<MasterQuery>[] = [
-  { name: "name", label: "名称", placeholder: "请输入名称" }
+  { name: "name", label: "名称", showColon: false, placeholder: "请输入名称" }
 ];
 export const columns = defineColumns([
   { type: "index", label: "序号", width: 60, align: "center" },

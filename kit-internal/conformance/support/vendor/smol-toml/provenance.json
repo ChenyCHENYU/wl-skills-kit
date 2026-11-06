@@ -1,0 +1,12 @@
+{
+  "name": "smol-toml",
+  "version": "1.9.1",
+  "license": "BSD-3-Clause",
+  "source": "https://registry.npmjs.org/smol-toml/-/smol-toml-1.9.1.tgz",
+  "upstream": "https://github.com/squirrelchat/smol-toml",
+  "archiveSha256": "4ac8392f1918c22a4366be19047cf53aa42646077d4c711b2ef73263beefb172",
+  "files": {
+    "index.cjs": "f9029370259e9a43a2f3e64fa1d39e72f3598188380ace83a0abb8261fa33555",
+    "LICENSE": "fa5659948374d4f555594f47f6da073b40dc503e921aeeece30df4362b3051a5"
+  }
+}

@@ -1,6 +1,6 @@
 ---
 name: dict-sync
-description: "Discover, bootstrap, preview, and safely reconcile standardized module dictionary contracts with the backend. Use for 同步字典, 全量字典发布, 创建字典, 缺少 dicts.ts, 字典对比, 字典审计, dict sync, or module dicts.ts maintenance."
+description: "查询、创建、预览与同步模块字典契约和后端字典，维护 dicts.ts 并对比差异。写入先查询、展示计划和 planHash，再按明确确认执行；页面字典列样式属于前端展示检查。"
 ---
 
 # 字典同步

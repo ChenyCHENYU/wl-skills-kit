@@ -1,28 +1,19 @@
 ---
 name: permission-sync
-description: "Use when: managing roles, authorizing menus to roles, attaching action buttons (type=A) to page menus, or wiring permission field in data.ts toolbar config. Triggers on: 创建角色, 角色管理, 角色授权, 给角色分配菜单, 挂动作, 添加动作按钮, 同步权限, 权限码注册, role assign, permission sync."
+description: "管理角色、菜单授权、动作按钮与前端权限字段：查询角色与可分配菜单，预览授权差异，再按明确确认执行。创建角色管理页面与真正的角色授权是不同任务；写入须匹配 planHash。"
 ---
 
 # Skill: 权限同步（permission-sync）
 
 将系统的**角色 → 菜单授权 → 动作按钮 → `data.ts` 权限码字段**串成一条链路，覆盖从权限注册到代码落地的全流程。
 
-> **与 menu-sync / dict-sync 的关系**：完全对称，统一从 `.wl-skills/skills/sync/env.local.json` 读取配置。`menu-sync` 负责页面菜单（type=M/C），`permission-sync` 负责其上的角色与动作（type=A）。
+> `menu-sync` 负责页面菜单（type=M/C），`permission-sync` 负责其上的角色与动作（type=A）。三项同步能力共用同一项目的 Kit MCP。
 
 ---
 
 ## 配置（统一配置文件，复用 menu-sync 的配置）
 
-读取 `.wl-skills/skills/sync/env.local.json`：
-
-```json
-{
-  "gatewayPath": "http://你的网关地址:端口",
-  "sysAppNo": "应用编码",
-  "token": "eyJhbGci...（纯 JWT，不含 bearer 前缀）",
-  "menu": { "domainId": "应用域ID（可省略，工具会自动解析）" }
-}
-```
+用户按 [MCP 接入指南](../../../guides/mcp-setup.md) 在本机配置。Kit MCP 读取配置和凭据，模型不读取或转发凭据内容。
 
 角色授权接口要求 `domainId`。工具优先读取 `menu.domainId`，缺失时自动解析；角色和动作的 `parentId` 仍由 AI 在执行流程中通过查询接口动态获取。
 
@@ -38,23 +29,20 @@ description: "Use when: managing roles, authorizing menus to roles, attaching ac
 
 ---
 
-## Pre-flight 声明（执行前必须输出）
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 permission-sync/SKILL.md → 权限同步
-✅ 已读取 skills/sync/env.local.json   → 网关地址、token、sysAppNo
-✅ 操作模式：{role-manage / role-assign / action-attach}
-✅ 目标：{角色名 / roleId / 页面菜单 menuId 与权限码列表}
-✅ 安全检查：{生产环境拒绝 / 角色分配二次确认 / 仅新增不删除}
-```
+- [ ] 确认本项目的 Kit MCP 已列出对应工具，用实际只读结果核对环境和应用
+- [ ] 操作模式：{role-manage / role-assign / action-attach}
+- [ ] 目标：{角色名 / roleId / 页面菜单 menuId 与权限码列表}
+- [ ] 安全检查：{生产环境拒绝 / 角色分配二次确认 / 仅新增不删除}
 
 ---
 
 ## ⚠️ 必读公共护栏
 
-本 Skill 遵守 `../_mcp-guardrail.md`（MCP 调用纪律与自愈闭环）。AI 首次执行 sync 类任务时先 `read_file` 加载它。
+首次执行同步任务先读 [同步护栏](../_mcp-guardrail.md)。
 
-本 Skill 使用的 MCP 工具：`wls_role_query` / `wls_role_upsert` / `wls_assignable_menus_query` / `wls_role_assign_menus` / `wls_action_query` / `wls_action_upsert`。调用失败时按 guardrail §2 剧本引导用户完善 `env.local.json` 后重试，**不得用 curl/手拼 HTTP 绕开 MCP**。
+工具未列出或调用失败时按护栏 §2 报告实际缺口。**不得用 curl 或手拼 HTTP 绕开 MCP**。
 
 ---
 
@@ -248,4 +236,4 @@ permission-sync 通过 6 个 MCP 工具完成所有操作（无需手动 fetch�
 
 ## 9. MCP 不可用或调用失败时怎么办
 
-见 `../_mcp-guardrail.md` §2 自愈闭环剧本。**原则**：先帮用户完善 `env.local.json` 里的 token / gatewayPath，重试 MCP 工具。**绝不允许** AI 用 curl/PowerShell/fetch 绕开 MCP 手拼 HTTP。
+按 [同步护栏](../_mcp-guardrail.md) §2 定位。权限写入结果不明时先查询现有授权或动作，确认当前差异后重新预览和确认。用同一 `runId` 回查真实调用与结果。

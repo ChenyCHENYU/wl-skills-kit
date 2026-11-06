@@ -1,121 +1,24 @@
-# Sync Skill 通用护栏（MCP 调用纪律 + 自愈闭环）
+# Sync Skill 共用护栏
 
-> 所有 sync 类 Skill（menu-sync / dict-sync / permission-sync）共用本规则。
-> SKILL.md 顶部需引用本文件，确保 AI 行为一致。
+适用于菜单、字典和权限的业务 MCP。用户授权、宿主是否允许调用、工具是否连接和业务结果分别确认。
 
----
+## 1. 工具和凭据
 
-## 1. 调用纪律（AI 必读）
+- 使用当前宿主实际列出的本项目 Kit MCP 工具。先核对项目、环境和包身份。严禁通过 curl、PowerShell、fetch、axios 或猜测接口绕过 MCP。
+- 凭据由用户在本机配置，由 MCP 运行时读取。模型不读取配置文件的凭据内容，不要求用户把 token 发进对话，也不在日志或报告里复述 token。
+- 本地命令 `wl-skills doctor-host --host <实际宿主ID>` 或当前已连接的 `wls_doctor_host` 只核验静态入口。宿主工具列表和一次授权的只读调用分别验证连接与业务可用性。
 
-- ✅ **首选**：通过本 Skill 在「MCP 工具调用规范」中列出的工具调用（`wls_*`）
-- ❌ **严禁**：使用 `curl` / `Invoke-RestMethod` / `Invoke-WebRequest` / `fetch` / `axios` / `Send-WebRequest` 等任何 shell 命令或代码直接发起 HTTP 请求
-- ❌ **严禁**：自行推测、拼接、或从历史对话沿用接口路径
-- ❌ **严禁**：在 SKILL.md 中看到 `POST /system/xxx/save` 字样后据此手动调用——HTTP 路径仅为 MCP **内部实现说明**
+## 2. 调用失败怎么处理
 
----
+| 实际状态 | 下一步 |
+| --- | --- |
+| 工具未列出，或宿主拒绝调用 | 报告尚未执行。按 [MCP 接入指南](../../guides/mcp-setup.md) 指向当前项目的连接或宿主权限入口。 |
+| 配置缺失、占位值或鉴权失败 | 根据工具错误说明哪个条件缺失。由用户在本机修复 `.wl-skills/config/kit-sync.local.json` 或 `WL_SKILLS_TOKEN`。先用原工具只读复验。 |
+| 网关路径、接口或权限不符 | 报告实际错误与目标环境，核对配置并联系该环境维护者。 |
+| 预览失效、执行失败或写入结果不明 | 先只读回查。需要继续写入时重新预览，取得新的计划并确认。 |
 
-## 2. 自愈闭环（MCP 异常时 AI 该怎么做）
+字典结构化错误 `DICT_MODULE_SYSTEM_CONFLICT` 或 `DICT_MODULE_HIDDEN_CONFLICT` 时停止写入并说明冲突。出现 `DICT_MODULE_CREATE_FAILED` 时按工具已提供的安全错误摘要定位。子级操作需要真实 ID，不猜测 ID，也不通过自动删除绕开冲突。
 
-> 不是"立即停止"，而是"按层级引导用户完善配置，让它能跑通"。原则：**优先帮用户闭环，最后才放弃**。
+## 3. 回执
 
-### 2.1 错误分层判定
-
-AI 调用 MCP 工具后，按返回内容判定属于哪一类，并按对应剧本处理：
-
-| 错误特征 | 归类 | 处理剧本 |
-|---|---|---|
-| 工具不在 `tools/list` 中（编辑器根本没识别到 wls_*）| L0 MCP 未连接 | 走 §2.2 |
-| 工具返回"❌ 配置加载失败"/"配置文件不存在"/"请填写真实的 xxx" | L1 配置缺失 | 走 §2.3 |
-| 工具返回 `code === 401` 或包含 "token"/"鉴权"/"未登录" 字样 | L2 Token 失效 | 走 §2.4 |
-| 工具返回 `code === 4004` / "url:GET; ..." / 接口不存在 | L3 接口路径不匹配 | 走 §2.5 |
-| 工具返回业务错误（参数错误、唯一键冲突等） | L4 业务层 | 按工具返回的提示给用户看，不需要 fallback |
-
-### 2.2 L0 — MCP 未连接
-
-引导（不要默认放弃）：
-
-```
-🔧 当前编辑器似乎未识别到 wls_* 工具，请按顺序检查：
-1. 编辑器的 MCP 配置文件存在吗？（Cursor/Kiro/Trae: 见各自 mcp.json）
-2. 配置里 WL_PROJECT_ROOT 指向当前项目根了吗？
-3. 重启编辑器后再看 MCP 面板的工具列表
-
-请告诉我以上哪一步通不过，我帮你定位。
-```
-
-仅在用户明确表示**无法启用 MCP** 时，才退化为「手工去后台维护」的人肉方案，且**不再尝试**让 AI 拼 HTTP。
-
-### 2.3 L1 — 配置缺失 / 占位值未替换
-
-如果工具返回类似：
-- `请在 env.local.json 中填写真实的 gatewayPath（当前为占位值）`
-- `请在 .wl-skills/skills/sync/env.local.json 填写 menu.domainId`
-- `配置文件不存在: .../env.local.json`
-
-AI **立即转入引导模式**：
-
-1. `read_file` 加载 `.wl-skills/skills/sync/menu-sync/env/guide.md`（统一配置说明）
-2. 告诉用户具体哪个字段缺失、获取方式（如 token 抓包、domainId Network 查询）
-3. 等待用户填好 `env.local.json` 后**自动重试同一个 MCP 工具调用**
-4. 直到配置完整、调用成功为止 → 完成闭环
-
-### 2.4 L2 — Token 失效
-
-```
-🔑 Token 似乎已过期。请：
-1. 浏览器登录系统
-2. F12 → Network → 任意接口 → 复制 authorization 头的值
-3. 去掉开头的 `bearer ` 前缀，把纯 JWT 部分粘到 env.local.json 的 token 字段
-4. 告诉我"token 已更新"，我会重新尝试同步
-```
-
-更新后**自动重跑**之前失败的 MCP 调用。
-
-自动化或临时授权场景可以使用 `WL_SKILLS_TOKEN` 环境变量，运行时优先于 `env.local.json#token`。不得把 token 写入源码、README、提交记录或工具输出。
-
-### 2.5 L3 — 接口路径不匹配（如 4004）
-
-后端环境差异可能导致内置接口路径与实际不符。AI 应：
-
-1. 提示用户："当前 MCP 内置的接口路径在你的后端未注册（返回 4004）。可能是该环境网关前缀不同。"
-2. 引导用户：
-   - 对照浏览器成功请求，检查 `env.local.json.gatewayPath` 的协议、域名、**显式端口**和环境前缀（如 `/sit-api`、`/uat-api`）
-   - 或者联系后端确认该 sync 工具对应的真实路径
-3. **不要**让 AI 自行去猜路径再 curl，否则就是绕开 MCP 的回旋
-4. 路径前缀这类配置类问题可以由用户更新后**重试 MCP 工具**完成闭环
-
-> 长期方案：将变化的接口前缀做成 `env.local.json` 中的可配置项，由 kit 维护者在 mcp/api/*.js 中支持读取覆盖。该改动属于 MCP 内部实现，AI 不需要也不应该自行 patch。
-
-### 2.6 L4 — 业务错误
-
-工具返回的业务层提示（如 "menuName 已存在"、"参数缺失"）属正常反馈，AI 直接展示给用户即可，不需要 fallback。
-
-字典同步优先读取结构化 `failure.code`：
-
-| code | 行为 |
-|---|---|
-| `DICT_MODULE_SYSTEM_CONFLICT` | 停止写入；模块编码/名称被系统字典占用 |
-| `DICT_MODULE_HIDDEN_CONFLICT` | 停止盲重试；按软删除/跨租户/历史残留处理，修改稳定模块编码或联系管理员 |
-| `DICT_MODULE_CREATE_FAILED` | 展示 `failure.details.backendError`，定位权限/参数/服务问题 |
-
-任何情况下都禁止猜测 `moduleId/dictId`、把空 ID 继续传给子级写接口，或为了消除错误自动删除线上记录。
-
----
-
-## 3. Pre-flight 自检模板（执行前必须输出）
-
-```
-🚀 已触发技能 {skill-name}/SKILL.md → {一句话用途}
-✅ MCP 工具检查：{要用到的 wls_* 全部列出，✓/✗}
-✅ 已读取 .wl-skills/skills/sync/env.local.json → gatewayPath/token/sysAppNo/{其他必填}
-✅ 已读取 {本 Skill 的 SYS_*_INFO.md 基线}
-✅ 操作模式：{pull / push / audit / ...}
-```
-
-任一项 ✗ → 进入 §2 自愈剧本，**不要直接放弃**。
-
----
-
-## 4. 一句话总则
-
-> **MCP 是默认通路，配置是参数化的；调不通时帮用户改配置，而不是绕开 MCP 自己拼 HTTP。**
+开始时从真实 `notice` 说明匹配技能、目标和待检查项。实际调用后报工具名和结果。写入前展示真实预览和 planHash，按该工具的确认字段提交，最后回查业务效果和同一 runId 的状态。宿主限制导致未运行时，说明该步尚未执行。

@@ -12,3 +12,8 @@ _test_dir/
 .wl-skills-cache/
 .wl-skills/runs/
 !kit-internal/conformance/package-lock.json
+
+# Local task receipts and caches
+/.wl-skills/state/*/runs/
+/.wl-skills/state/*/cache/
+/.wl-skills/state/*/backups/

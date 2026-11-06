@@ -256,16 +256,45 @@ function directMenuPlan(args, config, menuState) {
     domainId: String(menuState.domainId),
     items: args.items,
     remoteTree: stableMenuSnapshot(menuState.tree),
+    ...(args.orderOnly === true ? orderOnlyPlan(args.items, menuState.flatMenus) : {}),
   };
   return {
     ...value,
     planHash: createPlanHash("menu-upsert", value),
-    actions: args.items.map((item) => ({
+    actions: (value.effectiveItems || args.items).map((item) => ({
       action: item.id ? "update" : "create",
       menuName: item.menuName || "(未命名)",
       id: item.id || "",
+      ...(args.orderOnly === true ? { orderNum: item.orderNum } : {}),
     })),
   };
+}
+
+function orderOnlyInputError(items) {
+  const ids = new Set();
+  for (const item of items) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return "仅排序 items 必须为对象";
+    if (Object.keys(item).some(key => !["id", "orderNum"].includes(key))) return "仅排序只允许 id、orderNum；禁止借排序修改路径/父级/名称/权限等字段";
+    if (!["string", "number"].includes(typeof item.id) || !String(item.id).trim() || !Number.isInteger(item.orderNum)) return "仅排序需要已有 id 和整数 orderNum";
+    if (ids.has(String(item.id))) return "仅排序不能重复提交同一菜单 id";
+    ids.add(String(item.id));
+  }
+  return null;
+}
+
+function orderOnlyPlan(items, menus) {
+  const fields = ["id", "sysAppNo", "menuName", "menuNameCode", "parentId", "type", "path", "icon", "orderNum", "useCache", "common", "hidden", "editMode", "component", "permission"];
+  const byId = new Map(menus.map(menu => [String(menu.id), menu]));
+  const expectedItems = [];
+  const effectiveItems = [];
+  for (const item of items) {
+    const existing = byId.get(String(item.id));
+    if (!existing) throw new Error(`仅排序拒绝新增/未知菜单：${item.id}`);
+    const desired = { ...Object.fromEntries(fields.filter(key => Object.hasOwn(existing, key)).map(key => [key, existing[key]])), orderNum: item.orderNum };
+    expectedItems.push(desired);
+    if (numberValue(existing.orderNum) !== item.orderNum) effectiveItems.push(desired);
+  }
+  return { orderOnly: true, expectedItems, effectiveItems };
 }
 
 async function buildDirectMenuPlan(args, config) {
@@ -277,7 +306,7 @@ function formatDirectMenuPreview(plan) {
   return [
     `菜单写入预览：共 ${plan.actions.length} 条，本次零写入。`,
     `planHash: ${plan.planHash}`,
-    "确认后携带相同 planHash 并传 confirmApply: true。",
+    plan.actions.length ? "确认后携带相同 planHash 并传 confirmApply: true。" : "菜单顺序已符合要求，无需提交。",
     "",
     JSON.stringify(plan.actions, null, 2),
   ].join("\n");
@@ -299,6 +328,24 @@ async function saveMenuRow(item, config) {
     ok: result.ok,
     status: result.ok ? "✅ 成功" : `❌ 失败: ${result.error}`,
   };
+}
+
+async function verifyOrderOnly(plan, config) {
+  if (!plan.orderOnly) return null;
+  if (plan.effectiveItems.length === 0) return { checked: true, mismatches: [], passed: true };
+  try {
+    const current = await queryMenuState(config);
+    const byId = new Map(current.flatMenus.map(menu => [String(menu.id), menu]));
+    const mismatches = plan.expectedItems.filter(item => orderRowChanged(item, byId.get(String(item.id)))).map(item => item.id);
+    return { checked: true, mismatches, passed: mismatches.length === 0 };
+  } catch {
+    return { checked: false, passed: false, mismatches: [], reason: "菜单排序写入后的实际数据回查失败，不宣称排序已生效" };
+  }
+}
+
+function orderRowChanged(expected, actual) {
+  if (!actual || numberValue(actual.orderNum) !== expected.orderNum) return true;
+  return ["parentId", "path", "component", "type", "permission", "menuNameCode"].some(key => stringValue(expected[key]) !== stringValue(actual[key]));
 }
 
 function visibilityCandidate(row) {
@@ -385,6 +432,8 @@ function directMenuPreflight(args, config) {
   if (!Array.isArray(args.items) || args.items.length === 0) {
     return blockedResult("参数错误：items 必须是非空数组", "blocked", { mode: "preview" });
   }
+  const invalidOrder = args.orderOnly === true ? orderOnlyInputError(args.items) : null;
+  if (invalidOrder) return blockedResult(invalidOrder, "blocked", { mode: args.confirmApply === true ? "apply" : "preview" });
   if (args.confirmApply !== true) return null;
   const blocked = writeBlockReason(config);
   return blocked
@@ -407,14 +456,20 @@ async function handleMenuUpsert(args = {}, config) {
   const stale = validatePlanHash(args, plan);
   if (stale) return stale;
   const rows = [];
-  for (const item of args.items) rows.push(await saveMenuRow(item, config));
-  const ok = rows.every((row) => row.ok);
+  for (const item of plan.effectiveItems || args.items) rows.push(await saveMenuRow(item, config));
+  return completeDirectMenu(plan, rows, config);
+}
+
+async function completeDirectMenu(plan, rows, config) {
+  const orderVerification = await verifyOrderOnly(plan, config);
+  const ok = rows.every((row) => row.ok) && (!orderVerification || orderVerification.passed);
   const visibility = await verifyPermissionTreeVisibility(rows, config);
   const result = completedResult(`${formatMenuRows(rows)}${visibilityAppendix(visibility)}`, {
     planHash: plan.planHash,
     results: rows,
     visibility,
     warnings: visibilityWarnings(visibility),
+    ...(orderVerification ? { orderVerification } : {}),
   });
   return ok ? result : { ...result, isError: true, structuredContent: { ...result.structuredContent, ok: false, state: "partial" } };
 }

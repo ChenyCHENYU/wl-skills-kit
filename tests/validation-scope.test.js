@@ -11,7 +11,7 @@ test('validate --target/等号/位置参数只扫描指定目录；冲突与未�
    const report = JSON.parse(result.stdout.trim().split('\n').find(line => line.startsWith('{')));assert.equal(report.summary.pages,1);
   }
   for(const args of [['--target'],['--target='],['--target','selected','src/views'],['selected','src/views'],['--domain','frontend'],['--strict=true'],['--target','selected','--target','src/views']]){
-   const result = run(['validate',...args,'--run-id','scope-rejected']);assert.notEqual(result.status,0,JSON.stringify(args));assert.equal(fs.existsSync(path.join(root,'.wl-skills/runs/scope-rejected')),false);
+   const result = run(['validate',...args,'--run-id','scope-rejected']);assert.notEqual(result.status,0,JSON.stringify(args));assert.equal(fs.existsSync(path.join(root,'.wl-skills/state/kit/runs/scope-rejected')),false);
   }
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });

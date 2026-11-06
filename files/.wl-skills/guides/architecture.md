@@ -1,612 +1,66 @@
-# wl-skills-kit 架构设计与决策记录
+# wl-skills-kit 当前架构与维护边界
 
 > **读者**：团队技术负责人 / wl-skills-kit 维护者 / 对体系设计感兴趣的团队成员
 > **更新方式**：重大架构变更后追加对应章节，旧章节原文保留（历史可溯）
-> **当前版本**：v2.33.4（2026-11-05）
+> **当前版本**：v2.33.5（2026-11-06）
+## 适用范围与依赖
 
----
+本包服务于目标自身已接入 Kit 的 PC Vue/Web 管理端。父工作区入口不自动启用子项目；移动端、后端和未接入项目使用自身规则。页面生成以已确认规格、接口契约、项目已有目录和组件技术为边界。
 
-## 目录
+Kit 是开发期 CLI、规范和模板包，不进入业务运行时。项目应安装并锁定本地执行器；`init/update` 管理本包入口和资源，不负责安装 npm 依赖，也不能让 npx 缓存版本代替项目锁文件。UI、BD、Test、Design 按需独立使用，任务可复用 runId，不要求安装未用包。
 
-1. [这个体系解决什么问题](#1-这个体系解决什么问题)
-2. [npm 包工作机制](#2-npm-包工作机制)
-3. [整体运行时架构](#3-整体运行时架构)
-4. [分层架构详解](#4-分层架构详解)
-   - 4.1 规范层（standards/）
-   - 4.2 Skill 层（skills/）
-   - 4.3 适配层（\_compat/）
-   - 4.4 报告层（reports/）
-   - 4.5 模板层（page-codegen/templates/）
-5. [Pre-flight 约定式输出机制](#5-pre-flight-约定式输出机制)
-6. [三层文档体系](#6-三层文档体系)
-7. [Skill 生命周期管理](#7-skill-生命周期管理)
-8. [菜单/字典/权限同步机制](#8-菜单字典权限同步机制)
-9. [工具链前置检测](#9-工具链前置检测)
-10. [版本演进历史](#10-版本演进历史)
-11. [关键决策记录（ADR）](#11-关键决策记录adr)
+## 单一事实源
 
----
+| 职责 | 维护位置 | 约束 |
+|---|---|---|
+| Skill 正文和入口 | `files/.wl-skills/skills` 的注册表与已登记 SKILL | 不通过遍历草稿扩大发现范围 |
+| 编码与交付规范 | `files/.wl-skills/standards`、`task-map.json` | 各任务读取必要规范，扫描与语义验收分别记录 |
+| 宿主发现约定 | `lib/host-profiles.cjs` | 入口存在不证明当前会话加载；共享支持由 canonical 分发校验 |
+| 安装策略和资源定位 | `project-integration`、`editor-adapters`、安装清单 | compact 按需读取包内资源，不复制多套完整 Skill |
+| 公共能力和协议 | command catalog、MCP registry、protocol 接线 | 原执行器提供能力，harness 不另维护技能副本 |
+| 确定性页面产物 | 场景/蓝图契约、编译器及对应验证器 | 只生成已实现且明确的语义，未知行为保留人工项 |
+| 执行事实 | task integration 与自身 runs 状态 | 计划、执行、检查、宿主加载状态分开 |
 
-## 1. 这个体系解决什么问题
+共享支持的生成副本、安装清单与迁移兼容属于有校验的分发或升级路径，不是新的手工事实源。修改共享机制应在 canonical 源完成并执行一致性校验，不能随意改单包副本。
 
-### 根本问题：AI 不了解"你的项目"
+## 安装和资源读取
 
-AI 编辑器（Copilot / Cursor / Windsurf 等）知道通用编程知识，但不知道：
+默认 compact 仅落选中宿主的薄入口、项目配置和本包状态。具体技能、规范、模板保留在当前已安装包中，按 `task.notice` 返回的完整路径读取。显式 expanded 才复制参考资源。MCP 显式启用并依据选中宿主的真实格式合并，不自动生成全部宿主配置。
 
-- 这个项目用 `AbstractPageQueryHook` 而不是手写 `ref` + `axios`
-- 表格必须用 `AGGrid` 的封装，不能直接用 `el-table`
-- API 响应外壳是 `{ code: 2000, data: {...} }`，不是 `{ code: 200, result: {} }`
-- 页面目录遵循三文件分离 + 接口契约（index.vue / data.ts / index.scss + api.md 按需）
-- 菜单注册有专门的后端接口流程，不是手改路由文件
+项目自定义和其他包内容由所有权规则保护。旧宿主路径、旧安装清单和旧凭据只用于识别、读取或退役已有受管安装，不再默认输出旧式全量适配。凭据不进入 manifest，升级和清理不覆盖。
 
-不了解这些，AI 每次都会生成"语法正确但不合规"的代码，增加 review 成本。
+## 任务到结果
 
-### 传统方案的缺陷
+`route/explain` 只判定；`task` 保存计划和范围；实际 CLI/MCP/验证器产生执行回执；`status` 复核当前输入和证据。模型文字声明、元数据匹配、安装成功均不能证明已执行。
 
-| 方案                                 | 问题                                              |
-| ------------------------------------ | ------------------------------------------------- |
-| 把规范写进 wiki                      | AI 不读 wiki；wiki 和代码脱节                     |
-| 把规范贴进每次对话                   | 重复劳动；规范长了 token 爆炸；换 AI 工具就要重来 |
-| 一个超长的 `copilot-instructions.md` | v1.x 试过，膨胀到 600+ 行，AI 全量加载不看实际    |
+回执复用必须满足同 runId、当前源码与规则/配置指纹、实际检查范围和对应执行语义。失败、零页面、未运行的类型/功能测试、过期或预算不完整均不能伪装为全部通过。默认 MCP 沿用已选择任务；新 runId 不能跳过当前受约束任务，但明确判定的独立任务仍可进行。
 
-### 本方案的核心思路
+批量页面与菜单排序复用原任务记录，不新增 watcher 或业务开关：
 
-> **把规范做成 AI 可自动加载的结构化知识库，以 Skill 为粒度按需调度，形成"口述意图 → 符合规范的完整实现"的闭环。**
+- 批量任务候选包含独立页，范围需明确影响/排除理由；静态覆盖和逐页行为独立验收。
+- 行为结果关联有界源码、共享数据/样式、锁文件、范围和脚本指纹，取最近一次实际成功或失败。
+- 菜单仅排序保留页面目录、注册分组与路由；包检查外部越界并约束自身 MCP 写入口，不能拦截编辑器所有自由写入。
 
-具体体现为：
+输入预算和公开参数见 [范围验收](change-scope.md)，不能把文件系统候选等同于业务需求全集。明确选用的项目测试脚本才执行；统一只读 executor 不自动获得执行任意脚本的权限。
 
-1. 规范分层、按任务类型懒加载（token 高效利用）
-2. Skill 触发词驱动（开发者用自然语言，AI 读结构化 SKILL.md）
-3. Pre-flight 约定式声明（消除 AI "假执行"黑盒问题）
-4. 多 AI 编辑器适配（一套内容，自动生成 Copilot/Claude/Cursor/Windsurf/Cline/Kiro/Kilo Code/Trae/Qoder/Agents 配置，解耦可扩展）
-5. 报告层追加不覆盖（累积团队知识，不丢失审计历史）
+## 写入和运行时边界
 
----
+本地改动遵循用户已授权范围及对应命令的预览/确认规则。菜单、字典、权限写入统一查询事实、预览 planHash、明确确认、写前重查和后验回查；未知字段、应用域、权限和重复语义不能猜测。生产保护依据当前配置和工具实际门禁，不从域名或一次成功响应推断环境安全。
 
-## 2. npm 包工作机制
+业务页面只引用项目实际组件。Kit 的组件和场景模板不直接成为业务运行时依赖；已有项目实现优先，按需落盘由原预览/planHash/备份机制处理。升级 Kit 不等于批准业务组件替换、表格技术迁移或后端数据变更。
 
-`wl-skills-kit` 是一个**一次性初始化型 npm 包（scaffolding CLI）**，不是运行时依赖：
+## 维护与验证
 
-```
-npx @agile-team/wl-skills-kit         ← 下载 → 执行 → 完成，不留在 dependencies
-npx @agile-team/wl-skills-kit update  ← 增量更新，可在业务项目生命周期中多次运行
-```
+修改前先找路由、公开目录和执行器的实际引用；删除代码或文档前区分当前入口、必要兼容和历史记录。不得为追求“零遗留”删除会影响旧项目安全升级的保护代码。
 
-### 仓库目录 vs 业务项目目录
+包自身验证使用 `npm run verify`、共享完整性检查及真实候选 tar 内容核对。涉及执行链或写入边界时用公共 CLI/MCP/协议的成功与失败反例；测试不要仅比较提示文案。依赖宿主、私服、数据库或浏览器的结论必须有相应环境证据。
 
-| 仓库目录        | 说明                                      | 会被安装？ |
-| --------------- | ----------------------------------------- | ---------- |
-| `bin/`          | CLI 实现（`wl-skills.js`）                | ✅ 会      |
-| `files/`        | 所有要复制到业务项目的文件                | ✅ 会      |
-| `kit-internal/` | 维护者文档（architecture / CONTRIBUTING） | ❌ 不会    |
-| `CHANGELOG.md`  | 版本记录                                  | ✅ 会      |
+项目需升级实际执行器，并在开发与 CI 入口运行检查、消费失败退出码；包源码已修复不表示旧版业务项目已生效。本地证据一致性不替代真实部署或业务终态。
 
-> **关键**：`kit-internal/` 通过 `package.json` 的 `files` 白名单机制严格排除，永远不会进入业务项目。
+## 使用入口
 
-### bin/wl-skills.js 工作流程
+- [安装、任务和维护](usage.md)
+- [MCP 接入与验收](mcp-setup.md)
+- [批量页面与菜单排序范围验收](change-scope.md)
 
-```
-wl-skills.js init/update
-    │
-    ├─ 1. 递归读取 files/，加载旧 manifest 与项目 mockPolicy
-    │
-    ├─ 2. 计算全部目标文件并做所有权预检
-    │      - 未受管/已修改冲突：零写入停止
-    │      - --force：覆盖前逐文件备份
-    │      - Mock 种子：按 disabled/optional/required 决定
-    │
-    ├─ 3. 读取 files/.github/copilot-instructions.md 和 _compat/editors.json
-    │      对每个 enabled editor：
-    │        读取 _compat/headers/{editor}.txt（特化 frontmatter）
-    │        拼接：header + 自动生成注释 + 主体内容
-    │        写入 editor.outputPath（如 CLAUDE.md / .cursorrules / ...）
-    │
-    ├─ 4. 预检通过后写入 files/ 与安装基础设施
-    │      - reports/*.md 已存在则跳过（保护团队累积数据）
-    │      - 其他生成器拥有的入口保留
-    │
-    ├─ 5. 仅清理旧 manifest 拥有且未修改的退役文件
-    │
-    ├─ 6. 写入/更新 .wl-skills-manifest.json（实际安装内容哈希快照）
-    │
-    └─ 7. 输出 wl-skills-ui 可选桥接提醒与 git-standards 规范插件建议
-```
-
----
-
-## 3. 整体运行时架构
-
-```
-开发者
-  │ 在 AI 对话中说出意图
-  │ "帮我生成客户管理列表页"
-  ▼
-AI 编辑器（Copilot / Cursor / Windsurf / Claude Code / Cline / Kiro / Kilo Code / Trae）
-  │
-  │ 自动加载根配置文件（各编辑器读自己的文件）：
-  │   Copilot  → .github/copilot-instructions.md
-  │   Claude   → CLAUDE.md
-  │   Cursor   → .cursorrules + .cursor/rules/conventions.mdc
-  │   Windsurf → .windsurfrules
-  │   Cline    → .clinerules
-  │   Kiro     → .kiro/steering/conventions.md
-  │   Kilo     → .kilo/rules/wl-skills.md + .kilo/skills/<name>/SKILL.md
-  │   Trae     → .trae/rules/conventions.md
-  │   Qoder    → .qoder/rules/conventions.md
-  │   通用     → AGENTS.md
-  │
-  │ 根配置包含：
-  │   - 项目架构概要（栈、三文件分离+接口契约、API契约）
-  │   - Skill 调度规则（触发词 → 读 _registry.md → 读 SKILL.md）
-  │   - Pre-flight 输出要求
-  │
-  ▼
-.wl-skills/skills/_registry.md
-  │ 触发词 → SKILL 路径映射
-  │ "生成页面" → skills/core/page-codegen/SKILL.md
-  │
-  ▼
-.wl-skills/skills/core/page-codegen/SKILL.md
-  │ 声明：必读 standards 列表 + 完整生成流程 + 输出规范
-  │
-  ▼
-.wl-skills/standards/（按 index.md 门控，按需加载）
-  │ page-codegen 需要：01/02/04/12/13/14 共 6 条
-  │ convention-audit 需要：全部 14 条
-  │
-  ▼
-AI 生成代码/报告/api.md
-  │
-  └─ 写入到：
-       src/views/<域>/<模块>/<子模块>/<page>/
-       .wl-skills/reports/（追加写入）
-```
-
----
-
-## 4. 分层架构详解
-
-### 4.1 规范层（standards/）
-
-**目录结构**：
-
-```
-standards/
-├── index.md            ← 门控：任务类型 → 规范子集映射
-├── 01-toolchain.md     工具链前置检测（🔴 阻断）
-├── 02-code-structure.md 三文件分离+接口契约 + 三段式 + script 9段顺序（🔴 必遵）
-├── 03-comments.md      注释规范（🟡 建议）
-├── 04-coding-basics.md 基础编码 14 条（🔴 必遵）
-├── 05-logging.md       日志输出规范（🔴 必遵）
-├── 06-security.md      安全规范（🔴 必遵）
-├── 07-config.md        配置管理 / 环境变量（🔴 必遵）
-├── 08-git.md           Git 分支 & 提交规范（🔴 必遵）
-├── 09-typescript.md    TypeScript 类型规范（strict:false 环境）（🟡 建议）
-├── 10-pinia.md         Pinia 状态管理规范（🔴 必遵）
-├── 11-form-validation.md 表单与校验规范（🔴 必遵）
-├── 12-base-table.md    BaseTable + AGGrid cid 命名规范（🔴 必遵）
-├── 13-platform-components.md  平台组件对照表（🔴 必遵 + 阻断）
-└── 14-layout-containers.md    布局容器与长工作台滚动所有权（🔴 必遵 + 阻断）
-```
-
-**懒加载门控设计**：
-
-`index.md` 维护任务类型 → 规范子集的映射表。AI 接到任务时，先查 `index.md` 确认本次任务需要加载哪些规范文件，而不是每次全部读取 14 条。典型负载：
-
-| 任务类型         | 加载规范数 | 说明                        |
-| ---------------- | ---------- | --------------------------- |
-| 生成新页面       | 6 条       | 01 / 02 / 04 / 12 / 13 / 14（按需 +09/10/11） |
-| 修改/重构页面    | 4 条       | 02 / 04 / 13 / 14（按需 +09/10/11） |
-| 规范审计（全量） | 14 条      | 全部加载                    |
-| 菜单/同步操作    | 1 条       | 07（环境变量不硬编码）       |
-| 仅 Git 提交      | 1 条       | 08                          |
-
-**第 13/14 条的特殊地位**：`13-platform-components.md` 是最核心的 AI 行为约束，强制 AI 在生成代码时优先使用平台封装组件（`@jhlc/common-core` 提供 `Base*` / `jh-*` / `C_*` 全部组件），禁止随意使用原始 `el-table` / `el-form`；`14-layout-containers.md` 则约束布局容器优先级，避免回退到已废弃或错误归属的容器组件。它们与第 12 条（BaseTable/AGGrid 封装）并列为质量门控最高优先级。
-
-> **平台包职责澄清（重要，避免混淆）**：
-> - `@jhlc/common-core` = **组件 + 逻辑运行时**：90 个业务组件（`jh-select` / `jh-date` / `jh-pagination` / `jh-user-picker` / `jh-dept-picker` / `jh-file-upload` / `jh-text` / `jh-textarea` / `jh-picker` / `jh-tree-picker` / `jh-drag-row` / `jh-drag-col` / `BaseTable` / `BaseQuery` / `BaseToolbar` …）+ `AbstractPageQueryHook` + hooks/store/util/api。
-> - `@jhlc/jh-ui` = **纯样式包（零组件）**：设计令牌 `src/standard/var.scss`（PC，主色 `#4368ff`）/ `mobile-var.scss`（移动端）+ Element Plus 40 组件主题覆盖 + Vant 主题 + 工具类。业务通过 `@import "@jhlc/jh-ui/src/standard/var"` 套用 JH 视觉，**不 import 组件**。
-
----
-
-### 4.2 Skill 层（skills/）
-
-**分级目录**：
-
-```
-skills/
-├── _registry.md         触发词 → SKILL 路径（单一数据源，禁止其他地方重复定义触发词）
-├── _compat/             多 AI 编辑器适配层（见 4.3）
-│
-├── core/                核心通用 Skill（任何前端项目均可使用）
-│   ├── prototype-scan/      原型/口述 → 页面清单
-│   ├── api-contract/        页面清单 → api.md 前后端契约
-│   ├── page-codegen/        api.md → 页面骨架代码
-│   ├── convention-audit/    现有代码 → 规范偏差报告
-│   └── template-extract/    成熟页面 → 领域模板（沉淀复用）
-│
-├── sync/                数据同步类（与后端系统联动）
-│   ├── menu-sync/           ✅ 启用：菜单基线 ↔ 后端菜单接口
-│   ├── dict-sync/           ✅ 启用：字典基线 ↔ 后端字典接口
-│   └── permission-sync/     ✅ 启用：角色+授权+动作 ↔ 后端权限接口
-│
-├── ops/                 运维/质量类
-│   └── code-fix/            ✅ 启用：受控自动修复偏差
-│
-└── domain/              领域专属 Skill（按需创建，初始为空）
-    └── README.md
-```
-
-**Skill 调度流程**：
-
-```
-用户说出意图
-    → AI 扫描 _registry.md 触发词表
-    → 命中 → read_file 加载对应 SKILL.md
-    → SKILL.md 声明必读 standards → AI 按需加载规范
-    → 输出 Pre-flight 声明 → 执行任务
-```
-
-**扩展边界**：当 `domain/` 下某域 Skill 超过 5 个，或出现跨团队复用需求时，拆为独立 npm 包（如 `@agile-team/wl-skills-produce`），本包保留 `core/sync/ops`。
-
----
-
-### 4.3 适配层（\_compat/）
-
-**核心问题**：10 种 AI 编辑器读取格式各异，有的需要 frontmatter，有的不需要，字段也不同：
-
-| 编辑器       | 加载路径                          | frontmatter 要求                    |
-| ------------ | --------------------------------- | ----------------------------------- |
-| Copilot      | `.github/copilot-instructions.md` | 无                                  |
-| Claude       | `CLAUDE.md`                       | 无                                  |
-| Cursor（旧） | `.cursorrules`                    | 无                                  |
-| Cursor（新） | `.cursor/rules/*.mdc`             | `description + globs + alwaysApply` |
-| Windsurf     | `.windsurfrules`                  | 无                                  |
-| Cline        | `.clinerules`                     | 无                                  |
-| Kiro         | `.kiro/steering/*.md`             | `inclusion: always`                 |
-| Kilo Code    | `.kilo/rules/*.md` + `.kilo/skills/*/SKILL.md` | Skill 需 `name + description` |
-| Trae         | `.trae/rules/*.md`                | `description + alwaysApply`         |
-| 通用         | `AGENTS.md`                       | 无                                  |
-
-**解耦设计**：
-
-```
-_compat/
-├── editors.json         ← 编辑器注册表（bin 读此决定生成什么）
-├── headers/             ← 各编辑器特化头部模板（含 frontmatter）
-│   ├── cursor-mdc.txt     description + globs + alwaysApply
-│   ├── kiro.txt           inclusion: always
-│   ├── kilo-code.txt      Kilo rules；Skill 适配器由规范源元数据生成
-│   ├── trae.txt           description + alwaysApply
-│   └── ...（无 frontmatter 的也有对应 txt，写版权注释）
-└── README.md
-```
-
-**解耦效果**：
-
-- 根配置薄壳来自 `.github/copilot-instructions.md`，完整内容（规范 + Skill 调度逻辑）来自 `.wl-skills/copilot-instructions-full.md`，**单一数据源**
-- 每个编辑器的差异只在 `headers/*.txt` 里定义，互不干扰
-- 在 `editors.json` 中将某编辑器 `enabled: false`，重跑 `update` 后该文件不再生成，其他编辑器配置**完全不受影响**（已验证）
-
----
-
-### 4.4 报告层（reports/）
-
-**设计原则：追加不覆盖**
-
-`reports/` 是团队的**累积知识资产**，`init`/`update` 命令遇到已存在的报告文件一律跳过。
-
-```
-reports/
-├── SYS_MENU_INFO.md          线上菜单基线（menu-sync 的数据来源）
-├── SYS_DICT_INFO.md          线上字典基线（dict-sync PLANNED）
-├── SYS_PERMISSION_INFO.md    线上权限基线（permission-sync PLANNED）
-├── PROTOTYPE_SCAN_*.md       原型扫描结果（prototype-scan 生成）
-├── PAGE_CODEGEN_*.md         代码生成摘要（page-codegen 生成）
-├── AUDIT_AI_*.md             规范审计详细报告（convention-audit 生成，AI 读）
-├── AUDIT_HUMAN_*.md          规范审计摘要（convention-audit 生成，人读）
-├── MENU_SYNC_*.md            菜单同步操作日志（menu-sync 生成）
-└── CODE_FIX_*.md             自动修复操作日志（code-fix PLANNED）
-```
-
-**三类报告的写入规则**：
-
-| 类别     | 文件                  | 写入方式                     | 用途                          |
-| -------- | --------------------- | ---------------------------- | ----------------------------- |
-| 系统基线 | `SYS_*.md`            | pull 时全量刷新              | 作为 sync 系列 Skill 的数据源 |
-| 过程报告 | `PROTOTYPE_SCAN_*` 等 | 每次生成追加，文件名带时间戳 | 可追溯历史                    |
-| 操作日志 | `MENU_SYNC_*` 等      | 每次操作追加，含回滚 SQL     | 出了问题可查回滚              |
-
----
-
-### 4.5 模板层（page-codegen/templates/）
-
-**分层策略**：
-
-```
-templates/
-├── _index.md              模板注册表（单一数据源）
-├── universal/             通用交互模式模板（跨业务域通用）
-│   ├── TPL-LIST.md            普通列表页
-│   ├── TPL-MASTER-DETAIL.md   主从详情页
-│   ├── TPL-TREE-LIST.md       树形列表页
-│   ├── TPL-DETAIL-TABS.md     详情 Tabs 页
-│   ├── TPL-FORM-ROUTE.md      路由级表单页
-│   ├── TPL-RECORD-FORM.md     记录级表单
-│   ├── TPL-CHANGE-HISTORY.md  变更历史页
-│   └── TPL-DRIVEN.md          配置驱动页
-└── domains/               领域专属模板（单领域高频）
-    ├── _CONTRIBUTING.md       贡献规范
-    ├── produce/               生产域
-    │   └── TPL-OPERATION-STATION.md
-    └── sale/                  销售域（占位，待沉淀）
-```
-
-**模板选择优先级**：
-
-```
-命中 domains/{域}/{场景} → 优先使用领域模板
-未命中 → 回落 universal/{类型} → 通用模板
-两者都不匹配 → AI 基于规范 + 上下文自由生成（并在完成摘要中标注）
-```
-
-**`template-extract` 配套**：团队成员可通过 `template-extract` Skill，只需提供一个目录路径，AI 自动将成熟页面分析提取为 `.tpl` 格式模板并写入 `domains/`，**门槛极低**是驱动团队贡献的关键。
-
----
-
-## 5. Pre-flight 约定式输出机制
-
-### 问题
-
-AI "假执行"——声称读了规范，实际按惯性输出。没有强制约束时，Pre-flight 形同虚设。
-
-### 机制
-
-三层保障：
-
-**第一层**：`copilot-instructions.md` 主入口明文要求：
-
-> 触发任何 Skill 时，**必须在回复第一段输出 Pre-flight 声明**，列出已读文件、检测结果、关键参数（cid 等）。跳过 Pre-flight = 未执行 Skill，开发者有权要求重来。
-
-**第二层**：每个 `SKILL.md` 文件顶部重复声明：
-
-```
-## Pre-flight 声明
-
-在开始任何操作之前，必须输出：
-🚀 已触发技能 page-codegen/SKILL.md → 页面代码生成
-✅ 已读取 standards/02-code-structure.md → 三文件分离+接口契约
-✅ 工具链检测：.prettierrc.js ✓ eslint.config.ts ✓ .husky/ ✓
-✅ cid 已生成：cl-745831
-```
-
-**第三层**：错误回退——如 AI 未输出 Pre-flight，开发者一句"补 Pre-flight 声明"，AI 必须补充，否则视为工具失效，升级处理。
-
-### 为什么用约定式输出而不是工具调用
-
-见 [ADR-001](#adr-001约定式输出而非工具调用)。
-
----
-
-## 6. 三层文档体系
-
-每个启用的 Skill 有三类配套文档，面向不同读者：
-
-| 文件            | 读者           | 位置                     | 内容                               |
-| --------------- | -------------- | ------------------------ | ---------------------------------- |
-| `SKILL.md`      | AI 编辑器/模型 | `skills/{scope}/{name}/` | 触发词、Pre-flight、执行步骤、约束 |
-| `USAGE.md`      | 团队成员       | `skills/{scope}/{name}/` | 示例对话、踩坑、FAQ、快速上手      |
-| `*.MAINTAIN.md` | kit 维护者     | `kit-internal/skills/`   | 设计背景、修改要点、版本依赖       |
-
-**设计意图**：
-
-- `SKILL.md` 写给机器看：精确、结构化、无废话
-- `USAGE.md` 写给人看：有温度、有示例、有踩坑经验
-- `MAINTAIN.md` 写给维护者看：为什么这么设计、改的时候要注意什么
-
-三者严格分离，避免"AI 读到人类语气的废话"或"人类读到机器格式"的不适。
-
----
-
-## 7. Skill 生命周期管理
-
-```
-需求识别
-    │
-    ▼
-⏳ PLANNED（SKILL.draft.md）
-    │  包含：设计目标、数据流、工作模式、转正条件
-    │  不参与 AI 调度（_registry.md 中不注册）
-    │
-    ▼  满足转正条件：
-    │  ① 设计草稿评审通过
-    │  ② 至少一个真实项目端到端跑通
-    │  ③ 文档完整（SKILL.md + USAGE.md + MAINTAIN.md）
-    │  ④ 触发词不与现有 Skill 冲突
-    │
-    ▼
-✅ 启用（SKILL.md）
-    │  注册到 _registry.md
-    │  参与 AI 调度
-    │
-    ▼  技术过时 / 被更好方案替代
-    │
-⚠️ 废弃（SKILL.deprecated.md）
-    │  从 _registry.md 移除
-    │  保留文件 + 废弃说明，不直接删除
-```
-
----
-
-## 8. 菜单/字典/权限同步机制
-
-三类 sync Skill 共用同一模式，以 `menu-sync` 为基准（已启用）：
-
-```
-本地基线文件（reports/SYS_MENU_INFO.md）
-    │
-    ├─ pull 模式：从线上拉取 → 全量刷新基线
-    │
-    └─ push 模式：
-           ① 读取基线
-           ② 扫描业务项目（src/views/ 下的页面）
-           ③ 对比：基线 vs 线上 → 找出缺失条目
-           ④ Pre-flight 输出操作预览（必须用户确认）
-           ⑤ 调用后端接口写入
-           ⑥ 输出操作日志（含回滚 SQL）到 reports/MENU_SYNC_*.md
-```
-
-**关键设计约束**：
-
-- **env.local.json 不入 git**：包含 token / gatewayPath，每个开发者本地配置
-- **永远不主动删除**：sync 系列 Skill 只做新增/更新，删除走人工 + 后台
-- **生产环境保护**：检测到 gatewayPath 含生产域名时，强制输出 SQL 而不直接调用接口
-- **分级授权**：用户已明确要求并限定范围的本地代码写入无需重复确认；范围扩张时先询问。后端写入始终执行“查询 → 预览 planHash → 明确确认 → 写入前重查”
-
----
-
-## 9. 工具链前置检测
-
-`page-codegen` / `convention-audit` 等代码生成/审计类 Skill 在执行前，必须检查项目是否安装了 `@robot-admin/git-standards`（提供 prettier / eslint / husky 配置）：
-
-```
-检测文件：.prettierrc.js / eslint.config.ts / .husky/
-
-全部存在 → ✅ 继续执行
-
-任一缺失 → ❌ 暂停执行，输出：
-  工具链检测失败：未找到 [具体文件]
-  → 请执行：npx @robot-admin/git-standards init
-  → 原因：生成代码必须在统一格式化/lint 规则下有效，否则代码写完就报错
-  ⛔ 代码生成已暂停
-```
-
-> 使用 `npx` 而非 `npm install` 的原因：`@robot-admin/git-standards` 是一次性初始化工具，运行后只留下配置文件，包本身不需要出现在 `devDependencies`（零运行时依赖，零污染）。
-
----
-
-## 10. 版本演进历史
-
-| 版本 | 核心变化                                                                                                                                  | 状态      |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| v1.x | 5 个 Skill 平铺 + 9 个 TPL 平铺 + 单一超长 copilot-instructions                                                                           | ✅ 已发布 |
-| v2.0 | 规范模块化（13 条）+ 模板分层（universal/domains）+ 报告分类 + Pre-flight + 工具链门控                                                    | ✅ 已发布 |
-| v2.1 | Skill 分级目录（core/sync/ops/domain）+ 多 AI 适配解耦（editors.json）+ 各 Skill USAGE.md + api-contract 真实响应 + 3 个 PLANNED 草稿补全 | ✅ 已发布 |
-| v2.2–2.3 | dict-sync / permission-sync / code-fix 从 PLANNED → 转正 + lint-skills 静态护栏 + MCP 自愈闭环                                      | ✅ 已发布 |
-| v2.6 | business-doc-extract 语义触发 + 业务文档体系 + AGGrid/cid/defineColumns/renderOps 最终标准 + doctor-ui / validate 增强                     | ✅ 已发布 |
-| v2.7 | JH 组件文档全面修正 + MCP tools 单测覆盖 + 场景索引路由 + _mcp-guardrail 自愈闭环 + .gitattributes + 版本一致性自检                       | ✅ 已发布 |
-| v2.8 | Mock 架构体系固化（mock-architecture.md + _utils.ts 种子 + mock-clean CLI + validate mock 质量检查 + 规则修正）                            | ✅ 已发布 |
-| v2.13.2 | 标准业务组件目录 + 按需落盘 + planHash/进程锁/契约锁 + C1~C3 校验，运行时源码与 kit 模板彻底解耦                                      | ✅ 已发布 |
-| v2.13.6 | 7 个过渡期业务组件支持按需/全量落盘 + 项目真实实现优先 + C4 契约提醒，剔除高风险/额外依赖组件                                     | ✅ 已发布 |
-| v2.13.7 | 列表页结构固定为“查询区 → 工具栏 → 列表标题 → 表格 → 分页器”，防止按钮组生成到标题右侧或标题下方                         | ✅ 已发布 |
-| v2.13.8 | 字典同步增加多源索引、分页、上下文头、父 ID 硬校验与隐藏/系统模块冲突结构化诊断，避免弱模型盲重试                         | ✅ 已发布 |
-| v2.16.4 | 弹窗、页面、分区与多 Tab 表单的“全部/仅必填”统一能力及 R17 精确检查闭环                              | ✅ 已发布 |
-| v2.18.1 | 文档债务清偿：README 版本亮点标号修正 + 版本表补全（2.16.7–2.18.0）+ legacy-migration-lessons 交叉引用 | ✅ 已发布 |
-| v2.18.0 | 规则编号 K 前缀化（K1~K19）与 wl-skills-ui R001~R040 解耦；旧 R 前缀豁免配置同号等价兼容 | ✅ 已发布 |
-| v2.17.0 | status-column-audit 技能：字典列纯文本 → 文案语义自动判色 Tag 的审计/自动转换/桥接全流程 | ✅ 已发布 |
-| v2.16.9 | K19（时称 R19）弹窗内 AG Grid v-if 延迟挂载门禁，防动画期零高度渲染 | ✅ 已发布 |
-| v2.16.8 | validate --pre-commit 对纯文档/规则快照/依赖升级提交的误拦截修复 | ✅ 已发布 |
-| v2.16.7 | 强制更新保留项目显式定制的 delivery profile，通用基线不得覆盖项目事实                               | ✅ 已发布 |
-| v2.16.6 | S7 进阶查询/选择回填显式契约与字段、生命周期闭环                                                   | ✅        |
-| v2.16.5 | D3 字典字段显式绑定门禁、集中 definitions 语义校验与零猜测边界                                     | ✅ 已发布 |
-| v2.16.3 | Kilo 原生 Skill、表单校验库 R18 与 MCP 风险画像闭环                                                   | ✅ 稳定   |
-| v2.16.2 | 表单仅必填切换、R17 检测与 F6 安全修复闭环                                                         | ✅ 稳定   |
-| v2.14.3 | 跨包编辑器规则所有权保护与共享 MCP server 合并                                                      | ✅ 已发布 |
-| v2.14.2 | Husky 直调命令与 `check` 自检口径闭环                                                               | ✅        |
-| v2.14.1 | 集中定义委托链与项目语义校验、非页面显式排除、validate error/warn 分级闭环                              | ✅        |
-| v2.14.0 | 机器契约驱动字段边界、S6 页面/API 对齐、R15 分页门、R16 运行时风险提示及 D1/D2 字典精确闭环           | ✅ 已完成 |
-| v2.13.9 | 创建类主按钮强制 primary 填充并由 S3 校验颜色/形态；普通文本列统一省略并悬停展示完整内容                 | ✅        |
-
----
-
-## 11. 关键决策记录（ADR）
-
-### ADR-001：约定式输出而非工具调用
-
-**背景**：如何强制 AI 输出 Pre-flight 声明？
-
-**决策**：用 `SKILL.md` 内文本约定（约定式输出），不用自定义工具函数（如 `pre_flight()`）。
-
-**理由**：
-
-- 约定式输出：所有 AI 模型都支持（Copilot/Claude/GPT/本地模型）
-- 工具调用：需要编辑器支持函数调用协议，且各编辑器实现不同——与"多 AI 适配"目标矛盾
-
----
-
-### ADR-002：文件命名全英文
-
-**背景**：部分工具在中文路径上有编码问题（Git / Node.js / Windows cmd）。
-
-**决策**：所有文件名使用英文（kebab-case），文件内容使用中文。
-
-**效果**：路径安全 + 内容可读，两全其美。
-
----
-
-### ADR-003：PLANNED Skill 用 `.draft.md` 后缀
-
-**背景**：PLANNED Skill 需要在仓库中占位（体现架构意图），但不能被 AI 调度。
-
-**决策**：用 `SKILL.draft.md` 后缀代替 `SKILL.md`，`_registry.md` 只注册 `SKILL.md` 文件。
-
-**效果**：AI 按触发词只会加载 `SKILL.md`，`SKILL.draft.md` 不参与调度，但对维护者可见且路径明确。
-
----
-
-### ADR-004：模板提取用"开发者指路 + AI 分析"混合模式
-
-**背景**：如何让团队成员以极低门槛贡献领域模板？
-
-**方案对比**：
-
-| 方案           | 门槛 | 质量                          | 结论          |
-| -------------- | ---- | ----------------------------- | ------------- |
-| 全自动扫描     | 极低 | 低（AI 不知道"哪个值得提取"） | ❌            |
-| 纯手写模板     | 高   | 高                            | ❌ 团队不会用 |
-| 指路 + AI 分析 | 低   | 高                            | ✅            |
-
-**决策**：开发者只需提供目录路径，AI 读代码 → 分析 → 生成模板，90% 工作量由 AI 完成。
-
----
-
-### ADR-005：多 AI 编辑器适配解耦（editors.json 注册表）
-
-**背景**：v2.0 的 `getEditorConfigs()` 把 9 个编辑器硬编码在 `bin/wl-skills.js` 里，frontmatter 也只有 Cursor 做了特化，其他编辑器全部用相同格式。
-
-**问题**：
-
-1. 添加新编辑器 → 改 JS 代码
-2. 移除某编辑器 → 改 JS 代码 + 需要小心不影响其他
-3. Kiro / Trae 没有专属 frontmatter → 不满足编辑器官方最佳实践
-
-**决策**：
-
-- 提取 `_compat/editors.json` 作为编辑器注册表（数据 vs 代码分离）
-- 提取 `_compat/headers/` 作为各编辑器 frontmatter 模板文件
-- `bin/wl-skills.js` 只有读取逻辑，不再硬编码任何编辑器信息
-
-**效果**：
-
-- 添加新编辑器：加 `headers/xxx.txt` + 在 `editors.json` 注册，JS 不改
-- 禁用某编辑器：`enabled: false` 一行，其他编辑器完全不受影响（已端到端验证）
-- 每个编辑器 frontmatter 独立维护，Kiro 有 `inclusion: always`，Trae 有 `description + alwaysApply`
-
----
-
-### ADR-006：标准业务组件采用模板源与项目运行时双层模型
-
-**背景**：kit 内暂存了基于 core 扩展的业务组件，但页面 import 指向项目 `src/components`；若改用 Vite alias 直连 `.wl-skills`，kit 更新会在未评审时改变业务运行时，并与项目同名定制组件冲突。
-
-**决策**：
-
-- `.wl-skills/src/components/` 只作为 kit 管理的模板源和文档，不参与构建。
-- 页面只引用项目 `src/components/local/` 或 `src/components/global/`。
-- `component ensure` 支持按页面引用、指定清单或 `--all` 全量落盘；默认只预览，确认时校验 `planHash` 并持有跨进程写锁。
-- 目标已有有效入口时认定为项目真实实现；无锁或后续被打磨均直接复用，不接管、不覆盖、不生成转发文件、不修改 Vite alias。
-- 已有目录缺少入口时只补齐缺失的声明文件，保留目录内全部已有文件；仅在目标路径不是目录，或新落盘/补齐缺少依赖与必需项目文件时阻断。
-- `.wl-skills/components.lock.json` 只记录 kit 首次落盘的快照版本与哈希；kit 更新仅提示同契约新实现，由项目显式评估升级。
-- 当前 7 个组件属于过渡期快照。平台已有能力时优先平台组件；成熟项目实现经人工评审反馈，规模稳定后再提取独立业务组件库。
-- `C_RightToolbar` 因实现不完整且无有效使用退出分发；`C_SvgIcon` 因额外资源包依赖退出分发。对应场景优先使用平台或项目现有能力。
-
-**效果**：生成页面可直接编译，kit 升级不会污染项目运行时，已有业务定制不会被静默覆盖，也不会因 kit 快照契约差异阻断项目继续演进。
+命令和工具的当前参数以 `wl-skills --help`、`wl-skills protocol describe --json` 及工具 schema 为准；不在指南维护第二份完整适配路径或工具清单。

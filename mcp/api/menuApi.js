@@ -67,8 +67,23 @@ function saveMenu(body, config) {
  *
  * @param {{ gatewayPath: string, token: string }} config
  */
-function querySysDomainList(config) {
-  return wlsFetch('/system/sysDomain/list?current=1&size=99', {}, config)
+async function querySysDomainList(config) {
+  const result = await wlsFetch('/system/sysDomain/list?current=1&size=99', {}, config)
+  if (!result.ok) return result
+  const records = domainRecords(result.data)
+  if (!Array.isArray(records) || !records.every(isDomainRecord)) {
+    return { ...result, ok: false, error: '应用域列表响应缺少有效的 records 数组' }
+  }
+  return { ...result, data: records }
+}
+
+function domainRecords(data) {
+  if (data == null) return []
+  return Array.isArray(data) ? data : data.page?.records ?? data.records
+}
+
+function isDomainRecord(record) {
+  return record !== null && typeof record === 'object' && !Array.isArray(record)
 }
 
 /**

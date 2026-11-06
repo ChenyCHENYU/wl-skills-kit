@@ -16,23 +16,39 @@
  *   --call <name>    转换目标调用名（默认 dictAutoTag）
  *   --import <path>  桥接 import 说明符（默认 @/utils/dict-auto-tag）
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, mkdirSync } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { readFileSync, writeFileSync, existsSync, readdirSync, lstatSync, realpathSync, mkdirSync } from "node:fs";
+import { join, relative, dirname, resolve, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = process.cwd();
+const ROOT = realpathSync(process.cwd());
 
 const argOf = (name, fallback) => {
   const i = process.argv.indexOf(name);
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 };
-const SCAN_DIR = join(ROOT, argOf("--dir", "src/views"));
 const CALL = argOf("--call", "dictAutoTag");
 const IMPORT_SPEC = argOf("--import", "@/utils/dict-auto-tag");
 const FIX = process.argv.includes("--fix");
 const ALL = process.argv.includes("--all");
 const INIT_BRIDGE = process.argv.includes("--init-bridge");
+
+function localPath(input) {
+  const target = resolve(ROOT, input);
+  const rel = relative(ROOT, target);
+  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error("状态列审计只允许项目内路径");
+  let current = ROOT;
+  for (const segment of rel.split(sep).filter(Boolean)) {
+    current = join(current, segment);
+    try {
+      if (lstatSync(current).isSymbolicLink()) throw new Error("状态列审计不处理符号链接路径");
+    } catch (error) {
+      if (error.code === "ENOENT") break;
+      throw error;
+    }
+  }
+  return target;
+}
 
 const BRIDGE_PATH = join(ROOT, "src", "utils", "dict-auto-tag.ts");
 const BRIDGE_CODE = `/**
@@ -66,15 +82,21 @@ export function dictAutoTag(
 `;
 
 if (INIT_BRIDGE) {
+  localPath(BRIDGE_PATH);
   if (existsSync(BRIDGE_PATH)) {
     console.log(`⏭ 桥接文件已存在：${relative(ROOT, BRIDGE_PATH)}`);
   } else {
     mkdirSync(dirname(BRIDGE_PATH), { recursive: true });
-    writeFileSync(BRIDGE_PATH, BRIDGE_CODE, "utf8");
+    writeFileSync(BRIDGE_PATH, BRIDGE_CODE, { encoding: "utf8", flag: "wx" });
     console.log(`✅ 已生成桥接文件：${relative(ROOT, BRIDGE_PATH)}`);
     console.log("   下一步：node audit-status-columns.mjs 审计，--fix 自动转换。");
   }
   process.exit(0);
+}
+
+if (FIX && CALL === "dictAutoTag" && IMPORT_SPEC === "@/utils/dict-auto-tag") {
+  localPath(BRIDGE_PATH);
+  if (!existsSync(BRIDGE_PATH)) throw new Error("请先运行 --init-bridge 生成字典标签桥接文件");
 }
 
 /** P1 判定：label 含状态/类型类语义词（与 wl-ui-ep 实战一致的词表） */
@@ -83,10 +105,10 @@ const STATUS_WORDS =
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.(vue|ts)$/.test(name)) out.push(p);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, entry.name);
+    if (entry.isDirectory()) walk(p, out);
+    else if (entry.isFile() && /\.(vue|ts)$/.test(entry.name)) out.push(p);
   }
   return out;
 }
@@ -94,6 +116,7 @@ function walk(dir, out = []) {
 const RE_ARROW_DICT =
   /formatter:\s*\((\w+)(?:\s*:\s*[^)]*)?\)\s*=>\s*((?:dicts\.)?[A-Za-z_$][\w$]*Dict)\.fmt\(\1\.([A-Za-z_$][\w$]*)\)/g;
 const RE_ALIAS = /formatter:\s*([A-Za-z_$][\w$]*)\b/;
+const RE_FMT_HELPER = /^formatter:\s*(?:\([^)]*\)|\w+)\s*=>\s*fmtDict\([^,\n]+,\s*["']([^"']+)["']/;
 const RE_ALIAS_DEF =
   (alias) =>
   new RegExp(
@@ -130,9 +153,24 @@ function labelFromField(content, field) {
   return "?";
 }
 
-const files = walk(SCAN_DIR);
+const files = walk(localPath(argOf("--dir", "src/views")));
 const buckets = { P1: [], P2: [], P3: [], P4: [], P5: [] };
 let doneCount = 0;
+
+function reportUnconvertedFormatters(raw, file, direct) {
+  const lines = raw.split(/\r?\n/);
+  for (const match of raw.matchAll(/(?<![\w$])formatter:\s*(?=\S)/g)) {
+    if (direct.has(match.index)) continue;
+    const tail = raw.slice(match.index);
+    const alias = tail.match(RE_ALIAS)?.[1];
+    if (alias && raw.match(RE_ALIAS_DEF(alias))) continue;
+    const helper = tail.match(RE_FMT_HELPER);
+    const line = raw.slice(0, match.index).split(/\r?\n/).length - 1;
+    const entry = { file: rel(file), label: labelOf(lines, line) };
+    if (helper) buckets.P3.push({ ...entry, sn: helper[1] });
+    else buckets.P4.push(entry);
+  }
+}
 
 for (const file of files) {
   const raw = readFileSync(file, "utf8");
@@ -147,10 +185,12 @@ for (const file of files) {
   let changed = false;
   const eol = raw.includes("\r\n") ? "\r\n" : "\n";
   const convertedAliases = [];
+  const direct = new Set();
 
   // 1) 直接字典箭头 formatter
-  content = content.replace(RE_ARROW_DICT, (m0, _rowVar, dictExpr, field) => {
-    const lineNo = raw.slice(0, raw.indexOf(m0)).split(/\r?\n/).length - 1;
+  content = content.replace(RE_ARROW_DICT, (m0, _rowVar, dictExpr, field, offset) => {
+    direct.add(offset);
+    const lineNo = raw.slice(0, offset).split(/\r?\n/).length - 1;
     const label = labelOf(raw.split(/\r?\n/), lineNo);
     const bucket = STATUS_WORDS.test(label) ? "P1" : "P2";
     buckets[bucket].push({ file: rel(file), label, dict: dictExpr, field, fixed: FIX && (bucket === "P1" || ALL) });
@@ -158,6 +198,7 @@ for (const file of files) {
     changed = true;
     return `defaultSlot: ({ row }) => ${CALL}(${dictExpr}, row.${field}, "${field}")`;
   });
+  reportUnconvertedFormatters(raw, file, direct);
 
   // 2) 别名 formatter（const fmtX = (row) => xDict.fmt(row.f)）
   const aliasMatches = [...content.matchAll(new RegExp(RE_ALIAS.source, "g"))];
@@ -197,8 +238,15 @@ for (const file of files) {
         content = content.replace(/(import[^\n]*from\s*"[^"]*(epDict|epDictSn|dict)";)/, `$1${eol}${imp}`);
       } else if (/import[^\n]*from\s*"vue";/.test(content)) {
         content = content.replace(/(import[^\n]*from\s*"vue";)/, `$1${eol}${imp}`);
+      } else if (!/import[^\n]*;/.test(content)) {
+        if (file.endsWith(".ts")) content = imp + eol + content;
+        else content = content.replace(/(<script\b[^>]*>)/, `$1${eol}${imp}`);
       } else {
         content = content.replace(/(import[^\n]*;)/, `$1${eol}${imp}`);
+      }
+      if (!importRe.test(content)) {
+        console.error(`[跳过-无法安全插入桥接导入] ${rel(file)}`);
+        continue;
       }
     }
     // 转换后别名无引用则删定义

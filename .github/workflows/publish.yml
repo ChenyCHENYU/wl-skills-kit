@@ -1,28 +1,88 @@
 name: Publish npm package
 
 on:
+  push:
+    tags: ["v2.33.5"]
   release:
     types: [published]
 
 permissions:
   contents: read
-  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.candidate.outputs.artifact-id }}
+      candidate-sha256: ${{ steps.stage.outputs.candidate-sha256 }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm verify
+      - name: Freeze the tarball and test fresh install and upgrade
+        id: stage
+        run: |
+          node scripts/pack-integrity-check.cjs stage "$RUNNER_TEMP/wl-release" "$GITHUB_REF_NAME"
+          test -s "$RUNNER_TEMP/wl-release/candidate.json"
+          checksum=$(sha256sum "$RUNNER_TEMP/wl-release/candidate.json" | cut -d ' ' -f 1)
+          printf 'candidate-sha256=%s\n' "$checksum" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        id: candidate
+        with:
+          name: npm-release-evidence-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wl-release
+          if-no-files-found: error
+
   publish:
+    needs: prepare
     runs-on: ubuntu-latest
     environment: npm
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: pnpm install --frozen-lockfile
-      - name: Verify release tag matches package version
-        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
-      - run: pnpm release:check
-      # release:check already ran the full suite in this job; direct npm publish still runs prepublishOnly.
-      - run: npm publish --access public --ignore-scripts
+      - name: Require the prepare job outputs
+        env:
+          CANDIDATE_ARTIFACT_ID: ${{ needs.prepare.outputs.artifact-id }}
+          CANDIDATE_SHA256: ${{ needs.prepare.outputs.candidate-sha256 }}
+        run: |
+          [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[0-9]+$ ]]
+          [[ "$CANDIDATE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/wl-release
+      - name: Check the candidate receipt from the prepare job
+        env:
+          CANDIDATE_SHA256: ${{ needs.prepare.outputs.candidate-sha256 }}
+        run: |
+          printf '%s  %s\n' "$CANDIDATE_SHA256" "$RUNNER_TEMP/wl-release/candidate.json" | sha256sum --check --strict
+      - name: Publish the verified tarball and verify registry bytes
+        run: |
+          node scripts/pack-integrity-check.cjs publish "$RUNNER_TEMP/wl-release" "$GITHUB_REF_NAME"
+          test -s "$RUNNER_TEMP/wl-release/publication.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: npm-publication-receipt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wl-release/publication.json
+          if-no-files-found: error

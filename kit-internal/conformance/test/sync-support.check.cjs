@@ -24,16 +24,8 @@ function fixture(policy = "*.md text eol=lf\n") {
   assert.equal(init.status, 0, init.stderr);
   fs.writeFileSync(path.join(repo, ".gitattributes"), policy);
   fs.writeFileSync(path.join(repo, "package.json"), '{"name":"@agile-team/wl-skills-bd","version":"0.0.0"}\n');
-  const copy = (original, relative) => {
-    const destination = path.join(repo, relative);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(original, destination);
-  };
-  for (const name of [...coreFiles, "shared-support-manifest.json", "shared-jsonc.cjs"]) copy(path.join(source, name), `lib/${name}`);
-  fs.cpSync(path.join(source, "vendor/jsonc-parser"), path.join(repo, "lib/vendor/jsonc-parser"), { recursive: true });
-  copy(path.resolve(__dirname, "../scripts/compatibility-check.cjs"), "scripts/compatibility-check.cjs");
-  copy(path.join(source, "contracts/wl-api-contract.schema.json"), "files/.wl-skills-bd/schemas/collaboration-contract.schema.json");
-  copy(path.join(source, "contracts/wl-delivery-profile.v1.json"), "files/.wl-skills-bd/contracts/wl-delivery-profile.v1.json");
+  const generated = spawnSync(process.execPath, [script, "--root", root, "--packages", "bd"], { encoding: "utf8" });
+  assert.equal(generated.status, 0, generated.stderr);
   return { root, repo, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 
@@ -65,6 +57,8 @@ test("declared Git LF license accepts LF and CRLF without writes", () => {
       fs.writeFileSync(path.join(f.repo, licensePath), bytes);
       assert.deepEqual(run(f), { status: 0, receipt: { ok: true, packages: ["bd"], drift: [] } });
       assert.deepEqual(fs.readFileSync(path.join(f.repo, licensePath)), bytes);
+      const { verifySupport } = require(path.join(f.repo, "lib/shared-support-check.cjs"));
+      assert.equal(verifySupport(path.join(f.repo, "lib")).ok, true, "offline archive honors only the declared license LF exception");
     }
   } finally { f.cleanup(); }
 });
@@ -84,7 +78,7 @@ test("license wording changes remain drift, and distribution writes declared LF 
   } finally { f.cleanup(); }
 });
 
-test("all ten core snapshots and manifest retain strict byte comparisons", () => {
+test("all core snapshots and manifest retain strict byte comparisons", () => {
   const f = fixture();
   try {
     fs.writeFileSync(path.join(f.repo, licensePath), lfLicense);
@@ -112,5 +106,28 @@ test("other vendor files and a license without Git LF policy stay strict", () =>
     const original = fs.readFileSync(file);
     fs.writeFileSync(file, Buffer.concat([original, Buffer.from("\n")]));
     assert.deepEqual(run(f), { status: 1, receipt: { ok: false, packages: ["bd"], drift: [file] } });
+  } finally { f.cleanup(); }
+});
+
+test("changing a developer script only changes development distribution files", () => {
+  const f = fixture("");
+  try {
+    const copy = path.join(f.root, "canonical");
+    fs.cpSync(source, path.join(copy, "support"), { recursive: true });
+    fs.cpSync(path.dirname(script), path.join(copy, "scripts"), { recursive: true });
+    const changedScript = path.join(copy, "scripts/pack-integrity-check.cjs");
+    fs.appendFileSync(changedScript, "\n// development-only fixture change\n");
+    const runtime = path.join(f.repo, "lib/shared-support-manifest.json");
+    const development = path.join(f.repo, "scripts/shared-development-manifest.json");
+    const beforeRuntime = fs.readFileSync(runtime);
+    const beforeDevelopment = fs.readFileSync(development);
+    const generated = spawnSync(process.execPath, [path.join(copy, "scripts/sync-support.cjs"), "--root", f.root, "--packages", "bd"], { encoding: "utf8" });
+    assert.equal(generated.status, 0, generated.stderr);
+    assert.deepEqual(fs.readFileSync(runtime), beforeRuntime);
+    assert.notDeepEqual(fs.readFileSync(development), beforeDevelopment);
+    const verify = require(path.join(f.repo, "lib/shared-support-check.cjs"));
+    assert.equal(verify.verifySupport(path.join(f.repo, "lib")).developmentFilesChecked, 2);
+    fs.appendFileSync(path.join(f.repo, "scripts/pack-integrity-check.cjs"), "\n// changed after sync\n");
+    assert.throws(() => verify.verifySupport(path.join(f.repo, "lib")), /开发验收脚本漂移/);
   } finally { f.cleanup(); }
 });

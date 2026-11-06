@@ -1,6 +1,6 @@
 ---
 name: template-extract
-description: "Use when: extracting domain-specific page scenarios from existing project pages into wl-scenario JSON templates (with Page Blueprint low-token retrieval as the discovery front-end). Triggers on: 提取模板, 抽取模板, 沉淀模板, 模板贡献, 提取场景, extract template, extract scenario."
+description: "从已有业务页面提炼可复用的场景模板和页面蓝图，生成 wl-scenario JSON，供后续页面低 token 检索与复用；保留来源与使用边界，不把普通页面修改当成模板抽取。"
 ---
 
 # Skill: 模板提取（template-extract）
@@ -23,16 +23,13 @@ description: "Use when: extracting domain-specific page scenarios from existing 
 
 ---
 
-## Pre-flight 声明
+## Pre-flight 检查清单
 
-```
-🚀 已触发技能 template-extract/SKILL.md → 从现有页面提取场景模板
-✅ 已读取 template-extract/SKILL.md      → 提取流程主规则
-✅ 已读取 templates/patterns.json       → 模式注册表（避免重复登记 pattern）
-✅ 已读取 templates/scenarios/README.md → 场景库结构与往返保证
-✅ 已读取 standards/02-code-structure.md → 提取产物必须遵循的代码结构
-✅ 已读取 standards/13-platform-components.md → 平台组件合规
-```
+- [ ] 读取 template-extract/SKILL.md      → 提取流程主规则
+- [ ] 读取 templates/patterns.json       → 模式注册表（避免重复登记 pattern）
+- [ ] 读取 templates/scenarios/README.md → 场景库结构与往返保证
+- [ ] 读取 standards/02-code-structure.md → 提取产物必须遵循的代码结构
+- [ ] 读取 standards/13-platform-components.md → 平台组件合规
 
 ---
 

@@ -4,8 +4,8 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * 从项目的 .wl-skills/skills/sync/env.local.json 加载 MCP 运行配置
- * 项目根目录通过环境变量 WL_PROJECT_ROOT 传入（由 .cursor/mcp.json 注入）
+ * 优先读取项目 compact 凭据，兼容旧版 sync/env.local.json。
+ * 项目根目录由所选宿主的原生 MCP 配置通过 WL_PROJECT_ROOT 传入。
  */
 function readRawConfig(configPath) {
   try {
@@ -45,12 +45,14 @@ function validateToken(value) {
 
 function loadConfig() {
   const projectRoot = path.resolve(process.env.WL_PROJECT_ROOT || process.cwd())
-  const configPath = path.join(projectRoot, '.wl-skills', 'skills', 'sync', 'env.local.json')
+  const compactPath = path.join(projectRoot, '.wl-skills/config/kit-sync.local.json')
+  const legacyPath = path.join(projectRoot, '.wl-skills/skills/sync/env.local.json')
+  const configPath = fs.existsSync(compactPath) ? compactPath : legacyPath
 
   if (!fs.existsSync(configPath)) {
     throw new Error(
       `配置文件不存在: ${configPath}\n` +
-      `请先执行 pnpm dlx @agile-team/wl-skills-kit init，然后填写 .wl-skills/skills/sync/env.local.json`
+      `请先执行本包 init --mcp，然后填写 .wl-skills/config/kit-sync.local.json（兼容旧 .wl-skills/skills/sync/env.local.json）`
     )
   }
 

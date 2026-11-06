@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * wl-skills-kit CLI v2.33.4
+ * wl-skills-kit CLI v2.33.5
  *
  * 命令:
  *   init      全量安装（默认，向后兼容）
@@ -141,6 +141,7 @@ const {
 const { isSafeManagedPath, resolveProjectPath } = require("../lib/project-path");
 const { collectMockEndpoints } = require("../lib/mock-endpoints");
 const { atomicWriteFile } = require("../lib/atomic-write.cjs");
+const { prepareMcpManifest, planMcpInstall, applyMcpInstall, mcpMessages, inspectMcpInstall } = require("../lib/mcp-install");
 
 const FILES_DIR = path.resolve(__dirname, "..", "files");
 const args = process.argv.slice(2);
@@ -160,9 +161,19 @@ if (PROJECT_VALUE !== null && (PROJECT_VALUE === undefined || PROJECT_VALUE === 
   process.exit(1);
 }
 const TARGET_DIR = PROJECT_VALUE !== null ? path.resolve(PROJECT_VALUE) : process.cwd();
-const MANIFEST_NAME = ".wl-skills-manifest.json";
+const MANIFEST_NAME = ".wl-skills/state/kit/manifest.json";
 const MANIFEST_PATH = path.join(TARGET_DIR, MANIFEST_NAME);
-const LOCAL_SYNC_CONFIG = ".wl-skills/skills/sync/env.local.json";
+const LEGACY_MANIFEST_PATH = path.join(TARGET_DIR, ".wl-skills-manifest.json");
+let consumedLegacyHash;
+const { resolveIntegration, saveProjectConfig, ensureStateIgnore } = require("../lib/project-integration.cjs");
+let installationPolicy;
+function currentPolicy(recorded) {
+  if (installationPolicy) return installationPolicy;
+  installationPolicy = resolveIntegration({ projectRoot: TARGET_DIR, hosts: readOption("hosts") || undefined, editor: readOption("editor") || undefined, integration: readOption("integration") || undefined, recorded: recorded === undefined ? readManifest() : recorded,
+    mcp: args.includes("--mcp") ? true : args.includes("--no-mcp") ? false : undefined });
+  return installationPolicy;
+}
+const LOCAL_SYNC_CONFIG = ".wl-skills/config/kit-sync.local.json";
 const EXAMPLE_SYNC_CONFIG = ".wl-skills/skills/sync/env.example.json";
 const PKG = require("../package.json");
 
@@ -170,6 +181,7 @@ const PKG = require("../package.json");
 const { COMMAND_CATALOG } = require("../lib/command-catalog");
 const KNOWN_COMMANDS = new Set(COMMAND_CATALOG.map((command) => command.name));
 const KNOWN_FLAGS = new Set([
+  "--hosts", "--editor", "--integration", "--mcp", "--no-mcp",
   "--dry-run",
   "--keep-reports",
   "--force",
@@ -181,6 +193,8 @@ const KNOWN_FLAGS = new Set([
   "--all",
   "--pre-commit",
   "--strict",
+  "--page-scope",
+  "--page-verifier",
   "--typecheck",
   "--profile",
   "--profile-file",
@@ -226,6 +240,8 @@ const KNOWN_FLAGS = new Set([
   "--target", "--text", "--run-id", "--host", "--project", "--skill",
 ]);
 const VALUE_FLAGS = new Set([
+  "--page-scope", "--page-verifier",
+  "--hosts", "--editor", "--integration",
   "--domain", "--profile", "--profile-file", "--project-type", "--prod-prefix",
   "--module-name", "--local-api", "--local-public", "--local-mode", "--local-routes",
   "--input", "--output", "--left", "--right", "--service", "--resource",
@@ -318,7 +334,7 @@ if (showHelp) {
     pnpm dlx @agile-team/wl-skills-kit [命令] [选项]
 
   命令:
-    init       全量安装模板文件到当前项目（默认）
+    init       安装当前项目的薄入口（默认 compact；expanded 显式复制参考资源）
     update     增量更新（仅覆盖有变化的文件，展示变更摘要）
     clean      构建清理（移除开发期 AI 文件，保留 src/components + src/types）
     check      环境预检（Node / 工具链 / MCP 配置 / manifest）
@@ -330,7 +346,7 @@ if (showHelp) {
     doctor-ui  检查 @agile-team/wl-skills-ui 接入完整性
     export     导出 reports/SYS_* 数据为 xlsx
     mock-clean 清理 mock 文件（按域或全部），保留 _utils.ts
-    fix        确定性机械修复（agGrid/:deep/未用 import 等），AI 无关
+    fix        确定性机械修复（agGrid、:deep、空白、末尾换行和表单开关），AI 无关
     standard-env 标准环境配置（scan/plan/apply/verify）
     contract   独立 API 契约（init/validate/compare/render/profile），不依赖 design 或 bd
     component  标准业务组件（list/check/ensure），按需落盘且绝不覆盖
@@ -346,7 +362,10 @@ if (showHelp) {
 
   选项:
     --version, -v     输出当前版本号
-    --dry-run        预览模式，不实际写入/删除任何文件
+    --dry-run        对支持预览的命令只展示计划，不实际写入/删除
+    --integration <compact|expanded> 安装模式；默认 compact
+    --hosts <ids>    选中实际宿主，逗号分隔；默认或沿用项目配置
+    --mcp / --no-mcp 显式启用或停用所选宿主的原生 MCP 配置
     --keep-reports   clean 命令保留 .wl-skills/reports/（默认一起删除）
     --force          强制执行，跳过同版本检测（忽略已安装状态）
     --domain <name>  mock-clean 指定要清理的业务域（如 sale、mdata）
@@ -354,9 +373,11 @@ if (showHelp) {
     --pre-commit     validate 仅检测 git staged 文件，error 阻断提交，warn 仅提示
     --strict         validate 的 error 和 warn 都导致退出码 1（CI 用）
     --typecheck      validate 额外执行 vue-tsc/tsc --noEmit（K14 类型错误零容忍）
+                     类型检查较重，按项目 CI / pre-push 约定执行
     --run-id <id>    关联本次任务与真实 CLI/MCP 执行；状态不会从模型自报推断
+    --page-scope <file.json> task 显式声明批量影响页、预期与排除理由
+    --page-verifier <script.js> validate 显式运行项目既有逐页验证适配脚本（无 shell）
     --target <path>  task/route/explain 的目标（可重复）；--text 指定任务文本
-                     体积较大，CI / pre-push 必跑，pre-commit 不建议开启
     --profile <name> standard-env 使用的内置环境 Profile，如 walsin
     --profile-file   standard-env 使用自定义完整五环境 Profile JSON
     --module-name    模块标识；检测到历史冲突时必须明确指定
@@ -388,7 +409,7 @@ if (showHelp) {
     --help           显示帮助
 
   示例:
-    pnpm dlx @agile-team/wl-skills-kit                       安装全量文件
+    pnpm exec wl-skills init --hosts codex                  使用已安装执行器初始化薄入口
     pnpm dlx @agile-team/wl-skills-kit update                仅更新有变化的文件
     pnpm dlx @agile-team/wl-skills-kit update --force        强制更新（忽略同版本检测）
     pnpm dlx @agile-team/wl-skills-kit check                 检查本地环境
@@ -516,12 +537,14 @@ function isValidManifest(manifest) {
 }
 
 function readManifest() {
-  if (fs.existsSync(MANIFEST_PATH)) {
+  const manifestPath = fs.existsSync(MANIFEST_PATH) ? MANIFEST_PATH : LEGACY_MANIFEST_PATH;
+  if (fs.existsSync(manifestPath)) {
     try {
-      const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
       if (!isValidManifest(manifest)) {
         throw new Error("manifest 结构或受管路径无效");
       }
+      if (manifestPath === LEGACY_MANIFEST_PATH) consumedLegacyHash = fileMd5(manifestPath);
       return manifest;
     } catch (error) {
       console.warn(`  ⚠ ${MANIFEST_NAME} 无效，已停止按旧清单操作：${error.message}`);
@@ -533,6 +556,7 @@ function readManifest() {
 
 /** 写入 manifest */
 function writeManifest(data) {
+  fs.mkdirSync(path.dirname(MANIFEST_PATH), { recursive: true });
   atomicWriteFile(MANIFEST_PATH, JSON.stringify(data, null, 2));
 }
 
@@ -550,10 +574,13 @@ function ensureGitIgnoreEntry(root, entry) {
 
 function ensureLocalSyncConfig(root) {
   const localPath = path.join(root, LOCAL_SYNC_CONFIG);
-  const examplePath = path.join(root, EXAMPLE_SYNC_CONFIG);
+  const examplePath = path.join(FILES_DIR, EXAMPLE_SYNC_CONFIG);
   ensureGitIgnoreEntry(root, LOCAL_SYNC_CONFIG);
   if (fs.existsSync(localPath)) return "preserved";
+  const legacy = path.join(root, ".wl-skills/skills/sync/env.local.json");
+  if (fs.existsSync(legacy)) return "preserved";
   if (!fs.existsSync(examplePath)) throw new Error("缺少同步配置模板: " + examplePath);
+  fs.mkdirSync(path.dirname(localPath), { recursive: true });
   fs.copyFileSync(examplePath, localPath);
   return "created";
 }
@@ -574,7 +601,7 @@ function isReportFile(relPath) {
 function getEditorConfigs(raw) {
   // init、update 与独立 diff 共用生成入口，失败必须停止，不能以空集规划残留清理。
   loadInstallEngines();
-  return buildEditorConfigs(FILES_DIR, raw);
+  return buildEditorConfigs(FILES_DIR, raw, currentPolicy());
 }
 
 // ─── 命令: init / update ────────────────────────────────────────────────
@@ -590,16 +617,26 @@ function printInstallHeader(label) {
 
 function ensureInstallInfrastructure() {
   if (dryRun) return;
+  if (currentPolicy().integration === "compact") return;
   // validate 增量缓存只保存问题摘要，不应进入业务仓库；幂等追加且不覆盖既有规则。
-  ensureGitIgnoreEntry(TARGET_DIR, ".wl-skills-cache/");
+  ensureGitIgnoreEntry(TARGET_DIR, ".wl-skills/state/kit/cache/");
   ensurePreCommitHook(TARGET_DIR);
   ensurePrePushHook(TARGET_DIR);
   ensureEslintConfig(TARGET_DIR);
 }
 
-function resolveInstallMode(oldManifest, incremental, label) {
+function resolveInstallMode(oldManifest, incremental, label, mcpPlan, currentMcpLayout) {
   if (!oldManifest || force) return { incremental: Boolean(oldManifest) || incremental, skip: false };
-  if (oldManifest.version === PKG.version && oldManifest.managedBlocks) {
+  const policy = currentPolicy(oldManifest);
+  const gatewaysReady = require("../lib/host-profiles.cjs").gatewayInstallPaths(PKG.name, policy).every((rel) => {
+    const full = path.join(TARGET_DIR, rel);
+    try {
+      return fs.lstatSync(full).isFile() && !fs.lstatSync(full).isSymbolicLink()
+        && contentMd5(fs.readFileSync(full, "utf8")) === manifestInstalledHash(oldManifest, rel);
+    } catch { return false; }
+  });
+  const mcpReady = currentMcpLayout && mcpPlan.files.every((item) => item.action === "none");
+  if (currentInstallState(oldManifest, policy, gatewaysReady, mcpReady)) {
     console.log(`  ✔ 当前项目已安装 v${PKG.version}，无需重复操作`);
     console.log(`    如需强制重装：pnpm dlx @agile-team/wl-skills-kit@latest ${label} --force\n`);
     return { incremental, skip: true };
@@ -607,6 +644,14 @@ function resolveInstallMode(oldManifest, incremental, label) {
   if (incremental) return { incremental, skip: false };
   console.log(`  ℹ 检测到已安装 v${oldManifest.version}，自动切换为增量更新模式\n`);
   return { incremental: true, skip: false };
+}
+
+function currentInstallState(manifest, policy, gatewaysReady, mcpReady) {
+  return manifest.version === PKG.version && manifest.managedBlocks && gatewaysReady && mcpReady && JSON.stringify(manifest.integration) === JSON.stringify(policy);
+}
+
+function hasNativeMcpLayout(manifest) {
+  return manifest?.managedMcp?.layoutVersion === 1;
 }
 
 function updateInstallCounter(stats, action) {
@@ -629,6 +674,10 @@ function projectHasBusinessMockFiles() {
 }
 
 function shouldIncludeStaticFile(relPath, validationConfig) {
+  const policy = currentPolicy();
+  if (isSharedProjectConfigSource(relPath)) return false;
+  if (policy.integration === "compact") return false;
+  if (relPath === ".github/copilot-instructions.md") return false;
   if (relPath !== "mock/_utils.ts") return true;
   if (validationConfig.mockPolicy === "required") return true;
   if (validationConfig.mockPolicy === "disabled") return false;
@@ -922,8 +971,34 @@ function removeLegacyFile(filePath, label) {
   else removeFileAndEmptyParents(filePath);
 }
 
+function keepProjectFact(context, relPath) {
+  if (!relPath.startsWith(".wl-skills/contracts/") && !isReportFile(relPath) && !/env\.local\.json$/.test(relPath)) return false;
+  context.manifest.references[relPath] = "project-owned";
+  return true;
+}
+
+function retireSharedContribution(context, oldManifest, relPath) {
+  const owned = ["managedJson", "managedBlocks"].some(key => oldManifest[key]?.[relPath]);
+  if (!owned) return false;
+  if (dryRun) { console.log(`  清理本包区块  ${relPath}`); return true; }
+  const customized = oldManifest.managedBlocks?.[relPath] && isLocallyModifiedManagedFile(relPath, oldManifest);
+  const action = customized ? "preserved" : removeOneManagedFile(relPath, oldManifest);
+  updateInstallCounter(context.stats, action === "removed" ? "removed" : "preserved");
+  if (action === "preserved") {
+    retainContribution(context, oldManifest, relPath);
+  }
+  return true;
+}
+
+function retainContribution(context, oldManifest, relPath) {
+  context.manifest.files[relPath] = oldManifest.files[relPath];
+  for (const key of ["managedBlocks", "managedJson", "blockAffixes"]) {
+    if (oldManifest[key]?.[relPath]) context.manifest[key][relPath] = oldManifest[key][relPath];
+  }
+}
+
 function cleanupStaleManagedFile(context, oldManifest, relPath) {
-  if (context.manifest.files[relPath]) return;
+  if (skipStaleCleanup(context, oldManifest, relPath)) return;
   const fullPath = path.join(TARGET_DIR, relPath);
   if (!fs.existsSync(fullPath)) return;
   if (!fs.statSync(fullPath).isFile()) {
@@ -931,12 +1006,16 @@ function cleanupStaleManagedFile(context, oldManifest, relPath) {
     updateInstallCounter(context.stats, "preserved");
     return;
   }
+  // Contracts, reports and local settings are project facts, including unchanged
+  // defaults adopted by the project. Retiring package copies must not erase them.
+  if (keepProjectFact(context, relPath)) return;
+  if (retireSharedContribution(context, oldManifest, relPath)) return;
   if (shouldKeepManagedFile(relPath)) {
     updateInstallCounter(context.stats, "preserved");
     return;
   }
   const installedHash = manifestInstalledHash(oldManifest, relPath);
-  if (!installedHash || fileMd5(fullPath) !== installedHash) {
+  if (fileMd5(fullPath) !== installedHash) {
     updateInstallCounter(context.stats, "preserved");
     if (dryRun) console.log(`  保留  ${relPath}  (已被本地修改或所有权不明)`);
     return;
@@ -944,6 +1023,10 @@ function cleanupStaleManagedFile(context, oldManifest, relPath) {
   if (dryRun) console.log(`  清理  ${relPath}  (旧版受管文件)`);
   else removeLegacyFile(fullPath, relPath);
   updateInstallCounter(context.stats, "removed");
+}
+
+function skipStaleCleanup(context, manifest, rel) {
+  return context.manifest.files[rel] || Boolean(manifest.managedMcp?.records?.[rel]) && !manifest.managedJson?.[rel];
 }
 
 function cleanupStaleManagedFiles(context, oldManifest) {
@@ -1013,7 +1096,6 @@ function printInstallBridge(hasUiPackage) {
 
 function getInstallEditorConfigs(legacyMigrationPlanned = false) {
   const source = path.join(FILES_DIR, ".github", "copilot-instructions.md");
-  if (!fs.existsSync(source)) return [];
   return getEditorConfigs(fs.readFileSync(source, "utf8")).map(([rel, content]) => {
     if (rel === ".clinerules") {
       // 新装默认目录形态；已存在文件时维持原口径（共享区块合并）。
@@ -1030,6 +1112,7 @@ function getInstallEditorConfigs(legacyMigrationPlanned = false) {
 }
 
 function planLegacyClinerulesMigration(oldManifest) {
+  if (currentPolicy(oldManifest).integration === "compact") return false;
   const legacy = path.join(TARGET_DIR, ".clinerules");
   if (!fs.existsSync(legacy) || fs.statSync(legacy).isDirectory()) return false;
   return Boolean(oldManifest?.files?.[".clinerules"]);
@@ -1116,11 +1199,13 @@ function assertInstallFile(relPath, allowClinerulesParentFile = false) {
   if (fs.existsSync(full) && !fs.lstatSync(full).isFile()) throw new Error(`${relPath} 不是普通文件，未写入`);
 }
 
-function preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned = false) {
+function preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned, mcpPlan) {
   const staticPaths = walkDir(FILES_DIR, FILES_DIR)
     .filter((rel) => shouldIncludeStaticFile(rel, validationConfig))
     .map((rel) => resolveSharedProjectConfigTarget(TARGET_DIR, rel));
-  const paths = [...staticPaths, ...editorConfigs.map(([rel]) => rel), MANIFEST_NAME, LOCAL_SYNC_CONFIG, ".gitignore", "eslint.config.cjs"];
+  const paths = [...staticPaths, ...editorConfigs.map(([rel]) => rel), ...mcpPlan.files.map((item) => item.path), MANIFEST_NAME, LOCAL_SYNC_CONFIG, ".gitignore", "eslint.config.cjs"];
+  paths.push(path.relative(TARGET_DIR, currentPolicy().configPath));
+  paths.push(".wl-skills/state/.gitignore");
   if (fs.existsSync(path.join(TARGET_DIR, ".husky"))) paths.push(".husky/pre-commit", ".husky/pre-push");
   try {
     for (const rel of paths) assertInstallFile(rel, legacyMigrationPlanned);
@@ -1139,20 +1224,25 @@ function runInstall(incremental) {
     console.error("  ✖ files/ 目录不存在，包可能已损坏");
     process.exit(1);
   }
-  const oldManifest = readManifest();
-  const mode = resolveInstallMode(oldManifest, incremental, label);
+  const previousManifest = readManifest();
+  const currentMcpLayout = hasNativeMcpLayout(previousManifest);
+  const oldManifest = prepareMcpManifest(TARGET_DIR, previousManifest);
+  installationPolicy = currentPolicy(oldManifest);
+  const mcpPlan = planMcpInstall(TARGET_DIR, installationPolicy, oldManifest);
+  const mode = resolveInstallMode(oldManifest, incremental, label, mcpPlan, currentMcpLayout);
   if (mode.skip) return;
   const legacyMigrationPlanned = planLegacyClinerulesMigration(oldManifest);
   const validationConfig = loadValidationConfig(TARGET_DIR);
   const editorConfigs = getInstallEditorConfigs(legacyMigrationPlanned);
-  if (!preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned)) return;
+  if (!preflightInstallPaths(validationConfig, editorConfigs, legacyMigrationPlanned, mcpPlan)) return;
   const conflicts = collectInstallConflicts(oldManifest, validationConfig, editorConfigs);
   if (stopForInstallConflicts(conflicts)) return;
   const context = {
     incremental: mode.incremental,
-    manifest: { version: PKG.version, files: {}, managedBlocks: {}, blockAffixes: {}, managedJson: {}, references: {} },
+    manifest: { version: PKG.version, integration: installationPolicy, files: {}, managedBlocks: {}, blockAffixes: {}, managedJson: {}, managedMcp: { layoutVersion: 1, records: {} }, references: {} },
     stats: { created: 0, updated: 0, unchanged: 0, preserved: 0, removed: 0, backups: 0 },
     oldManifest,
+    mcpPlan,
     validationConfig,
     editorConfigs,
     legacyMigrationPlanned,
@@ -1163,14 +1253,16 @@ function runInstall(incremental) {
   };
 
   // 冲突检查通过后才允许创建 hook/eslint/本地配置，保证阻断时真正零写入。
-  ensureInstallInfrastructure();
+  const transaction = dryRun ? null : snapshotInstall(context);
 
   // 迁移事务：布局转换成功后，后续任一阶段（静态文件/编辑器写入/清单提交）失败
   // 都恢复原单文件布局；清单保持事务前状态，布局与所有权清单一起提交。
   try {
+    ensureInstallInfrastructure();
     applyInstallSteps(context, oldManifest);
   } catch (error) {
     if (context.migrationCommitted) rollbackLegacyClinerules(context.migrationCommitted.legacy, context.migrationCommitted.raw);
+    if (transaction) transaction();
     throw error;
   }
 
@@ -1193,7 +1285,7 @@ function applyInstallSteps(context, oldManifest) {
   installStaticFiles(context);
 
   // 本地凭据配置不进入 manifest：init 创建，update/clean 永不覆盖或删除。
-  if (!dryRun) {
+  if (!dryRun && currentPolicy().mcp) {
     const localConfigAction = ensureLocalSyncConfig(TARGET_DIR);
     console.log(
       "    本地配置: " + LOCAL_SYNC_CONFIG +
@@ -1207,8 +1299,50 @@ function applyInstallSteps(context, oldManifest) {
   // ── Step 3: 迁移清理（仅 update，清理旧版遗留文件）──────────────────
   cleanupStaleManagedFiles(context, oldManifest);
 
+  // Legacy non-MCP units may have retired above. Re-plan against the resulting
+  // shared bytes inside the same preflighted transaction before native node writes.
+  context.mcpPlan = planMcpInstall(TARGET_DIR, currentPolicy(), oldManifest);
+  applyNativeMcpPlan(context);
+
   // ── Step 4: 写 manifest ────────────────────────────────────────────
-  if (!dryRun) writeManifest(context.manifest);
+  if (!dryRun) {
+    saveProjectConfig(TARGET_DIR, currentPolicy());
+    ensureStateIgnore(TARGET_DIR);
+    writeManifest(context.manifest);
+    removeConsumedLegacyManifest();
+  }
+}
+
+function removeConsumedLegacyManifest() {
+  if (consumedLegacyHash && fs.existsSync(LEGACY_MANIFEST_PATH) && fileMd5(LEGACY_MANIFEST_PATH) === consumedLegacyHash) fs.unlinkSync(LEGACY_MANIFEST_PATH);
+}
+
+function snapshotInstall(context) {
+  const paths = new Set([...Object.keys(context.oldManifest?.files || {}), ...context.editorConfigs.map(([rel]) => rel),
+    ...walkDir(FILES_DIR, FILES_DIR).filter(rel => shouldIncludeStaticFile(rel, context.validationConfig)).map(rel => resolveSharedProjectConfigTarget(TARGET_DIR, rel)),
+    ...context.mcpPlan.files.map((item) => item.path), MANIFEST_NAME, ".wl-skills-manifest.json", LOCAL_SYNC_CONFIG, ".wl-skills/state/.gitignore", ".gitignore", "eslint.config.cjs", ".husky/pre-commit", ".husky/pre-push", path.relative(TARGET_DIR, currentPolicy().configPath)]);
+  return snapshotManagedPaths(paths);
+}
+
+function snapshotManagedPaths(paths) {
+  const entries = [...new Set(paths)].map(rel => {
+    const file = resolveProjectPath(TARGET_DIR, rel);
+    return [file, fs.existsSync(file) && fs.statSync(file).isFile() ? { bytes: fs.readFileSync(file), mode: fs.statSync(file).mode } : null];
+  });
+  return () => {
+    for (const [file, original] of entries.reverse()) {
+      if (original) { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, original.bytes); fs.chmodSync(file, original.mode); }
+      else if (fs.existsSync(file) && fs.statSync(file).isFile()) removeFileAndEmptyParents(file);
+    }
+  };
+}
+
+function applyNativeMcpPlan(context) {
+  const actions = { none: "unchanged", preserve: "preserved", remove: "removed" };
+  applyMcpInstall(context.mcpPlan, { projectRoot: TARGET_DIR, manifest: context.manifest, dryRun,
+    write: writeFile, remove: removeFileAndEmptyParents,
+    onAction: (item) => updateInstallCounter(context.stats, item.action === "write" ? item.before === null ? "created" : "updated" : actions[item.action]),
+  });
 }
 
 // ─── 命令: clean ────────────────────────────────────────────────────────
@@ -1446,6 +1580,7 @@ function removeOneManagedFile(file, manifest) {
   const fullPath = resolveProjectPath(TARGET_DIR, file);
   if (!fs.existsSync(fullPath)) return "skipped";
   if (manifest.managedJson?.[file]) return removeSharedFile(file, fullPath, manifest);
+  if (manifest.managedMcp?.records?.[file]) return "skipped";
   if (preserveCleanMarkdown(file, fullPath, manifest)) {
     console.log("  保留  " + file + "  (本地修改或所有权不明)");
     return "preserved";
@@ -1471,18 +1606,25 @@ function removeManagedFiles(toRemove, manifest) {
   const result = { removed: 0, skipped: 0, preserved: 0 };
   const preservedFiles = {};
   for (const file of toRemove) {
+    if (manifest.managedMcp?.records?.[file] && !manifest.managedJson?.[file]) continue;
     const action = removeOneManagedFile(file, manifest);
     result[action]++;
     if (action === "preserved") preservedFiles[file] = manifest.files[file];
   }
+  manifest.files = preservedFiles;
+  const mcpPlan = planMcpInstall(TARGET_DIR, currentPolicy(), manifest, true);
+  applyMcpInstall(mcpPlan, { projectRoot: TARGET_DIR, manifest, dryRun: false, write: writeFile, remove: removeFileAndEmptyParents,
+    onAction: (item) => { result[item.action === "preserve" ? "preserved" : ["write", "remove"].includes(item.action) ? "removed" : "skipped"]++; },
+  });
   finishCleanManifest(manifest, preservedFiles);
+  removeConsumedLegacyManifest();
   return result;
 }
 
 function printCleanResult(result, kept) {
   console.log("  ✔ 清理完成!");
-  console.log("    删除: " + result.removed + " 个文件");
-  if (result.skipped > 0) console.log("    跳过: " + result.skipped + " 个（已不存在）");
+  console.log("    清理贡献: " + result.removed + " 项");
+  if (result.skipped > 0) console.log("    跳过: " + result.skipped + " 项（无待移除贡献或已不存在）");
   if (result.preserved > 0) console.log("    保留本地修改: " + result.preserved + " 个文件");
   const suffix = keepReports
     ? "src/components/ + src/types/ + .wl-skills/reports/"
@@ -1497,7 +1639,7 @@ function runClean() {
   if (dryRun) console.log("  模式: --dry-run（预览）");
   console.log("");
 
-  const manifest = readManifest();
+  const manifest = prepareMcpManifest(TARGET_DIR, readManifest());
   if (!manifest) {
     console.log("  ⚠ 未找到 " + MANIFEST_NAME);
     console.log("  请先执行 pnpm dlx @agile-team/wl-skills-kit init 安装一次。");
@@ -1505,15 +1647,19 @@ function runClean() {
     process.exit(1);
   }
 
-  const allFiles = Object.keys(manifest.files);
-  const keep = (file) => !manifest.managedJson?.[file] && shouldKeepManagedFile(file);
+  const mcpPlan = planMcpInstall(TARGET_DIR, currentPolicy(manifest), manifest, true);
+  const allFiles = [...new Set([...Object.keys(manifest.files), ...mcpPlan.files.map((item) => item.path)])];
+  const keep = (file) => !manifest.managedJson?.[file] && !manifest.managedMcp?.records?.[file] && shouldKeepManagedFile(file);
   const toRemove = allFiles.filter((file) => !keep(file));
   const toKeep = allFiles.filter(keep);
 
   if (dryRun) {
     previewClean(toRemove, toKeep, manifest);
+    applyMcpInstall(mcpPlan, { projectRoot: TARGET_DIR, manifest: { ...manifest, files: { ...manifest.files } }, dryRun: true });
   } else {
-    printCleanResult(removeManagedFiles(toRemove, manifest), toKeep.length);
+    const rollback = snapshotManagedPaths([...allFiles, MANIFEST_NAME, ".wl-skills-manifest.json"]);
+    try { printCleanResult(removeManagedFiles(toRemove, manifest), toKeep.length); }
+    catch (error) { rollback(); throw error; }
   }
   console.log("");
 }
@@ -1538,16 +1684,8 @@ function expectedManifestFiles() {
     const hash = expectedStaticHash(relPath, targetRelPath);
     if (hash) expected[targetRelPath] = hash;
   }
-  // v2.11+: copilot-instructions.md 是薄壳入口，完整地图在 .wl-skills/
-  const instructionsSrc = path.join(
-    FILES_DIR,
-    ".github",
-    "copilot-instructions.md",
-  );
-  if (fs.existsSync(instructionsSrc)) {
-    for (const [ecPath, ecContent] of getInstallEditorConfigs()) {
-      expected[ecPath] = contentMd5(isSharedMarkdown(ecPath) ? managedBlock(ecContent) : ecContent);
-    }
+  for (const [ecPath, ecContent] of getInstallEditorConfigs()) {
+    expected[ecPath] = contentMd5(isSharedMarkdown(ecPath) ? managedBlock(ecContent) : ecContent);
   }
   return expected;
 }
@@ -1602,6 +1740,7 @@ function checkPreCommitHook(huskyExists) {
 
 function syncEnvironmentPath() {
   return [
+    ".wl-skills/config/kit-sync.local.json",
     ".wl-skills/skills/sync/env.local.json",
     ".github/skills/sync/env.local.json",
   ].map((relPath) => path.join(TARGET_DIR, relPath))
@@ -1617,6 +1756,7 @@ function hasConfiguredToken(env) {
 
 function checkSyncEnvironment() {
   const envPath = syncEnvironmentPath();
+  if (!envPath && !currentPolicy().mcp) return createCheck("MCP env.local.json", true, "未启用 MCP；需要时显式 --mcp 并配置凭据");
   if (!envPath) return createCheck("MCP env.local.json", false, "缺失");
   try {
     const env = JSON.parse(fs.readFileSync(envPath, "utf8"));
@@ -1644,7 +1784,7 @@ function checkMcpServer() {
 function collectEnvironmentChecks() {
   const huskyExists = fs.existsSync(path.join(TARGET_DIR, ".husky"));
   const manifest = readManifest();
-  return [
+  const checks = [
     checkNodeRuntime(),
     checkProjectConfig(".prettierrc", [".prettierrc.js", ".prettierrc", ".prettierrc.cjs"]),
     checkProjectConfig("eslint.config", ["eslint.config.ts", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.js"]),
@@ -1654,6 +1794,21 @@ function collectEnvironmentChecks() {
     checkSyncEnvironment(),
     checkMcpServer(),
   ];
+  if (currentPolicy().mcp) {
+    for (const host of currentPolicy().hosts) {
+      const inspected = inspectMcpInstall(TARGET_DIR, host);
+      checks.push(createCheck(`MCP ${host}`, inspected.status === "configured", `${inspected.status}；内容已检查=${inspected.contentsInspected === true}；连接未验证`));
+    }
+  }
+  if (currentPolicy().integration === "compact") {
+    for (const item of checks) {
+      if (!item.ok && [".prettierrc", "eslint.config", ".husky", ".husky/pre-commit (wl-skills validate)"].includes(item.name)) {
+        item.ok = true;
+        item.detail = `可选工程配置：${item.detail}；compact 不自动改写项目工具链`;
+      }
+    }
+  }
+  return checks;
 }
 
 function runCheck() {
@@ -1690,14 +1845,25 @@ function expectedInstallState(relPath, expectedHash) {
   return "changed";
 }
 
+function appendMcpDiff(plan, buckets) {
+  for (const item of plan.files) {
+    if (item.action === "remove") buckets.removed.push(item.path);
+    else if (item.action === "preserve") buckets.preserved.push(item.path);
+    else if (item.action === "write") (item.before === null ? buckets.added : buckets.changed).push(item.path);
+    else buckets.same.push(item.path);
+  }
+}
+
 function runDiff() {
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [diff]");
   console.log("  目标目录: " + TARGET_DIR);
   console.log("");
 
-  const manifest = readManifest();
+  const manifest = prepareMcpManifest(TARGET_DIR, readManifest());
   const expected = expectedManifestFiles();
+  const mcpPlan = planMcpInstall(TARGET_DIR, currentPolicy(manifest), manifest);
+  const mcpPaths = new Set(mcpPlan.files.map((item) => item.path));
   const current = manifest && manifest.files ? manifest.files : {};
   const added = [];
   const changed = [];
@@ -1706,15 +1872,17 @@ function runDiff() {
   const same = [];
   const buckets = { added, changed, preserved, same };
 
-  for (const relPath of Object.keys(expected).sort()) {
+  for (const relPath of Object.keys(expected).filter((rel) => !mcpPaths.has(rel)).sort()) {
     buckets[expectedInstallState(relPath, expected[relPath])].push(relPath);
   }
 
-  for (const relPath of Object.keys(current).sort()) {
+  for (const relPath of Object.keys(current).filter((rel) => !mcpPaths.has(rel)).sort()) {
     if (!expected[relPath] && fs.existsSync(path.join(TARGET_DIR, relPath))) {
       removed.push(relPath);
     }
   }
+  appendMcpDiff(mcpPlan, { added, changed, preserved, removed, same });
+  mcpMessages(mcpPlan).forEach((message) => console.warn(`  [MCP] ${message}`));
 
   console.log(
     "  当前 manifest: " + (manifest ? "v" + manifest.version : "未找到"),
@@ -1867,17 +2035,20 @@ function appendDictionaryWarnings(issues, dir, file, warnings, references, scope
 }
 
 function appendDictionaryContractIssues(issues, scope) {
+  const checkedFiles = [];
   for (const file of scope.files) {
     const dir = path.relative(TARGET_DIR, file).replace(/\\/g, "/");
     if (!fs.existsSync(file)) {
       issues.push({ level: "error", dir, text: `${dir}: 删除字典契约后仍存在字典来源或引用`, rule: "D1" });
       continue;
     }
+    resolveProjectPath(TARGET_DIR, file);
     const result = validateContractAlignment(path.dirname(file));
     for (const text of result.errors) issues.push({ level: "error", dir, text, rule: "D1" });
     const references = validateDictionaryReferences(path.dirname(file), {
       projectRoot: TARGET_DIR,
     });
+    checkedFiles.push(dir);
     appendDictionaryWarnings(issues, dir, file, result.warnings, references, scope);
     for (const text of references.errors) {
       issues.push({ level: "error", dir, text, rule: "D2" });
@@ -1886,7 +2057,7 @@ function appendDictionaryContractIssues(issues, scope) {
       issues.push({ level: "warn", dir, text, rule: "D2" });
     }
   }
-  return scope.files.length;
+  return { count: scope.files.length, checkedFiles };
 }
 
 let validationUnstaged = new Set();
@@ -2463,7 +2634,7 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
     sourceFiles: preCommit && stagedSet ? Array.from(stagedSet) : undefined,
   });
   issues.push(...componentResult.issues);
-  const dictContractCount = appendDictionaryContractIssues(issues, dictionaryScope);
+  const dictionaries = appendDictionaryContractIssues(issues, dictionaryScope);
   const astResult = runValidationAst(issues, scanPath, stagedSet, pageFiles.hasSymlink ? undefined : pageFiles);
   const specResult = appendSpecIssues(issues, pages);
   const definitionValidators = appendDefinitionValidatorIssues(
@@ -2475,13 +2646,17 @@ function collectValidation(scanPath, pages, pageFiles, stagedSet, validationConf
     issues,
     summary: {
       pages: pages.length,
-      checkedFiles: [...new Set([...pages.flatMap((page) => ["index.vue", "data.ts"].map((name) => path.join(page.dir, name)).filter((rel) => fs.existsSync(path.join(TARGET_DIR, rel)))), ...(astResult.checkedFiles || [])])],
+      checkedFiles: [...new Set([
+        ...pages.flatMap((page) => ["index.vue", "data.ts"].map((name) => path.join(page.dir, name)).filter((rel) => fs.existsSync(path.join(TARGET_DIR, rel)))),
+        ...(astResult.checkedFiles || []),
+        ...dictionaries.checkedFiles,
+      ])],
       astPages: astResult.pages,
       astAvailable: astResult.astAvailable,
       astCacheHits: astResult.cacheHits,
       astCacheMisses: astResult.cacheMisses,
       specPages: specResult.alignedPages,
-      dictContracts: dictContractCount,
+      dictContracts: dictionaries.count,
       components: componentResult.selected.length,
       definitionValidators,
       typeCheckResult,
@@ -2519,7 +2694,7 @@ let validationHandle;
 
 function recordValidation(summary, issues) {
   const integration = require("../lib/task-integration");
-  validationReceipt = integration.core.finishExecution(validationHandle, integration.validationFacts(summary, issues, strict));
+  validationReceipt = integration.core.finishExecution(validationHandle, integration.scopedValidationFacts(validationHandle, summary, issues, strict, readOption("--page-verifier") || undefined));
 }
 
 function runValidate() {
@@ -2749,17 +2924,22 @@ function printDoctorChecks(checks) {
 }
 
 function runDoctorUi() {
+  const pkg = readJsonSafe(path.join(TARGET_DIR, "package.json"));
+  const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
+  const checks = createUiIntegrationChecks(deps, collectDoctorSource(collectDoctorFiles()));
+  const failed = checks.filter((item) => !item.ok).length;
+  if (failed > 0) process.exitCode = 1;
+  if (args.includes("--json")) {
+    console.log(JSON.stringify({ ok: failed === 0, checks, summary: { failed, total: checks.length } }, null, 2));
+    return;
+  }
+
   console.log("");
   console.log("  wl-skills-kit v" + PKG.version + "  [doctor-ui]");
   console.log("  目标目录: " + TARGET_DIR);
   console.log("");
 
-  const pkg = readJsonSafe(path.join(TARGET_DIR, "package.json"));
-  const deps = pkg ? { ...pkg.dependencies, ...pkg.devDependencies } : {};
-  const files = collectDoctorFiles();
-  const checks = createUiIntegrationChecks(deps, collectDoctorSource(files));
   printDoctorChecks(checks);
-  const failed = checks.filter((item) => !item.ok).length;
   console.log("");
   console.log(
       failed === 0
@@ -2767,7 +2947,6 @@ function runDoctorUi() {
         : "  ⚠ wl-skills-ui 接入仍有 " + failed + " 项需处理",
   );
   console.log("");
-  if (failed > 0) process.exitCode = 1;
 }
 
 function parseMarkdownTable(content) {
@@ -3637,19 +3816,21 @@ switch (command) {
     });
     break;
   case "init":
-    runInstall(false);
-    break;
   case "update":
-    runInstall(true);
+  case "diff":
+    try {
+      if (command === "diff") runDiff();
+      else runInstall(command === "update");
+    } catch (error) {
+      console.error(`  ✖ ${command} 未完成：${error.message}`);
+      process.exitCode = 1;
+    }
     break;
   case "clean":
     runClean();
     break;
   case "check":
     runCheck();
-    break;
-  case "diff":
-    runDiff();
     break;
   case "validate":
   case "validate-page":

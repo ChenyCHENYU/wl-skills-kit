@@ -58,7 +58,7 @@ skills/
 | code-fix         | ✅ 启用 | `skills/ops/code-fix/SKILL.md`          | —                                                                                                                          | **自动修复** / **整改偏差** / **修复报告** / **规范整改** / **修复偏差** / **code fix** |
 | standard-env-config | ✅ 启用 | `skills/ops/standard-env-config/SKILL.md` | `wls_standard_env_scan` / `wls_standard_env_apply` / `wls_standard_env_verify`                                             | **标准环境配置** / **前端环境标准化** / **五套环境** / **本地联调** / **public联调** / **172迁移** / **9000迁移** / **华新环境** / **自定义环境 Profile** |
 
-> **MCP 工具依赖说明**：sync 类 Skill 必须通过列出的 MCP 工具执行。工具不可用或返回错误时，遵循 `skills/sync/_mcp-guardrail.md` §2 自愈剧本（引导用户完善 `env.local.json` 后重试），**不允许** AI 用 curl/PowerShell/fetch 等绕开 MCP。
+> sync 类业务动作使用宿主已列出的 Kit MCP 工具。工具不可用或返回错误时，按 `skills/sync/_mcp-guardrail.md` §2 显示缺口。凭据由 MCP 读取，禁止绕过 MCP 直接请求业务接口。
 
 ---
 
@@ -66,11 +66,11 @@ skills/
 
 0. **优先级 0（最高）— 双线隔离**：若用户输入路径含 `.wl-skills/docs/spec/`，或文档含功能编码 `/[A-Z]{2,6}[0-9]{3}/` / IPO 表「处理逻辑」/ 流程五要素，**强制路由 `spec-doc-parse`（规范线）**，跳过 `prototype-scan` 的所有模式匹配。反之，Axure HTML / 截图 / 口述 / 非规范零散详设走 `prototype-scan`（原型线）。两线最终汇聚到同一份 page-spec JSON。
 1. **首先加载** `_best-practices.md`（场景索引，语义级路由依据），结合用户意图判断属于哪个场景
-2. 按场景指向的 Skill，`read_file` 加载对应 SKILL.md
+2. 从真实任务回执提供的物理路径读取所需 SKILL.md
 3. SKILL.md 中标注的 `必读 standards` 按 `standards/index.md` 任务类型映射加载
 4. sync 类（菜单/字典/权限）任务必须额外加载 `skills/sync/_mcp-guardrail.md`
 5. 如用户表达连续交付/智能体/全流程意图，同时读取 `_pipeline.md` 获取 Skill I/O 与 `next_suggest`
-6. 在 SKILL.md 指示下输出 **Pre-flight 声明**（强制约定式输出）
+6. 展示真实任务回执。执行前核对适用的 Pre-flight 条件，无法验证的条件保持待确认
 7. 页面生成任务必须额外读取 `standards/12-base-table.md`，并执行 `BaseTable + render-type="agGrid" + cid + defineColumns + renderOps` 硬约束
 8. 若消息包含“风格 / skills-ui / 状态标签 / 操作列 / AGGrid”，同时建议运行 `wl-skills doctor-ui`
 9. `business-doc-extract` 不依赖关键词匹配，AI 必须按 `资料源 + 意图 + 范围` 三因素自行判断；缺资料时先询问用户提供原型/详设/字段资料路径，不要凭推断写入 `.wl-skills/docs/business`
